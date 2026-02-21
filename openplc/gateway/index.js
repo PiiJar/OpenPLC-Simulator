@@ -26,12 +26,19 @@ const ModbusRTU = require('modbus-serial');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 
 // --- Configuration ---
 const PLC_HOST = process.env.PLC_HOST || 'localhost';
 const PLC_PORT = parseInt(process.env.PLC_PORT || '502');
 const API_PORT = parseInt(process.env.API_PORT || '3001');
 const POLL_MS = parseInt(process.env.POLL_MS || '100');
+
+// OpenPLC REST API (HTTPS on port 8443)
+const PLC_API_HOST = process.env.PLC_API_HOST || PLC_HOST;
+const PLC_API_PORT = parseInt(process.env.PLC_API_PORT || '8443');
+const PLC_API_USER = process.env.PLC_API_USER || 'PiiJar';
+const PLC_API_PASS = process.env.PLC_API_PASS || '!T0s1v41k33!';
 
 // Customers root directory
 // In Docker: /data/customers mounted from host
@@ -98,6 +105,104 @@ let lastCycleCount = -1;
 let plcAlive = false;
 let simStartTime = Date.now();
 let simRunning = false;
+
+// --- PLC Runtime API state ---
+let plcJwtToken = null;
+let plcRuntimeStatus = 'unknown'; // 'running' | 'stopped' | 'unknown'
+let plcRuntimeLogs = '';
+let plcExecTime = 'N/A';
+
+// --- PLC REST API helpers ---
+function plcApiRequest(method, apiPath, body, timeoutMs = 15000) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: PLC_API_HOST,
+      port: PLC_API_PORT,
+      path: `/api/${apiPath}`,
+      method,
+      rejectUnauthorized: false, // self-signed cert
+      headers: { 'Content-Type': 'application/json' }
+    };
+    if (plcJwtToken) {
+      options.headers['Authorization'] = `Bearer ${plcJwtToken}`;
+    }
+    const payload = body ? JSON.stringify(body) : null;
+    if (payload) {
+      options.headers['Content-Length'] = Buffer.byteLength(payload);
+    }
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          resolve({ status: res.statusCode, data: JSON.parse(data) });
+        } catch {
+          resolve({ status: res.statusCode, data });
+        }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(timeoutMs, () => { req.destroy(); reject(new Error('timeout')); });
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+async function plcApiLogin() {
+  try {
+    const res = await plcApiRequest('POST', 'login', {
+      username: PLC_API_USER,
+      password: PLC_API_PASS
+    });
+    if (res.status === 200 && res.data.access_token) {
+      plcJwtToken = res.data.access_token;
+      console.log('[PLC-API] JWT login OK');
+      return true;
+    }
+    console.error('[PLC-API] Login failed:', res.status, res.data);
+    return false;
+  } catch (err) {
+    console.error('[PLC-API] Login error:', err.message);
+    return false;
+  }
+}
+
+async function plcApiGet(command, timeoutMs) {
+  if (!plcJwtToken) await plcApiLogin();
+  try {
+    const res = await plcApiRequest('GET', command, null, timeoutMs);
+    if (res.status === 401) {
+      // Token expired, re-login
+      if (await plcApiLogin()) {
+        return plcApiRequest('GET', command, null, timeoutMs);
+      }
+    }
+    return res;
+  } catch (err) {
+    console.error(`[PLC-API] GET ${command} error:`, err.message);
+    return { status: 0, data: { error: err.message } };
+  }
+}
+
+async function pollPlcRuntimeStatus() {
+  try {
+    const res = await plcApiGet('status');
+    if (res.status === 200 && res.data.status) {
+      const s = res.data.status;
+      if (s === 'STATUS:RUNNING') plcRuntimeStatus = 'running';
+      else if (s === 'STATUS:STOPPED') plcRuntimeStatus = 'stopped';
+      else plcRuntimeStatus = 'unknown';
+    }
+  } catch (err) {
+    plcRuntimeStatus = 'unknown';
+  }
+}
+
+// Poll PLC runtime status every 3 seconds
+function startPlcStatusPolling() {
+  pollPlcRuntimeStatus();
+  setInterval(pollPlcRuntimeStatus, 3000);
+}
 
 // --- Transporter config (loaded from customer JSON) ---
 let transporterConfig = { transporters: [] };
@@ -497,11 +602,12 @@ app.post('/api/customers/:customer/plants/:plant/copy-template', (req, res) => {
   res.json({ ok: true });
 });
 
-// PLC info endpoint
+// PLC info endpoint (combined Modbus + Runtime API state)
 app.get('/api/plc/status', (req, res) => {
   res.json({
     connected,
     plc_alive: plcAlive,
+    runtime_status: plcRuntimeStatus,  // 'running' | 'stopped' | 'unknown'
     init_done: plcMeta.init_done,
     station_count: plcMeta.station_count,
     cycle_count: plcMeta.cycle_count,
@@ -509,6 +615,48 @@ app.get('/api/plc/status', (req, res) => {
     host: PLC_HOST,
     port: PLC_PORT
   });
+});
+
+// PLC Runtime control endpoints
+app.post('/api/plc/start', async (req, res) => {
+  try {
+    const result = await plcApiGet('start-plc');
+    if (result.status === 200) {
+      plcRuntimeStatus = 'running';
+      res.json({ success: true, message: 'PLC started', data: result.data });
+    } else {
+      res.status(result.status || 500).json({ success: false, error: result.data });
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/plc/stop', async (req, res) => {
+  try {
+    const result = await plcApiGet('stop-plc', 45000);
+    if (result.status === 200) {
+      plcRuntimeStatus = 'stopped';
+      res.json({ success: true, message: 'PLC stopped', data: result.data });
+    } else {
+      res.status(result.status || 500).json({ success: false, error: result.data });
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/plc/logs', async (req, res) => {
+  try {
+    const result = await plcApiGet('runtime-logs');
+    if (result.status === 200) {
+      res.json({ success: true, logs: result.data['runtime-logs'] || '' });
+    } else {
+      res.status(result.status || 500).json({ success: false, error: result.data });
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Health check
@@ -523,11 +671,17 @@ async function main() {
   console.log(`[GATEWAY] Connecting to PLC at ${PLC_HOST}:${PLC_PORT}...`);
   await connectModbus();
   
+  // Login to PLC REST API and start status polling
+  console.log(`[GATEWAY] Connecting to PLC REST API at ${PLC_API_HOST}:${PLC_API_PORT}...`);
+  await plcApiLogin();
+  startPlcStatusPolling();
+  
   startPolling();
   
   app.listen(API_PORT, () => {
     console.log(`[GATEWAY] REST API on http://localhost:${API_PORT}`);
     console.log(`[GATEWAY] PLC polling every ${POLL_MS}ms`);
+    console.log(`[GATEWAY] PLC Runtime API: https://${PLC_API_HOST}:${PLC_API_PORT}`);
     console.log(`[GATEWAY] Customers root: ${CUSTOMERS_ROOT}`);
     console.log(`[GATEWAY] Default: ${currentCustomer} / ${currentPlant}`);
   });

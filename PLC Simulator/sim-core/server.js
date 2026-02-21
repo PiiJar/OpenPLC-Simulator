@@ -4092,7 +4092,7 @@ const stepSimulation = async (dtMs) => {
         const filename = `Batch_${batchIdPad}_treatment_program_${programNumPad}.csv`;
         const filepath = path.join(runtimeDir, filename);
         
-        // Muodosta CSV (MinStat/MaxStat yhteensopivuus MATH Simulatorin kanssa)
+        // Muodosta CSV
         const header = 'Stage,MinStat,MaxStat,MinTime,MaxTime,CalcTime';
         const rows = program.map(s => 
           `${s.stage},${s.min_station},${s.max_station},${s.min_time},${s.max_time},${s.calc_time || s.max_time}`
@@ -4793,11 +4793,11 @@ const exportSimulationResults = async () => {
     const customer = simPurpose.customer;
     const plantName = simPurpose.plant?.name || 'Unknown_Plant';
     
-    // 2. Tarkista MATH-simulaattorin viimeisin output-hakemisto
-    const getMathInitDir = () => {
-      const dockerPath = '/data/MATH Simulator/initialization';
+    // 2. Tarkista viimeisin output-hakemisto
+    const getInitDir = () => {
+      const dockerPath = '/data/initialization';
       if (fsSync.existsSync(dockerPath)) return dockerPath;
-      return path.join(__dirname, '..', '..', 'MATH Simulator', 'initialization');
+      return path.join(__dirname, '..', '..', 'initialization');
     };
     
     const getSimResultsDir = () => {
@@ -4806,14 +4806,14 @@ const exportSimulationResults = async () => {
       return path.join(__dirname, '..', '..', 'simulation_results');
     };
     
-    const mathInitDir = getMathInitDir();
+    const initDir = getInitDir();
     const simResultsDir = getSimResultsDir();
-    const currentOutputPath = path.join(mathInitDir, 'current_output_dir.txt');
+    const currentOutputPath = path.join(initDir, 'current_output_dir.txt');
     
     let targetDir = null;
-    let usedExistingMathDir = false;
+    let usedExistingDir = false;
     
-    // Yritä lukea MATH-simulaattorin viimeisin hakemisto
+    // Yritä lukea viimeisin output-hakemisto
     try {
       const mathOutputDir = (await fs.readFile(currentOutputPath, 'utf8')).trim();
       const normalizedPath = mathOutputDir.replace('/data/simulation_results/', '');
@@ -4828,11 +4828,11 @@ const exportSimulationResults = async () => {
             normalizeForCompare(mathPlant) === normalizeForCompare(plantName)) {
           const relativePath = mathOutputDir.replace('/data/simulation_results/', '');
           targetDir = path.join(simResultsDir, relativePath, 'plc-sim');
-          usedExistingMathDir = true;
+          usedExistingDir = true;
         }
       }
     } catch (err) {
-      console.log('[Export] MATH output dir not found or not matching, creating new directory');
+      console.log('[Export] Output dir not found or not matching, creating new directory');
     }
     
     // 3. Jos ei löytynyt sopivaa MATH-hakemistoa, luo uusi
@@ -4942,7 +4942,7 @@ const exportSimulationResults = async () => {
       simulation_time_formatted: formatSimTime(simTimeMs),
       production_completed: productionPlan?.productionCompleted || false,
       total_batches: productionPlan?.totalBatches || null,
-      used_existing_math_dir: usedExistingMathDir,
+      used_existing_dir: usedExistingDir,
       files_exported: {
         batch_schedules: copiedFiles,
         consolidated_csv: 'plc_batch_schedule.csv'
@@ -4963,11 +4963,11 @@ const exportSimulationResults = async () => {
     return {
       success: true,
       target_dir: targetDir,
-      used_existing_math_dir: usedExistingMathDir,
+      used_existing_dir: usedExistingDir,
       files_exported: copiedFiles.length + 2,
-      message: usedExistingMathDir 
-        ? 'Results exported to existing MATH simulation directory'
-        : 'Results exported to new PLC simulation directory'
+      message: usedExistingDir 
+        ? 'Results exported to existing simulation directory'
+        : 'Results exported to new simulation directory'
     };
     
   } catch (error) {

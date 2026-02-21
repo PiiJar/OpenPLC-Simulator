@@ -74,6 +74,9 @@ export default function App() {
   const [simPurpose, setSimPurpose] = useState(null);
   const [simPurposeForm, setSimPurposeForm] = useState({ country: '', city: '', purpose: '' });
   const [simPurposeSaving, setSimPurposeSaving] = useState(false);
+  // PLC Runtime state
+  const [plcStatus, setPlcStatus] = useState({ runtime_status: 'unknown', plc_alive: false, connected: false, cycle_count: 0 });
+  const [plcToggling, setPlcToggling] = useState(false);
   // Layout config editor
   const [showConfig, setShowConfig] = useState(false);
   const [configForm, setConfigForm] = useState(null);
@@ -104,6 +107,19 @@ export default function App() {
   const latestSnapshotRef = useRef({ timeMs: performance.now(), transporters: [] });
 
   // Load saved customer/plant selection from backend on startup
+  useEffect(() => {
+    // Poll PLC runtime status every 2 seconds
+    const pollPlcStatus = async () => {
+      try {
+        const res = await fetch('/api/plc/status');
+        if (res.ok) setPlcStatus(await res.json());
+      } catch (err) { /* ignore */ }
+    };
+    pollPlcStatus();
+    const plcInterval = setInterval(pollPlcStatus, 2000);
+    return () => clearInterval(plcInterval);
+  }, []);
+
   useEffect(() => {
     const loadCurrentSelection = async () => {
       try {
@@ -1273,28 +1289,73 @@ export default function App() {
         gap: '16px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1a1a1a', margin: 0 }}>Simulator</h1>
+          {/* Logo + version */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+            <img src="/OpenPLC_logo.jpg" alt="OpenPLC" style={{ height: 36, width: 36, borderRadius: 6, objectFit: 'cover' }} />
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#333', letterSpacing: 0.5 }}>OpenPLC_v3</span>
+          </div>
+
+          {/* Start / Stop — IEC 60073 */}
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button
+              disabled={plcToggling || plcStatus.runtime_status === 'running'}
+              onClick={async () => {
+                setPlcToggling(true);
+                try { await fetch('/api/plc/start', { method: 'POST' }); } catch {}
+                setTimeout(async () => {
+                  try { const r = await fetch('/api/plc/status'); if (r.ok) setPlcStatus(await r.json()); } catch {}
+                  setPlcToggling(false);
+                }, 2000);
+              }}
+              title="Start PLC"
+              style={{
+                width: 34, height: 34,
+                border: plcStatus.runtime_status === 'running' ? '2px solid #2e7d32' : '1px solid #ccc',
+                borderRadius: 6, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: plcStatus.runtime_status === 'running' ? '#e8f5e9' : '#f5f5f5',
+                opacity: plcToggling ? 0.5 : 1
+              }}
+            >
+              <svg width="14" height="16" viewBox="0 0 14 16">
+                <polygon points="1,0 14,8 1,16" fill={plcStatus.plc_alive && plcStatus.runtime_status === 'running' ? '#2e7d32' : '#bbb'} />
+              </svg>
+            </button>
+            <button
+              disabled={plcToggling || plcStatus.runtime_status === 'stopped'}
+              onClick={async () => {
+                setPlcToggling(true);
+                try { await fetch('/api/plc/stop', { method: 'POST' }); } catch {}
+                setTimeout(async () => {
+                  try { const r = await fetch('/api/plc/status'); if (r.ok) setPlcStatus(await r.json()); } catch {}
+                  setPlcToggling(false);
+                }, 3000);
+              }}
+              title="Stop PLC"
+              style={{
+                width: 34, height: 34,
+                border: plcStatus.runtime_status === 'stopped' ? '2px solid #c62828' : '1px solid #ccc',
+                borderRadius: 6, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: plcStatus.runtime_status === 'stopped' ? '#ffebee' : '#f5f5f5',
+                opacity: plcToggling ? 0.5 : 1
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14">
+                <circle cx="7" cy="7" r="7" fill={plcStatus.plc_alive && plcStatus.runtime_status !== 'running' ? '#c62828' : '#bbb'} />
+              </svg>
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div style={{ width: 1, height: 32, background: '#ddd' }} />
+
+          {/* Customer / Plant */}
           {selectedCustomer && selectedPlant && (
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column',
-              gap: 2,
-              padding: '6px 12px',
-              background: plantStatus?.isConfigured ? '#e8f5e9' : '#fff3e0',
-              border: `1px solid ${plantStatus?.isConfigured ? '#a5d6a7' : '#ffcc80'}`,
-              borderRadius: 4,
-              fontSize: 13
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontWeight: 600 }}>{selectedCustomer}</span>
-                <span style={{ color: '#666' }}>/</span>
-                <span>{selectedPlant}</span>
-              </div>
-              {plantStatus?.isConfigured && plantStatus.analysis && (
-                <div style={{ color: '#555', fontSize: 12 }}>
-                  {plantStatus.analysis.summary}
-                </div>
-              )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#333' }}>{selectedCustomer}</span>
+              <span style={{ color: '#999', fontSize: 13 }}>/</span>
+              <span style={{ fontSize: 13, color: '#666' }}>{selectedPlant}</span>
             </div>
           )}
 
@@ -1311,7 +1372,7 @@ export default function App() {
               background: showCustomer ? '#1976d2' : '#fff',
               color: showCustomer ? '#fff' : '#333',
               cursor: 'pointer',
-              minWidth: 70,
+              width: 80,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -1348,7 +1409,7 @@ export default function App() {
               background: showConfig ? '#1976d2' : '#fff',
               color: showConfig ? '#fff' : '#333',
               cursor: 'pointer',
-              minWidth: 70,
+              width: 80,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -1369,7 +1430,7 @@ export default function App() {
               background: showProduction ? '#1976d2' : '#fff',
               color: showProduction ? '#fff' : '#333',
               cursor: 'pointer',
-              minWidth: 70,
+              width: 80,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -1378,27 +1439,6 @@ export default function App() {
           >
             <span style={{ fontSize: 18 }}>🏭</span>
             <span>Production</span>
-          </button>
-          <button
-            onClick={() => window.open('/optimizer.html', '_blank')}
-            style={{
-              padding: '8px 12px',
-              fontSize: '12px',
-              fontWeight: 600,
-              borderRadius: '4px',
-              border: '1px solid #ccc',
-              background: '#fff',
-              color: '#333',
-              cursor: 'pointer',
-              minWidth: 70,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 2
-            }}
-          >
-            <span style={{ fontSize: 18 }}>🧮</span>
-            <span>Optimize</span>
           </button>
           <button
             onClick={() => setShowBatches((v) => !v)}
@@ -1411,7 +1451,7 @@ export default function App() {
               background: showBatches ? '#1976d2' : '#fff',
               color: showBatches ? '#fff' : '#333',
               cursor: 'pointer',
-              minWidth: 70,
+              width: 80,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -1432,7 +1472,7 @@ export default function App() {
               background: showTasks ? '#1976d2' : '#fff',
               color: showTasks ? '#fff' : '#333',
               cursor: 'pointer',
-              minWidth: 70,
+              width: 80,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -1453,7 +1493,7 @@ export default function App() {
               background: '#fff',
               color: '#333',
               cursor: 'pointer',
-              minWidth: 70,
+              width: 80,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -1474,7 +1514,7 @@ export default function App() {
               background: '#fff',
               color: '#333',
               cursor: 'pointer',
-              minWidth: 70,
+              width: 80,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -1504,7 +1544,6 @@ export default function App() {
                     cursor: 'pointer',
                     transition: 'all 0.2s'
                   }}
-                  // disabled={m === speed}
                 >
                   x{m}
                 </button>

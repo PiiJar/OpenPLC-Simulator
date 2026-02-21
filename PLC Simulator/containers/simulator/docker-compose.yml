@@ -15,26 +15,6 @@ services:
       - ../../../plant_templates:/app/plant_templates
       - ../../../customers:/app/customers
       - ../../../simulation_results:/data/simulation_results
-      - ../../../MATH Simulator/initialization:/data/MATH Simulator/initialization
-
-  math-sim-core:
-    image: simulator-math-sim-core:latest
-    build:
-      context: ../../../MATH Simulator
-      dockerfile: ../PLC Simulator/containers/simulator/Dockerfile.math
-    ports:
-      - "5001:5001"
-    environment:
-      - PORT=5001
-      - CUSTOMERS_DIR=/data/customers
-      - RESULTS_DIR=/data/simulation_results
-      - PLANT_TEMPLATES_DIR=/data/plant_templates
-    volumes:
-      - ../../../MATH Simulator:/app
-      - ../../../customers:/data/customers
-      - ../../../plant_templates:/data/plant_templates
-      - ../../../simulation_results:/data/simulation_results
-      - ../../visualization/runtime:/data/runtime
 
   plc-sim-visu:
     image: simulator-plc-sim-visu:latest
