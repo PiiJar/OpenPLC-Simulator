@@ -98,9 +98,10 @@ export default function App() {
   const [batchError, setBatchError] = useState('');
   const [selectedUnitId, setSelectedUnitId] = useState('');
   const [unitLocationEdit, setUnitLocationEdit] = useState('');
-  const [unitStatusEdit, setUnitStatusEdit] = useState('used');
-  const [unitStateEdit, setUnitStateEdit] = useState('empty');
-  const [unitTargetEdit, setUnitTargetEdit] = useState('none');
+  const [unitBatchEdit, setUnitBatchEdit] = useState(0);
+  const [unitStatusEdit, setUnitStatusEdit] = useState(0);
+  const [unitStateEdit, setUnitStateEdit] = useState(0);
+  const [unitTargetEdit, setUnitTargetEdit] = useState(0);
   const [unitSaving, setUnitSaving] = useState(false);
   const lastTickRef = useRef(null);
   const elapsedMsRef = useRef(0);
@@ -755,9 +756,10 @@ export default function App() {
     setBatchError('');
     setSelectedUnitId('');
     setUnitLocationEdit('');
-    setUnitStatusEdit('used');
-    setUnitStateEdit('empty');
-    setUnitTargetEdit('none');
+    setUnitBatchEdit(0);
+    setUnitStatusEdit(0);
+    setUnitStateEdit(0);
+    setUnitTargetEdit(0);
   };
 
   // Käsittele Unit-valinnan muutos dropdownista
@@ -765,20 +767,20 @@ export default function App() {
     setSelectedUnitId(unitIdStr);
     if (unitIdStr === '') {
       setUnitLocationEdit('');
-      setUnitStatusEdit('used');
-      setUnitStateEdit('empty');
-      setUnitTargetEdit('none');
-      setBatchForm(f => ({ ...f, unit_id: '', location: '' }));
+      setUnitBatchEdit(0);
+      setUnitStatusEdit(0);
+      setUnitStateEdit(0);
+      setUnitTargetEdit(0);
       return;
     }
     const uid = Number(unitIdStr);
     const unit = units.find(u => u.unit_id === uid);
     if (unit) {
-      setUnitLocationEdit(String(unit.location));
-      setUnitStatusEdit(unit.status || 'used');
-      setUnitStateEdit(unit.state || 'empty');
-      setUnitTargetEdit(unit.target || 'none');
-      setBatchForm(f => ({ ...f, unit_id: uid, location: String(unit.location) }));
+      setUnitLocationEdit(String(unit.location || 0));
+      setUnitBatchEdit(unit.batch_id || 0);
+      setUnitStatusEdit(unit.status || 0);
+      setUnitStateEdit(unit.state || 0);
+      setUnitTargetEdit(unit.target || 0);
     }
   };
 
@@ -794,16 +796,19 @@ export default function App() {
       const res = await fetch(`/api/units/${uid}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ location: newLoc, status: unitStatusEdit, state: unitStateEdit, target: unitTargetEdit })
+        body: JSON.stringify({
+          batch_id: Number(unitBatchEdit) || 0,
+          location: newLoc,
+          status: Number(unitStatusEdit) || 0,
+          state: Number(unitStateEdit) || 0,
+          target: Number(unitTargetEdit) || 0
+        })
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Unit save failed');
       }
       await fetchUnitsFromApi();
-      await fetchBatchesFromApi();
-      // Päivitä lomakkeen location kentät (unit location on totuus)
-      setBatchForm(f => ({ ...f, location: String(newLoc) }));
     } catch (err) {
       setBatchError(err.message || 'Unit save failed');
     } finally {
@@ -1087,67 +1092,37 @@ export default function App() {
   };
 
   const handleReset = async () => {
+    if (!selectedCustomer || !selectedPlant || !plantStatus?.isConfigured) {
+      console.warn('RESET: No customer/plant selected or not configured');
+      return;
+    }
+
     setIsRunning(false);
     setElapsedMs(0);
     setAvgCycleSec(0);
     lastTickRef.current = null;
-    
-    console.log('handleReset called:', { 
-      selectedCustomer, 
-      selectedPlant, 
-      plantStatus,
-      isConfigured: plantStatus?.isConfigured 
-    });
-    
+
     try {
-      // If a customer/plant is selected and configured, copy its files to visualization
-      if (selectedCustomer && selectedPlant && plantStatus?.isConfigured) {
-        console.log(`Copying customer plant: ${selectedCustomer}/${selectedPlant}`);
-        const copyRes = await fetch(`/api/copy-customer-plant`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ customer: selectedCustomer, plant: selectedPlant })
-        });
-        
-        if (copyRes.ok) {
-          const result = await copyRes.json();
-          console.log(`Customer plant ${selectedCustomer}/${selectedPlant} copied successfully`);
-          
-          // Reload page - localStorage will preserve customer/plant selection
-          window.location.reload();
-          return;
-        } else {
-          console.error('Failed to copy customer plant files');
-        }
-      } else if (!selectedCustomer || !selectedPlant) {
-        // No customer/plant selected - just reset with current config
-        console.log('No customer/plant selected, resetting with current config');
-      }
-      
-      // Call backend API to reset transporter states
-      const response = await fetch(`/api/reset-transporters`, {
-        method: 'POST'
+      console.log(`[RESET] Uploading config: ${selectedCustomer}/${selectedPlant}`);
+      const response = await fetch('/api/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customer: selectedCustomer, plant: selectedPlant })
       });
-      
+
       const result = await response.json();
-      
+
       if (result.success) {
-        setTransporterStates(result.transporters);
-        if (typeof result.simTimeMs === 'number') {
-          setElapsedMs(result.simTimeMs);
-        }
-        lastTickRef.current = null;
-        console.log("RESET: Transporter states reset successfully");
+        // Update UI layout with the returned config data
+        if (result.stations) setStations(result.stations);
+        if (result.tanks) setTanks(result.tanks);
+        if (result.transporters) setTransporters(result.transporters);
+        console.log(`[RESET] Uploaded ${result.stations?.length || 0} stations to PLC`);
       } else {
-        console.error("RESET failed:", result.error);
+        console.error('[RESET] Failed:', result.error);
       }
     } catch (error) {
-      console.error("Error calling reset API:", error);
-      // Fallback to local regeneration if backend is not available
-      if (transporters.length > 0 && stations.length > 0) {
-        generateInitialStates(transporters, stations);
-        console.log("RESET: Using fallback local reset");
-      }
+      console.error('[RESET] Error:', error);
     }
   };
 
@@ -1459,7 +1434,7 @@ export default function App() {
             }}
           >
             <span style={{ fontSize: 18 }}>📦</span>
-            <span>Batches</span>
+            <span>Units</span>
           </button>
           <button
             onClick={() => setShowTasks((v) => !v)}
@@ -1571,15 +1546,17 @@ export default function App() {
           </button>
           <button
             onClick={handleReset}
+            disabled={!selectedCustomer || !selectedPlant || !plantStatus?.isConfigured}
             style={{
               padding: '8px 16px',
               fontSize: '13px',
               fontWeight: 600,
               border: 'none',
               borderRadius: '4px',
-              cursor: 'pointer',
-              background: '#f44336',
+              cursor: (!selectedCustomer || !selectedPlant || !plantStatus?.isConfigured) ? 'not-allowed' : 'pointer',
+              background: (!selectedCustomer || !selectedPlant || !plantStatus?.isConfigured) ? '#666' : '#f44336',
               color: '#fff',
+              opacity: (!selectedCustomer || !selectedPlant || !plantStatus?.isConfigured) ? 0.5 : 1,
               transition: 'all 0.2s'
             }}
           >
@@ -2480,227 +2457,136 @@ export default function App() {
           )}
 
         {showBatches && (
-          <DraggablePanel title="Batches" onClose={() => { setShowBatches(false); resetBatchForm(); }}>
+          <DraggablePanel title="Units" onClose={() => { setShowBatches(false); resetBatchForm(); }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {batchError && (
                 <div style={{ color: '#c62828', fontWeight: 600, fontSize: 13 }}>{batchError}</div>
               )}
 
-              <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #eee', borderRadius: 6, padding: 8, background: '#fafafa' }}>
-                {sortedBatches.length === 0 && <div style={{ color: '#666', fontSize: 13 }}>No batches</div>}
-                {sortedBatches.map((b) => {
-                  const bUnit = units.find(u => u.batch_id === b.batch_id);
-                  return (
-                  <div key={b.batch_id} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, auto) 1fr auto auto', gap: 8, alignItems: 'center', fontSize: 13, padding: '6px 0', borderBottom: '1px solid #f0f0f0' }}>
-                    <div><strong>ID</strong> {Math.round(b.batch_id)}</div>
-                    <div style={{ color: '#1565c0' }}>U{bUnit ? bUnit.unit_id : '?'}</div>
-                    <div>loc {Math.round(b.location)}</div>
-                    <div>prog {Math.round(b.treatment_program)}</div>
-                    <div>stage {Math.round(b.stage)}</div>
-                    <div>min {Math.round(b.min_time_s)}s</div>
-                    <div>max {Math.round(b.max_time_s)}s</div>
-                    <div>start {Math.round(b.start_time)}</div>
-                    <button onClick={() => handleEditBatch(b)} style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #2196f3', background: '#e3f2fd', cursor: 'pointer', fontSize: 12 }}>Edit</button>
-                    <button onClick={() => handleDeleteBatch(b.batch_id)} style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #f44336', background: '#ffebee', cursor: 'pointer', fontSize: 12 }}>Delete</button>
+              {/* Unit list — read from PLC */}
+              <div style={{ maxHeight: 260, overflowY: 'auto', border: '1px solid #eee', borderRadius: 6, padding: 8, background: '#fafafa' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid #ccc', textAlign: 'left' }}>
+                      <th style={{ padding: '4px 6px' }}>#</th>
+                      <th style={{ padding: '4px 6px' }}>Batch</th>
+                      <th style={{ padding: '4px 6px' }}>Loc</th>
+                      <th style={{ padding: '4px 6px' }}>Status</th>
+                      <th style={{ padding: '4px 6px' }}>State</th>
+                      <th style={{ padding: '4px 6px' }}>Target</th>
+                      <th style={{ padding: '4px 6px' }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {units.map(u => {
+                      const statusLabels = { 0: 'not_used', 1: 'used' };
+                      const stateLabels = { 0: 'empty', 1: 'not_processed', 2: 'in_process', 3: 'processed' };
+                      const targetLabels = { 0: 'none', 1: 'to_loading', 2: 'to_buffer', 3: 'to_unload', 4: 'to_avoid' };
+                      const isUsed = u.status === 1;
+                      return (
+                        <tr key={u.unit_id} style={{ borderBottom: '1px solid #f0f0f0', opacity: isUsed ? 1 : 0.5 }}>
+                          <td style={{ padding: '4px 6px', fontWeight: 700 }}>U{u.unit_id}</td>
+                          <td style={{ padding: '4px 6px', color: '#1565c0' }}>{u.batch_id || '—'}</td>
+                          <td style={{ padding: '4px 6px' }}>{u.location || '—'}</td>
+                          <td style={{ padding: '4px 6px' }}>{statusLabels[u.status] || u.status}</td>
+                          <td style={{ padding: '4px 6px' }}>{stateLabels[u.state] || u.state}</td>
+                          <td style={{ padding: '4px 6px' }}>{targetLabels[u.target] || u.target}</td>
+                          <td style={{ padding: '4px 6px' }}>
+                            <button
+                              onClick={() => handleUnitSelect(String(u.unit_id))}
+                              style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #2196f3', background: selectedUnitId === String(u.unit_id) ? '#1565c0' : '#e3f2fd', color: selectedUnitId === String(u.unit_id) ? '#fff' : '#333', cursor: 'pointer', fontSize: 11 }}
+                            >
+                              Edit
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {units.length === 0 && (
+                      <tr><td colSpan={7} style={{ padding: 8, color: '#666', textAlign: 'center' }}>No units (PLC not connected?)</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Unit edit form */}
+              {selectedUnitId !== '' && (
+                <div style={{ border: '1px solid #90caf9', borderRadius: 6, padding: 10, background: '#e3f2fd', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>Edit Unit {selectedUnitId}</div>
+                  {/* Row 1: Batch ID, Location, Status */}
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, width: 90 }}>
+                      Batch ID
+                      <input
+                        type="number"
+                        value={unitBatchEdit}
+                        onChange={(e) => setUnitBatchEdit(Number(e.target.value) || 0)}
+                        style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #90caf9', background: '#fff', fontSize: 13 }}
+                      />
+                    </label>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, width: 90 }}>
+                      Location
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={unitLocationEdit}
+                        onChange={(e) => { if (/^\d*$/.test(e.target.value)) setUnitLocationEdit(e.target.value); }}
+                        style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #90caf9', background: '#fff' }}
+                      />
+                    </label>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, flex: 1 }}>
+                      Status
+                      <select
+                        value={unitStatusEdit}
+                        onChange={(e) => setUnitStatusEdit(Number(e.target.value))}
+                        style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #90caf9', background: '#fff', fontSize: 13 }}
+                      >
+                        <option value={0}>NOT_USED (0)</option>
+                        <option value={1}>USED (1)</option>
+                      </select>
+                    </label>
                   </div>
-                  );
-                })}
-              </div>
-
-              {/* ── Unit-osio ── */}
-              <div style={{ border: '1px solid #90caf9', borderRadius: 6, padding: 10, background: '#e3f2fd', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {/* Rivi 1: Unit select, Location, Used, Save */}
-                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, flex: 1 }}>
-                    Unit
-                    <select
-                      value={selectedUnitId}
-                      onChange={(e) => handleUnitSelect(e.target.value)}
-                      style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #90caf9', background: '#fff', fontSize: 13 }}
+                  {/* Row 2: State, Target, Save */}
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, flex: 1 }}>
+                      State
+                      <select
+                        value={unitStateEdit}
+                        onChange={(e) => setUnitStateEdit(Number(e.target.value))}
+                        style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #90caf9', background: '#fff', fontSize: 13 }}
+                      >
+                        <option value={0}>EMPTY (0)</option>
+                        <option value={1}>NOT_PROCESSED (1)</option>
+                        <option value={2}>IN_PROCESS (2)</option>
+                        <option value={3}>PROCESSED (3)</option>
+                      </select>
+                    </label>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, flex: 1 }}>
+                      Target
+                      <select
+                        value={unitTargetEdit}
+                        onChange={(e) => setUnitTargetEdit(Number(e.target.value))}
+                        style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #90caf9', background: '#fff', fontSize: 13 }}
+                      >
+                        <option value={0}>TO_NONE (0)</option>
+                        <option value={1}>TO_LOADING (1)</option>
+                        <option value={2}>TO_BUFFER (2)</option>
+                        <option value={3}>TO_UNLOAD (3)</option>
+                        <option value={4}>TO_AVOID (4)</option>
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      disabled={unitSaving}
+                      onClick={handleUnitSave}
+                      style={{ padding: '8px 14px', borderRadius: 4, border: '1px solid #1565c0', background: '#1565c0', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 12, whiteSpace: 'nowrap' }}
                     >
-                      <option value="">— select —</option>
-                      {units.map(u => (
-                        <option key={u.unit_id} value={u.unit_id}>
-                          U{String(u.unit_id).padStart(3, '0')}{u.batch_id != null ? `  B${u.batch_id}` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, width: 100 }}>
-                    Location
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={unitLocationEdit}
-                      onChange={(e) => { if (/^\d*$/.test(e.target.value)) setUnitLocationEdit(e.target.value); }}
-                      disabled={selectedUnitId === ''}
-                      style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #90caf9', background: selectedUnitId === '' ? '#f5f5f5' : '#fff' }}
-                    />
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: selectedUnitId === '' ? 'not-allowed' : 'pointer', userSelect: 'none' }}>
-                    <input
-                      type="checkbox"
-                      checked={unitStatusEdit === 'used'}
-                      onChange={(e) => setUnitStatusEdit(e.target.checked ? 'used' : 'not_used')}
-                      disabled={selectedUnitId === ''}
-                      style={{ width: 18, height: 18, cursor: selectedUnitId === '' ? 'not-allowed' : 'pointer' }}
-                    />
-                    Used
-                  </label>
-                  <button
-                    type="button"
-                    disabled={selectedUnitId === '' || unitSaving}
-                    onClick={handleUnitSave}
-                    style={{ padding: '8px 14px', borderRadius: 4, border: '1px solid #1565c0', background: '#1565c0', color: '#fff', fontWeight: 700, cursor: selectedUnitId === '' ? 'not-allowed' : 'pointer', fontSize: 12, whiteSpace: 'nowrap' }}
-                  >
-                    {unitSaving ? '...' : 'Save'}
-                  </button>
+                      {unitSaving ? '...' : 'Save to PLC'}
+                    </button>
+                  </div>
                 </div>
-                {/* Rivi 2: State + Target */}
-                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, flex: 1 }}>
-                    State
-                    <select
-                      value={unitStateEdit}
-                      onChange={(e) => setUnitStateEdit(e.target.value)}
-                      disabled={selectedUnitId === ''}
-                      style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #90caf9', background: selectedUnitId === '' ? '#f5f5f5' : '#fff', fontSize: 13 }}
-                    >
-                      <option value="empty">empty</option>
-                      <option value="loaded">loaded</option>
-                      <option value="processed">processed</option>
-                    </select>
-                  </label>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, flex: 1 }}>
-                    Target
-                    <select
-                      value={unitTargetEdit}
-                      onChange={(e) => setUnitTargetEdit(e.target.value)}
-                      disabled={selectedUnitId === ''}
-                      style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #90caf9', background: selectedUnitId === '' ? '#f5f5f5' : '#fff', fontSize: 13 }}
-                    >
-                      <option value="none">none</option>
-                      <option value="to_loading">to_loading</option>
-                      <option value="to_process">to_process</option>
-                      <option value="to_unloading">to_unloading</option>
-                      <option value="to_empty_buffer">to_empty_buffer</option>
-                      <option value="to_loaded_buffer">to_loaded_buffer</option>
-                      <option value="to_processed_buffer">to_processed_buffer</option>
-                      <option value="to_avoid">to_avoid</option>
-                    </select>
-                  </label>
-                </div>
-              </div>
-
-              <div style={{ fontWeight: 700, fontSize: 14 }}>{batchFormTitle}</div>
-              <form onSubmit={handleBatchSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13 }}>
-                  Batch ID
-                  <input
-                    type="number"
-                    value={batchForm.batch_id}
-                    disabled={editingBatchId != null}
-                    onChange={(e) => setBatchForm((f) => ({ ...f, batch_id: e.target.value }))}
-                    step="1"
-                    required
-                    style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #ccc' }}
-                  />
-                </label>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13 }}>
-                  Treatment program
-                  <input
-                    type="number"
-                    value={batchForm.treatment_program}
-                    onChange={(e) => setBatchForm((f) => ({ ...f, treatment_program: e.target.value }))}
-                    min="1"
-                    step="1"
-                    required
-                    style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #ccc' }}
-                  />
-                </label>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13 }}>
-                  Stage
-                  <input
-                    type="number"
-                    value={batchForm.stage}
-                    onChange={(e) => setBatchForm((f) => ({ ...f, stage: e.target.value }))}
-                    min="0"
-                    step="1"
-                    required
-                    style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #ccc' }}
-                  />
-                </label>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13 }}>
-                  Min time (s)
-                  <input
-                    type="number"
-                    value={batchForm.min_time_s}
-                    onChange={(e) => setBatchForm((f) => ({ ...f, min_time_s: e.target.value }))}
-                    min="0"
-                    step="1"
-                    required
-                    style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #ccc' }}
-                  />
-                </label>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13 }}>
-                  Max time (s)
-                  <input
-                    type="number"
-                    value={batchForm.max_time_s}
-                    onChange={(e) => setBatchForm((f) => ({ ...f, max_time_s: e.target.value }))}
-                    min="0"
-                    step="1"
-                    required
-                    style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #ccc' }}
-                  />
-                </label>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13 }}>
-                  Calc time (s)
-                  <input
-                    type="number"
-                    value={batchForm.calc_time_s}
-                    onChange={(e) => setBatchForm((f) => ({ ...f, calc_time_s: e.target.value }))}
-                    min="0"
-                    step="1"
-                    style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #ccc' }}
-                  />
-                </label>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13 }}>
-                  Start time (ms)
-                  <input
-                    type="number"
-                    value={batchForm.start_time}
-                    onChange={(e) => setBatchForm((f) => ({ ...f, start_time: e.target.value }))}
-                    min="0"
-                    step="1"
-                    style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #ccc' }}
-                  />
-                </label>
-                <div style={{ gridColumn: 'span 2', display: 'flex', gap: 8, marginTop: 4 }}>
-                  <button
-                    type="submit"
-                    disabled={batchSaving}
-                    style={{ padding: '10px 16px', borderRadius: 6, border: '1px solid #2196f3', background: '#e3f2fd', fontWeight: 700, cursor: 'pointer' }}
-                  >
-                    {batchSaving ? 'Saving...' : (editingBatchId != null ? 'Update batch' : 'Add batch')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBatchForm((f) => ({ ...f, start_time: 0 }))}
-                    style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid #795548', background: '#efebe9', fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    Reset start_time
-                  </button>
-                  <button
-                    type="button"
-                    onClick={resetBatchForm}
-                    style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid #ccc', background: '#fff', fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    Clear form
-                  </button>
-                </div>
-              </form>
+              )}
             </div>
           </DraggablePanel>
         )}

@@ -10,8 +10,13 @@
  *   %QW18     = station_count
  *   %QW19     = init_done (1/0)
  *   %QW20     = cycle_count (heartbeat)
+ *   %QW21     = cfg_ack (echoes last processed cfg_seq)
+ *   %QW22..71 = Units 1-10 (5 regs each: batch_id, location, status, state, target)
+ *   %QW72     = unit_ack (echoes last processed unit write seq)
  *   %IW0..2   = Commands for T1 (Input Registers written via FC6/FC16)
  *   %IW3..5   = Commands for T2
+ *   %IW10..19 = Config upload: seq, cmd, param, d0..d6
+ *   %IW20..26 = Unit write: seq, unit_id, batch_id, location, status, state, target
  * 
  * OpenPLC Modbus mapping:
  *   Holding Registers (FC3, FC6, FC16) → %QW  (PLC writes, we read)
@@ -243,8 +248,8 @@ async function connectModbus() {
 async function readPLCState() {
   if (!connected) return null;
   try {
-    // Read QW0..QW20 = 21 holding registers starting at address 0
-    const result = await client.readHoldingRegisters(0, 21);
+    // Read QW0..QW72 = 73 holding registers starting at address 0
+    const result = await client.readHoldingRegisters(0, 73);
     const r = result.data;
     
     // Convert unsigned 16-bit to signed if needed (for velocities etc.)
@@ -285,6 +290,20 @@ async function readPLCState() {
       init_done: r[19] !== 0,
       cycle_count: r[20]
     };
+
+    // Parse unit data from QW22..QW71 (10 units x 5 fields)
+    plcUnits = [];
+    for (let u = 0; u < 10; u++) {
+      const base = 22 + u * 5;
+      plcUnits.push({
+        unit_id: u + 1,
+        batch_id: toSigned(r[base]),
+        location: toSigned(r[base + 1]),
+        status: toSigned(r[base + 2]),
+        state: toSigned(r[base + 3]),
+        target: toSigned(r[base + 4])
+      });
+    }
     
     // Check heartbeat
     if (plcMeta.cycle_count !== lastCycleCount) {
@@ -439,11 +458,114 @@ app.post('/api/command/move', async (req, res) => {
   }
 });
 
-// Reset transporters (restart PLC cycle)
+// Legacy alias
 app.post('/api/reset-transporters', (req, res) => {
-  // PLC handles init on startup; this is a no-op for now
-  res.json({ ok: true, message: 'PLC handles initialization' });
+  res.json({ ok: true, message: 'Use /api/reset instead' });
 });
+
+// ============================================================
+// RESET — Upload station config to PLC via Modbus, return data
+// ============================================================
+app.post('/api/reset', async (req, res) => {
+  try {
+    const { customer, plant } = req.body;
+    if (!customer || !plant) {
+      return res.status(400).json({ success: false, error: 'customer and plant required' });
+    }
+
+    const plantPath = getCustomerPath(customer, plant);
+    const stationsFile = path.join(plantPath, 'stations.json');
+    const tanksFile = path.join(plantPath, 'tanks.json');
+    const transportersFile = path.join(plantPath, 'transporters.json');
+
+    if (!fs.existsSync(stationsFile)) {
+      return res.status(404).json({ success: false, error: 'stations.json not found' });
+    }
+
+    const stationsRaw = JSON.parse(fs.readFileSync(stationsFile, 'utf8'));
+    const stations = Array.isArray(stationsRaw) ? stationsRaw : (stationsRaw.stations || []);
+    const tanksRaw = fs.existsSync(tanksFile) ? JSON.parse(fs.readFileSync(tanksFile, 'utf8')) : [];
+    const tanks = Array.isArray(tanksRaw) ? tanksRaw : (tanksRaw.tanks || []);
+    const transportersRaw = fs.existsSync(transportersFile) ? JSON.parse(fs.readFileSync(transportersFile, 'utf8')) : [];
+    const transporters = Array.isArray(transportersRaw) ? transportersRaw : (transportersRaw.transporters || []);
+
+    if (!connected) {
+      return res.status(503).json({ success: false, error: 'PLC not connected' });
+    }
+
+    // Upload each station to PLC via config protocol
+    let seq = 1;
+    const IW_BASE = 1024 + 10; // Holding offset for IW10
+
+    for (const st of stations) {
+      const stNum = st.number; // e.g. 101..125
+      if (stNum < 101 || stNum > 125) continue;
+
+      // Write data fields first (IW13..IW19 = d0..d6)
+      await client.writeRegisters(IW_BASE + 3, [
+        st.tank || 0,                              // d0 = tank_id
+        Math.round(st.x_position || 0),            // d1 = x_position mm
+        Math.round(st.y_position || 0),            // d2 = y_position mm
+        Math.round(st.z_position || 0),            // d3 = z_position mm
+        st.type || 0,                              // d4 = type
+        Math.round((st.dropping_time || 0) * 10),  // d5 = dropping_time × 10
+        Math.round((st.device_delay || 0) * 10)    // d6 = device_delay × 10
+      ]);
+
+      // Write param (station number) and cmd
+      await client.writeRegisters(IW_BASE + 2, [stNum]);  // IW12 = param
+      await client.writeRegisters(IW_BASE + 1, [1]);       // IW11 = cmd (1=write_station)
+      await client.writeRegisters(IW_BASE + 0, [seq]);     // IW10 = seq (triggers PLC)
+
+      // Wait for PLC ack (QW21 = cfg_ack matches seq)
+      const ackOk = await waitForCfgAck(seq, 2000);
+      if (!ackOk) {
+        return res.status(504).json({ 
+          success: false, 
+          error: `PLC ack timeout for station ${stNum} (seq=${seq})` 
+        });
+      }
+      seq++;
+    }
+
+    // Send init command (cmd=2, param=station_count)
+    await client.writeRegisters(IW_BASE + 2, [stations.length]); // IW12 = station_count
+    await client.writeRegisters(IW_BASE + 1, [2]);               // IW11 = cmd (2=init)
+    await client.writeRegisters(IW_BASE + 0, [seq]);             // IW10 = seq
+
+    const initAck = await waitForCfgAck(seq, 3000);
+    if (!initAck) {
+      return res.status(504).json({ success: false, error: 'PLC ack timeout for init command' });
+    }
+
+    // Update current selection
+    currentCustomer = customer;
+    currentPlant = plant;
+
+    // Reset simulation timer
+    simRunning = true;
+    simStartTime = Date.now();
+
+    console.log(`[RESET] Uploaded ${stations.length} stations to PLC for ${customer}/${plant}`);
+    res.json({ success: true, stations, tanks, transporters });
+  } catch (err) {
+    console.error(`[RESET] Error: ${err.message}`);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Wait for PLC cfg_ack (QW21) to match expected sequence number
+async function waitForCfgAck(expectedSeq, timeoutMs) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const result = await client.readHoldingRegisters(21, 1);
+      if (result.data[0] === expectedSeq) return true;
+    } catch (_) {}
+    await new Promise(r => setTimeout(r, 20));
+  }
+  return false;
+}
 
 // Simulation time
 app.get('/api/sim/time', (req, res) => {
@@ -520,7 +642,22 @@ app.get('/api/customers/:customer/plants/:plant/simulation-purpose', (req, res) 
 });
 
 app.get('/api/customers/:customer/plants/:plant/status', (req, res) => {
-  res.json({ success: true, status: simRunning ? 'running' : 'stopped', plc_alive: plcAlive });
+  const plantDir = path.join(CUSTOMERS_DIR, req.params.customer, req.params.plant);
+  const hasStations = fs.existsSync(path.join(plantDir, 'stations.json'));
+  const hasTanks = fs.existsSync(path.join(plantDir, 'tanks.json'));
+  const isConfigured = fs.existsSync(plantDir) && (hasStations || hasTanks);
+  res.json({
+    success: true,
+    status: simRunning ? 'running' : 'stopped',
+    plc_alive: plcAlive,
+    isConfigured,
+    files: {
+      stations: hasStations,
+      tanks: hasTanks,
+      transporters: fs.existsSync(path.join(plantDir, 'transporters.json')),
+      treatment_program: fs.existsSync(path.join(plantDir, 'treatment_program_001.csv')),
+    }
+  });
 });
 
 // Transporter tasks (stub — scheduler not yet in PLC)
@@ -557,13 +694,72 @@ app.delete('/api/batches/:id', (req, res) => {
   res.json({ ok: true });
 });
 
-// Units (stub)
+// Units — read from PLC via Modbus
+let plcUnits = [];
+let unitWriteSeq = 0;
+
 app.get('/api/units', (req, res) => {
-  res.json([]);
+  res.json({ units: plcUnits });
 });
-app.put('/api/units/:id', (req, res) => {
-  res.json({ ok: true });
+
+app.put('/api/units/:id', async (req, res) => {
+  try {
+    const uid = parseInt(req.params.id);
+    if (uid < 1 || uid > 10) return res.status(400).json({ error: 'unit_id must be 1..10' });
+    if (!connected) return res.status(503).json({ error: 'PLC not connected' });
+
+    const { batch_id, location, status, state, target } = req.body;
+    const IW_BASE = 1024 + 20; // Holding offset for IW20
+
+    // Write data fields first
+    await client.writeRegisters(IW_BASE + 1, [uid]);                    // IW21 = unit_id
+    await client.writeRegisters(IW_BASE + 2, [batch_id || 0]);          // IW22 = batch_id
+    await client.writeRegisters(IW_BASE + 3, [location || 0]);          // IW23 = location
+    await client.writeRegisters(IW_BASE + 4, [status || 0]);            // IW24 = status
+    await client.writeRegisters(IW_BASE + 5, [state || 0]);             // IW25 = state
+    await client.writeRegisters(IW_BASE + 6, [target || 0]);            // IW26 = target
+
+    // Trigger with sequence number
+    unitWriteSeq = (unitWriteSeq % 30000) + 1;
+    console.log(`[UNIT] Writing IW20-26: seq=${unitWriteSeq}, id=${uid}, batch=${batch_id||0}, loc=${location||0}, status=${status||0}, state=${state||0}, target=${target||0}`);
+    await client.writeRegisters(IW_BASE + 0, [unitWriteSeq]);           // IW20 = seq
+
+    // Wait for PLC ack (QW72)
+    const ackOk = await waitForUnitAck(unitWriteSeq, 3000);
+    if (!ackOk) {
+      return res.status(504).json({ error: `PLC ack timeout for unit ${uid}` });
+    }
+
+    console.log(`[UNIT] Written unit ${uid}: batch=${batch_id}, loc=${location}, status=${status}, state=${state}, target=${target}`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(`[UNIT] Write error: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
 });
+
+async function waitForUnitAck(expectedSeq, timeoutMs) {
+  const start = Date.now();
+  let lastVal = -1;
+  let readCount = 0;
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const result = await client.readHoldingRegisters(72, 1);
+      readCount++;
+      const val = result.data[0];
+      if (val !== lastVal) {
+        console.log(`[UNIT-ACK] QW72=${val}, expecting=${expectedSeq} (read #${readCount}, ${Date.now()-start}ms)`);
+        lastVal = val;
+      }
+      if (val === expectedSeq) return true;
+    } catch (err) {
+      console.log(`[UNIT-ACK] Read error: ${err.message}`);
+    }
+    await new Promise(r => setTimeout(r, 50));
+  }
+  console.log(`[UNIT-ACK] TIMEOUT after ${timeoutMs}ms, lastVal=${lastVal}, expected=${expectedSeq}, reads=${readCount}`);
+  return false;
+}
 
 // Avoid statuses
 app.get('/api/avoid-statuses', (req, res) => {

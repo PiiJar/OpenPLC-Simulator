@@ -1,16 +1,17 @@
 (* ============================================================
-   plc_prg.st — Main program: station init + transport cycle
+   plc_prg.st — Main program: config upload + transport cycle
    ============================================================ *)
 
 PROGRAM PLC_PRG
 VAR_EXTERNAL
   g_station_count    : INT;
-  g_stations         : ARRAY[1..21] OF STATION_T;
-  g_cfg              : ARRAY[1..10] OF TRANSPORTER_CFG_T;
-  g_state            : ARRAY[1..10] OF TRANSPORTER_STATE_T;
-  g_cmd_start        : ARRAY[1..10] OF BOOL;
-  g_cmd_lift_station : ARRAY[1..10] OF INT;
-  g_cmd_sink_station : ARRAY[1..10] OF INT;
+  g_stations         : ARRAY[101..125] OF STATION_T;
+  g_cfg              : ARRAY[1..3] OF TRANSPORTER_CFG_T;
+  g_state            : ARRAY[1..3] OF TRANSPORTER_STATE_T;
+  g_cmd_start        : ARRAY[1..3] OF BOOL;
+  g_cmd_lift_station : ARRAY[1..3] OF INT;
+  g_cmd_sink_station : ARRAY[1..3] OF INT;
+  (* Modbus output: transporter 1 *)
   qw_t1_x_mm    : INT;
   qw_t1_z_mm    : INT;
   qw_t1_vel_x10 : INT;
@@ -20,6 +21,7 @@ VAR_EXTERNAL
   qw_t1_lift_tgt : INT;
   qw_t1_sink_tgt : INT;
   qw_t1_active  : INT;
+  (* Modbus output: transporter 2 *)
   qw_t2_x_mm    : INT;
   qw_t2_z_mm    : INT;
   qw_t2_vel_x10 : INT;
@@ -29,18 +31,96 @@ VAR_EXTERNAL
   qw_t2_lift_tgt : INT;
   qw_t2_sink_tgt : INT;
   qw_t2_active  : INT;
+  (* Modbus output: status *)
   qw_station_cnt : INT;
   qw_init_done   : INT;
   qw_cycle_cnt   : INT;
+  (* Modbus input: move commands *)
   iw_cmd_start_1 : INT;
   iw_cmd_lift_1  : INT;
   iw_cmd_sink_1  : INT;
   iw_cmd_start_2 : INT;
   iw_cmd_lift_2  : INT;
   iw_cmd_sink_2  : INT;
+  (* Config upload protocol *)
+  iw_cfg_seq     : INT;
+  iw_cfg_cmd     : INT;
+  iw_cfg_param   : INT;
+  iw_cfg_d0      : INT;
+  iw_cfg_d1      : INT;
+  iw_cfg_d2      : INT;
+  iw_cfg_d3      : INT;
+  iw_cfg_d4      : INT;
+  iw_cfg_d5      : INT;
+  iw_cfg_d6      : INT;
+  qw_cfg_ack     : INT;
+  (* Units array *)
+  g_units        : ARRAY[1..10] OF UNIT_T;
+  (* Modbus output: units QW22..QW71 *)
+  qw_u1_batch  : INT;
+  qw_u1_loc  : INT;
+  qw_u1_status  : INT;
+  qw_u1_state  : INT;
+  qw_u1_target  : INT;
+  qw_u2_batch  : INT;
+  qw_u2_loc  : INT;
+  qw_u2_status  : INT;
+  qw_u2_state  : INT;
+  qw_u2_target  : INT;
+  qw_u3_batch  : INT;
+  qw_u3_loc  : INT;
+  qw_u3_status  : INT;
+  qw_u3_state  : INT;
+  qw_u3_target  : INT;
+  qw_u4_batch  : INT;
+  qw_u4_loc  : INT;
+  qw_u4_status  : INT;
+  qw_u4_state  : INT;
+  qw_u4_target  : INT;
+  qw_u5_batch  : INT;
+  qw_u5_loc  : INT;
+  qw_u5_status  : INT;
+  qw_u5_state  : INT;
+  qw_u5_target  : INT;
+  qw_u6_batch  : INT;
+  qw_u6_loc  : INT;
+  qw_u6_status  : INT;
+  qw_u6_state  : INT;
+  qw_u6_target  : INT;
+  qw_u7_batch  : INT;
+  qw_u7_loc  : INT;
+  qw_u7_status  : INT;
+  qw_u7_state  : INT;
+  qw_u7_target  : INT;
+  qw_u8_batch  : INT;
+  qw_u8_loc  : INT;
+  qw_u8_status  : INT;
+  qw_u8_state  : INT;
+  qw_u8_target  : INT;
+  qw_u9_batch  : INT;
+  qw_u9_loc  : INT;
+  qw_u9_status  : INT;
+  qw_u9_state  : INT;
+  qw_u9_target  : INT;
+  qw_u10_batch : INT;
+  qw_u10_loc : INT;
+  qw_u10_status : INT;
+  qw_u10_state : INT;
+  qw_u10_target : INT;
+  qw_unit_ack  : INT;
+  (* Modbus input: unit write command IW20..IW26 *)
+  iw_unit_seq    : INT;
+  iw_unit_id     : INT;
+  iw_unit_batch  : INT;
+  iw_unit_loc    : INT;
+  iw_unit_status : INT;
+  iw_unit_state  : INT;
+  iw_unit_target : INT;
 END_VAR
 VAR
-  init_done    : BOOL := FALSE;
+  init_done      : BOOL := FALSE;
+  last_cfg_seq   : INT := 0;
+  last_unit_seq  : INT := 0;
   i            : INT;
   idx          : INT;
   station_type : INT;
@@ -55,199 +135,119 @@ VAR
   tmp_vx       : REAL;
   fb_x1        : FB_XMotion;
   fb_x2        : FB_XMotion;
+  fb_x3        : FB_XMotion;
   lookup       : FB_StationLookup;
   cycle_count  : INT;
 END_VAR
-IF NOT init_done THEN
-  g_station_count := 21;
+(* ============================================================
+   CONFIG UPLOAD HANDLER
+   Gateway writes station data one at a time via Modbus IW regs.
+   Sequence number change triggers processing.
+   cmd=1: write one station  cmd=2: finish init (start sim)
+   ============================================================ *)
+IF iw_cfg_seq <> last_cfg_seq THEN
+  last_cfg_seq := iw_cfg_seq;
 
-  g_stations[1].number := 101;
-  g_stations[1].x_mm := 100.0;
-  g_stations[1].station_type := 22;
-  g_stations[1].device_delay_s := 0.0;
-  g_stations[1].dropping_time_s := 0.0;
-
-  g_stations[2].number := 102;
-  g_stations[2].x_mm := 1550.0;
-  g_stations[2].station_type := 30;
-  g_stations[2].device_delay_s := 0.0;
-  g_stations[2].dropping_time_s := 0.0;
-
-  g_stations[3].number := 103;
-  g_stations[3].x_mm := 3000.0;
-  g_stations[3].station_type := 30;
-  g_stations[3].device_delay_s := 0.0;
-  g_stations[3].dropping_time_s := 0.0;
-
-  g_stations[4].number := 104;
-  g_stations[4].x_mm := 4450.0;
-  g_stations[4].station_type := 0;
-  g_stations[4].device_delay_s := 3.0;
-  g_stations[4].dropping_time_s := 0.0;
-
-  g_stations[5].number := 105;
-  g_stations[5].x_mm := 5900.0;
-  g_stations[5].station_type := 0;
-  g_stations[5].device_delay_s := 3.0;
-  g_stations[5].dropping_time_s := 0.0;
-
-  g_stations[6].number := 106;
-  g_stations[6].x_mm := 7350.0;
-  g_stations[6].station_type := 0;
-  g_stations[6].device_delay_s := 3.0;
-  g_stations[6].dropping_time_s := 0.0;
-
-  g_stations[7].number := 107;
-  g_stations[7].x_mm := 8800.0;
-  g_stations[7].station_type := 1;
-  g_stations[7].device_delay_s := 3.0;
-  g_stations[7].dropping_time_s := 10.0;
-
-  g_stations[8].number := 108;
-  g_stations[8].x_mm := 10250.0;
-  g_stations[8].station_type := 1;
-  g_stations[8].device_delay_s := 0.0;
-  g_stations[8].dropping_time_s := 10.0;
-
-  g_stations[9].number := 109;
-  g_stations[9].x_mm := 11700.0;
-  g_stations[9].station_type := 1;
-  g_stations[9].device_delay_s := 0.0;
-  g_stations[9].dropping_time_s := 10.0;
-
-  g_stations[10].number := 110;
-  g_stations[10].x_mm := 13150.0;
-  g_stations[10].station_type := 1;
-  g_stations[10].device_delay_s := 0.0;
-  g_stations[10].dropping_time_s := 10.0;
-
-  g_stations[11].number := 111;
-  g_stations[11].x_mm := 14600.0;
-  g_stations[11].station_type := 1;
-  g_stations[11].device_delay_s := 0.0;
-  g_stations[11].dropping_time_s := 10.0;
-
-  g_stations[12].number := 112;
-  g_stations[12].x_mm := 16050.0;
-  g_stations[12].station_type := 1;
-  g_stations[12].device_delay_s := 3.0;
-  g_stations[12].dropping_time_s := 10.0;
-
-  g_stations[13].number := 113;
-  g_stations[13].x_mm := 17500.0;
-  g_stations[13].station_type := 1;
-  g_stations[13].device_delay_s := 0.0;
-  g_stations[13].dropping_time_s := 10.0;
-
-  g_stations[14].number := 114;
-  g_stations[14].x_mm := 18950.0;
-  g_stations[14].station_type := 32;
-  g_stations[14].device_delay_s := 0.0;
-  g_stations[14].dropping_time_s := 0.0;
-
-  g_stations[15].number := 115;
-  g_stations[15].x_mm := 20400.0;
-  g_stations[15].station_type := 0;
-  g_stations[15].device_delay_s := 3.0;
-  g_stations[15].dropping_time_s := 10.0;
-
-  g_stations[16].number := 116;
-  g_stations[16].x_mm := 21850.0;
-  g_stations[16].station_type := 1;
-  g_stations[16].device_delay_s := 3.0;
-  g_stations[16].dropping_time_s := 10.0;
-
-  g_stations[17].number := 117;
-  g_stations[17].x_mm := 23300.0;
-  g_stations[17].station_type := 1;
-  g_stations[17].device_delay_s := 0.0;
-  g_stations[17].dropping_time_s := 10.0;
-
-  g_stations[18].number := 118;
-  g_stations[18].x_mm := 24750.0;
-  g_stations[18].station_type := 1;
-  g_stations[18].device_delay_s := 0.0;
-  g_stations[18].dropping_time_s := 10.0;
-
-  g_stations[19].number := 119;
-  g_stations[19].x_mm := 26200.0;
-  g_stations[19].station_type := 30;
-  g_stations[19].device_delay_s := 0.0;
-  g_stations[19].dropping_time_s := 0.0;
-
-  g_stations[20].number := 120;
-  g_stations[20].x_mm := 27650.0;
-  g_stations[20].station_type := 30;
-  g_stations[20].device_delay_s := 0.0;
-  g_stations[20].dropping_time_s := 0.0;
-
-  g_stations[21].number := 121;
-  g_stations[21].x_mm := 29100.0;
-  g_stations[21].station_type := 1;
-  g_stations[21].device_delay_s := 0.0;
-  g_stations[21].dropping_time_s := 10.0;
-
-  g_cfg[1].id := 1;
-  g_cfg[1].start_station := 101;
-  g_cfg[1].x_min_limit := 100.0;
-  g_cfg[1].x_max_limit := 20600.0;
-  g_cfg[1].phys2d.x_accel_s := 1.5;
-  g_cfg[1].phys2d.x_decel_s := 1.5;
-  g_cfg[1].phys2d.x_max_mm_s := 500.0;
-  g_cfg[1].phys2d.z_total_mm := 2500.0;
-  g_cfg[1].phys2d.z_slow_dry_mm := 300.0;
-  g_cfg[1].phys2d.z_slow_wet_mm := 1000.0;
-  g_cfg[1].phys2d.z_slow_end_mm := 50.0;
-  g_cfg[1].phys2d.z_slow_mm_s := 100.0;
-  g_cfg[1].phys2d.z_fast_mm_s := 200.0;
-  g_cfg[1].phys2d.drip_delay_s := 5.0;
-  g_cfg[1].phys2d.avoid_mm := 2000.0;
-
-  g_cfg[2].id := 2;
-  g_cfg[2].start_station := 118;
-  g_cfg[2].x_min_limit := 14300.0;
-  g_cfg[2].x_max_limit := 29100.0;
-  g_cfg[2].phys2d.x_accel_s := 1.5;
-  g_cfg[2].phys2d.x_decel_s := 1.5;
-  g_cfg[2].phys2d.x_max_mm_s := 500.0;
-  g_cfg[2].phys2d.z_total_mm := 2500.0;
-  g_cfg[2].phys2d.z_slow_dry_mm := 300.0;
-  g_cfg[2].phys2d.z_slow_wet_mm := 1000.0;
-  g_cfg[2].phys2d.z_slow_end_mm := 50.0;
-  g_cfg[2].phys2d.z_slow_mm_s := 100.0;
-  g_cfg[2].phys2d.z_fast_mm_s := 200.0;
-  g_cfg[2].phys2d.drip_delay_s := 5.0;
-  g_cfg[2].phys2d.avoid_mm := 2000.0;
-
-  FOR i := 1 TO 10 DO
-    IF i <= 2 THEN
-      g_state[i].active := TRUE;
-    ELSE
-      g_state[i].active := FALSE;
+  IF iw_cfg_cmd = 1 THEN
+    (* --- Write one station to g_stations array --- *)
+    IF (iw_cfg_param >= 101) AND (iw_cfg_param <= 125) THEN
+      g_stations[iw_cfg_param].tank_id       := iw_cfg_d0;
+      g_stations[iw_cfg_param].x_position    := INT_TO_REAL(iw_cfg_d1);
+      g_stations[iw_cfg_param].y_position    := INT_TO_REAL(iw_cfg_d2);
+      g_stations[iw_cfg_param].z_position    := INT_TO_REAL(iw_cfg_d3);
+      g_stations[iw_cfg_param].stn_type      := iw_cfg_d4;
+      g_stations[iw_cfg_param].dropping_time := INT_TO_REAL(iw_cfg_d5) / 10.0;
+      g_stations[iw_cfg_param].device_delay  := INT_TO_REAL(iw_cfg_d6) / 10.0;
     END_IF;
-    g_state[i].phase := 0;
-    g_state[i].z_stage := 0;
-    g_state[i].vel_x := 0.0;
-    g_state[i].vel_z := 0.0;
-    g_state[i].z_timer_s := 0.0;
-    g_state[i].x_min_limit := g_cfg[i].x_min_limit;
-    g_state[i].x_max_limit := g_cfg[i].x_max_limit;
+    qw_cfg_ack := iw_cfg_seq;
 
-    lookup(station_number := g_cfg[i].start_station);
-    IF lookup.found THEN
-      g_state[i].x_mm := lookup.x_mm;
-      g_state[i].current_station := g_cfg[i].start_station;
-    ELSE
-      g_state[i].x_mm := 0.0;
-      g_state[i].current_station := 0;
-    END_IF;
-    g_state[i].z_mm := 0.0;
-  END_FOR;
+  ELSIF iw_cfg_cmd = 2 THEN
+    (* --- Finish init: station data uploaded, now init transporters --- *)
+    g_station_count := iw_cfg_param;
 
-  init_done := TRUE;
+    (* Clear old station data for slots not uploaded *)
+    FOR idx := 101 TO 125 DO
+      IF g_stations[idx].tank_id = 0 THEN
+        g_stations[idx].x_position := 0.0;
+        g_stations[idx].y_position := 0.0;
+        g_stations[idx].z_position := 0.0;
+        g_stations[idx].stn_type := 0;
+        g_stations[idx].dropping_time := 0.0;
+        g_stations[idx].device_delay := 0.0;
+      END_IF;
+    END_FOR;
+
+    (* Transporter 1 config — hardcoded for now *)
+    g_cfg[1].id := 1;
+    g_cfg[1].start_station := 101;
+    g_cfg[1].x_min_limit := 100.0;
+    g_cfg[1].x_max_limit := 20600.0;
+    g_cfg[1].phys2d.x_accel_s := 1.5;
+    g_cfg[1].phys2d.x_decel_s := 1.5;
+    g_cfg[1].phys2d.x_max_mm_s := 500.0;
+    g_cfg[1].phys2d.z_total_mm := 2500.0;
+    g_cfg[1].phys2d.z_slow_dry_mm := 300.0;
+    g_cfg[1].phys2d.z_slow_wet_mm := 1000.0;
+    g_cfg[1].phys2d.z_slow_end_mm := 50.0;
+    g_cfg[1].phys2d.z_slow_mm_s := 100.0;
+    g_cfg[1].phys2d.z_fast_mm_s := 200.0;
+    g_cfg[1].phys2d.drip_delay_s := 5.0;
+    g_cfg[1].phys2d.avoid_mm := 2000.0;
+
+    (* Transporter 2 config *)
+    g_cfg[2].id := 2;
+    g_cfg[2].start_station := 118;
+    g_cfg[2].x_min_limit := 14300.0;
+    g_cfg[2].x_max_limit := 29100.0;
+    g_cfg[2].phys2d.x_accel_s := 1.5;
+    g_cfg[2].phys2d.x_decel_s := 1.5;
+    g_cfg[2].phys2d.x_max_mm_s := 500.0;
+    g_cfg[2].phys2d.z_total_mm := 2500.0;
+    g_cfg[2].phys2d.z_slow_dry_mm := 300.0;
+    g_cfg[2].phys2d.z_slow_wet_mm := 1000.0;
+    g_cfg[2].phys2d.z_slow_end_mm := 50.0;
+    g_cfg[2].phys2d.z_slow_mm_s := 100.0;
+    g_cfg[2].phys2d.z_fast_mm_s := 200.0;
+    g_cfg[2].phys2d.drip_delay_s := 5.0;
+    g_cfg[2].phys2d.avoid_mm := 2000.0;
+
+    (* Init transporter states *)
+    FOR i := 1 TO 3 DO
+      IF i <= 2 THEN
+        g_state[i].active := TRUE;
+      ELSE
+        g_state[i].active := FALSE;
+      END_IF;
+      g_state[i].phase := 0;
+      g_state[i].z_stage := 0;
+      g_state[i].vel_x := 0.0;
+      g_state[i].vel_z := 0.0;
+      g_state[i].z_timer_s := 0.0;
+      g_state[i].x_min_limit := g_cfg[i].x_min_limit;
+      g_state[i].x_max_limit := g_cfg[i].x_max_limit;
+
+      lookup(station_number := g_cfg[i].start_station);
+      IF lookup.found THEN
+        g_state[i].x_mm := lookup.x_mm;
+        g_state[i].current_station := g_cfg[i].start_station;
+      ELSE
+        g_state[i].x_mm := 0.0;
+        g_state[i].current_station := 0;
+      END_IF;
+      g_state[i].z_mm := 0.0;
+    END_FOR;
+
+    init_done := TRUE;
+    qw_cfg_ack := iw_cfg_seq;
+  END_IF;
 END_IF;
 
-FOR i := 1 TO 10 DO
+(* ============================================================
+   MAIN TRANSPORT CYCLE — only runs when init_done
+   ============================================================ *)
+IF init_done THEN
+
+FOR i := 1 TO 3 DO
   IF g_state[i].active THEN
 
   IF (g_state[i].phase = 0) AND g_cmd_start[i] THEN
@@ -289,6 +289,19 @@ FOR i := 1 TO 10 DO
         v_x := tmp_vx
       );
       arrived_x := fb_x2.arrived;
+    ELSIF i = 3 THEN
+      fb_x3(
+        delta_t := 0.02,
+        x_target := g_state[i].target_x,
+        x_min := g_state[i].x_min_limit,
+        x_max := g_state[i].x_max_limit,
+        v_max := g_cfg[i].phys2d.x_max_mm_s,
+        t_acc := g_cfg[i].phys2d.x_accel_s,
+        t_dec := g_cfg[i].phys2d.x_decel_s,
+        x_pos := tmp_x,
+        v_x := tmp_vx
+      );
+      arrived_x := fb_x3.arrived;
     END_IF;
     g_state[i].x_mm := tmp_x;
     g_state[i].vel_x := tmp_vx;
@@ -377,6 +390,19 @@ FOR i := 1 TO 10 DO
         v_x := tmp_vx
       );
       arrived_x := fb_x2.arrived;
+    ELSIF i = 3 THEN
+      fb_x3(
+        delta_t := 0.02,
+        x_target := g_state[i].target_x,
+        x_min := g_state[i].x_min_limit,
+        x_max := g_state[i].x_max_limit,
+        v_max := g_cfg[i].phys2d.x_max_mm_s,
+        t_acc := g_cfg[i].phys2d.x_accel_s,
+        t_dec := g_cfg[i].phys2d.x_decel_s,
+        x_pos := tmp_x,
+        v_x := tmp_vx
+      );
+      arrived_x := fb_x3.arrived;
     END_IF;
     g_state[i].x_mm := tmp_x;
     g_state[i].vel_x := tmp_vx;
@@ -423,17 +449,36 @@ FOR i := 1 TO 10 DO
 
   min_dist := 1.0e9;
   nearest_num := g_state[i].current_station;
-  FOR idx := 1 TO g_station_count DO
-    dx := g_stations[idx].x_mm - g_state[i].x_mm;
-    IF ABS(dx) < min_dist THEN
-      min_dist := ABS(dx);
-      nearest_num := g_stations[idx].number;
+  FOR idx := 101 TO 125 DO
+    IF g_stations[idx].tank_id <> 0 THEN
+      dx := g_stations[idx].x_position - g_state[i].x_mm;
+      IF ABS(dx) < min_dist THEN
+        min_dist := ABS(dx);
+        nearest_num := idx;
+      END_IF;
     END_IF;
   END_FOR;
   g_state[i].current_station := nearest_num;
 
-  END_IF;
+  END_IF;  (* active *)
 END_FOR;
+
+END_IF;  (* init_done *)
+
+(* ============================================================
+   UNIT WRITE HANDLER — gateway writes one unit at a time
+   ============================================================ *)
+IF iw_unit_seq <> last_unit_seq THEN
+  last_unit_seq := iw_unit_seq;
+  IF (iw_unit_id >= 1) AND (iw_unit_id <= 10) THEN
+    g_units[iw_unit_id].batch_id := iw_unit_batch;
+    g_units[iw_unit_id].location := iw_unit_loc;
+    g_units[iw_unit_id].status   := iw_unit_status;
+    g_units[iw_unit_id].state    := iw_unit_state;
+    g_units[iw_unit_id].target   := iw_unit_target;
+  END_IF;
+  qw_unit_ack := iw_unit_seq;
+END_IF;
 
 (* === MODBUS INPUT: Read commands from input registers === *)
 g_cmd_start[1] := iw_cmd_start_1 <> 0;
@@ -471,4 +516,56 @@ IF init_done THEN qw_init_done := 1; ELSE qw_init_done := 0; END_IF;
 cycle_count := cycle_count + 1;
 IF cycle_count > 30000 THEN cycle_count := 0; END_IF;
 qw_cycle_cnt := cycle_count;
+
+(* Write unit data to Modbus output QW22..QW71 *)
+qw_u1_batch  := g_units[1].batch_id;
+qw_u1_loc    := g_units[1].location;
+qw_u1_status := g_units[1].status;
+qw_u1_state  := g_units[1].state;
+qw_u1_target := g_units[1].target;
+qw_u2_batch  := g_units[2].batch_id;
+qw_u2_loc    := g_units[2].location;
+qw_u2_status := g_units[2].status;
+qw_u2_state  := g_units[2].state;
+qw_u2_target := g_units[2].target;
+qw_u3_batch  := g_units[3].batch_id;
+qw_u3_loc    := g_units[3].location;
+qw_u3_status := g_units[3].status;
+qw_u3_state  := g_units[3].state;
+qw_u3_target := g_units[3].target;
+qw_u4_batch  := g_units[4].batch_id;
+qw_u4_loc    := g_units[4].location;
+qw_u4_status := g_units[4].status;
+qw_u4_state  := g_units[4].state;
+qw_u4_target := g_units[4].target;
+qw_u5_batch  := g_units[5].batch_id;
+qw_u5_loc    := g_units[5].location;
+qw_u5_status := g_units[5].status;
+qw_u5_state  := g_units[5].state;
+qw_u5_target := g_units[5].target;
+qw_u6_batch  := g_units[6].batch_id;
+qw_u6_loc    := g_units[6].location;
+qw_u6_status := g_units[6].status;
+qw_u6_state  := g_units[6].state;
+qw_u6_target := g_units[6].target;
+qw_u7_batch  := g_units[7].batch_id;
+qw_u7_loc    := g_units[7].location;
+qw_u7_status := g_units[7].status;
+qw_u7_state  := g_units[7].state;
+qw_u7_target := g_units[7].target;
+qw_u8_batch  := g_units[8].batch_id;
+qw_u8_loc    := g_units[8].location;
+qw_u8_status := g_units[8].status;
+qw_u8_state  := g_units[8].state;
+qw_u8_target := g_units[8].target;
+qw_u9_batch  := g_units[9].batch_id;
+qw_u9_loc    := g_units[9].location;
+qw_u9_status := g_units[9].status;
+qw_u9_state  := g_units[9].state;
+qw_u9_target := g_units[9].target;
+qw_u10_batch  := g_units[10].batch_id;
+qw_u10_loc    := g_units[10].location;
+qw_u10_status := g_units[10].status;
+qw_u10_state  := g_units[10].state;
+qw_u10_target := g_units[10].target;
 END_PROGRAM

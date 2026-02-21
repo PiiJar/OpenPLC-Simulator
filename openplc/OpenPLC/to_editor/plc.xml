@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-21T00:00:00"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-21T00:00:00">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-21T20:04:56"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-21T20:04:56">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -16,22 +16,55 @@
   </contentHeader>
   <types>
     <dataTypes>
+      <dataType name="TANK_T">
+        <baseType>
+          <struct>
+            <variable name="tank_id">
+              <type><INT/></type>
+            </variable>
+            <variable name="status">
+              <type><INT/></type>
+            </variable>
+            <variable name="x_position">
+              <type><REAL/></type>
+            </variable>
+            <variable name="y_position">
+              <type><REAL/></type>
+            </variable>
+            <variable name="z_position">
+              <type><REAL/></type>
+            </variable>
+            <variable name="stn_type">
+              <type><INT/></type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
       <dataType name="STATION_T">
         <baseType>
           <struct>
-            <variable name="number">
+            <variable name="tank_id">
               <type><INT/></type>
             </variable>
-            <variable name="x_mm">
-              <type><REAL/></type>
-            </variable>
-            <variable name="station_type">
+            <variable name="status">
               <type><INT/></type>
             </variable>
-            <variable name="device_delay_s">
+            <variable name="x_position">
               <type><REAL/></type>
             </variable>
-            <variable name="dropping_time_s">
+            <variable name="y_position">
+              <type><REAL/></type>
+            </variable>
+            <variable name="z_position">
+              <type><REAL/></type>
+            </variable>
+            <variable name="stn_type">
+              <type><INT/></type>
+            </variable>
+            <variable name="dropping_time">
+              <type><REAL/></type>
+            </variable>
+            <variable name="device_delay">
               <type><REAL/></type>
             </variable>
           </struct>
@@ -145,6 +178,27 @@
           </struct>
         </baseType>
       </dataType>
+      <dataType name="UNIT_T">
+        <baseType>
+          <struct>
+            <variable name="batch_id">
+              <type><INT/></type>
+            </variable>
+            <variable name="location">
+              <type><INT/></type>
+            </variable>
+            <variable name="status">
+              <type><INT/></type>
+            </variable>
+            <variable name="state">
+              <type><INT/></type>
+            </variable>
+            <variable name="target">
+              <type><INT/></type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
     </dataTypes>
     <pous>
       <pou name="IsWetStationType" pouType="function">
@@ -192,48 +246,43 @@
             </variable>
           </outputVars>
           <externalVars>
-            <variable name="g_station_count">
-              <type><INT/></type>
-            </variable>
             <variable name="g_stations">
               <type>
                 <array>
-                  <dimension lower="1" upper="21"/>
+                  <dimension lower="101" upper="125"/>
                   <baseType><derived name="STATION_T"/></baseType>
                 </array>
               </type>
             </variable>
           </externalVars>
           <localVars>
-            <variable name="i">
-              <type><INT/></type>
-            </variable>
-            <variable name="tmp_st">
+            <variable name="st">
               <type><derived name="STATION_T"/></type>
             </variable>
           </localVars>
         </interface>
         <body>
           <ST>
-            <xhtml:p><![CDATA[found := FALSE;
+            <xhtml:p><![CDATA[(* Direct lookup by station number — no loop needed *)
+IF (station_number >= 101) AND (station_number <= 125) THEN
+  st := g_stations[station_number];
+  IF st.tank_id <> 0 THEN
+    found := TRUE;
+    idx := station_number;
+    x_mm := st.x_position;
+    stype := st.stn_type;
+    device_delay_s := st.device_delay;
+    dropping_time_s := st.dropping_time;
+    RETURN;
+  END_IF;
+END_IF;
+
+found := FALSE;
 idx := 0;
 x_mm := 0.0;
 stype := 0;
 device_delay_s := 0.0;
-dropping_time_s := 0.0;
-
-FOR i := 1 TO g_station_count DO
-  tmp_st := g_stations[i];
-  IF tmp_st.number = station_number THEN
-    found := TRUE;
-    idx := i;
-    x_mm := tmp_st.x_mm;
-    stype := tmp_st.station_type;
-    device_delay_s := tmp_st.device_delay_s;
-    dropping_time_s := tmp_st.dropping_time_s;
-    RETURN;
-  END_IF;
-END_FOR;]]></xhtml:p>
+dropping_time_s := 0.0;]]></xhtml:p>
           </ST>
         </body>
       </pou>
@@ -262,6 +311,11 @@ END_FOR;]]></xhtml:p>
               <type><REAL/></type>
             </variable>
           </inputVars>
+          <outputVars>
+            <variable name="arrived">
+              <type><BOOL/></type>
+            </variable>
+          </outputVars>
           <inOutVars>
             <variable name="x_pos">
               <type><REAL/></type>
@@ -270,11 +324,6 @@ END_FOR;]]></xhtml:p>
               <type><REAL/></type>
             </variable>
           </inOutVars>
-          <outputVars>
-            <variable name="arrived">
-              <type><BOOL/></type>
-            </variable>
-          </outputVars>
           <localVars>
             <variable name="drive_target">
               <type><REAL/></type>
@@ -379,7 +428,7 @@ END_IF;]]></xhtml:p>
             <variable name="g_stations">
               <type>
                 <array>
-                  <dimension lower="1" upper="21"/>
+                  <dimension lower="101" upper="125"/>
                   <baseType><derived name="STATION_T"/></baseType>
                 </array>
               </type>
@@ -387,7 +436,7 @@ END_IF;]]></xhtml:p>
             <variable name="g_cfg">
               <type>
                 <array>
-                  <dimension lower="1" upper="10"/>
+                  <dimension lower="1" upper="3"/>
                   <baseType><derived name="TRANSPORTER_CFG_T"/></baseType>
                 </array>
               </type>
@@ -395,7 +444,7 @@ END_IF;]]></xhtml:p>
             <variable name="g_state">
               <type>
                 <array>
-                  <dimension lower="1" upper="10"/>
+                  <dimension lower="1" upper="3"/>
                   <baseType><derived name="TRANSPORTER_STATE_T"/></baseType>
                 </array>
               </type>
@@ -403,7 +452,7 @@ END_IF;]]></xhtml:p>
             <variable name="g_cmd_start">
               <type>
                 <array>
-                  <dimension lower="1" upper="10"/>
+                  <dimension lower="1" upper="3"/>
                   <baseType><BOOL/></baseType>
                 </array>
               </type>
@@ -411,7 +460,7 @@ END_IF;]]></xhtml:p>
             <variable name="g_cmd_lift_station">
               <type>
                 <array>
-                  <dimension lower="1" upper="10"/>
+                  <dimension lower="1" upper="3"/>
                   <baseType><INT/></baseType>
                 </array>
               </type>
@@ -419,7 +468,7 @@ END_IF;]]></xhtml:p>
             <variable name="g_cmd_sink_station">
               <type>
                 <array>
-                  <dimension lower="1" upper="10"/>
+                  <dimension lower="1" upper="3"/>
                   <baseType><INT/></baseType>
                 </array>
               </type>
@@ -505,11 +554,234 @@ END_IF;]]></xhtml:p>
             <variable name="iw_cmd_sink_2">
               <type><INT/></type>
             </variable>
+            <variable name="iw_cfg_seq">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_cfg_cmd">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_cfg_param">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_cfg_d0">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_cfg_d1">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_cfg_d2">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_cfg_d3">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_cfg_d4">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_cfg_d5">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_cfg_d6">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cfg_ack">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_units">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="UNIT_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="qw_u1_batch">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u1_loc">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u1_status">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u1_state">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u1_target">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u2_batch">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u2_loc">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u2_status">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u2_state">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u2_target">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u3_batch">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u3_loc">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u3_status">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u3_state">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u3_target">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u4_batch">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u4_loc">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u4_status">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u4_state">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u4_target">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u5_batch">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u5_loc">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u5_status">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u5_state">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u5_target">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u6_batch">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u6_loc">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u6_status">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u6_state">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u6_target">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u7_batch">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u7_loc">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u7_status">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u7_state">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u7_target">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u8_batch">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u8_loc">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u8_status">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u8_state">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u8_target">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u9_batch">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u9_loc">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u9_status">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u9_state">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u9_target">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u10_batch">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u10_loc">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u10_status">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u10_state">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_u10_target">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_unit_ack">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_unit_seq">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_unit_id">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_unit_batch">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_unit_loc">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_unit_status">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_unit_state">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_unit_target">
+              <type><INT/></type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="init_done">
               <type><BOOL/></type>
               <initialValue><simpleValue value="FALSE"/></initialValue>
+            </variable>
+            <variable name="last_cfg_seq">
+              <type><INT/></type>
+              <initialValue><simpleValue value="0"/></initialValue>
+            </variable>
+            <variable name="last_unit_seq">
+              <type><INT/></type>
+              <initialValue><simpleValue value="0"/></initialValue>
             </variable>
             <variable name="i">
               <type><INT/></type>
@@ -553,6 +825,9 @@ END_IF;]]></xhtml:p>
             <variable name="fb_x2">
               <type><derived name="FB_XMotion"/></type>
             </variable>
+            <variable name="fb_x3">
+              <type><derived name="FB_XMotion"/></type>
+            </variable>
             <variable name="lookup">
               <type><derived name="FB_StationLookup"/></type>
             </variable>
@@ -563,196 +838,115 @@ END_IF;]]></xhtml:p>
         </interface>
         <body>
           <ST>
-            <xhtml:p><![CDATA[IF NOT init_done THEN
-  g_station_count := 21;
+            <xhtml:p><![CDATA[(* ============================================================
+   CONFIG UPLOAD HANDLER
+   Gateway writes station data one at a time via Modbus IW regs.
+   Sequence number change triggers processing.
+   cmd=1: write one station  cmd=2: finish init (start sim)
+   ============================================================ *)
+IF iw_cfg_seq <> last_cfg_seq THEN
+  last_cfg_seq := iw_cfg_seq;
 
-  g_stations[1].number := 101;
-  g_stations[1].x_mm := 100.0;
-  g_stations[1].station_type := 22;
-  g_stations[1].device_delay_s := 0.0;
-  g_stations[1].dropping_time_s := 0.0;
-
-  g_stations[2].number := 102;
-  g_stations[2].x_mm := 1550.0;
-  g_stations[2].station_type := 30;
-  g_stations[2].device_delay_s := 0.0;
-  g_stations[2].dropping_time_s := 0.0;
-
-  g_stations[3].number := 103;
-  g_stations[3].x_mm := 3000.0;
-  g_stations[3].station_type := 30;
-  g_stations[3].device_delay_s := 0.0;
-  g_stations[3].dropping_time_s := 0.0;
-
-  g_stations[4].number := 104;
-  g_stations[4].x_mm := 4450.0;
-  g_stations[4].station_type := 0;
-  g_stations[4].device_delay_s := 3.0;
-  g_stations[4].dropping_time_s := 0.0;
-
-  g_stations[5].number := 105;
-  g_stations[5].x_mm := 5900.0;
-  g_stations[5].station_type := 0;
-  g_stations[5].device_delay_s := 3.0;
-  g_stations[5].dropping_time_s := 0.0;
-
-  g_stations[6].number := 106;
-  g_stations[6].x_mm := 7350.0;
-  g_stations[6].station_type := 0;
-  g_stations[6].device_delay_s := 3.0;
-  g_stations[6].dropping_time_s := 0.0;
-
-  g_stations[7].number := 107;
-  g_stations[7].x_mm := 8800.0;
-  g_stations[7].station_type := 1;
-  g_stations[7].device_delay_s := 3.0;
-  g_stations[7].dropping_time_s := 10.0;
-
-  g_stations[8].number := 108;
-  g_stations[8].x_mm := 10250.0;
-  g_stations[8].station_type := 1;
-  g_stations[8].device_delay_s := 0.0;
-  g_stations[8].dropping_time_s := 10.0;
-
-  g_stations[9].number := 109;
-  g_stations[9].x_mm := 11700.0;
-  g_stations[9].station_type := 1;
-  g_stations[9].device_delay_s := 0.0;
-  g_stations[9].dropping_time_s := 10.0;
-
-  g_stations[10].number := 110;
-  g_stations[10].x_mm := 13150.0;
-  g_stations[10].station_type := 1;
-  g_stations[10].device_delay_s := 0.0;
-  g_stations[10].dropping_time_s := 10.0;
-
-  g_stations[11].number := 111;
-  g_stations[11].x_mm := 14600.0;
-  g_stations[11].station_type := 1;
-  g_stations[11].device_delay_s := 0.0;
-  g_stations[11].dropping_time_s := 10.0;
-
-  g_stations[12].number := 112;
-  g_stations[12].x_mm := 16050.0;
-  g_stations[12].station_type := 1;
-  g_stations[12].device_delay_s := 3.0;
-  g_stations[12].dropping_time_s := 10.0;
-
-  g_stations[13].number := 113;
-  g_stations[13].x_mm := 17500.0;
-  g_stations[13].station_type := 1;
-  g_stations[13].device_delay_s := 0.0;
-  g_stations[13].dropping_time_s := 10.0;
-
-  g_stations[14].number := 114;
-  g_stations[14].x_mm := 18950.0;
-  g_stations[14].station_type := 32;
-  g_stations[14].device_delay_s := 0.0;
-  g_stations[14].dropping_time_s := 0.0;
-
-  g_stations[15].number := 115;
-  g_stations[15].x_mm := 20400.0;
-  g_stations[15].station_type := 0;
-  g_stations[15].device_delay_s := 3.0;
-  g_stations[15].dropping_time_s := 10.0;
-
-  g_stations[16].number := 116;
-  g_stations[16].x_mm := 21850.0;
-  g_stations[16].station_type := 1;
-  g_stations[16].device_delay_s := 3.0;
-  g_stations[16].dropping_time_s := 10.0;
-
-  g_stations[17].number := 117;
-  g_stations[17].x_mm := 23300.0;
-  g_stations[17].station_type := 1;
-  g_stations[17].device_delay_s := 0.0;
-  g_stations[17].dropping_time_s := 10.0;
-
-  g_stations[18].number := 118;
-  g_stations[18].x_mm := 24750.0;
-  g_stations[18].station_type := 1;
-  g_stations[18].device_delay_s := 0.0;
-  g_stations[18].dropping_time_s := 10.0;
-
-  g_stations[19].number := 119;
-  g_stations[19].x_mm := 26200.0;
-  g_stations[19].station_type := 30;
-  g_stations[19].device_delay_s := 0.0;
-  g_stations[19].dropping_time_s := 0.0;
-
-  g_stations[20].number := 120;
-  g_stations[20].x_mm := 27650.0;
-  g_stations[20].station_type := 30;
-  g_stations[20].device_delay_s := 0.0;
-  g_stations[20].dropping_time_s := 0.0;
-
-  g_stations[21].number := 121;
-  g_stations[21].x_mm := 29100.0;
-  g_stations[21].station_type := 1;
-  g_stations[21].device_delay_s := 0.0;
-  g_stations[21].dropping_time_s := 10.0;
-
-  g_cfg[1].id := 1;
-  g_cfg[1].start_station := 101;
-  g_cfg[1].x_min_limit := 100.0;
-  g_cfg[1].x_max_limit := 20600.0;
-  g_cfg[1].phys2d.x_accel_s := 1.5;
-  g_cfg[1].phys2d.x_decel_s := 1.5;
-  g_cfg[1].phys2d.x_max_mm_s := 500.0;
-  g_cfg[1].phys2d.z_total_mm := 2500.0;
-  g_cfg[1].phys2d.z_slow_dry_mm := 300.0;
-  g_cfg[1].phys2d.z_slow_wet_mm := 1000.0;
-  g_cfg[1].phys2d.z_slow_end_mm := 50.0;
-  g_cfg[1].phys2d.z_slow_mm_s := 100.0;
-  g_cfg[1].phys2d.z_fast_mm_s := 200.0;
-  g_cfg[1].phys2d.drip_delay_s := 5.0;
-  g_cfg[1].phys2d.avoid_mm := 2000.0;
-
-  g_cfg[2].id := 2;
-  g_cfg[2].start_station := 118;
-  g_cfg[2].x_min_limit := 14300.0;
-  g_cfg[2].x_max_limit := 29100.0;
-  g_cfg[2].phys2d.x_accel_s := 1.5;
-  g_cfg[2].phys2d.x_decel_s := 1.5;
-  g_cfg[2].phys2d.x_max_mm_s := 500.0;
-  g_cfg[2].phys2d.z_total_mm := 2500.0;
-  g_cfg[2].phys2d.z_slow_dry_mm := 300.0;
-  g_cfg[2].phys2d.z_slow_wet_mm := 1000.0;
-  g_cfg[2].phys2d.z_slow_end_mm := 50.0;
-  g_cfg[2].phys2d.z_slow_mm_s := 100.0;
-  g_cfg[2].phys2d.z_fast_mm_s := 200.0;
-  g_cfg[2].phys2d.drip_delay_s := 5.0;
-  g_cfg[2].phys2d.avoid_mm := 2000.0;
-
-  FOR i := 1 TO 10 DO
-    IF i <= 2 THEN
-      g_state[i].active := TRUE;
-    ELSE
-      g_state[i].active := FALSE;
+  IF iw_cfg_cmd = 1 THEN
+    (* --- Write one station to g_stations array --- *)
+    IF (iw_cfg_param >= 101) AND (iw_cfg_param <= 125) THEN
+      g_stations[iw_cfg_param].tank_id       := iw_cfg_d0;
+      g_stations[iw_cfg_param].x_position    := INT_TO_REAL(iw_cfg_d1);
+      g_stations[iw_cfg_param].y_position    := INT_TO_REAL(iw_cfg_d2);
+      g_stations[iw_cfg_param].z_position    := INT_TO_REAL(iw_cfg_d3);
+      g_stations[iw_cfg_param].stn_type      := iw_cfg_d4;
+      g_stations[iw_cfg_param].dropping_time := INT_TO_REAL(iw_cfg_d5) / 10.0;
+      g_stations[iw_cfg_param].device_delay  := INT_TO_REAL(iw_cfg_d6) / 10.0;
     END_IF;
-    g_state[i].phase := 0;
-    g_state[i].z_stage := 0;
-    g_state[i].vel_x := 0.0;
-    g_state[i].vel_z := 0.0;
-    g_state[i].z_timer_s := 0.0;
-    g_state[i].x_min_limit := g_cfg[i].x_min_limit;
-    g_state[i].x_max_limit := g_cfg[i].x_max_limit;
+    qw_cfg_ack := iw_cfg_seq;
 
-    lookup(station_number := g_cfg[i].start_station);
-    IF lookup.found THEN
-      g_state[i].x_mm := lookup.x_mm;
-      g_state[i].current_station := g_cfg[i].start_station;
-    ELSE
-      g_state[i].x_mm := 0.0;
-      g_state[i].current_station := 0;
-    END_IF;
-    g_state[i].z_mm := 0.0;
-  END_FOR;
+  ELSIF iw_cfg_cmd = 2 THEN
+    (* --- Finish init: station data uploaded, now init transporters --- *)
+    g_station_count := iw_cfg_param;
 
-  init_done := TRUE;
+    (* Clear old station data for slots not uploaded *)
+    FOR idx := 101 TO 125 DO
+      IF g_stations[idx].tank_id = 0 THEN
+        g_stations[idx].x_position := 0.0;
+        g_stations[idx].y_position := 0.0;
+        g_stations[idx].z_position := 0.0;
+        g_stations[idx].stn_type := 0;
+        g_stations[idx].dropping_time := 0.0;
+        g_stations[idx].device_delay := 0.0;
+      END_IF;
+    END_FOR;
+
+    (* Transporter 1 config — hardcoded for now *)
+    g_cfg[1].id := 1;
+    g_cfg[1].start_station := 101;
+    g_cfg[1].x_min_limit := 100.0;
+    g_cfg[1].x_max_limit := 20600.0;
+    g_cfg[1].phys2d.x_accel_s := 1.5;
+    g_cfg[1].phys2d.x_decel_s := 1.5;
+    g_cfg[1].phys2d.x_max_mm_s := 500.0;
+    g_cfg[1].phys2d.z_total_mm := 2500.0;
+    g_cfg[1].phys2d.z_slow_dry_mm := 300.0;
+    g_cfg[1].phys2d.z_slow_wet_mm := 1000.0;
+    g_cfg[1].phys2d.z_slow_end_mm := 50.0;
+    g_cfg[1].phys2d.z_slow_mm_s := 100.0;
+    g_cfg[1].phys2d.z_fast_mm_s := 200.0;
+    g_cfg[1].phys2d.drip_delay_s := 5.0;
+    g_cfg[1].phys2d.avoid_mm := 2000.0;
+
+    (* Transporter 2 config *)
+    g_cfg[2].id := 2;
+    g_cfg[2].start_station := 118;
+    g_cfg[2].x_min_limit := 14300.0;
+    g_cfg[2].x_max_limit := 29100.0;
+    g_cfg[2].phys2d.x_accel_s := 1.5;
+    g_cfg[2].phys2d.x_decel_s := 1.5;
+    g_cfg[2].phys2d.x_max_mm_s := 500.0;
+    g_cfg[2].phys2d.z_total_mm := 2500.0;
+    g_cfg[2].phys2d.z_slow_dry_mm := 300.0;
+    g_cfg[2].phys2d.z_slow_wet_mm := 1000.0;
+    g_cfg[2].phys2d.z_slow_end_mm := 50.0;
+    g_cfg[2].phys2d.z_slow_mm_s := 100.0;
+    g_cfg[2].phys2d.z_fast_mm_s := 200.0;
+    g_cfg[2].phys2d.drip_delay_s := 5.0;
+    g_cfg[2].phys2d.avoid_mm := 2000.0;
+
+    (* Init transporter states *)
+    FOR i := 1 TO 3 DO
+      IF i <= 2 THEN
+        g_state[i].active := TRUE;
+      ELSE
+        g_state[i].active := FALSE;
+      END_IF;
+      g_state[i].phase := 0;
+      g_state[i].z_stage := 0;
+      g_state[i].vel_x := 0.0;
+      g_state[i].vel_z := 0.0;
+      g_state[i].z_timer_s := 0.0;
+      g_state[i].x_min_limit := g_cfg[i].x_min_limit;
+      g_state[i].x_max_limit := g_cfg[i].x_max_limit;
+
+      lookup(station_number := g_cfg[i].start_station);
+      IF lookup.found THEN
+        g_state[i].x_mm := lookup.x_mm;
+        g_state[i].current_station := g_cfg[i].start_station;
+      ELSE
+        g_state[i].x_mm := 0.0;
+        g_state[i].current_station := 0;
+      END_IF;
+      g_state[i].z_mm := 0.0;
+    END_FOR;
+
+    init_done := TRUE;
+    qw_cfg_ack := iw_cfg_seq;
+  END_IF;
 END_IF;
 
-FOR i := 1 TO 10 DO
+(* ============================================================
+   MAIN TRANSPORT CYCLE — only runs when init_done
+   ============================================================ *)
+IF init_done THEN
+
+FOR i := 1 TO 3 DO
   IF g_state[i].active THEN
 
   IF (g_state[i].phase = 0) AND g_cmd_start[i] THEN
@@ -794,6 +988,19 @@ FOR i := 1 TO 10 DO
         v_x := tmp_vx
       );
       arrived_x := fb_x2.arrived;
+    ELSIF i = 3 THEN
+      fb_x3(
+        delta_t := 0.02,
+        x_target := g_state[i].target_x,
+        x_min := g_state[i].x_min_limit,
+        x_max := g_state[i].x_max_limit,
+        v_max := g_cfg[i].phys2d.x_max_mm_s,
+        t_acc := g_cfg[i].phys2d.x_accel_s,
+        t_dec := g_cfg[i].phys2d.x_decel_s,
+        x_pos := tmp_x,
+        v_x := tmp_vx
+      );
+      arrived_x := fb_x3.arrived;
     END_IF;
     g_state[i].x_mm := tmp_x;
     g_state[i].vel_x := tmp_vx;
@@ -882,6 +1089,19 @@ FOR i := 1 TO 10 DO
         v_x := tmp_vx
       );
       arrived_x := fb_x2.arrived;
+    ELSIF i = 3 THEN
+      fb_x3(
+        delta_t := 0.02,
+        x_target := g_state[i].target_x,
+        x_min := g_state[i].x_min_limit,
+        x_max := g_state[i].x_max_limit,
+        v_max := g_cfg[i].phys2d.x_max_mm_s,
+        t_acc := g_cfg[i].phys2d.x_accel_s,
+        t_dec := g_cfg[i].phys2d.x_decel_s,
+        x_pos := tmp_x,
+        v_x := tmp_vx
+      );
+      arrived_x := fb_x3.arrived;
     END_IF;
     g_state[i].x_mm := tmp_x;
     g_state[i].vel_x := tmp_vx;
@@ -928,17 +1148,36 @@ FOR i := 1 TO 10 DO
 
   min_dist := 1.0e9;
   nearest_num := g_state[i].current_station;
-  FOR idx := 1 TO g_station_count DO
-    dx := g_stations[idx].x_mm - g_state[i].x_mm;
-    IF ABS(dx) < min_dist THEN
-      min_dist := ABS(dx);
-      nearest_num := g_stations[idx].number;
+  FOR idx := 101 TO 125 DO
+    IF g_stations[idx].tank_id <> 0 THEN
+      dx := g_stations[idx].x_position - g_state[i].x_mm;
+      IF ABS(dx) < min_dist THEN
+        min_dist := ABS(dx);
+        nearest_num := idx;
+      END_IF;
     END_IF;
   END_FOR;
   g_state[i].current_station := nearest_num;
 
-  END_IF;
+  END_IF;  (* active *)
 END_FOR;
+
+END_IF;  (* init_done *)
+
+(* ============================================================
+   UNIT WRITE HANDLER — gateway writes one unit at a time
+   ============================================================ *)
+IF iw_unit_seq <> last_unit_seq THEN
+  last_unit_seq := iw_unit_seq;
+  IF (iw_unit_id >= 1) AND (iw_unit_id <= 10) THEN
+    g_units[iw_unit_id].batch_id := iw_unit_batch;
+    g_units[iw_unit_id].location := iw_unit_loc;
+    g_units[iw_unit_id].status   := iw_unit_status;
+    g_units[iw_unit_id].state    := iw_unit_state;
+    g_units[iw_unit_id].target   := iw_unit_target;
+  END_IF;
+  qw_unit_ack := iw_unit_seq;
+END_IF;
 
 (* === MODBUS INPUT: Read commands from input registers === *)
 g_cmd_start[1] := iw_cmd_start_1 <> 0;
@@ -975,7 +1214,59 @@ qw_station_cnt := g_station_count;
 IF init_done THEN qw_init_done := 1; ELSE qw_init_done := 0; END_IF;
 cycle_count := cycle_count + 1;
 IF cycle_count > 30000 THEN cycle_count := 0; END_IF;
-qw_cycle_cnt := cycle_count;]]></xhtml:p>
+qw_cycle_cnt := cycle_count;
+
+(* Write unit data to Modbus output QW22..QW71 *)
+qw_u1_batch  := g_units[1].batch_id;
+qw_u1_loc    := g_units[1].location;
+qw_u1_status := g_units[1].status;
+qw_u1_state  := g_units[1].state;
+qw_u1_target := g_units[1].target;
+qw_u2_batch  := g_units[2].batch_id;
+qw_u2_loc    := g_units[2].location;
+qw_u2_status := g_units[2].status;
+qw_u2_state  := g_units[2].state;
+qw_u2_target := g_units[2].target;
+qw_u3_batch  := g_units[3].batch_id;
+qw_u3_loc    := g_units[3].location;
+qw_u3_status := g_units[3].status;
+qw_u3_state  := g_units[3].state;
+qw_u3_target := g_units[3].target;
+qw_u4_batch  := g_units[4].batch_id;
+qw_u4_loc    := g_units[4].location;
+qw_u4_status := g_units[4].status;
+qw_u4_state  := g_units[4].state;
+qw_u4_target := g_units[4].target;
+qw_u5_batch  := g_units[5].batch_id;
+qw_u5_loc    := g_units[5].location;
+qw_u5_status := g_units[5].status;
+qw_u5_state  := g_units[5].state;
+qw_u5_target := g_units[5].target;
+qw_u6_batch  := g_units[6].batch_id;
+qw_u6_loc    := g_units[6].location;
+qw_u6_status := g_units[6].status;
+qw_u6_state  := g_units[6].state;
+qw_u6_target := g_units[6].target;
+qw_u7_batch  := g_units[7].batch_id;
+qw_u7_loc    := g_units[7].location;
+qw_u7_status := g_units[7].status;
+qw_u7_state  := g_units[7].state;
+qw_u7_target := g_units[7].target;
+qw_u8_batch  := g_units[8].batch_id;
+qw_u8_loc    := g_units[8].location;
+qw_u8_status := g_units[8].status;
+qw_u8_state  := g_units[8].state;
+qw_u8_target := g_units[8].target;
+qw_u9_batch  := g_units[9].batch_id;
+qw_u9_loc    := g_units[9].location;
+qw_u9_status := g_units[9].status;
+qw_u9_state  := g_units[9].state;
+qw_u9_target := g_units[9].target;
+qw_u10_batch  := g_units[10].batch_id;
+qw_u10_loc    := g_units[10].location;
+qw_u10_status := g_units[10].status;
+qw_u10_state  := g_units[10].state;
+qw_u10_target := g_units[10].target;]]></xhtml:p>
           </ST>
         </body>
       </pou>
@@ -990,6 +1281,62 @@ qw_cycle_cnt := cycle_count;]]></xhtml:p>
           </task>
         </resource>
         <globalVars>
+          <variable name="MAX_STATIONS">
+            <type><INT/></type>
+            <initialValue><simpleValue value="25"/></initialValue>
+          </variable>
+          <variable name="MAX_TRANSPORTERS">
+            <type><INT/></type>
+            <initialValue><simpleValue value="3"/></initialValue>
+          </variable>
+          <variable name="MAX_UNITS">
+            <type><INT/></type>
+            <initialValue><simpleValue value="10"/></initialValue>
+          </variable>
+          <variable name="USED">
+            <type><INT/></type>
+            <initialValue><simpleValue value="1"/></initialValue>
+          </variable>
+          <variable name="NOT_USED">
+            <type><INT/></type>
+            <initialValue><simpleValue value="0"/></initialValue>
+          </variable>
+          <variable name="EMPTY">
+            <type><INT/></type>
+            <initialValue><simpleValue value="0"/></initialValue>
+          </variable>
+          <variable name="NOT_PROCESSED">
+            <type><INT/></type>
+            <initialValue><simpleValue value="1"/></initialValue>
+          </variable>
+          <variable name="IN_PROCESS">
+            <type><INT/></type>
+            <initialValue><simpleValue value="2"/></initialValue>
+          </variable>
+          <variable name="PROCESSED">
+            <type><INT/></type>
+            <initialValue><simpleValue value="3"/></initialValue>
+          </variable>
+          <variable name="TO_NONE">
+            <type><INT/></type>
+            <initialValue><simpleValue value="0"/></initialValue>
+          </variable>
+          <variable name="TO_LOADING">
+            <type><INT/></type>
+            <initialValue><simpleValue value="1"/></initialValue>
+          </variable>
+          <variable name="TO_BUFFER">
+            <type><INT/></type>
+            <initialValue><simpleValue value="2"/></initialValue>
+          </variable>
+          <variable name="TO_UNLOAD">
+            <type><INT/></type>
+            <initialValue><simpleValue value="3"/></initialValue>
+          </variable>
+          <variable name="TO_AVOID">
+            <type><INT/></type>
+            <initialValue><simpleValue value="4"/></initialValue>
+          </variable>
           <variable name="g_station_count">
             <type><INT/></type>
             <initialValue><simpleValue value="0"/></initialValue>
@@ -997,7 +1344,7 @@ qw_cycle_cnt := cycle_count;]]></xhtml:p>
           <variable name="g_stations">
             <type>
               <array>
-                <dimension lower="1" upper="21"/>
+                <dimension lower="101" upper="125"/>
                 <baseType><derived name="STATION_T"/></baseType>
               </array>
             </type>
@@ -1005,7 +1352,7 @@ qw_cycle_cnt := cycle_count;]]></xhtml:p>
           <variable name="g_cfg">
             <type>
               <array>
-                <dimension lower="1" upper="10"/>
+                <dimension lower="1" upper="3"/>
                 <baseType><derived name="TRANSPORTER_CFG_T"/></baseType>
               </array>
             </type>
@@ -1013,7 +1360,7 @@ qw_cycle_cnt := cycle_count;]]></xhtml:p>
           <variable name="g_state">
             <type>
               <array>
-                <dimension lower="1" upper="10"/>
+                <dimension lower="1" upper="3"/>
                 <baseType><derived name="TRANSPORTER_STATE_T"/></baseType>
               </array>
             </type>
@@ -1021,7 +1368,7 @@ qw_cycle_cnt := cycle_count;]]></xhtml:p>
           <variable name="g_cmd_start">
             <type>
               <array>
-                <dimension lower="1" upper="10"/>
+                <dimension lower="1" upper="3"/>
                 <baseType><BOOL/></baseType>
               </array>
             </type>
@@ -1029,7 +1376,7 @@ qw_cycle_cnt := cycle_count;]]></xhtml:p>
           <variable name="g_cmd_lift_station">
             <type>
               <array>
-                <dimension lower="1" upper="10"/>
+                <dimension lower="1" upper="3"/>
                 <baseType><INT/></baseType>
               </array>
             </type>
@@ -1037,8 +1384,16 @@ qw_cycle_cnt := cycle_count;]]></xhtml:p>
           <variable name="g_cmd_sink_station">
             <type>
               <array>
-                <dimension lower="1" upper="10"/>
+                <dimension lower="1" upper="3"/>
                 <baseType><INT/></baseType>
+              </array>
+            </type>
+          </variable>
+          <variable name="g_units">
+            <type>
+              <array>
+                <dimension lower="1" upper="10"/>
+                <baseType><derived name="UNIT_T"/></baseType>
               </array>
             </type>
           </variable>
@@ -1121,6 +1476,213 @@ qw_cycle_cnt := cycle_count;]]></xhtml:p>
             <type><INT/></type>
           </variable>
           <variable name="iw_cmd_sink_2" address="%IW5">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_cfg_seq" address="%IW10">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_cfg_cmd" address="%IW11">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_cfg_param" address="%IW12">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_cfg_d0" address="%IW13">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_cfg_d1" address="%IW14">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_cfg_d2" address="%IW15">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_cfg_d3" address="%IW16">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_cfg_d4" address="%IW17">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_cfg_d5" address="%IW18">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_cfg_d6" address="%IW19">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cfg_ack" address="%QW21">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u1_batch" address="%QW22">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u1_loc" address="%QW23">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u1_status" address="%QW24">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u1_state" address="%QW25">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u1_target" address="%QW26">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u2_batch" address="%QW27">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u2_loc" address="%QW28">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u2_status" address="%QW29">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u2_state" address="%QW30">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u2_target" address="%QW31">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u3_batch" address="%QW32">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u3_loc" address="%QW33">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u3_status" address="%QW34">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u3_state" address="%QW35">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u3_target" address="%QW36">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u4_batch" address="%QW37">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u4_loc" address="%QW38">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u4_status" address="%QW39">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u4_state" address="%QW40">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u4_target" address="%QW41">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u5_batch" address="%QW42">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u5_loc" address="%QW43">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u5_status" address="%QW44">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u5_state" address="%QW45">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u5_target" address="%QW46">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u6_batch" address="%QW47">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u6_loc" address="%QW48">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u6_status" address="%QW49">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u6_state" address="%QW50">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u6_target" address="%QW51">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u7_batch" address="%QW52">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u7_loc" address="%QW53">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u7_status" address="%QW54">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u7_state" address="%QW55">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u7_target" address="%QW56">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u8_batch" address="%QW57">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u8_loc" address="%QW58">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u8_status" address="%QW59">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u8_state" address="%QW60">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u8_target" address="%QW61">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u9_batch" address="%QW62">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u9_loc" address="%QW63">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u9_status" address="%QW64">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u9_state" address="%QW65">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u9_target" address="%QW66">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u10_batch" address="%QW67">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u10_loc" address="%QW68">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u10_status" address="%QW69">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u10_state" address="%QW70">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_u10_target" address="%QW71">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_unit_ack" address="%QW72">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_unit_seq" address="%IW20">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_unit_id" address="%IW21">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_unit_batch" address="%IW22">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_unit_loc" address="%IW23">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_unit_status" address="%IW24">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_unit_state" address="%IW25">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_unit_target" address="%IW26">
             <type><INT/></type>
           </variable>
         </globalVars>

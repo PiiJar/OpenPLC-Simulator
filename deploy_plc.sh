@@ -1,0 +1,93 @@
+#!/bin/bash
+# deploy_plc.sh — Build ST sources, upload to PLC container, compile and restart
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SRC_DIR="$SCRIPT_DIR/openplc/OpenPLC"
+BUILD_ST="$SRC_DIR/to_editor/build/plc.st"
+CONTAINER="openplc_v3"
+PLC_HOME="/home/openplc/OpenPLC_v3/webserver"
+
+# Active program filename (read from container)
+ACTIVE_PROG=$(docker exec "$CONTAINER" cat "$PLC_HOME/active_program" 2>/dev/null || echo "")
+if [ -z "$ACTIVE_PROG" ]; then
+  echo "ERROR: Cannot read active program name from container"
+  exit 1
+fi
+echo "Active program in runtime: $ACTIVE_PROG"
+
+# ─── Step 1: Convert src/*.st → plc.xml + build/plc.st ───
+echo ""
+echo "═══ Step 1: build_plcxml.py ═══"
+cd "$SRC_DIR"
+python3 build_plcxml.py
+echo ""
+
+# Verify unit handler is in build output
+if ! grep -q "iw_unit_seq" "$BUILD_ST"; then
+  echo "ERROR: build/plc.st does not contain unit handler code!"
+  exit 1
+fi
+echo "✓ build/plc.st contains unit handler ($(wc -l < "$BUILD_ST") lines)"
+
+# ─── Step 2: Stop PLC runtime ───
+echo ""
+echo "═══ Step 2: Stop PLC runtime ═══"
+# Login and stop via web API
+CSRF=$(curl -s -c /tmp/deploy_cookies.txt http://localhost:8080/login \
+  | grep -oP "value='\K[^']+(?='  name='csrf_token')")
+curl -s -b /tmp/deploy_cookies.txt -c /tmp/deploy_cookies.txt \
+  -X POST http://localhost:8080/login \
+  --data-urlencode "username=PiiJar" \
+  --data-urlencode "password=!T0s1v41k33!" \
+  --data-urlencode "csrf_token=$CSRF" \
+  -o /dev/null -D /tmp/deploy_headers.txt
+
+# Check if login succeeded (should redirect to /dashboard)
+if ! grep -q "Location: /dashboard" /tmp/deploy_headers.txt 2>/dev/null; then
+  echo "ERROR: Failed to login to OpenPLC web UI"
+  exit 1
+fi
+echo "✓ Logged in to OpenPLC"
+
+curl -s -b /tmp/deploy_cookies.txt http://localhost:8080/stop_plc -o /dev/null
+sleep 2
+echo "✓ PLC runtime stopped"
+
+# ─── Step 3: Copy plc.st to container ───
+echo ""
+echo "═══ Step 3: Upload to container ═══"
+docker cp "$BUILD_ST" "$CONTAINER:$PLC_HOME/st_files/$ACTIVE_PROG"
+echo "✓ Copied build/plc.st → container st_files/$ACTIVE_PROG"
+
+# Verify
+MATCH=$(docker exec "$CONTAINER" grep -c "iw_unit_seq" "$PLC_HOME/st_files/$ACTIVE_PROG")
+echo "  Unit handler references in container: $MATCH"
+
+# ─── Step 4: Compile inside container ───
+echo ""
+echo "═══ Step 4: Compile PLC program ═══"
+docker exec -w "$PLC_HOME" "$CONTAINER" \
+  bash scripts/compile_program.sh "$ACTIVE_PROG" 2>&1
+echo ""
+
+# ─── Step 5: Start PLC runtime ───
+echo ""
+echo "═══ Step 5: Start PLC runtime ═══"
+curl -s -b /tmp/deploy_cookies.txt http://localhost:8080/start_plc -o /dev/null
+sleep 2
+
+# Verify PLC is running
+STATUS=$(curl -s -b /tmp/deploy_cookies.txt http://localhost:8080/dashboard \
+  | grep -oi "Running\|Stopped" | head -1)
+echo "PLC status: $STATUS"
+
+if [ "$STATUS" = "Running" ]; then
+  echo ""
+  echo "✓ Deploy complete! PLC is running with updated program."
+else
+  echo ""
+  echo "⚠ PLC may not have started. Check http://localhost:8080"
+fi
+
+rm -f /tmp/deploy_cookies.txt /tmp/deploy_headers.txt

@@ -2,13 +2,27 @@
    types.st — Data type definitions for the transporter simulator
    ============================================================ *)
 
+TYPE TANK_T :
+STRUCT
+  tank_id    : INT;
+  status     : INT;    (* NOT_USED=0, USED=1 *)
+  x_position : REAL;
+  y_position : REAL;
+  z_position : REAL;
+  stn_type   : INT;
+END_STRUCT;
+END_TYPE
+
 TYPE STATION_T :
 STRUCT
-  number           : INT;
-  x_mm             : REAL;
-  station_type     : INT;
-  device_delay_s   : REAL;
-  dropping_time_s  : REAL;
+  tank_id       : INT;
+  status        : INT;    (* NOT_USED=0, USED=1 *)
+  x_position    : REAL;
+  y_position    : REAL;
+  z_position    : REAL;
+  stn_type      : INT;
+  dropping_time : REAL;
+  device_delay  : REAL;
 END_STRUCT;
 END_TYPE
 
@@ -54,5 +68,15 @@ STRUCT
   x_min_limit          : REAL;
   x_max_limit          : REAL;
   z_timer_s            : REAL;
+END_STRUCT;
+END_TYPE
+
+TYPE UNIT_T :
+STRUCT
+  batch_id : INT;
+  location : INT;    (* station number where unit currently is *)
+  status   : INT;    (* NOT_USED=0, USED=1 *)
+  state    : INT;    (* EMPTY=0, NOT_PROCESSED=1, IN_PROCESS=2, PROCESSED=3 *)
+  target   : INT;    (* TO_NONE=0, TO_LOADING=1, TO_BUFFER=2, TO_UNLOAD=3, TO_AVOID=4 *)
 END_STRUCT;
 END_TYPE
