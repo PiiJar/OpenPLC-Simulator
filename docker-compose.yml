@@ -1,0 +1,33 @@
+services:
+  openplc:
+    build: .
+    container_name: openplc_v3
+    ports:
+      - "8080:8080"
+    privileged: true
+    restart: unless-stopped
+
+  gateway:
+    build: ./openplc/gateway
+    container_name: plc_gateway
+    ports:
+      - "3001:3001"
+    environment:
+      - PLC_HOST=openplc
+      - PLC_PORT=502
+      - API_PORT=3001
+      - POLL_MS=100
+    volumes:
+      - ./customers:/data/customers:ro
+    depends_on:
+      - openplc
+    restart: unless-stopped
+
+  visualization:
+    build: ./PLC Simulator/visualization
+    container_name: plc_ui
+    ports:
+      - "5173:80"
+    depends_on:
+      - gateway
+    restart: unless-stopped

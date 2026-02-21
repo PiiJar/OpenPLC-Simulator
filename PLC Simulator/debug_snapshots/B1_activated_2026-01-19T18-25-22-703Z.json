@@ -1,0 +1,399 @@
+{
+  "timestamp": "2026-01-19T18:25:22.699Z",
+  "activatedBatchId": 1,
+  "currentTimeSec": 2.26,
+  "batches": [
+    {
+      "batch_id": 1,
+      "stage": 90,
+      "location": 101,
+      "calc_time_s": 0,
+      "min_time_s": 0,
+      "max_time_s": 0,
+      "start_time": 110,
+      "treatment_program": 1
+    }
+  ],
+  "transporterStates": [
+    {
+      "id": 1,
+      "phase": 0,
+      "x_position": 1000,
+      "pending_batch_id": null
+    }
+  ],
+  "sandboxTasks": [],
+  "waitingBatchTasks": [
+    {
+      "batch_id": 1,
+      "stage": 0,
+      "lift_station_id": 101,
+      "sink_station_id": 102,
+      "task_start_time": 6.13,
+      "task_finished_time": 50.71
+    },
+    {
+      "batch_id": 1,
+      "stage": 1,
+      "lift_station_id": 102,
+      "sink_station_id": 103,
+      "task_start_time": 170.71,
+      "task_finished_time": 227.8
+    },
+    {
+      "batch_id": 1,
+      "stage": 2,
+      "lift_station_id": 103,
+      "sink_station_id": 104,
+      "task_start_time": 287.8,
+      "task_finished_time": 344.88
+    },
+    {
+      "batch_id": 1,
+      "stage": 3,
+      "lift_station_id": 104,
+      "sink_station_id": 105,
+      "task_start_time": 464.88,
+      "task_finished_time": 521.96
+    },
+    {
+      "batch_id": 1,
+      "stage": 4,
+      "lift_station_id": 105,
+      "sink_station_id": 106,
+      "task_start_time": 581.96,
+      "task_finished_time": 639.05
+    },
+    {
+      "batch_id": 1,
+      "stage": 5,
+      "lift_station_id": 106,
+      "sink_station_id": 107,
+      "task_start_time": 699.05,
+      "task_finished_time": 756.13
+    },
+    {
+      "batch_id": 1,
+      "stage": 6,
+      "lift_station_id": 107,
+      "sink_station_id": 108,
+      "task_start_time": 1056.13,
+      "task_finished_time": 1113.21
+    },
+    {
+      "batch_id": 1,
+      "stage": 7,
+      "lift_station_id": 108,
+      "sink_station_id": 109,
+      "task_start_time": 1173.21,
+      "task_finished_time": 1230.3
+    },
+    {
+      "batch_id": 1,
+      "stage": 8,
+      "lift_station_id": 109,
+      "sink_station_id": 110,
+      "task_start_time": 1290.3,
+      "task_finished_time": 1339.88
+    }
+  ],
+  "programsByBatchId": {
+    "1": [
+      {
+        "stage": 1,
+        "min_station": "102",
+        "max_station": "102",
+        "min_time": "00:02:00",
+        "max_time": "00:03:00",
+        "calc_time": "00:02:00"
+      },
+      {
+        "stage": 2,
+        "min_station": "103",
+        "max_station": "103",
+        "min_time": "00:01:00",
+        "max_time": "00:02:00",
+        "calc_time": "00:01:00"
+      },
+      {
+        "stage": 3,
+        "min_station": "104",
+        "max_station": "104",
+        "min_time": "00:02:00",
+        "max_time": "00:04:00",
+        "calc_time": "00:02:00"
+      },
+      {
+        "stage": 4,
+        "min_station": "105",
+        "max_station": "105",
+        "min_time": "00:01:00",
+        "max_time": "00:02:00",
+        "calc_time": "00:01:00"
+      },
+      {
+        "stage": 5,
+        "min_station": "106",
+        "max_station": "106",
+        "min_time": "00:01:00",
+        "max_time": "00:02:00",
+        "calc_time": "00:01:00"
+      },
+      {
+        "stage": 6,
+        "min_station": "107",
+        "max_station": "107",
+        "min_time": "00:05:00",
+        "max_time": "00:07:00",
+        "calc_time": "00:05:00"
+      },
+      {
+        "stage": 7,
+        "min_station": "108",
+        "max_station": "108",
+        "min_time": "00:01:00",
+        "max_time": "00:02:00",
+        "calc_time": "00:01:00"
+      },
+      {
+        "stage": 8,
+        "min_station": "109",
+        "max_station": "109",
+        "min_time": "00:01:00",
+        "max_time": "00:02:00",
+        "calc_time": "00:01:00"
+      },
+      {
+        "stage": 9,
+        "min_station": "110",
+        "max_station": "110",
+        "min_time": "00:01:00",
+        "max_time": "00:02:00",
+        "calc_time": "00:01:00"
+      }
+    ]
+  },
+  "schedulesByBatchId": {
+    "1": {
+      "batch_id": 1,
+      "calculated_at": 6.13,
+      "stages": [
+        {
+          "stage": 0,
+          "station": 101,
+          "station_name": "Loading",
+          "entry_time_s": 6.13,
+          "exit_time_s": 6.13,
+          "treatment_time_s": 0,
+          "transfer_time_s": 0,
+          "min_time_s": 0,
+          "max_time_s": 0,
+          "transfer_details": null
+        },
+        {
+          "stage": 1,
+          "station": 102,
+          "station_name": "Station 102",
+          "entry_time_s": 50.71,
+          "exit_time_s": 170.71,
+          "treatment_time_s": 120,
+          "transfer_time_s": 44.58,
+          "min_time_s": 120,
+          "max_time_s": 180,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 16.25,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 23
+          }
+        },
+        {
+          "stage": 2,
+          "station": 103,
+          "station_name": "Station 103",
+          "entry_time_s": 227.8,
+          "exit_time_s": 287.8,
+          "treatment_time_s": 60,
+          "transfer_time_s": 57.08,
+          "min_time_s": 60,
+          "max_time_s": 120,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 23
+          }
+        },
+        {
+          "stage": 3,
+          "station": 104,
+          "station_name": "Station 104",
+          "entry_time_s": 344.88,
+          "exit_time_s": 464.88,
+          "treatment_time_s": 120,
+          "transfer_time_s": 57.08,
+          "min_time_s": 120,
+          "max_time_s": 240,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 23
+          }
+        },
+        {
+          "stage": 4,
+          "station": 105,
+          "station_name": "Station 105",
+          "entry_time_s": 521.96,
+          "exit_time_s": 581.96,
+          "treatment_time_s": 60,
+          "transfer_time_s": 57.08,
+          "min_time_s": 60,
+          "max_time_s": 120,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 23
+          }
+        },
+        {
+          "stage": 5,
+          "station": 106,
+          "station_name": "Station 106",
+          "entry_time_s": 639.05,
+          "exit_time_s": 699.05,
+          "treatment_time_s": 60,
+          "transfer_time_s": 57.08,
+          "min_time_s": 60,
+          "max_time_s": 120,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 23
+          }
+        },
+        {
+          "stage": 6,
+          "station": 107,
+          "station_name": "Station 107",
+          "entry_time_s": 756.13,
+          "exit_time_s": 1056.13,
+          "treatment_time_s": 300,
+          "transfer_time_s": 57.08,
+          "min_time_s": 300,
+          "max_time_s": 420,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 23
+          }
+        },
+        {
+          "stage": 7,
+          "station": 108,
+          "station_name": "Station 108",
+          "entry_time_s": 1113.21,
+          "exit_time_s": 1173.21,
+          "treatment_time_s": 60,
+          "transfer_time_s": 57.08,
+          "min_time_s": 60,
+          "max_time_s": 120,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 23
+          }
+        },
+        {
+          "stage": 8,
+          "station": 109,
+          "station_name": "Station 109",
+          "entry_time_s": 1230.3,
+          "exit_time_s": 1290.3,
+          "treatment_time_s": 60,
+          "transfer_time_s": 57.08,
+          "min_time_s": 60,
+          "max_time_s": 120,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 23
+          }
+        },
+        {
+          "stage": 9,
+          "station": 110,
+          "station_name": "Unloading",
+          "entry_time_s": 1339.88,
+          "exit_time_s": 1399.88,
+          "treatment_time_s": 60,
+          "transfer_time_s": 49.58,
+          "min_time_s": 60,
+          "max_time_s": 120,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 15.5
+          }
+        }
+      ],
+      "total_duration_s": 1399.88,
+      "errors": [],
+      "isDelayed": false,
+      "batchStage": 90
+    }
+  },
+  "departureCandidateStretches": []
+}

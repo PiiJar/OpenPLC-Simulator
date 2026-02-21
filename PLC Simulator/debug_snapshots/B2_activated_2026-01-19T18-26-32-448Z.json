@@ -1,0 +1,701 @@
+{
+  "timestamp": "2026-01-19T18:26:32.444Z",
+  "activatedBatchId": 2,
+  "currentTimeSec": 350.99,
+  "batches": [
+    {
+      "batch_id": 1,
+      "stage": 3,
+      "location": 104,
+      "calc_time_s": 120,
+      "min_time_s": 120,
+      "max_time_s": 240,
+      "start_time": 342060,
+      "treatment_program": 1
+    },
+    {
+      "batch_id": 2,
+      "stage": 90,
+      "location": 101,
+      "calc_time_s": 0,
+      "min_time_s": 0,
+      "max_time_s": 0,
+      "start_time": 62860,
+      "treatment_program": 1
+    }
+  ],
+  "transporterStates": [
+    {
+      "id": 1,
+      "phase": 0,
+      "x_position": 4000,
+      "pending_batch_id": null,
+      "lift_station_target": 103,
+      "sink_station_target": 104,
+      "current_task_est_finish_s": null
+    }
+  ],
+  "sandboxTasks": [
+    {
+      "batch_id": 1,
+      "stage": 3,
+      "lift_station_id": 104,
+      "sink_station_id": 105,
+      "task_start_time": 462.06,
+      "task_finished_time": 519.14,
+      "isInFlight": false
+    },
+    {
+      "batch_id": 1,
+      "stage": 4,
+      "lift_station_id": 105,
+      "sink_station_id": 106,
+      "task_start_time": 603.14,
+      "task_finished_time": 660.23,
+      "isInFlight": false
+    },
+    {
+      "batch_id": 1,
+      "stage": 5,
+      "lift_station_id": 106,
+      "sink_station_id": 107,
+      "task_start_time": 744.23,
+      "task_finished_time": 801.31,
+      "isInFlight": false
+    },
+    {
+      "batch_id": 1,
+      "stage": 6,
+      "lift_station_id": 107,
+      "sink_station_id": 108,
+      "task_start_time": 1121.31,
+      "task_finished_time": 1178.39,
+      "isInFlight": false
+    },
+    {
+      "batch_id": 1,
+      "stage": 7,
+      "lift_station_id": 108,
+      "sink_station_id": 109,
+      "task_start_time": 1258.39,
+      "task_finished_time": 1315.48,
+      "isInFlight": false
+    },
+    {
+      "batch_id": 1,
+      "stage": 8,
+      "lift_station_id": 109,
+      "sink_station_id": 110,
+      "task_start_time": 1395.48,
+      "task_finished_time": 1445.06,
+      "isInFlight": false
+    }
+  ],
+  "waitingBatchTasks": [
+    {
+      "batch_id": 2,
+      "stage": 0,
+      "lift_station_id": 101,
+      "sink_station_id": 102,
+      "task_start_time": 348.97,
+      "task_finished_time": 393.55
+    },
+    {
+      "batch_id": 2,
+      "stage": 1,
+      "lift_station_id": 102,
+      "sink_station_id": 103,
+      "task_start_time": 535.55,
+      "task_finished_time": 592.64
+    },
+    {
+      "batch_id": 2,
+      "stage": 2,
+      "lift_station_id": 103,
+      "sink_station_id": 104,
+      "task_start_time": 674.64,
+      "task_finished_time": 731.72
+    },
+    {
+      "batch_id": 2,
+      "stage": 3,
+      "lift_station_id": 104,
+      "sink_station_id": 105,
+      "task_start_time": 873.72,
+      "task_finished_time": 930.8
+    },
+    {
+      "batch_id": 2,
+      "stage": 4,
+      "lift_station_id": 105,
+      "sink_station_id": 106,
+      "task_start_time": 1012.8,
+      "task_finished_time": 1069.89
+    },
+    {
+      "batch_id": 2,
+      "stage": 5,
+      "lift_station_id": 106,
+      "sink_station_id": 107,
+      "task_start_time": 1188.89,
+      "task_finished_time": 1245.97
+    },
+    {
+      "batch_id": 2,
+      "stage": 6,
+      "lift_station_id": 107,
+      "sink_station_id": 108,
+      "task_start_time": 1604.97,
+      "task_finished_time": 1662.05
+    },
+    {
+      "batch_id": 2,
+      "stage": 7,
+      "lift_station_id": 108,
+      "sink_station_id": 109,
+      "task_start_time": 1781.05,
+      "task_finished_time": 1838.14
+    },
+    {
+      "batch_id": 2,
+      "stage": 8,
+      "lift_station_id": 109,
+      "sink_station_id": 110,
+      "task_start_time": 1957.14,
+      "task_finished_time": 2006.72
+    }
+  ],
+  "programsByBatchId": {
+    "1": [
+      {
+        "stage": 1,
+        "min_station": "102",
+        "max_station": "102",
+        "min_time": "00:02:00",
+        "max_time": "00:03:00",
+        "calc_time": "00:02:00"
+      },
+      {
+        "stage": 2,
+        "min_station": "103",
+        "max_station": "103",
+        "min_time": "00:01:00",
+        "max_time": "00:02:00",
+        "calc_time": "00:01:00"
+      },
+      {
+        "stage": 3,
+        "min_station": "104",
+        "max_station": "104",
+        "min_time": "00:02:00",
+        "max_time": "00:04:00",
+        "calc_time": "00:02:00"
+      },
+      {
+        "stage": 4,
+        "min_station": "105",
+        "max_station": "105",
+        "min_time": "00:01:00",
+        "max_time": "00:02:00",
+        "calc_time": "00:01:24"
+      },
+      {
+        "stage": 5,
+        "min_station": "106",
+        "max_station": "106",
+        "min_time": "00:01:00",
+        "max_time": "00:02:00",
+        "calc_time": "00:01:24"
+      },
+      {
+        "stage": 6,
+        "min_station": "107",
+        "max_station": "107",
+        "min_time": "00:05:00",
+        "max_time": "00:07:00",
+        "calc_time": "00:05:20"
+      },
+      {
+        "stage": 7,
+        "min_station": "108",
+        "max_station": "108",
+        "min_time": "00:01:00",
+        "max_time": "00:02:00",
+        "calc_time": "00:01:20"
+      },
+      {
+        "stage": 8,
+        "min_station": "109",
+        "max_station": "109",
+        "min_time": "00:01:00",
+        "max_time": "00:02:00",
+        "calc_time": "00:01:20"
+      },
+      {
+        "stage": 9,
+        "min_station": "110",
+        "max_station": "110",
+        "min_time": "00:01:00",
+        "max_time": "00:02:00",
+        "calc_time": "00:01:20"
+      }
+    ],
+    "2": [
+      {
+        "stage": 1,
+        "min_station": "102",
+        "max_station": "102",
+        "min_time": "00:02:00",
+        "max_time": "00:03:00",
+        "calc_time": "00:02:22"
+      },
+      {
+        "stage": 2,
+        "min_station": "103",
+        "max_station": "103",
+        "min_time": "00:01:00",
+        "max_time": "00:02:00",
+        "calc_time": "00:01:22"
+      },
+      {
+        "stage": 3,
+        "min_station": "104",
+        "max_station": "104",
+        "min_time": "00:02:00",
+        "max_time": "00:04:00",
+        "calc_time": "00:02:22"
+      },
+      {
+        "stage": 4,
+        "min_station": "105",
+        "max_station": "105",
+        "min_time": "00:01:00",
+        "max_time": "00:02:00",
+        "calc_time": "00:01:22"
+      },
+      {
+        "stage": 5,
+        "min_station": "106",
+        "max_station": "106",
+        "min_time": "00:01:00",
+        "max_time": "00:02:00",
+        "calc_time": "00:01:59"
+      },
+      {
+        "stage": 6,
+        "min_station": "107",
+        "max_station": "107",
+        "min_time": "00:05:00",
+        "max_time": "00:07:00",
+        "calc_time": "00:05:59"
+      },
+      {
+        "stage": 7,
+        "min_station": "108",
+        "max_station": "108",
+        "min_time": "00:01:00",
+        "max_time": "00:02:00",
+        "calc_time": "00:01:59"
+      },
+      {
+        "stage": 8,
+        "min_station": "109",
+        "max_station": "109",
+        "min_time": "00:01:00",
+        "max_time": "00:02:00",
+        "calc_time": "00:01:59"
+      },
+      {
+        "stage": 9,
+        "min_station": "110",
+        "max_station": "110",
+        "min_time": "00:01:00",
+        "max_time": "00:02:00",
+        "calc_time": "00:01:59"
+      }
+    ]
+  },
+  "schedulesByBatchId": {
+    "1": {
+      "batch_id": 1,
+      "calculated_at": 350.38,
+      "stages": [
+        {
+          "stage": 3,
+          "station": 104,
+          "station_name": "Station 104",
+          "entry_time_s": 350.38,
+          "exit_time_s": 462.06,
+          "treatment_time_s": 120,
+          "transfer_time_s": 0,
+          "min_time_s": 120,
+          "max_time_s": 240,
+          "transfer_details": null
+        },
+        {
+          "stage": 4,
+          "station": 105,
+          "station_name": "Station 105",
+          "entry_time_s": 519.14,
+          "exit_time_s": 603.14,
+          "treatment_time_s": 84,
+          "transfer_time_s": 57.08,
+          "min_time_s": 60,
+          "max_time_s": 120,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 23
+          }
+        },
+        {
+          "stage": 5,
+          "station": 106,
+          "station_name": "Station 106",
+          "entry_time_s": 660.23,
+          "exit_time_s": 744.23,
+          "treatment_time_s": 84,
+          "transfer_time_s": 57.08,
+          "min_time_s": 60,
+          "max_time_s": 120,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 23
+          }
+        },
+        {
+          "stage": 6,
+          "station": 107,
+          "station_name": "Station 107",
+          "entry_time_s": 801.31,
+          "exit_time_s": 1121.31,
+          "treatment_time_s": 320,
+          "transfer_time_s": 57.08,
+          "min_time_s": 300,
+          "max_time_s": 420,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 23
+          }
+        },
+        {
+          "stage": 7,
+          "station": 108,
+          "station_name": "Station 108",
+          "entry_time_s": 1178.39,
+          "exit_time_s": 1258.39,
+          "treatment_time_s": 80,
+          "transfer_time_s": 57.08,
+          "min_time_s": 60,
+          "max_time_s": 120,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 23
+          }
+        },
+        {
+          "stage": 8,
+          "station": 109,
+          "station_name": "Station 109",
+          "entry_time_s": 1315.48,
+          "exit_time_s": 1395.48,
+          "treatment_time_s": 80,
+          "transfer_time_s": 57.08,
+          "min_time_s": 60,
+          "max_time_s": 120,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 23
+          }
+        },
+        {
+          "stage": 9,
+          "station": 110,
+          "station_name": "Unloading",
+          "entry_time_s": 1445.06,
+          "exit_time_s": 1525.06,
+          "treatment_time_s": 80,
+          "transfer_time_s": 49.58,
+          "min_time_s": 60,
+          "max_time_s": 120,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 15.5
+          }
+        }
+      ],
+      "total_duration_s": 1525.06,
+      "errors": [],
+      "isDelayed": false
+    },
+    "2": {
+      "batch_id": 2,
+      "calculated_at": 348.97,
+      "stages": [
+        {
+          "stage": 0,
+          "station": 101,
+          "station_name": "Loading",
+          "entry_time_s": 348.97,
+          "exit_time_s": 348.97,
+          "treatment_time_s": 0,
+          "transfer_time_s": 0,
+          "min_time_s": 0,
+          "max_time_s": 0,
+          "transfer_details": null
+        },
+        {
+          "stage": 1,
+          "station": 102,
+          "station_name": "Station 102",
+          "entry_time_s": 393.55,
+          "exit_time_s": 535.55,
+          "treatment_time_s": 142,
+          "transfer_time_s": 44.58,
+          "min_time_s": 120,
+          "max_time_s": 180,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 16.25,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 23
+          }
+        },
+        {
+          "stage": 2,
+          "station": 103,
+          "station_name": "Station 103",
+          "entry_time_s": 592.64,
+          "exit_time_s": 674.64,
+          "treatment_time_s": 82,
+          "transfer_time_s": 57.08,
+          "min_time_s": 60,
+          "max_time_s": 120,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 23
+          }
+        },
+        {
+          "stage": 3,
+          "station": 104,
+          "station_name": "Station 104",
+          "entry_time_s": 731.72,
+          "exit_time_s": 873.72,
+          "treatment_time_s": 142,
+          "transfer_time_s": 57.08,
+          "min_time_s": 120,
+          "max_time_s": 240,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 23
+          }
+        },
+        {
+          "stage": 4,
+          "station": 105,
+          "station_name": "Station 105",
+          "entry_time_s": 930.8,
+          "exit_time_s": 1012.8,
+          "treatment_time_s": 82,
+          "transfer_time_s": 57.08,
+          "min_time_s": 60,
+          "max_time_s": 120,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 23
+          }
+        },
+        {
+          "stage": 5,
+          "station": 106,
+          "station_name": "Station 106",
+          "entry_time_s": 1069.89,
+          "exit_time_s": 1188.89,
+          "treatment_time_s": 119,
+          "transfer_time_s": 57.08,
+          "min_time_s": 60,
+          "max_time_s": 120,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 23
+          }
+        },
+        {
+          "stage": 6,
+          "station": 107,
+          "station_name": "Station 107",
+          "entry_time_s": 1245.97,
+          "exit_time_s": 1604.97,
+          "treatment_time_s": 359,
+          "transfer_time_s": 57.08,
+          "min_time_s": 300,
+          "max_time_s": 420,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 23
+          }
+        },
+        {
+          "stage": 7,
+          "station": 108,
+          "station_name": "Station 108",
+          "entry_time_s": 1662.05,
+          "exit_time_s": 1781.05,
+          "treatment_time_s": 119,
+          "transfer_time_s": 57.08,
+          "min_time_s": 60,
+          "max_time_s": 120,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 23
+          }
+        },
+        {
+          "stage": 8,
+          "station": 109,
+          "station_name": "Station 109",
+          "entry_time_s": 1838.14,
+          "exit_time_s": 1957.14,
+          "treatment_time_s": 119,
+          "transfer_time_s": 57.08,
+          "min_time_s": 60,
+          "max_time_s": 120,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 23
+          }
+        },
+        {
+          "stage": 9,
+          "station": 110,
+          "station_name": "Unloading",
+          "entry_time_s": 2006.72,
+          "exit_time_s": 2125.72,
+          "treatment_time_s": 119,
+          "transfer_time_s": 49.58,
+          "min_time_s": 60,
+          "max_time_s": 120,
+          "transfer_details": {
+            "source": "precomputed_movement_times",
+            "fromDeviceDelay": 0,
+            "liftTime": 28.75,
+            "fromDroppingTime": 0,
+            "dripDelay": 0,
+            "xDistance": 1000,
+            "xTime": 5.333333333333333,
+            "toDeviceDelay": 0,
+            "sinkTime": 15.5
+          }
+        }
+      ],
+      "total_duration_s": 2125.72,
+      "errors": [],
+      "isDelayed": false
+    }
+  },
+  "departureCandidateStretches": [
+    {
+      "batchId": 1,
+      "programId": 1,
+      "stage": 6,
+      "stretchSeconds": -4.166666666666668,
+      "propagate": true
+    }
+  ]
+}

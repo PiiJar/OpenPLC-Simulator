@@ -1,0 +1,26 @@
+{
+  "name": "plc-simulator-server",
+  "version": "1.0.0",
+  "description": "Backend server for PLC Simulator visualization",
+  "main": "sim-core/server.js",
+  "scripts": {
+    "start": "node sim-core/server.js",
+    "dev": "nodemon sim-core/server.js",
+    "test:collision": "node sim-core/tests/collision/test-runner.js"
+  },
+  "keywords": [
+    "plc",
+    "simulator",
+    "visualization"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

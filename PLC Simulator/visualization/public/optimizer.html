@@ -1,0 +1,1527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optimizer - PLC Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+        
+        .header {
+            background: #fff;
+            border-bottom: 1px solid #ddd;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+        
+        .header-controls {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+        
+        .header-info {
+            display: flex;
+            gap: 16px;
+            font-size: 13px;
+        }
+        
+        .header-info .label {
+            color: #666;
+        }
+        
+        .header-info .value {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .close-btn {
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: #fff;
+            color: #333;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        
+        .close-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .container {
+            padding: 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            padding: 16px;
+        }
+
+        .card h2 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #555;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .card.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-group label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #2196F3;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 12px 16px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 16px;
+        }
+
+        .btn-primary:hover {
+            background: #1976D2;
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .results-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            background: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .result-item:hover {
+            background: #f0f7ff;
+            border-color: #2196F3;
+        }
+
+        .result-item .date {
+            font-weight: 600;
+            color: #333;
+            font-size: 13px;
+        }
+
+        .result-item .details {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .result-item .cycle {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-weight: 700;
+            color: #2196F3;
+            font-size: 14px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 24px;
+            color: #999;
+            font-style: italic;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .phase-indicator {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #e3f2fd;
+            color: #1976D2;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .phase-indicator.running {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .phase-indicator.searching {
+            background: #fff3e0;
+            color: #e65100;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .phase-indicator.completed {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .searching-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .searching-dots {
+            display: inline-flex;
+            margin-left: 8px;
+        }
+
+        .searching-dots span {
+            width: 8px;
+            height: 8px;
+            margin: 0 3px;
+            background: #e65100;
+            border-radius: 50%;
+            animation: bounce 1.4s ease-in-out infinite;
+        }
+
+        .searching-dots span:nth-child(1) { animation-delay: 0s; }
+        .searching-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .searching-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        .elapsed-time {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .progress-status {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: #2196F3;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+
+        .solution-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .solution-item {
+            text-align: center;
+            padding: 12px 8px;
+            background: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+
+        .solution-item .label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .solution-item .value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #333;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+
+        .solution-item.highlight {
+            background: #e8f5e9;
+            border-color: #81c784;
+        }
+
+        .solution-item.highlight .value {
+            color: #2e7d32;
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .history-table th {
+            text-align: left;
+            padding: 8px;
+            background: #f5f5f5;
+            color: #666;
+            font-weight: 600;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .history-table td {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .history-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .history-table .current {
+            background: #e3f2fd;
+            font-weight: 600;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .btn-secondary {
+            flex: 1;
+            padding: 10px 16px;
+            border: 1px solid #ff9800;
+            background: #fff;
+            color: #e65100;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-secondary:hover {
+            background: #fff3e0;
+        }
+
+        .btn-danger {
+            flex: 1;
+            padding: 10px 16px;
+            border: 1px solid #f44336;
+            background: #fff;
+            color: #c62828;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-danger:hover {
+            background: #ffebee;
+        }
+
+        .btn-secondary:disabled,
+        .btn-danger:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .plant-info-box {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: 6px 12px;
+            background: #fff3e0;
+            border: 1px solid #ffcc80;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .plant-info-box.configured {
+            background: #e8f5e9;
+            border-color: #a5d6a7;
+        }
+
+        .plant-info-box .plant-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .plant-info-box .plant-name .customer {
+            font-weight: 600;
+        }
+
+        .plant-info-box .plant-name .separator {
+            color: #666;
+        }
+
+        .plant-info-box .plant-summary {
+            color: #555;
+            font-size: 12px;
+        }
+
+        .not-selected {
+            color: #999;
+            font-style: italic;
+        }
+        
+        .analyze-btn {
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid #0066cc;
+            border-radius: 4px;
+            background: #0066cc;
+            color: #fff;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        
+        .analyze-btn:hover {
+            background: #0055aa;
+        }
+        
+        .analyze-btn:disabled {
+            background: #ccc;
+            border-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .balance-btn {
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            background: #fff;
+            color: #333;
+            cursor: pointer;
+            min-width: 70px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+        
+        .balance-btn:hover {
+            background: #f5f5f5;
+        }
+        
+        .balance-btn:disabled {
+            background: #f0f0f0;
+            color: #999;
+            cursor: not-allowed;
+        }
+        
+        .balance-btn .icon {
+            font-size: 18px;
+        }
+        
+        .balance-btn .text {
+            font-size: 12px;
+        }
+        
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+            max-width: 900px;
+            width: 90%;
+            max-height: 85vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #eee;
+            background: #f9f9f9;
+        }
+        
+        .modal-header h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+        }
+        
+        .modal-close {
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: 700;
+            color: #666;
+            padding: 4px 8px;
+            line-height: 1;
+        }
+        
+        .modal-close:hover {
+            color: #333;
+        }
+        
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        
+        .station-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        
+        .station-table th {
+            text-align: left;
+            padding: 10px 8px;
+            background: #f5f5f5;
+            color: #555;
+            font-weight: 600;
+            border-bottom: 2px solid #ddd;
+            position: sticky;
+            top: 0;
+        }
+        
+        .station-table td {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .station-table tr:hover {
+            background: #f9f9f9;
+        }
+        
+        .station-table .station-num {
+            font-weight: 700;
+            color: #1976d2;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+        
+        .station-table .station-name {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .station-table .line-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .station-table .line-100 {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+        
+        .station-table .line-200 {
+            background: #fce4ec;
+            color: #c2185b;
+        }
+        
+        .modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid #eee;
+            background: #f9f9f9;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+        
+        .modal-footer .btn {
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .modal-footer .btn-cancel {
+            background: #fff;
+            border: 1px solid #ccc;
+            color: #666;
+        }
+        
+        .modal-footer .btn-cancel:hover {
+            background: #f5f5f5;
+        }
+        
+        .modal-footer .btn-apply {
+            background: #9c27b0;
+            border: 1px solid #9c27b0;
+            color: #fff;
+        }
+        
+        .modal-footer .btn-apply:hover {
+            background: #7b1fa2;
+        }
+        
+        .modal-footer .btn-apply:disabled {
+            background: #ccc;
+            border-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .balance-summary {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .balance-summary-item {
+            padding: 12px;
+            background: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+        
+        .balance-summary-item .label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        
+        .balance-summary-item .value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <!-- Vasen: otsikko ja plant info -->
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <h1>Optimizer</h1>
+            <div id="plantInfoBox" class="plant-info-box" style="display: none;">
+                <div class="plant-name">
+                    <span class="customer" id="customerName">-</span>
+                    <span class="separator">/</span>
+                    <span id="plantName">-</span>
+                </div>
+                <div class="plant-summary" id="plantSummary"></div>
+            </div>
+            <span id="notSelected" class="not-selected">No customer/plant selected</span>
+        </div>
+        <!-- Keskellä: napit -->
+        <div style="display: flex; gap: 8px;">
+            <button
+                id="balanceBtn"
+                onclick="openBalanceModal()"
+                disabled
+                style="padding: 8px 12px; font-size: 12px; font-weight: 600; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #333; cursor: pointer; min-width: 70px; display: flex; flex-direction: column; align-items: center; gap: 2px;"
+            >
+                <span style="font-size: 18px;">⚖️</span>
+                <span>Balance</span>
+            </button>
+            <button
+                id="analyzeBtn"
+                onclick="openAnalysis()"
+                disabled
+                style="padding: 8px 12px; font-size: 12px; font-weight: 600; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #333; cursor: pointer; min-width: 70px; display: flex; flex-direction: column; align-items: center; gap: 2px;"
+            >
+                <span style="font-size: 18px;">🔍</span>
+                <span>Analyze</span>
+            </button>
+        </div>
+        <!-- Oikea: Close -->
+        <div style="display: flex; gap: 8px;">
+            <button
+                onclick="window.close()"
+                style="padding: 8px 12px; font-size: 12px; font-weight: 600; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #333; cursor: pointer; min-width: 70px; display: flex; flex-direction: column; align-items: center; gap: 2px;"
+            >
+                <span style="font-size: 18px;">✕</span>
+                <span>Close</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="grid">
+            <!-- Production Setup Card (Read-only) -->
+            <div class="card">
+                <h2>Production Setup</h2>
+                <div id="productionInfo" style="display: none;">
+                    <div style="display: flex; flex-direction: column; gap: 12px; padding: 12px; background: #f9f9f9; border: 1px solid #eee; border-radius: 4px; margin-bottom: 12px;">
+                        <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 13px;">
+                            <span style="font-weight: 600; color: #666;">Treatment Programs:</span>
+                            <span id="treatmentPrograms">-</span>
+                            <span style="font-weight: 600; color: #666;">Total Batches:</span>
+                            <span id="totalBatches">-</span>
+                            <span style="font-weight: 600; color: #666;">Duration:</span>
+                            <span id="simDuration">-</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Simulation Purpose</label>
+                        <select id="inputPurpose" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                            <option value="TEST">TEST - Testing/Development</option>
+                            <option value="QUOTATION">QUOTATION - Customer Quote</option>
+                            <option value="AGREEMENT">AGREEMENT - Agreed Configuration</option>
+                            <option value="ACTUAL">ACTUAL - Real Production</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="noProductionInfo" style="color: #999; font-style: italic; padding: 12px;">
+                    No production configured. Please create production on the main simulator page first.
+                </div>
+            </div>
+
+            <!-- Optimization Parameters Card -->
+            <div class="card">
+                <h2>Optimization Parameters</h2>
+                <div class="config-grid">
+                    <div class="form-group">
+                        <label>Phase 1 Time Limit (min)</label>
+                        <input type="number" id="inputPhase1Time" value="5" min="1" max="60" title="Time limit for Phase 1 scheduling (fast)" />
+                    </div>
+                    <div class="form-group">
+                        <label>Phase 2 Time Limit (min)</label>
+                        <input type="number" id="inputPhase2Time" value="30" min="5" max="720" title="Time limit for Phase 2 transporter optimization (can be long)" />
+                    </div>
+                    <div class="form-group">
+                        <label>Gap Tolerance (%)</label>
+                        <input type="number" id="inputGap" value="5" min="0.1" max="20" step="0.1" title="Stop early if solution is within this % of optimal" />
+                    </div>
+                </div>
+                <button class="btn-primary" id="btnStart" onclick="startOptimization()" disabled>
+                    Start Optimization
+                </button>
+            </div>
+
+
+
+            <!-- Progress Card (full width) -->
+            <div class="card full-width">
+                <div class="progress-header">
+                    <h2 style="margin-bottom: 0; border-bottom: none; padding-bottom: 0;">Progress</h2>
+                    <div>
+                        <span class="phase-indicator" id="phaseIndicator">Idle</span>
+                        <span class="elapsed-time" id="elapsedTime" style="margin-left: 16px;">0:00</span>
+                    </div>
+                </div>
+                
+                <div class="progress-status" id="statusText">Ready to start optimization</div>
+                <div class="progress-bar">
+                    <div class="progress-bar-fill" id="progressBar"></div>
+                </div>
+
+                <!-- Searching Indicator (shown when no solution yet) -->
+                <div class="searching-indicator" id="searchingIndicator" style="display: none;">
+                    <span>🔍 Searching for feasible solution</span>
+                    <div class="searching-dots">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+
+                <!-- Current Solution -->
+                <div class="solution-grid" id="solutionGrid">
+                    <div class="solution-item">
+                        <div class="label">Makespan</div>
+                        <div class="value" id="makespan">--:--:--</div>
+                    </div>
+                    <div class="solution-item">
+                        <div class="label">Best Bound</div>
+                        <div class="value" id="bestBound">--:--:--</div>
+                    </div>
+                    <div class="solution-item highlight">
+                        <div class="label">Gap</div>
+                        <div class="value" id="gap">--%</div>
+                    </div>
+                    <div class="solution-item">
+                        <div class="label">Cycle Time</div>
+                        <div class="value" id="cycleTime">--:--</div>
+                    </div>
+                    <div class="solution-item">
+                        <div class="label">Throughput</div>
+                        <div class="value" id="throughput">--/h</div>
+                    </div>
+                    <div class="solution-item">
+                        <div class="label">Est. Remaining</div>
+                        <div class="value" id="estRemaining">--:--</div>
+                    </div>
+                </div>
+
+                <!-- Solution History -->
+                <table class="history-table" id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Makespan</th>
+                            <th>Gap %</th>
+                            <th>Improvement</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody">
+                        <tr>
+                            <td colspan="4" class="empty-state">No solutions yet</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="btn-group">
+                    <button class="btn-secondary" id="btnStop" disabled onclick="stopOptimization()">
+                        Stop & Use Current
+                    </button>
+                    <button class="btn-danger" id="btnCancel" disabled onclick="cancelOptimization()">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load customer/plant from API (same as main app)
+        let customerName = null;
+        let plantName = null;
+        let plantStatus = null;
+        let currentJobId = null;
+        let statusPollInterval = null;
+        let simulationPurpose = null;
+
+        async function loadCurrentSelection() {
+            try {
+                const res = await fetch('/api/current-selection');
+                const data = await res.json();
+                if (data.success && data.customer && data.plant) {
+                    customerName = data.customer;
+                    plantName = data.plant;
+                    
+                    // Show plant info box
+                    document.getElementById('plantInfoBox').style.display = 'flex';
+                    document.getElementById('notSelected').style.display = 'none';
+                    document.getElementById('customerName').textContent = customerName;
+                    document.getElementById('plantName').textContent = plantName;
+                    
+                    // Load plant status for summary
+                    await loadPlantStatus();
+                    
+                    // Load production setup
+                    await loadSimulationPurpose();
+                    
+                    // Enable analyze and balance buttons
+                    updateAnalyzeButton();
+                    updateBalanceButton();
+                } else {
+                    // No selection
+                    document.getElementById('plantInfoBox').style.display = 'none';
+                    document.getElementById('notSelected').style.display = 'inline';
+                    updateAnalyzeButton();
+                    updateBalanceButton();
+                }
+            } catch (error) {
+                console.error('Failed to load current selection:', error);
+                document.getElementById('plantInfoBox').style.display = 'none';
+                document.getElementById('notSelected').style.display = 'inline';
+                document.getElementById('notSelected').textContent = 'Error loading selection';
+                updateAnalyzeButton();
+                updateBalanceButton();
+            }
+        }
+
+        async function loadPlantStatus() {
+            if (!customerName || !plantName) return;
+            try {
+                const res = await fetch(`/api/customers/${encodeURIComponent(customerName)}/plants/${encodeURIComponent(plantName)}/status`);
+                const data = await res.json();
+                if (data.success) {
+                    plantStatus = data;
+                    const box = document.getElementById('plantInfoBox');
+                    const summaryEl = document.getElementById('plantSummary');
+                    
+                    if (data.isConfigured) {
+                        box.classList.add('configured');
+                        if (data.analysis && data.analysis.summary) {
+                            summaryEl.textContent = data.analysis.summary;
+                        } else {
+                            summaryEl.textContent = 'Configured';
+                        }
+                    } else {
+                        box.classList.remove('configured');
+                        summaryEl.textContent = 'Not configured';
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load plant status:', error);
+            }
+        }
+
+        async function loadSimulationPurpose() {
+            try {
+                const res = await fetch('/api/simulation-purpose');
+                const data = await res.json();
+                
+                if (data.success && data.data) {
+                    simulationPurpose = data.data;
+                    
+                    // Calculate total batches
+                    let totalBatches = 0;
+                    const programs = [];
+                    if (Array.isArray(simulationPurpose.treatment_program_batches)) {
+                        simulationPurpose.treatment_program_batches.forEach(item => {
+                            totalBatches += item.batches || 0;
+                            programs.push(`Program ${item.treatment_program}: ${item.batches} batches`);
+                        });
+                    }
+                    
+                    // Update UI
+                    document.getElementById('treatmentPrograms').textContent = programs.join(', ') || 'None';
+                    document.getElementById('totalBatches').textContent = totalBatches;
+                    document.getElementById('simDuration').textContent = `${simulationPurpose.simulation_duration || 0} hours`;
+                    document.getElementById('inputPurpose').value = simulationPurpose.purpose || 'TEST';
+                    
+                    // Show production info, hide no-production message
+                    document.getElementById('productionInfo').style.display = 'block';
+                    document.getElementById('noProductionInfo').style.display = 'none';
+                    
+                    // Enable start button if production exists
+                    document.getElementById('btnStart').disabled = totalBatches === 0;
+                } else {
+                    // No production configured
+                    document.getElementById('productionInfo').style.display = 'none';
+                    document.getElementById('noProductionInfo').style.display = 'block';
+                    document.getElementById('btnStart').disabled = true;
+                }
+            } catch (error) {
+                console.error('Failed to load simulation purpose:', error);
+                document.getElementById('productionInfo').style.display = 'none';
+                document.getElementById('noProductionInfo').style.display = 'block';
+                document.getElementById('btnStart').disabled = true;
+            }
+        }
+
+        // Load on page load
+        loadCurrentSelection();
+
+        let isRunning = false;
+        let startTime = null;
+        let elapsedInterval = null;
+
+        // Analyze button - opens analysis page
+        async function openAnalysis() {
+            if (!customerName || !plantName) {
+                alert('Please select a customer and plant first in the main simulator.');
+                return;
+            }
+            
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            analyzeBtn.disabled = true;
+            analyzeBtn.textContent = '⏳ Analyzing...';
+            
+            try {
+                // Call analyze API
+                const response = await fetch('/api/math/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        customer: customerName,
+                        plant: plantName
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.report_url) {
+                    // Open analysis report in new window
+                    window.open(result.report_url, '_blank');
+                } else {
+                    alert('Analysis failed: ' + (result.error || 'Unknown error'));
+                }
+            } catch (err) {
+                console.error('Analysis error:', err);
+                alert('Analysis failed: ' + err.message);
+            } finally {
+                analyzeBtn.disabled = false;
+                analyzeBtn.textContent = '🔍 Analyze';
+            }
+        }
+        
+        // Enable analyze button when customer/plant is selected
+        function updateAnalyzeButton() {
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            if (customerName && plantName) {
+                analyzeBtn.disabled = false;
+            } else {
+                analyzeBtn.disabled = true;
+            }
+        }
+
+        async function startOptimization() {
+            if (!customerName || !plantName) {
+                alert('Please select a customer and plant first in the main simulator.');
+                return;
+            }
+
+            if (!simulationPurpose || !simulationPurpose.treatment_program_batches) {
+                alert('No production configured. Please create production on the main page first.');
+                return;
+            }
+
+            // Update simulation_purpose.json with selected purpose
+            const selectedPurpose = document.getElementById('inputPurpose').value;
+            try {
+                const updateRes = await fetch('/api/simulation-purpose', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ...simulationPurpose,
+                        purpose: selectedPurpose
+                    })
+                });
+                if (!updateRes.ok) {
+                    throw new Error('Failed to update simulation purpose');
+                }
+            } catch (err) {
+                console.error('Failed to update purpose:', err);
+                alert('Failed to update simulation purpose');
+                return;
+            }
+
+            // Calculate total batches from production setup
+            let totalBatches = 0;
+            simulationPurpose.treatment_program_batches.forEach(item => {
+                totalBatches += item.batches || 0;
+            });
+
+            // Collect parameters from form
+            const params = {
+                customer: customerName,
+                plant: plantName,
+                batches: totalBatches,
+                duration_hours: simulationPurpose.simulation_duration || 8,
+                phase1_max_time_min: parseInt(document.getElementById('inputPhase1Time').value) || 5,
+                phase2_max_time_min: parseInt(document.getElementById('inputPhase2Time').value) || 30,
+                gap_tolerance_percent: parseFloat(document.getElementById('inputGap').value) || 5
+            };
+
+            // Update UI to running state
+            isRunning = true;
+            startTime = Date.now();
+            document.getElementById('btnStart').disabled = true;
+            document.getElementById('btnStop').disabled = false;
+            document.getElementById('btnCancel').disabled = false;
+            document.getElementById('phaseIndicator').textContent = 'Starting...';
+            document.getElementById('phaseIndicator').className = 'phase-indicator running';
+            document.getElementById('statusText').textContent = 'Sending optimization request...';
+            
+            // Clear previous progress data
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('elapsedTime').textContent = '00:00';
+            document.getElementById('makespan').textContent = '--:--:--';
+            document.getElementById('gap').textContent = '--%';
+            document.getElementById('bestBound').textContent = '--:--:--';
+            document.getElementById('cycleTime').textContent = '--:--';
+            document.getElementById('throughput').textContent = '--/h';
+            document.getElementById('estRemaining').textContent = '--:--';
+            document.getElementById('historyBody').innerHTML = '<tr><td colspan="4" class="empty-state">No solutions yet</td></tr>';
+            document.getElementById('searchingIndicator').style.display = 'none';
+            
+            // Start elapsed timer
+            elapsedInterval = setInterval(updateElapsed, 1000);
+
+            try {
+                // Call MATH Simulator API
+                const res = await fetch('/api/math/optimize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(params)
+                });
+
+                const data = await res.json();
+                
+                if (!res.ok || data.error) {
+                    throw new Error(data.detail || data.error || 'Failed to start optimization');
+                }
+
+                currentJobId = data.job_id;
+                console.log('Optimization started, job_id:', currentJobId);
+                document.getElementById('statusText').textContent = `Job ${currentJobId} started...`;
+
+                // Start polling for status
+                console.log('Starting status polling every 2 seconds...');
+                statusPollInterval = setInterval(pollJobStatus, 2000);
+
+            } catch (error) {
+                console.error('Failed to start optimization:', error);
+                stopOptimizationUI('Error', error.message);
+            }
+        }
+
+        async function pollJobStatus() {
+            if (!currentJobId) return;
+            console.log('Polling status for job:', currentJobId);
+
+            try {
+                const res = await fetch(`/api/math/status/${currentJobId}`);
+                const data = await res.json();
+                console.log('Status response:', data);
+
+                if (!res.ok) {
+                    throw new Error(data.detail || 'Failed to get status');
+                }
+
+                // Update UI from status
+                updateFromStatus(data);
+
+                // Check if completed/failed
+                if (data.status === 'completed') {
+                    stopPolling();
+                    document.getElementById('phaseIndicator').textContent = 'Completed';
+                    document.getElementById('phaseIndicator').className = 'phase-indicator completed';
+                    document.getElementById('statusText').textContent = 'Optimization completed successfully!';
+                    document.getElementById('progressBar').style.width = '100%';
+                    enableStartButton();
+                } else if (data.status === 'failed') {
+                    stopPolling();
+                    document.getElementById('phaseIndicator').textContent = 'Failed';
+                    document.getElementById('phaseIndicator').className = 'phase-indicator';
+                    document.getElementById('statusText').textContent = data.error || 'Optimization failed';
+                    enableStartButton();
+                } else if (data.status === 'cancelled') {
+                    stopPolling();
+                    document.getElementById('phaseIndicator').textContent = 'Cancelled';
+                    document.getElementById('phaseIndicator').className = 'phase-indicator';
+                    document.getElementById('statusText').textContent = 'Optimization cancelled';
+                    enableStartButton();
+                }
+
+            } catch (error) {
+                console.error('Status poll error:', error);
+            }
+        }
+
+        function updateFromStatus(data) {
+            // Update phase indicator
+            if (data.phase) {
+                document.getElementById('phaseIndicator').textContent = data.phase;
+                
+                // Check if we're in CP-SAT Phase 2 without a solution yet
+                const isSearching = data.phase === 'CP-SAT Phase 2' && 
+                    (!data.current_solution || !data.current_solution.makespan);
+                
+                if (isSearching) {
+                    document.getElementById('phaseIndicator').className = 'phase-indicator searching';
+                    document.getElementById('searchingIndicator').style.display = 'flex';
+                } else {
+                    document.getElementById('phaseIndicator').className = 'phase-indicator running';
+                    document.getElementById('searchingIndicator').style.display = 'none';
+                }
+            }
+
+            // Update progress bar (API returns 'progress', not 'progress_percent')
+            if (typeof data.progress === 'number') {
+                document.getElementById('progressBar').style.width = `${data.progress}%`;
+            }
+
+            // Update status text
+            if (data.phase && data.status === 'running') {
+                const isSearching = data.phase === 'CP-SAT Phase 2' && 
+                    (!data.current_solution || !data.current_solution.makespan);
+                if (isSearching) {
+                    document.getElementById('statusText').textContent = `${data.phase}: Searching for initial solution...`;
+                } else {
+                    document.getElementById('statusText').textContent = `Running ${data.phase}...`;
+                }
+            }
+
+            // Update current solution
+            if (data.current_solution) {
+                const sol = data.current_solution;
+                if (sol.makespan) document.getElementById('makespan').textContent = sol.makespan;
+                if (sol.gap_percent !== null && sol.gap_percent !== undefined) {
+                    document.getElementById('gap').textContent = sol.gap_percent.toFixed(1) + '%';
+                }
+                if (sol.best_bound) document.getElementById('bestBound').textContent = sol.best_bound;
+                if (sol.cycle_time) document.getElementById('cycleTime').textContent = sol.cycle_time;
+                if (sol.throughput !== null && sol.throughput !== undefined) {
+                    document.getElementById('throughput').textContent = sol.throughput.toFixed(2) + '/h';
+                }
+                
+                // Calculate estimated remaining time based on gap improvement rate
+                if (data.solution_history && data.solution_history.length >= 2 && sol.gap_percent > 0) {
+                    const history = data.solution_history;
+                    const first = history[0];
+                    const last = history[history.length - 1];
+                    const elapsedSec = last.elapsed_sec - first.elapsed_sec;
+                    const gapReduction = first.gap_percent - last.gap_percent;
+                    
+                    if (gapReduction > 0 && elapsedSec > 0) {
+                        // Estimate time to reach 0% gap based on current rate
+                        const remainingGap = last.gap_percent;
+                        const rate = gapReduction / elapsedSec; // gap% per second
+                        const estRemainingSec = remainingGap / rate;
+                        
+                        // Cap at reasonable value (max 2 hours)
+                        const cappedSec = Math.min(estRemainingSec, 7200);
+                        const min = Math.floor(cappedSec / 60);
+                        const sec = Math.floor(cappedSec % 60);
+                        document.getElementById('estRemaining').textContent = `~${min}:${sec.toString().padStart(2, '0')}`;
+                    }
+                }
+            }
+
+            // Update solution history table
+            if (data.solution_history && data.solution_history.length > 0) {
+                const tbody = document.getElementById('historyBody');
+                const rows = data.solution_history.map((sol, i) => {
+                    const elapsed = sol.elapsed_sec || 0;
+                    const min = Math.floor(elapsed / 60);
+                    const sec = elapsed % 60;
+                    const timeStr = `${min}:${sec.toString().padStart(2, '0')}`;
+                    const isCurrent = i === data.solution_history.length - 1;
+                    return `
+                        <tr class="${isCurrent ? 'current' : ''}">
+                            <td>${timeStr}</td>
+                            <td>${sol.makespan || '--:--:--'}</td>
+                            <td>${sol.gap_percent !== null ? sol.gap_percent.toFixed(1) + '%' : '--%'}</td>
+                            <td>${sol.improvement || '-'}</td>
+                        </tr>
+                    `;
+                }).join('');
+                tbody.innerHTML = rows;
+            }
+        }
+
+        function stopPolling() {
+            if (statusPollInterval) {
+                clearInterval(statusPollInterval);
+                statusPollInterval = null;
+            }
+            if (elapsedInterval) {
+                clearInterval(elapsedInterval);
+                elapsedInterval = null;
+            }
+        }
+
+        function enableStartButton() {
+            isRunning = false;
+            document.getElementById('btnStart').disabled = false;
+            document.getElementById('btnStop').disabled = true;
+            document.getElementById('btnCancel').disabled = true;
+        }
+
+        function stopOptimizationUI(status, message) {
+            stopPolling();
+            document.getElementById('phaseIndicator').textContent = status;
+            document.getElementById('phaseIndicator').className = 'phase-indicator';
+            document.getElementById('statusText').textContent = message;
+            enableStartButton();
+        }
+
+        async function stopOptimization() {
+            // Stop = cancel but use current solution
+            if (currentJobId) {
+                try {
+                    await fetch(`/api/math/cancel/${currentJobId}`, { method: 'POST' });
+                } catch (e) {
+                    console.error('Stop request failed:', e);
+                }
+            }
+            stopOptimizationUI('Stopped', 'Optimization stopped - using current best solution');
+        }
+
+        async function cancelOptimization() {
+            if (currentJobId) {
+                try {
+                    await fetch(`/api/math/cancel/${currentJobId}`, { method: 'POST' });
+                } catch (e) {
+                    console.error('Cancel request failed:', e);
+                }
+            }
+            stopOptimizationUI('Cancelled', 'Optimization cancelled');
+            document.getElementById('progressBar').style.width = '0%';
+        }
+
+        function updateElapsed() {
+            if (!startTime) return;
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const min = Math.floor(elapsed / 60);
+            const sec = elapsed % 60;
+            document.getElementById('elapsedTime').textContent = `${min}:${sec.toString().padStart(2, '0')}`;
+        }
+        
+        // Balance Modal functionality
+        let stationsData = null;
+        let transportersData = null;
+        
+        async function loadStationsForBalance() {
+            try {
+                const [stationsRes, transportersRes] = await Promise.all([
+                    fetch('/api/config/stations.json'),
+                    fetch('/api/config/transporters.json')
+                ]);
+                stationsData = await stationsRes.json();
+                transportersData = await transportersRes.json();
+                return true;
+            } catch (error) {
+                console.error('Failed to load stations/transporters:', error);
+                return false;
+            }
+        }
+        
+        function updateBalanceButton() {
+            const balanceBtn = document.getElementById('balanceBtn');
+            if (customerName && plantName) {
+                balanceBtn.disabled = false;
+            } else {
+                balanceBtn.disabled = true;
+            }
+        }
+        
+        async function openBalanceModal() {
+            if (!customerName || !plantName) {
+                alert('Please select a customer and plant first in the main simulator.');
+                return;
+            }
+            
+            const loaded = await loadStationsForBalance();
+            if (!loaded || !stationsData || !stationsData.stations) {
+                alert('Failed to load station data');
+                return;
+            }
+            
+            // Build station table
+            const stations = stationsData.stations;
+            const transporters = transportersData?.transporters || [];
+            
+            // Calculate summary info
+            const line100 = stations.filter(s => s.number >= 100 && s.number < 200);
+            const line200 = stations.filter(s => s.number >= 200 && s.number < 300);
+            
+            // Get transporter task areas for coloring
+            const transporterAreas = {};
+            transporters.forEach(t => {
+                const areas = t.task_areas || {};
+                transporterAreas[t.id] = {
+                    line_100: areas.line_100 || {},
+                    line_200: areas.line_200 || {}
+                };
+            });
+            
+            // Build HTML
+            let summaryHtml = `
+                <div class="balance-summary">
+                    <div class="balance-summary-item">
+                        <div class="label">Total Stations</div>
+                        <div class="value">${stations.length}</div>
+                    </div>
+                    <div class="balance-summary-item">
+                        <div class="label">Line 100</div>
+                        <div class="value">${line100.length} stations</div>
+                    </div>
+                    <div class="balance-summary-item">
+                        <div class="label">Line 200</div>
+                        <div class="value">${line200.length} stations</div>
+                    </div>
+                    <div class="balance-summary-item">
+                        <div class="label">Transporters</div>
+                        <div class="value">${transporters.length}</div>
+                    </div>
+                </div>
+            `;
+            
+            // Build transporter task areas info
+            let taskAreasHtml = '<div style="margin-bottom: 16px;">';
+            taskAreasHtml += '<h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555;">Transporter Task Areas</h4>';
+            taskAreasHtml += '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">';
+            transporters.forEach(t => {
+                const areas = t.task_areas || {};
+                const l100 = areas.line_100 || {};
+                const l200 = areas.line_200 || {};
+                taskAreasHtml += `
+                    <div style="padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 12px;">
+                        <div style="font-weight: 600; margin-bottom: 4px;">Transporter ${t.id}</div>
+                        <div>Line 100: Lift ${l100.min_lift_station || '-'}-${l100.max_lift_station || '-'}, Sink ${l100.min_sink_station || '-'}-${l100.max_sink_station || '-'}</div>
+                        <div>Line 200: Lift ${l200.min_lift_station || '-'}-${l200.max_lift_station || '-'}, Sink ${l200.min_sink_station || '-'}-${l200.max_sink_station || '-'}</div>
+                    </div>
+                `;
+            });
+            taskAreasHtml += '</div></div>';
+            
+            // Build station table
+            let tableHtml = `
+                <table class="station-table">
+                    <thead>
+                        <tr>
+                            <th>Station</th>
+                            <th>Name</th>
+                            <th>Line</th>
+                            <th>Group</th>
+                            <th>X Position</th>
+                            <th>Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            // Sort by station number
+            const sortedStations = [...stations].sort((a, b) => a.number - b.number);
+            
+            sortedStations.forEach(s => {
+                const line = Math.floor(s.number / 100) * 100;
+                const lineClass = line === 100 ? 'line-100' : 'line-200';
+                const typeName = s.type === 0 ? 'Process' : s.type === 1 ? 'Storage' : s.type === 2 ? 'Load/Unload' : s.type;
+                
+                tableHtml += `
+                    <tr>
+                        <td class="station-num">${s.number}</td>
+                        <td class="station-name" title="${s.name || ''}">${s.name || '-'}</td>
+                        <td><span class="line-badge ${lineClass}">${line}</span></td>
+                        <td>${s.group || '-'}</td>
+                        <td>${s.x_position || '-'}</td>
+                        <td>${typeName}</td>
+                    </tr>
+                `;
+            });
+            
+            tableHtml += '</tbody></table>';
+            
+            document.getElementById('balanceModalBody').innerHTML = summaryHtml + taskAreasHtml + tableHtml;
+            document.getElementById('balanceModal').style.display = 'flex';
+        }
+        
+        function closeBalanceModal() {
+            document.getElementById('balanceModal').style.display = 'none';
+        }
+        
+        async function applyBalanceOptimization() {
+            // TODO: Integrate with optimize_layout_and_task_areas.py
+            alert('Balance optimization will be integrated with the MATH Simulator optimize_layout_and_task_areas.py tool.\n\nThis feature is coming soon!');
+            closeBalanceModal();
+        }
+    </script>
+    
+    <!-- Balance Modal -->
+    <div id="balanceModal" class="modal-overlay" style="display: none;" onclick="if(event.target === this) closeBalanceModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⚖️ Station Layout Balance</h2>
+                <button class="modal-close" onclick="closeBalanceModal()">×</button>
+            </div>
+            <div class="modal-body" id="balanceModalBody">
+                <div style="text-align: center; padding: 40px; color: #999;">
+                    Loading station data...
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-cancel" onclick="closeBalanceModal()">Cancel</button>
+                <button class="btn btn-apply" onclick="applyBalanceOptimization()">Run Balance Optimization</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
