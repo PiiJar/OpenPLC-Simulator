@@ -11,12 +11,12 @@
  *   %QW19     = init_done (1/0)
  *   %QW20     = cycle_count (heartbeat)
  *   %QW21     = cfg_ack (echoes last processed cfg_seq)
- *   %QW22..71 = Units 1-10 (5 regs each: batch_id, location, status, state, target)
- *   %QW72     = unit_ack (echoes last processed unit write seq)
- *   %IW0..2   = Commands for T1 (Input Registers written via FC6/FC16)
- *   %IW3..5   = Commands for T2
- *   %IW10..19 = Config upload: seq, cmd, param, d0..d6
- *   %IW20..26 = Unit write: seq, unit_id, batch_id, location, status, state, target
+ *   %QW22..61 = Units 1-10 (4 regs each: location, status, state, target)
+ *   %QW62     = unit_ack (echoes last processed unit write seq)
+ *   %QW63     = batch_ack (echoes last processed batch write seq)
+ *   %QW64     = prog_ack (echoes last processed program stage seq)
+ *   %QW65..104 = Batch data 1-10 (4 regs each: batch_code, state, program, stage)
+ *   %QW200..205 = Commands for T1/T2
  * 
  * OpenPLC Modbus mapping:
  *   Holding Registers (FC3, FC6, FC16) → %QW  (PLC writes, we read)
@@ -68,6 +68,7 @@ function getCurrentCustomerPath() {
 // --- Unit state/target mappings (INT ↔ string) ---
 const STATE_INT_TO_STR = { 0: 'empty', 1: 'full' };
 const TARGET_INT_TO_STR = { 0: 'none', 1: 'to_loading', 2: 'to_buffer', 3: 'to_process', 4: 'to_unload', 5: 'to_avoid' };
+const BATCH_STATE_INT_TO_STR = { 0: 'not_processed', 1: 'in_process', 2: 'processed' };
 const STATE_STR_TO_INT = Object.fromEntries(Object.entries(STATE_INT_TO_STR).map(([k,v]) => [v, parseInt(k)]));
 const TARGET_STR_TO_INT = Object.fromEntries(Object.entries(TARGET_INT_TO_STR).map(([k,v]) => [v, parseInt(k)]));
 
@@ -260,8 +261,8 @@ async function connectModbus() {
 async function readPLCState() {
   if (!connected) return null;
   try {
-    // Read QW0..QW72 = 73 holding registers starting at address 0
-    const result = await client.readHoldingRegisters(0, 73);
+    // Read QW0..QW104 = 105 holding registers starting at address 0
+    const result = await client.readHoldingRegisters(0, 105);
     const r = result.data;
     
     // Convert unsigned 16-bit to signed if needed (for velocities etc.)
@@ -303,19 +304,29 @@ async function readPLCState() {
       cycle_count: r[20]
     };
 
-    // Parse unit data from QW22..QW71 (10 units x 5 fields)
+    // Parse unit data from QW22..QW61 (10 units x 4 fields)
     plcUnits = [];
     for (let u = 0; u < 10; u++) {
-      const base = 22 + u * 5;
-      const stateInt = toSigned(r[base + 3]);
-      const targetInt = toSigned(r[base + 4]);
+      const base = 22 + u * 4;
+      const stateInt = toSigned(r[base + 2]);
+      const targetInt = toSigned(r[base + 3]);
+      // Batch data from QW65..QW104 (10 units x 4 fields)
+      const bBase = 65 + u * 4;
+      const batchCode = toSigned(r[bBase]);
+      const batchState = toSigned(r[bBase + 1]);
+      const batchProg = toSigned(r[bBase + 2]);
+      const batchStage = toSigned(r[bBase + 3]);
       plcUnits.push({
         unit_id: u + 1,
-        batch_id: toSigned(r[base]),
-        location: toSigned(r[base + 1]),
-        status: toSigned(r[base + 2]),
+        location: toSigned(r[base]),
+        status: toSigned(r[base + 1]),
         state: STATE_INT_TO_STR[stateInt] || 'empty',
-        target: TARGET_INT_TO_STR[targetInt] || 'none'
+        target: TARGET_INT_TO_STR[targetInt] || 'none',
+        batch_code: batchCode,
+        batch_state: BATCH_STATE_INT_TO_STR[batchState] || 'not_processed',
+        batch_state_int: batchState,
+        batch_program: batchProg,
+        batch_stage: batchStage
       });
     }
     
@@ -403,7 +414,7 @@ function buildTransporterState(id, cfg, regs) {
 async function writePLCCommand(transporterId, liftStation, sinkStation) {
   if (!connected) throw new Error('Not connected to PLC');
   
-  const baseAddr = transporterId === 1 ? 100 : 103; // QW100 for T1, QW103 for T2
+  const baseAddr = transporterId === 1 ? 200 : 203; // QW200 for T1, QW203 for T2
   
   // Write lift station, sink station, then start command
   await client.writeRegisters(baseAddr + 1, [liftStation]);  // iw_cmd_lift
@@ -583,15 +594,13 @@ app.post('/api/reset', async (req, res) => {
         const statusInt = STATUS_MAP[u.status] ?? (typeof u.status === 'number' ? u.status : 0);
         const stateInt  = STATE_STR_TO_INT[u.state]   ?? (typeof u.state  === 'number' ? u.state  : 0);
         const targetInt = TARGET_STR_TO_INT[u.target]  ?? (typeof u.target === 'number' ? u.target : 0);
-        const batchId   = u.batch_id || 0;
         const location  = u.location || 0;
 
         await client.writeRegisters(UNIT_BASE + 1, [uid]);         // QW121
-        await client.writeRegisters(UNIT_BASE + 2, [batchId]);     // QW122
-        await client.writeRegisters(UNIT_BASE + 3, [location]);    // QW123
-        await client.writeRegisters(UNIT_BASE + 4, [statusInt]);   // QW124
-        await client.writeRegisters(UNIT_BASE + 5, [stateInt]);    // QW125
-        await client.writeRegisters(UNIT_BASE + 6, [targetInt]);   // QW126
+        await client.writeRegisters(UNIT_BASE + 2, [location]);    // QW122
+        await client.writeRegisters(UNIT_BASE + 3, [statusInt]);   // QW123
+        await client.writeRegisters(UNIT_BASE + 4, [stateInt]);    // QW124
+        await client.writeRegisters(UNIT_BASE + 5, [targetInt]);   // QW125
 
         unitWriteSeq = (unitWriteSeq % 30000) + 1;
         await client.writeRegisters(UNIT_BASE + 0, [unitWriteSeq]); // QW120 = seq
@@ -673,8 +682,8 @@ app.put('/api/units/:id', async (req, res) => {
     if (uid < 1 || uid > 10) return res.status(400).json({ error: 'unit_id must be 1..10' });
     if (!connected) return res.status(503).json({ error: 'PLC not connected' });
 
-    const { batch_id, location, status, state, target } = req.body;
-    const UNIT_BASE = 120; // QW120-QW126 for unit write protocol
+    const { location, status, state, target } = req.body;
+    const UNIT_BASE = 120; // QW120-QW125 for unit write protocol
 
     // Convert string state/target to INT if needed
     const stateInt  = typeof state  === 'string' ? (STATE_STR_TO_INT[state]   ?? 0) : (state  || 0);
@@ -682,24 +691,23 @@ app.put('/api/units/:id', async (req, res) => {
 
     // Write data fields first
     await client.writeRegisters(UNIT_BASE + 1, [uid]);                    // QW121 = unit_id
-    await client.writeRegisters(UNIT_BASE + 2, [batch_id || 0]);          // QW122 = batch_id
-    await client.writeRegisters(UNIT_BASE + 3, [location || 0]);          // QW123 = location
-    await client.writeRegisters(UNIT_BASE + 4, [status || 0]);            // QW124 = status
-    await client.writeRegisters(UNIT_BASE + 5, [stateInt]);               // QW125 = state
-    await client.writeRegisters(UNIT_BASE + 6, [targetInt]);              // QW126 = target
+    await client.writeRegisters(UNIT_BASE + 2, [location || 0]);          // QW122 = location
+    await client.writeRegisters(UNIT_BASE + 3, [status || 0]);            // QW123 = status
+    await client.writeRegisters(UNIT_BASE + 4, [stateInt]);               // QW124 = state
+    await client.writeRegisters(UNIT_BASE + 5, [targetInt]);              // QW125 = target
 
     // Trigger with sequence number
     unitWriteSeq = (unitWriteSeq % 30000) + 1;
-    console.log(`[UNIT] Writing QW120-126: seq=${unitWriteSeq}, id=${uid}, batch=${batch_id||0}, loc=${location||0}, status=${status||0}, state=${stateInt}, target=${targetInt}`);
+    console.log(`[UNIT] Writing QW120-125: seq=${unitWriteSeq}, id=${uid}, loc=${location||0}, status=${status||0}, state=${stateInt}, target=${targetInt}`);
     await client.writeRegisters(UNIT_BASE + 0, [unitWriteSeq]);           // QW120 = seq
 
-    // Wait for PLC ack (QW72)
+    // Wait for PLC ack (QW62)
     const ackOk = await waitForUnitAck(unitWriteSeq, 3000);
     if (!ackOk) {
       return res.status(504).json({ error: `PLC ack timeout for unit ${uid}` });
     }
 
-    console.log(`[UNIT] Written unit ${uid}: batch=${batch_id}, loc=${location}, status=${status}, state=${state}, target=${target}`);
+    console.log(`[UNIT] Written unit ${uid}: loc=${location}, status=${status}, state=${state}, target=${target}`);
     res.json({ ok: true });
   } catch (err) {
     console.error(`[UNIT] Write error: ${err.message}`);
@@ -713,11 +721,11 @@ async function waitForUnitAck(expectedSeq, timeoutMs) {
   let readCount = 0;
   while (Date.now() - start < timeoutMs) {
     try {
-      const result = await client.readHoldingRegisters(72, 1);
+      const result = await client.readHoldingRegisters(62, 1);
       readCount++;
       const val = result.data[0];
       if (val !== lastVal) {
-        console.log(`[UNIT-ACK] QW72=${val}, expecting=${expectedSeq} (read #${readCount}, ${Date.now()-start}ms)`);
+        console.log(`[UNIT-ACK] QW62=${val}, expecting=${expectedSeq} (read #${readCount}, ${Date.now()-start}ms)`);
         lastVal = val;
       }
       if (val === expectedSeq) return true;
@@ -729,6 +737,134 @@ async function waitForUnitAck(expectedSeq, timeoutMs) {
   console.log(`[UNIT-ACK] TIMEOUT after ${timeoutMs}ms, lastVal=${lastVal}, expected=${expectedSeq}, reads=${readCount}`);
   return false;
 }
+
+// ============================================================
+// Batch + Treatment Program write protocol
+// ============================================================
+let batchWriteSeq = 0;
+let progStageSeq = 0;
+
+async function waitForBatchAck(expectedSeq, timeoutMs) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const result = await client.readHoldingRegisters(63, 1); // QW63
+      if (result.data[0] === expectedSeq) return true;
+    } catch (_) {}
+    await new Promise(r => setTimeout(r, 20));
+  }
+  console.log(`[BATCH-ACK] TIMEOUT expecting seq=${expectedSeq}`);
+  return false;
+}
+
+async function waitForProgAck(expectedSeq, timeoutMs) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const result = await client.readHoldingRegisters(64, 1); // QW64
+      if (result.data[0] === expectedSeq) return true;
+    } catch (_) {}
+    await new Promise(r => setTimeout(r, 20));
+  }
+  console.log(`[PROG-ACK] TIMEOUT expecting seq=${expectedSeq}`);
+  return false;
+}
+
+/**
+ * Write batch data + program_id to PLC. Also clears all program stages.
+ * @param {number} unitIndex - 1..10
+ * @param {number} batchCode - numeric batch code
+ * @param {number} batchState - 0=NOT_PROCESSED, 1=IN_PROCESS, 2=PROCESSED
+ * @param {number} programId - treatment program ID
+ */
+async function writeBatchToPLC(unitIndex, batchCode, batchState, programId) {
+  const BATCH_BASE = 130; // QW130..QW134
+  await client.writeRegisters(BATCH_BASE + 1, [unitIndex]);   // QW131
+  await client.writeRegisters(BATCH_BASE + 2, [batchCode]);   // QW132
+  await client.writeRegisters(BATCH_BASE + 3, [batchState]);  // QW133
+  await client.writeRegisters(BATCH_BASE + 4, [programId]);   // QW134
+
+  batchWriteSeq = (batchWriteSeq % 30000) + 1;
+  await client.writeRegisters(BATCH_BASE + 0, [batchWriteSeq]); // QW130 = seq
+
+  const ack = await waitForBatchAck(batchWriteSeq, 3000);
+  if (!ack) throw new Error(`PLC batch ack timeout (unit=${unitIndex}, seq=${batchWriteSeq})`);
+  console.log(`[BATCH] Written unit=${unitIndex}: code=${batchCode}, state=${batchState}, prog=${programId}`);
+}
+
+/**
+ * Write one treatment program stage to PLC.
+ * @param {number} unitIndex - 1..10
+ * @param {number} stageIndex - 1..30
+ * @param {number[]} stations - array of up to 5 station numbers (padded with 0)
+ * @param {number} minTime - seconds
+ * @param {number} maxTime - seconds
+ * @param {number} calTime - seconds
+ */
+async function writeProgramStageToPLC(unitIndex, stageIndex, stations, minTime, maxTime, calTime) {
+  const PROG_BASE = 140; // QW140..QW150
+  const s = [0, 0, 0, 0, 0];
+  for (let i = 0; i < Math.min(stations.length, 5); i++) {
+    s[i] = stations[i] || 0;
+  }
+
+  await client.writeRegisters(PROG_BASE + 1, [unitIndex]);   // QW141
+  await client.writeRegisters(PROG_BASE + 2, [stageIndex]);  // QW142
+  await client.writeRegisters(PROG_BASE + 3, [s[0]]);        // QW143 s1
+  await client.writeRegisters(PROG_BASE + 4, [s[1]]);        // QW144 s2
+  await client.writeRegisters(PROG_BASE + 5, [s[2]]);        // QW145 s3
+  await client.writeRegisters(PROG_BASE + 6, [s[3]]);        // QW146 s4
+  await client.writeRegisters(PROG_BASE + 7, [s[4]]);        // QW147 s5
+  await client.writeRegisters(PROG_BASE + 8, [minTime]);     // QW148
+  await client.writeRegisters(PROG_BASE + 9, [maxTime]);     // QW149
+  await client.writeRegisters(PROG_BASE + 10, [calTime]);    // QW150
+
+  progStageSeq = (progStageSeq % 30000) + 1;
+  await client.writeRegisters(PROG_BASE + 0, [progStageSeq]); // QW140 = seq
+
+  const ack = await waitForProgAck(progStageSeq, 3000);
+  if (!ack) throw new Error(`PLC prog stage ack timeout (unit=${unitIndex}, stage=${stageIndex}, seq=${progStageSeq})`);
+  console.log(`[PROG] Written unit=${unitIndex} stage=${stageIndex}: stations=[${s}], min=${minTime}s, max=${maxTime}s, cal=${calTime}s`);
+}
+
+/**
+ * POST /api/batch — Upload batch + treatment program to PLC
+ * Body: { unitIndex, batchCode, batchState, programId, stages: [ { stations: [101,102], minTime, maxTime, calTime }, ... ] }
+ */
+app.post('/api/batch', async (req, res) => {
+  try {
+    if (!connected) return res.status(503).json({ error: 'PLC not connected' });
+    const { unitIndex, batchCode, batchState, programId, stages } = req.body;
+
+    if (!unitIndex || unitIndex < 1 || unitIndex > 10) {
+      return res.status(400).json({ error: 'unitIndex must be 1..10' });
+    }
+
+    // Step 1: Write batch data + program_id (clears all stages)
+    await writeBatchToPLC(unitIndex, batchCode || 0, batchState || 0, programId || 0);
+
+    // Step 2: Write each stage
+    if (Array.isArray(stages)) {
+      for (let i = 0; i < stages.length && i < 30; i++) {
+        const st = stages[i];
+        await writeProgramStageToPLC(
+          unitIndex,
+          i + 1,
+          st.stations || [],
+          st.minTime || 0,
+          st.maxTime || 0,
+          st.calTime || 0
+        );
+      }
+    }
+
+    console.log(`[BATCH] Complete: unit=${unitIndex}, prog=${programId}, ${(stages || []).length} stages`);
+    res.json({ ok: true, stagesWritten: (stages || []).length });
+  } catch (err) {
+    console.error(`[BATCH] Error: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // PLC info endpoint (combined Modbus + Runtime API state)
 app.get('/api/plc/status', (req, res) => {

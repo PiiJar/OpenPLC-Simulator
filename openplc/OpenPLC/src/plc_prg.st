@@ -56,71 +56,98 @@ VAR_EXTERNAL
   qw_cfg_ack     : INT;
   (* Units array *)
   g_units        : ARRAY[1..10] OF UNIT_T;
-  (* Modbus output: units QW22..QW71 *)
-  qw_u1_batch  : INT;
+  (* Modbus output: units QW22..QW61 *)
   qw_u1_loc  : INT;
   qw_u1_status  : INT;
   qw_u1_state  : INT;
   qw_u1_target  : INT;
-  qw_u2_batch  : INT;
   qw_u2_loc  : INT;
   qw_u2_status  : INT;
   qw_u2_state  : INT;
   qw_u2_target  : INT;
-  qw_u3_batch  : INT;
   qw_u3_loc  : INT;
   qw_u3_status  : INT;
   qw_u3_state  : INT;
   qw_u3_target  : INT;
-  qw_u4_batch  : INT;
   qw_u4_loc  : INT;
   qw_u4_status  : INT;
   qw_u4_state  : INT;
   qw_u4_target  : INT;
-  qw_u5_batch  : INT;
   qw_u5_loc  : INT;
   qw_u5_status  : INT;
   qw_u5_state  : INT;
   qw_u5_target  : INT;
-  qw_u6_batch  : INT;
   qw_u6_loc  : INT;
   qw_u6_status  : INT;
   qw_u6_state  : INT;
   qw_u6_target  : INT;
-  qw_u7_batch  : INT;
   qw_u7_loc  : INT;
   qw_u7_status  : INT;
   qw_u7_state  : INT;
   qw_u7_target  : INT;
-  qw_u8_batch  : INT;
   qw_u8_loc  : INT;
   qw_u8_status  : INT;
   qw_u8_state  : INT;
   qw_u8_target  : INT;
-  qw_u9_batch  : INT;
   qw_u9_loc  : INT;
   qw_u9_status  : INT;
   qw_u9_state  : INT;
   qw_u9_target  : INT;
-  qw_u10_batch : INT;
   qw_u10_loc : INT;
   qw_u10_status : INT;
   qw_u10_state : INT;
   qw_u10_target : INT;
   qw_unit_ack  : INT;
-  (* Modbus input: unit write command IW20..IW26 *)
+  (* Modbus output: batch data QW65..QW104 *)
+  qw_b1_code  : INT;  qw_b1_state  : INT;  qw_b1_prog  : INT;  qw_b1_stage  : INT;
+  qw_b2_code  : INT;  qw_b2_state  : INT;  qw_b2_prog  : INT;  qw_b2_stage  : INT;
+  qw_b3_code  : INT;  qw_b3_state  : INT;  qw_b3_prog  : INT;  qw_b3_stage  : INT;
+  qw_b4_code  : INT;  qw_b4_state  : INT;  qw_b4_prog  : INT;  qw_b4_stage  : INT;
+  qw_b5_code  : INT;  qw_b5_state  : INT;  qw_b5_prog  : INT;  qw_b5_stage  : INT;
+  qw_b6_code  : INT;  qw_b6_state  : INT;  qw_b6_prog  : INT;  qw_b6_stage  : INT;
+  qw_b7_code  : INT;  qw_b7_state  : INT;  qw_b7_prog  : INT;  qw_b7_stage  : INT;
+  qw_b8_code  : INT;  qw_b8_state  : INT;  qw_b8_prog  : INT;  qw_b8_stage  : INT;
+  qw_b9_code  : INT;  qw_b9_state  : INT;  qw_b9_prog  : INT;  qw_b9_stage  : INT;
+  qw_b10_code : INT;  qw_b10_state : INT;  qw_b10_prog : INT;  qw_b10_stage : INT;
+  (* Modbus input: unit write command *)
   iw_unit_seq    : INT;
   iw_unit_id     : INT;
-  iw_unit_batch  : INT;
   iw_unit_loc    : INT;
   iw_unit_status : INT;
   iw_unit_state  : INT;
   iw_unit_target : INT;
+  (* Batch and program arrays *)
+  g_batches      : ARRAY[1..10] OF BATCH_T;
+  g_programs     : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
+  (* Modbus input: batch write protocol *)
+  iw_batch_seq     : INT;
+  iw_batch_unit    : INT;
+  iw_batch_code    : INT;
+  iw_batch_state   : INT;
+  iw_batch_prog_id : INT;
+  qw_batch_ack     : INT;
+  (* Modbus input: program stage write protocol *)
+  iw_prog_seq      : INT;
+  iw_prog_unit     : INT;
+  iw_prog_stage    : INT;
+  iw_prog_s1       : INT;
+  iw_prog_s2       : INT;
+  iw_prog_s3       : INT;
+  iw_prog_s4       : INT;
+  iw_prog_s5       : INT;
+  iw_prog_min_time : INT;
+  iw_prog_max_time : INT;
+  iw_prog_cal_time : INT;
+  qw_prog_ack      : INT;
 END_VAR
 VAR
   init_done      : BOOL := FALSE;
   last_cfg_seq   : INT := 0;
   last_unit_seq  : INT := 0;
+  last_batch_seq : INT := 0;
+  last_prog_seq  : INT := 0;
+  j              : INT;
+  k              : INT;
   i            : INT;
   idx          : INT;
   station_type : INT;
@@ -468,13 +495,56 @@ END_IF;  (* init_done *)
 IF iw_unit_seq <> last_unit_seq THEN
   last_unit_seq := iw_unit_seq;
   IF (iw_unit_id >= 1) AND (iw_unit_id <= 10) THEN
-    g_units[iw_unit_id].batch_id := iw_unit_batch;
     g_units[iw_unit_id].location := iw_unit_loc;
     g_units[iw_unit_id].status   := iw_unit_status;
     g_units[iw_unit_id].state    := iw_unit_state;
     g_units[iw_unit_id].target   := iw_unit_target;
   END_IF;
   qw_unit_ack := iw_unit_seq;
+END_IF;
+
+(* ============================================================
+   BATCH WRITE HANDLER — gateway writes batch data + program_id
+   Also clears all stages of the treatment program for this unit.
+   ============================================================ *)
+IF iw_batch_seq <> last_batch_seq THEN
+  last_batch_seq := iw_batch_seq;
+  IF (iw_batch_unit >= 1) AND (iw_batch_unit <= 10) THEN
+    g_batches[iw_batch_unit].batch_code := iw_batch_code;
+    g_batches[iw_batch_unit].state      := iw_batch_state;
+    g_batches[iw_batch_unit].prog_id    := iw_batch_prog_id;
+    g_batches[iw_batch_unit].cur_stage      := 0;
+    g_programs[iw_batch_unit].program_id := iw_batch_prog_id;
+    (* Clear all stages *)
+    FOR j := 1 TO 30 DO
+      FOR k := 1 TO 5 DO
+        g_programs[iw_batch_unit].stages[j].stations[k] := 0;
+      END_FOR;
+      g_programs[iw_batch_unit].stages[j].min_time := 0;
+      g_programs[iw_batch_unit].stages[j].max_time := 0;
+      g_programs[iw_batch_unit].stages[j].cal_time := 0;
+    END_FOR;
+  END_IF;
+  qw_batch_ack := iw_batch_seq;
+END_IF;
+
+(* ============================================================
+   PROGRAM STAGE WRITE HANDLER — gateway writes one stage at a time
+   ============================================================ *)
+IF iw_prog_seq <> last_prog_seq THEN
+  last_prog_seq := iw_prog_seq;
+  IF (iw_prog_unit >= 1) AND (iw_prog_unit <= 10) AND
+     (iw_prog_stage >= 1) AND (iw_prog_stage <= 30) THEN
+    g_programs[iw_prog_unit].stages[iw_prog_stage].stations[1] := iw_prog_s1;
+    g_programs[iw_prog_unit].stages[iw_prog_stage].stations[2] := iw_prog_s2;
+    g_programs[iw_prog_unit].stages[iw_prog_stage].stations[3] := iw_prog_s3;
+    g_programs[iw_prog_unit].stages[iw_prog_stage].stations[4] := iw_prog_s4;
+    g_programs[iw_prog_unit].stages[iw_prog_stage].stations[5] := iw_prog_s5;
+    g_programs[iw_prog_unit].stages[iw_prog_stage].min_time := iw_prog_min_time;
+    g_programs[iw_prog_unit].stages[iw_prog_stage].max_time := iw_prog_max_time;
+    g_programs[iw_prog_unit].stages[iw_prog_stage].cal_time := iw_prog_cal_time;
+  END_IF;
+  qw_prog_ack := iw_prog_seq;
 END_IF;
 
 (* === MODBUS INPUT: Read commands from input registers === *)
@@ -514,55 +584,57 @@ cycle_count := cycle_count + 1;
 IF cycle_count > 30000 THEN cycle_count := 0; END_IF;
 qw_cycle_cnt := cycle_count;
 
-(* Write unit data to Modbus output QW22..QW71 *)
-qw_u1_batch  := g_units[1].batch_id;
+(* Write unit data to Modbus output QW22..QW61 *)
 qw_u1_loc    := g_units[1].location;
 qw_u1_status := g_units[1].status;
 qw_u1_state  := g_units[1].state;
 qw_u1_target := g_units[1].target;
-qw_u2_batch  := g_units[2].batch_id;
 qw_u2_loc    := g_units[2].location;
 qw_u2_status := g_units[2].status;
 qw_u2_state  := g_units[2].state;
 qw_u2_target := g_units[2].target;
-qw_u3_batch  := g_units[3].batch_id;
 qw_u3_loc    := g_units[3].location;
 qw_u3_status := g_units[3].status;
 qw_u3_state  := g_units[3].state;
 qw_u3_target := g_units[3].target;
-qw_u4_batch  := g_units[4].batch_id;
 qw_u4_loc    := g_units[4].location;
 qw_u4_status := g_units[4].status;
 qw_u4_state  := g_units[4].state;
 qw_u4_target := g_units[4].target;
-qw_u5_batch  := g_units[5].batch_id;
 qw_u5_loc    := g_units[5].location;
 qw_u5_status := g_units[5].status;
 qw_u5_state  := g_units[5].state;
 qw_u5_target := g_units[5].target;
-qw_u6_batch  := g_units[6].batch_id;
 qw_u6_loc    := g_units[6].location;
 qw_u6_status := g_units[6].status;
 qw_u6_state  := g_units[6].state;
 qw_u6_target := g_units[6].target;
-qw_u7_batch  := g_units[7].batch_id;
 qw_u7_loc    := g_units[7].location;
 qw_u7_status := g_units[7].status;
 qw_u7_state  := g_units[7].state;
 qw_u7_target := g_units[7].target;
-qw_u8_batch  := g_units[8].batch_id;
 qw_u8_loc    := g_units[8].location;
 qw_u8_status := g_units[8].status;
 qw_u8_state  := g_units[8].state;
 qw_u8_target := g_units[8].target;
-qw_u9_batch  := g_units[9].batch_id;
 qw_u9_loc    := g_units[9].location;
 qw_u9_status := g_units[9].status;
 qw_u9_state  := g_units[9].state;
 qw_u9_target := g_units[9].target;
-qw_u10_batch  := g_units[10].batch_id;
 qw_u10_loc    := g_units[10].location;
 qw_u10_status := g_units[10].status;
 qw_u10_state  := g_units[10].state;
 qw_u10_target := g_units[10].target;
+
+(* Write batch data to Modbus output QW65..QW104 *)
+qw_b1_code  := g_batches[1].batch_code;  qw_b1_state  := g_batches[1].state;  qw_b1_prog  := g_batches[1].prog_id;  qw_b1_stage  := g_batches[1].cur_stage;
+qw_b2_code  := g_batches[2].batch_code;  qw_b2_state  := g_batches[2].state;  qw_b2_prog  := g_batches[2].prog_id;  qw_b2_stage  := g_batches[2].cur_stage;
+qw_b3_code  := g_batches[3].batch_code;  qw_b3_state  := g_batches[3].state;  qw_b3_prog  := g_batches[3].prog_id;  qw_b3_stage  := g_batches[3].cur_stage;
+qw_b4_code  := g_batches[4].batch_code;  qw_b4_state  := g_batches[4].state;  qw_b4_prog  := g_batches[4].prog_id;  qw_b4_stage  := g_batches[4].cur_stage;
+qw_b5_code  := g_batches[5].batch_code;  qw_b5_state  := g_batches[5].state;  qw_b5_prog  := g_batches[5].prog_id;  qw_b5_stage  := g_batches[5].cur_stage;
+qw_b6_code  := g_batches[6].batch_code;  qw_b6_state  := g_batches[6].state;  qw_b6_prog  := g_batches[6].prog_id;  qw_b6_stage  := g_batches[6].cur_stage;
+qw_b7_code  := g_batches[7].batch_code;  qw_b7_state  := g_batches[7].state;  qw_b7_prog  := g_batches[7].prog_id;  qw_b7_stage  := g_batches[7].cur_stage;
+qw_b8_code  := g_batches[8].batch_code;  qw_b8_state  := g_batches[8].state;  qw_b8_prog  := g_batches[8].prog_id;  qw_b8_stage  := g_batches[8].cur_stage;
+qw_b9_code  := g_batches[9].batch_code;  qw_b9_state  := g_batches[9].state;  qw_b9_prog  := g_batches[9].prog_id;  qw_b9_stage  := g_batches[9].cur_stage;
+qw_b10_code := g_batches[10].batch_code; qw_b10_state := g_batches[10].state; qw_b10_prog := g_batches[10].prog_id; qw_b10_stage := g_batches[10].cur_stage;
 END_PROGRAM

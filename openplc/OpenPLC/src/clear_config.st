@@ -16,9 +16,13 @@ VAR_EXTERNAL
   g_cmd_lift_station : ARRAY[1..3] OF INT;
   g_cmd_sink_station : ARRAY[1..3] OF INT;
   g_units            : ARRAY[1..10] OF UNIT_T;
+  g_batches          : ARRAY[1..10] OF BATCH_T;
+  g_programs         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
 END_VAR
 VAR
   i : INT;
+  j : INT;
+  k : INT;
 END_VAR
 
 (* --- Clear all stations --- *)
@@ -76,11 +80,31 @@ END_FOR;
 
 (* --- Clear all units --- *)
 FOR i := 1 TO 10 DO
-  g_units[i].batch_id := 0;
   g_units[i].location := 0;
   g_units[i].status   := 0;
   g_units[i].state    := 0;
   g_units[i].target   := 0;
+END_FOR;
+
+(* --- Clear all batches --- *)
+FOR i := 1 TO 10 DO
+  g_batches[i].batch_code := 0;
+  g_batches[i].state      := 0;
+  g_batches[i].prog_id    := 0;
+  g_batches[i].cur_stage      := 0;
+END_FOR;
+
+(* --- Clear all treatment programs --- *)
+FOR i := 1 TO 10 DO
+  g_programs[i].program_id := 0;
+  FOR j := 1 TO 30 DO
+    FOR k := 1 TO 5 DO
+      g_programs[i].stages[j].stations[k] := 0;
+    END_FOR;
+    g_programs[i].stages[j].min_time := 0;
+    g_programs[i].stages[j].max_time := 0;
+    g_programs[i].stages[j].cal_time := 0;
+  END_FOR;
 END_FOR;
 
 END_FUNCTION_BLOCK

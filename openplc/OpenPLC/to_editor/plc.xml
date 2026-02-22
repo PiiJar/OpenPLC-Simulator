@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-22T12:22:25"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-22T12:22:25">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-22T14:55:05"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-22T14:55:05">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -178,12 +178,67 @@
           </struct>
         </baseType>
       </dataType>
+      <dataType name="BATCH_T">
+        <baseType>
+          <struct>
+            <variable name="batch_code">
+              <type><INT/></type>
+            </variable>
+            <variable name="state">
+              <type><INT/></type>
+            </variable>
+            <variable name="prog_id">
+              <type><INT/></type>
+            </variable>
+            <variable name="cur_stage">
+              <type><INT/></type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
+      <dataType name="PROGRAM_STAGE_T">
+        <baseType>
+          <struct>
+            <variable name="stations">
+              <type>
+                <array>
+                  <dimension lower="1" upper="5"/>
+                  <baseType><INT/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="min_time">
+              <type><INT/></type>
+            </variable>
+            <variable name="max_time">
+              <type><INT/></type>
+            </variable>
+            <variable name="cal_time">
+              <type><INT/></type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
+      <dataType name="TREATMENT_PROGRAM_T">
+        <baseType>
+          <struct>
+            <variable name="program_id">
+              <type><INT/></type>
+            </variable>
+            <variable name="stages">
+              <type>
+                <array>
+                  <dimension lower="1" upper="30"/>
+                  <baseType><derived name="PROGRAM_STAGE_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
       <dataType name="UNIT_T">
         <baseType>
           <struct>
-            <variable name="batch_id">
-              <type><INT/></type>
-            </variable>
             <variable name="location">
               <type><INT/></type>
             </variable>
@@ -280,9 +335,31 @@
                 </array>
               </type>
             </variable>
+            <variable name="g_batches">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="BATCH_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_programs">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="TREATMENT_PROGRAM_T"/></baseType>
+                </array>
+              </type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="i">
+              <type><INT/></type>
+            </variable>
+            <variable name="j">
+              <type><INT/></type>
+            </variable>
+            <variable name="k">
               <type><INT/></type>
             </variable>
           </localVars>
@@ -344,11 +421,31 @@ END_FOR;
 
 (* --- Clear all units --- *)
 FOR i := 1 TO 10 DO
-  g_units[i].batch_id := 0;
   g_units[i].location := 0;
   g_units[i].status   := 0;
   g_units[i].state    := 0;
   g_units[i].target   := 0;
+END_FOR;
+
+(* --- Clear all batches --- *)
+FOR i := 1 TO 10 DO
+  g_batches[i].batch_code := 0;
+  g_batches[i].state      := 0;
+  g_batches[i].prog_id    := 0;
+  g_batches[i].cur_stage      := 0;
+END_FOR;
+
+(* --- Clear all treatment programs --- *)
+FOR i := 1 TO 10 DO
+  g_programs[i].program_id := 0;
+  FOR j := 1 TO 30 DO
+    FOR k := 1 TO 5 DO
+      g_programs[i].stages[j].stations[k] := 0;
+    END_FOR;
+    g_programs[i].stages[j].min_time := 0;
+    g_programs[i].stages[j].max_time := 0;
+    g_programs[i].stages[j].cal_time := 0;
+  END_FOR;
 END_FOR;]]></xhtml:p>
           </ST>
         </body>
@@ -730,9 +827,6 @@ END_IF;]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="qw_u1_batch">
-              <type><INT/></type>
-            </variable>
             <variable name="qw_u1_loc">
               <type><INT/></type>
             </variable>
@@ -743,9 +837,6 @@ END_IF;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="qw_u1_target">
-              <type><INT/></type>
-            </variable>
-            <variable name="qw_u2_batch">
               <type><INT/></type>
             </variable>
             <variable name="qw_u2_loc">
@@ -760,9 +851,6 @@ END_IF;]]></xhtml:p>
             <variable name="qw_u2_target">
               <type><INT/></type>
             </variable>
-            <variable name="qw_u3_batch">
-              <type><INT/></type>
-            </variable>
             <variable name="qw_u3_loc">
               <type><INT/></type>
             </variable>
@@ -773,9 +861,6 @@ END_IF;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="qw_u3_target">
-              <type><INT/></type>
-            </variable>
-            <variable name="qw_u4_batch">
               <type><INT/></type>
             </variable>
             <variable name="qw_u4_loc">
@@ -790,9 +875,6 @@ END_IF;]]></xhtml:p>
             <variable name="qw_u4_target">
               <type><INT/></type>
             </variable>
-            <variable name="qw_u5_batch">
-              <type><INT/></type>
-            </variable>
             <variable name="qw_u5_loc">
               <type><INT/></type>
             </variable>
@@ -803,9 +885,6 @@ END_IF;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="qw_u5_target">
-              <type><INT/></type>
-            </variable>
-            <variable name="qw_u6_batch">
               <type><INT/></type>
             </variable>
             <variable name="qw_u6_loc">
@@ -820,9 +899,6 @@ END_IF;]]></xhtml:p>
             <variable name="qw_u6_target">
               <type><INT/></type>
             </variable>
-            <variable name="qw_u7_batch">
-              <type><INT/></type>
-            </variable>
             <variable name="qw_u7_loc">
               <type><INT/></type>
             </variable>
@@ -833,9 +909,6 @@ END_IF;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="qw_u7_target">
-              <type><INT/></type>
-            </variable>
-            <variable name="qw_u8_batch">
               <type><INT/></type>
             </variable>
             <variable name="qw_u8_loc">
@@ -850,9 +923,6 @@ END_IF;]]></xhtml:p>
             <variable name="qw_u8_target">
               <type><INT/></type>
             </variable>
-            <variable name="qw_u9_batch">
-              <type><INT/></type>
-            </variable>
             <variable name="qw_u9_loc">
               <type><INT/></type>
             </variable>
@@ -863,9 +933,6 @@ END_IF;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="qw_u9_target">
-              <type><INT/></type>
-            </variable>
-            <variable name="qw_u10_batch">
               <type><INT/></type>
             </variable>
             <variable name="qw_u10_loc">
@@ -883,13 +950,40 @@ END_IF;]]></xhtml:p>
             <variable name="qw_unit_ack">
               <type><INT/></type>
             </variable>
+            <variable name="qw_b1_code">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_b2_code">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_b3_code">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_b4_code">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_b5_code">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_b6_code">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_b7_code">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_b8_code">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_b9_code">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_b10_code">
+              <type><INT/></type>
+            </variable>
             <variable name="iw_unit_seq">
               <type><INT/></type>
             </variable>
             <variable name="iw_unit_id">
-              <type><INT/></type>
-            </variable>
-            <variable name="iw_unit_batch">
               <type><INT/></type>
             </variable>
             <variable name="iw_unit_loc">
@@ -902,6 +996,76 @@ END_IF;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="iw_unit_target">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_batches">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="BATCH_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_programs">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="TREATMENT_PROGRAM_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="iw_batch_seq">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_batch_unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_batch_code">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_batch_state">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_batch_prog_id">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_batch_ack">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_prog_seq">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_prog_unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_prog_stage">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_prog_s1">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_prog_s2">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_prog_s3">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_prog_s4">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_prog_s5">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_prog_min_time">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_prog_max_time">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_prog_cal_time">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_prog_ack">
               <type><INT/></type>
             </variable>
           </externalVars>
@@ -917,6 +1081,20 @@ END_IF;]]></xhtml:p>
             <variable name="last_unit_seq">
               <type><INT/></type>
               <initialValue><simpleValue value="0"/></initialValue>
+            </variable>
+            <variable name="last_batch_seq">
+              <type><INT/></type>
+              <initialValue><simpleValue value="0"/></initialValue>
+            </variable>
+            <variable name="last_prog_seq">
+              <type><INT/></type>
+              <initialValue><simpleValue value="0"/></initialValue>
+            </variable>
+            <variable name="j">
+              <type><INT/></type>
+            </variable>
+            <variable name="k">
+              <type><INT/></type>
             </variable>
             <variable name="i">
               <type><INT/></type>
@@ -1304,13 +1482,56 @@ END_IF;  (* init_done *)
 IF iw_unit_seq <> last_unit_seq THEN
   last_unit_seq := iw_unit_seq;
   IF (iw_unit_id >= 1) AND (iw_unit_id <= 10) THEN
-    g_units[iw_unit_id].batch_id := iw_unit_batch;
     g_units[iw_unit_id].location := iw_unit_loc;
     g_units[iw_unit_id].status   := iw_unit_status;
     g_units[iw_unit_id].state    := iw_unit_state;
     g_units[iw_unit_id].target   := iw_unit_target;
   END_IF;
   qw_unit_ack := iw_unit_seq;
+END_IF;
+
+(* ============================================================
+   BATCH WRITE HANDLER — gateway writes batch data + program_id
+   Also clears all stages of the treatment program for this unit.
+   ============================================================ *)
+IF iw_batch_seq <> last_batch_seq THEN
+  last_batch_seq := iw_batch_seq;
+  IF (iw_batch_unit >= 1) AND (iw_batch_unit <= 10) THEN
+    g_batches[iw_batch_unit].batch_code := iw_batch_code;
+    g_batches[iw_batch_unit].state      := iw_batch_state;
+    g_batches[iw_batch_unit].prog_id    := iw_batch_prog_id;
+    g_batches[iw_batch_unit].cur_stage      := 0;
+    g_programs[iw_batch_unit].program_id := iw_batch_prog_id;
+    (* Clear all stages *)
+    FOR j := 1 TO 30 DO
+      FOR k := 1 TO 5 DO
+        g_programs[iw_batch_unit].stages[j].stations[k] := 0;
+      END_FOR;
+      g_programs[iw_batch_unit].stages[j].min_time := 0;
+      g_programs[iw_batch_unit].stages[j].max_time := 0;
+      g_programs[iw_batch_unit].stages[j].cal_time := 0;
+    END_FOR;
+  END_IF;
+  qw_batch_ack := iw_batch_seq;
+END_IF;
+
+(* ============================================================
+   PROGRAM STAGE WRITE HANDLER — gateway writes one stage at a time
+   ============================================================ *)
+IF iw_prog_seq <> last_prog_seq THEN
+  last_prog_seq := iw_prog_seq;
+  IF (iw_prog_unit >= 1) AND (iw_prog_unit <= 10) AND
+     (iw_prog_stage >= 1) AND (iw_prog_stage <= 30) THEN
+    g_programs[iw_prog_unit].stages[iw_prog_stage].stations[1] := iw_prog_s1;
+    g_programs[iw_prog_unit].stages[iw_prog_stage].stations[2] := iw_prog_s2;
+    g_programs[iw_prog_unit].stages[iw_prog_stage].stations[3] := iw_prog_s3;
+    g_programs[iw_prog_unit].stages[iw_prog_stage].stations[4] := iw_prog_s4;
+    g_programs[iw_prog_unit].stages[iw_prog_stage].stations[5] := iw_prog_s5;
+    g_programs[iw_prog_unit].stages[iw_prog_stage].min_time := iw_prog_min_time;
+    g_programs[iw_prog_unit].stages[iw_prog_stage].max_time := iw_prog_max_time;
+    g_programs[iw_prog_unit].stages[iw_prog_stage].cal_time := iw_prog_cal_time;
+  END_IF;
+  qw_prog_ack := iw_prog_seq;
 END_IF;
 
 (* === MODBUS INPUT: Read commands from input registers === *)
@@ -1350,57 +1571,59 @@ cycle_count := cycle_count + 1;
 IF cycle_count > 30000 THEN cycle_count := 0; END_IF;
 qw_cycle_cnt := cycle_count;
 
-(* Write unit data to Modbus output QW22..QW71 *)
-qw_u1_batch  := g_units[1].batch_id;
+(* Write unit data to Modbus output QW22..QW61 *)
 qw_u1_loc    := g_units[1].location;
 qw_u1_status := g_units[1].status;
 qw_u1_state  := g_units[1].state;
 qw_u1_target := g_units[1].target;
-qw_u2_batch  := g_units[2].batch_id;
 qw_u2_loc    := g_units[2].location;
 qw_u2_status := g_units[2].status;
 qw_u2_state  := g_units[2].state;
 qw_u2_target := g_units[2].target;
-qw_u3_batch  := g_units[3].batch_id;
 qw_u3_loc    := g_units[3].location;
 qw_u3_status := g_units[3].status;
 qw_u3_state  := g_units[3].state;
 qw_u3_target := g_units[3].target;
-qw_u4_batch  := g_units[4].batch_id;
 qw_u4_loc    := g_units[4].location;
 qw_u4_status := g_units[4].status;
 qw_u4_state  := g_units[4].state;
 qw_u4_target := g_units[4].target;
-qw_u5_batch  := g_units[5].batch_id;
 qw_u5_loc    := g_units[5].location;
 qw_u5_status := g_units[5].status;
 qw_u5_state  := g_units[5].state;
 qw_u5_target := g_units[5].target;
-qw_u6_batch  := g_units[6].batch_id;
 qw_u6_loc    := g_units[6].location;
 qw_u6_status := g_units[6].status;
 qw_u6_state  := g_units[6].state;
 qw_u6_target := g_units[6].target;
-qw_u7_batch  := g_units[7].batch_id;
 qw_u7_loc    := g_units[7].location;
 qw_u7_status := g_units[7].status;
 qw_u7_state  := g_units[7].state;
 qw_u7_target := g_units[7].target;
-qw_u8_batch  := g_units[8].batch_id;
 qw_u8_loc    := g_units[8].location;
 qw_u8_status := g_units[8].status;
 qw_u8_state  := g_units[8].state;
 qw_u8_target := g_units[8].target;
-qw_u9_batch  := g_units[9].batch_id;
 qw_u9_loc    := g_units[9].location;
 qw_u9_status := g_units[9].status;
 qw_u9_state  := g_units[9].state;
 qw_u9_target := g_units[9].target;
-qw_u10_batch  := g_units[10].batch_id;
 qw_u10_loc    := g_units[10].location;
 qw_u10_status := g_units[10].status;
 qw_u10_state  := g_units[10].state;
-qw_u10_target := g_units[10].target;]]></xhtml:p>
+qw_u10_target := g_units[10].target;
+
+(* Write batch data to Modbus output QW65..QW104 *)
+qw_b1_code  := g_batches[1].batch_code;  qw_b1_state  := g_batches[1].state;  qw_b1_prog  := g_batches[1].prog_id;  qw_b1_stage  := g_batches[1].cur_stage;
+qw_b2_code  := g_batches[2].batch_code;  qw_b2_state  := g_batches[2].state;  qw_b2_prog  := g_batches[2].prog_id;  qw_b2_stage  := g_batches[2].cur_stage;
+qw_b3_code  := g_batches[3].batch_code;  qw_b3_state  := g_batches[3].state;  qw_b3_prog  := g_batches[3].prog_id;  qw_b3_stage  := g_batches[3].cur_stage;
+qw_b4_code  := g_batches[4].batch_code;  qw_b4_state  := g_batches[4].state;  qw_b4_prog  := g_batches[4].prog_id;  qw_b4_stage  := g_batches[4].cur_stage;
+qw_b5_code  := g_batches[5].batch_code;  qw_b5_state  := g_batches[5].state;  qw_b5_prog  := g_batches[5].prog_id;  qw_b5_stage  := g_batches[5].cur_stage;
+qw_b6_code  := g_batches[6].batch_code;  qw_b6_state  := g_batches[6].state;  qw_b6_prog  := g_batches[6].prog_id;  qw_b6_stage  := g_batches[6].cur_stage;
+qw_b7_code  := g_batches[7].batch_code;  qw_b7_state  := g_batches[7].state;  qw_b7_prog  := g_batches[7].prog_id;  qw_b7_stage  := g_batches[7].cur_stage;
+qw_b8_code  := g_batches[8].batch_code;  qw_b8_state  := g_batches[8].state;  qw_b8_prog  := g_batches[8].prog_id;  qw_b8_stage  := g_batches[8].cur_stage;
+qw_b9_code  := g_batches[9].batch_code;  qw_b9_state  := g_batches[9].state;  qw_b9_prog  := g_batches[9].prog_id;  qw_b9_stage  := g_batches[9].cur_stage;
+qw_b10_code := g_batches[10].batch_code; qw_b10_state := g_batches[10].state; qw_b10_prog := g_batches[10].prog_id; qw_b10_stage := g_batches[10].cur_stage;]]></xhtml:p>
           </ST>
         </body>
       </pou>
@@ -1467,6 +1690,26 @@ qw_u10_target := g_units[10].target;]]></xhtml:p>
             <type><INT/></type>
             <initialValue><simpleValue value="5"/></initialValue>
           </variable>
+          <variable name="NOT_PROCESSED">
+            <type><INT/></type>
+            <initialValue><simpleValue value="0"/></initialValue>
+          </variable>
+          <variable name="IN_PROCESS">
+            <type><INT/></type>
+            <initialValue><simpleValue value="1"/></initialValue>
+          </variable>
+          <variable name="PROCESSED">
+            <type><INT/></type>
+            <initialValue><simpleValue value="2"/></initialValue>
+          </variable>
+          <variable name="MAX_PARALLELS">
+            <type><INT/></type>
+            <initialValue><simpleValue value="5"/></initialValue>
+          </variable>
+          <variable name="MAX_STAGES">
+            <type><INT/></type>
+            <initialValue><simpleValue value="30"/></initialValue>
+          </variable>
           <variable name="g_station_count">
             <type><INT/></type>
             <initialValue><simpleValue value="0"/></initialValue>
@@ -1524,6 +1767,22 @@ qw_u10_target := g_units[10].target;]]></xhtml:p>
               <array>
                 <dimension lower="1" upper="10"/>
                 <baseType><derived name="UNIT_T"/></baseType>
+              </array>
+            </type>
+          </variable>
+          <variable name="g_batches">
+            <type>
+              <array>
+                <dimension lower="1" upper="10"/>
+                <baseType><derived name="BATCH_T"/></baseType>
+              </array>
+            </type>
+          </variable>
+          <variable name="g_programs">
+            <type>
+              <array>
+                <dimension lower="1" upper="10"/>
+                <baseType><derived name="TREATMENT_PROGRAM_T"/></baseType>
               </array>
             </type>
           </variable>
@@ -1590,22 +1849,142 @@ qw_u10_target := g_units[10].target;]]></xhtml:p>
           <variable name="qw_cycle_cnt" address="%QW20">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cmd_start_1" address="%QW100">
+          <variable name="qw_b1_code" address="%QW65">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cmd_lift_1" address="%QW101">
+          <variable name="qw_b1_state" address="%QW66">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cmd_sink_1" address="%QW102">
+          <variable name="qw_b1_prog" address="%QW67">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cmd_start_2" address="%QW103">
+          <variable name="qw_b1_stage" address="%QW68">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cmd_lift_2" address="%QW104">
+          <variable name="qw_b2_code" address="%QW69">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cmd_sink_2" address="%QW105">
+          <variable name="qw_b2_state" address="%QW70">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b2_prog" address="%QW71">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b2_stage" address="%QW72">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b3_code" address="%QW73">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b3_state" address="%QW74">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b3_prog" address="%QW75">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b3_stage" address="%QW76">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b4_code" address="%QW77">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b4_state" address="%QW78">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b4_prog" address="%QW79">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b4_stage" address="%QW80">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b5_code" address="%QW81">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b5_state" address="%QW82">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b5_prog" address="%QW83">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b5_stage" address="%QW84">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b6_code" address="%QW85">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b6_state" address="%QW86">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b6_prog" address="%QW87">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b6_stage" address="%QW88">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b7_code" address="%QW89">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b7_state" address="%QW90">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b7_prog" address="%QW91">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b7_stage" address="%QW92">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b8_code" address="%QW93">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b8_state" address="%QW94">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b8_prog" address="%QW95">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b8_stage" address="%QW96">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b9_code" address="%QW97">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b9_state" address="%QW98">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b9_prog" address="%QW99">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b9_stage" address="%QW100">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b10_code" address="%QW101">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b10_state" address="%QW102">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b10_prog" address="%QW103">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_b10_stage" address="%QW104">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_cmd_start_1" address="%QW200">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_cmd_lift_1" address="%QW201">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_cmd_sink_1" address="%QW202">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_cmd_start_2" address="%QW203">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_cmd_lift_2" address="%QW204">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_cmd_sink_2" address="%QW205">
             <type><INT/></type>
           </variable>
           <variable name="iw_cfg_seq" address="%QW110">
@@ -1641,157 +2020,127 @@ qw_u10_target := g_units[10].target;]]></xhtml:p>
           <variable name="qw_cfg_ack" address="%QW21">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u1_batch" address="%QW22">
+          <variable name="qw_u1_loc" address="%QW22">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u1_loc" address="%QW23">
+          <variable name="qw_u1_status" address="%QW23">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u1_status" address="%QW24">
+          <variable name="qw_u1_state" address="%QW24">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u1_state" address="%QW25">
+          <variable name="qw_u1_target" address="%QW25">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u1_target" address="%QW26">
+          <variable name="qw_u2_loc" address="%QW26">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u2_batch" address="%QW27">
+          <variable name="qw_u2_status" address="%QW27">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u2_loc" address="%QW28">
+          <variable name="qw_u2_state" address="%QW28">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u2_status" address="%QW29">
+          <variable name="qw_u2_target" address="%QW29">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u2_state" address="%QW30">
+          <variable name="qw_u3_loc" address="%QW30">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u2_target" address="%QW31">
+          <variable name="qw_u3_status" address="%QW31">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u3_batch" address="%QW32">
+          <variable name="qw_u3_state" address="%QW32">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u3_loc" address="%QW33">
+          <variable name="qw_u3_target" address="%QW33">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u3_status" address="%QW34">
+          <variable name="qw_u4_loc" address="%QW34">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u3_state" address="%QW35">
+          <variable name="qw_u4_status" address="%QW35">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u3_target" address="%QW36">
+          <variable name="qw_u4_state" address="%QW36">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u4_batch" address="%QW37">
+          <variable name="qw_u4_target" address="%QW37">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u4_loc" address="%QW38">
+          <variable name="qw_u5_loc" address="%QW38">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u4_status" address="%QW39">
+          <variable name="qw_u5_status" address="%QW39">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u4_state" address="%QW40">
+          <variable name="qw_u5_state" address="%QW40">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u4_target" address="%QW41">
+          <variable name="qw_u5_target" address="%QW41">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u5_batch" address="%QW42">
+          <variable name="qw_u6_loc" address="%QW42">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u5_loc" address="%QW43">
+          <variable name="qw_u6_status" address="%QW43">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u5_status" address="%QW44">
+          <variable name="qw_u6_state" address="%QW44">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u5_state" address="%QW45">
+          <variable name="qw_u6_target" address="%QW45">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u5_target" address="%QW46">
+          <variable name="qw_u7_loc" address="%QW46">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u6_batch" address="%QW47">
+          <variable name="qw_u7_status" address="%QW47">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u6_loc" address="%QW48">
+          <variable name="qw_u7_state" address="%QW48">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u6_status" address="%QW49">
+          <variable name="qw_u7_target" address="%QW49">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u6_state" address="%QW50">
+          <variable name="qw_u8_loc" address="%QW50">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u6_target" address="%QW51">
+          <variable name="qw_u8_status" address="%QW51">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u7_batch" address="%QW52">
+          <variable name="qw_u8_state" address="%QW52">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u7_loc" address="%QW53">
+          <variable name="qw_u8_target" address="%QW53">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u7_status" address="%QW54">
+          <variable name="qw_u9_loc" address="%QW54">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u7_state" address="%QW55">
+          <variable name="qw_u9_status" address="%QW55">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u7_target" address="%QW56">
+          <variable name="qw_u9_state" address="%QW56">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u8_batch" address="%QW57">
+          <variable name="qw_u9_target" address="%QW57">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u8_loc" address="%QW58">
+          <variable name="qw_u10_loc" address="%QW58">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u8_status" address="%QW59">
+          <variable name="qw_u10_status" address="%QW59">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u8_state" address="%QW60">
+          <variable name="qw_u10_state" address="%QW60">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u8_target" address="%QW61">
+          <variable name="qw_u10_target" address="%QW61">
             <type><INT/></type>
           </variable>
-          <variable name="qw_u9_batch" address="%QW62">
-            <type><INT/></type>
-          </variable>
-          <variable name="qw_u9_loc" address="%QW63">
-            <type><INT/></type>
-          </variable>
-          <variable name="qw_u9_status" address="%QW64">
-            <type><INT/></type>
-          </variable>
-          <variable name="qw_u9_state" address="%QW65">
-            <type><INT/></type>
-          </variable>
-          <variable name="qw_u9_target" address="%QW66">
-            <type><INT/></type>
-          </variable>
-          <variable name="qw_u10_batch" address="%QW67">
-            <type><INT/></type>
-          </variable>
-          <variable name="qw_u10_loc" address="%QW68">
-            <type><INT/></type>
-          </variable>
-          <variable name="qw_u10_status" address="%QW69">
-            <type><INT/></type>
-          </variable>
-          <variable name="qw_u10_state" address="%QW70">
-            <type><INT/></type>
-          </variable>
-          <variable name="qw_u10_target" address="%QW71">
-            <type><INT/></type>
-          </variable>
-          <variable name="qw_unit_ack" address="%QW72">
+          <variable name="qw_unit_ack" address="%QW62">
             <type><INT/></type>
           </variable>
           <variable name="iw_unit_seq" address="%QW120">
@@ -1800,19 +2149,70 @@ qw_u10_target := g_units[10].target;]]></xhtml:p>
           <variable name="iw_unit_id" address="%QW121">
             <type><INT/></type>
           </variable>
-          <variable name="iw_unit_batch" address="%QW122">
+          <variable name="iw_unit_loc" address="%QW122">
             <type><INT/></type>
           </variable>
-          <variable name="iw_unit_loc" address="%QW123">
+          <variable name="iw_unit_status" address="%QW123">
             <type><INT/></type>
           </variable>
-          <variable name="iw_unit_status" address="%QW124">
+          <variable name="iw_unit_state" address="%QW124">
             <type><INT/></type>
           </variable>
-          <variable name="iw_unit_state" address="%QW125">
+          <variable name="iw_unit_target" address="%QW125">
             <type><INT/></type>
           </variable>
-          <variable name="iw_unit_target" address="%QW126">
+          <variable name="iw_batch_seq" address="%QW130">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_batch_unit" address="%QW131">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_batch_code" address="%QW132">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_batch_state" address="%QW133">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_batch_prog_id" address="%QW134">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_batch_ack" address="%QW63">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_prog_seq" address="%QW140">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_prog_unit" address="%QW141">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_prog_stage" address="%QW142">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_prog_s1" address="%QW143">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_prog_s2" address="%QW144">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_prog_s3" address="%QW145">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_prog_s4" address="%QW146">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_prog_s5" address="%QW147">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_prog_min_time" address="%QW148">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_prog_max_time" address="%QW149">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_prog_cal_time" address="%QW150">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_prog_ack" address="%QW64">
             <type><INT/></type>
           </variable>
         </globalVars>

@@ -19,6 +19,12 @@ VAR_GLOBAL CONSTANT
   TO_PROCESS       : INT := 3;
   TO_UNLOAD        : INT := 4;
   TO_AVOID         : INT := 5;
+  (* Batch state *)
+  NOT_PROCESSED    : INT := 0;
+  IN_PROCESS       : INT := 1;
+  PROCESSED        : INT := 2;
+  MAX_PARALLELS    : INT := 5;     (* max parallel stations per program stage *)
+  MAX_STAGES       : INT := 30;    (* max stages in a treatment program *)
 END_VAR
 
 VAR_GLOBAL
@@ -31,6 +37,8 @@ VAR_GLOBAL
   g_cmd_lift_station : ARRAY[1..3] OF INT;
   g_cmd_sink_station : ARRAY[1..3] OF INT;
   g_units            : ARRAY[1..10] OF UNIT_T;
+  g_batches          : ARRAY[1..10] OF BATCH_T;
+  g_programs         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
 
   (* --- Modbus OUTPUT: Transporter 1 (QW0..QW8) --- *)
   qw_t1_x_mm    AT %QW0  : INT;
@@ -59,15 +67,59 @@ VAR_GLOBAL
   qw_init_done   AT %QW19 : INT;
   qw_cycle_cnt   AT %QW20 : INT;
 
-  (* --- Modbus INPUT: Commands (QW100..QW105) --- *)
+  (* --- Modbus OUTPUT: Batch data (QW65..QW104) --- *)
+  (*   10 units x 4 fields: batch_code, state, program, stage
+       Unit N batch at QW65 + (N-1)*4 .. QW65 + (N-1)*4 + 3     *)
+  qw_b1_code    AT %QW65  : INT;
+  qw_b1_state   AT %QW66  : INT;
+  qw_b1_prog    AT %QW67  : INT;
+  qw_b1_stage   AT %QW68  : INT;
+  qw_b2_code    AT %QW69  : INT;
+  qw_b2_state   AT %QW70  : INT;
+  qw_b2_prog    AT %QW71  : INT;
+  qw_b2_stage   AT %QW72  : INT;
+  qw_b3_code    AT %QW73  : INT;
+  qw_b3_state   AT %QW74  : INT;
+  qw_b3_prog    AT %QW75  : INT;
+  qw_b3_stage   AT %QW76  : INT;
+  qw_b4_code    AT %QW77  : INT;
+  qw_b4_state   AT %QW78  : INT;
+  qw_b4_prog    AT %QW79  : INT;
+  qw_b4_stage   AT %QW80  : INT;
+  qw_b5_code    AT %QW81  : INT;
+  qw_b5_state   AT %QW82  : INT;
+  qw_b5_prog    AT %QW83  : INT;
+  qw_b5_stage   AT %QW84  : INT;
+  qw_b6_code    AT %QW85  : INT;
+  qw_b6_state   AT %QW86  : INT;
+  qw_b6_prog    AT %QW87  : INT;
+  qw_b6_stage   AT %QW88  : INT;
+  qw_b7_code    AT %QW89  : INT;
+  qw_b7_state   AT %QW90  : INT;
+  qw_b7_prog    AT %QW91  : INT;
+  qw_b7_stage   AT %QW92  : INT;
+  qw_b8_code    AT %QW93  : INT;
+  qw_b8_state   AT %QW94  : INT;
+  qw_b8_prog    AT %QW95  : INT;
+  qw_b8_stage   AT %QW96  : INT;
+  qw_b9_code    AT %QW97  : INT;
+  qw_b9_state   AT %QW98  : INT;
+  qw_b9_prog    AT %QW99  : INT;
+  qw_b9_stage   AT %QW100 : INT;
+  qw_b10_code   AT %QW101 : INT;
+  qw_b10_state  AT %QW102 : INT;
+  qw_b10_prog   AT %QW103 : INT;
+  qw_b10_stage  AT %QW104 : INT;
+
+  (* --- Modbus INPUT: Commands (QW200..QW205) --- *)
   (*   NOTE: Uses %QW (holding registers) because %IW (input registers)
        are read-only from Modbus master perspective.                  *)
-  iw_cmd_start_1 AT %QW100 : INT;
-  iw_cmd_lift_1  AT %QW101 : INT;
-  iw_cmd_sink_1  AT %QW102 : INT;
-  iw_cmd_start_2 AT %QW103 : INT;
-  iw_cmd_lift_2  AT %QW104 : INT;
-  iw_cmd_sink_2  AT %QW105 : INT;
+  iw_cmd_start_1 AT %QW200 : INT;
+  iw_cmd_lift_1  AT %QW201 : INT;
+  iw_cmd_sink_1  AT %QW202 : INT;
+  iw_cmd_start_2 AT %QW203 : INT;
+  iw_cmd_lift_2  AT %QW204 : INT;
+  iw_cmd_sink_2  AT %QW205 : INT;
 
   (* --- Config upload protocol (QW110..QW119, QW21) --- *)
   (*   Gateway writes station config one at a time.
@@ -87,68 +139,83 @@ VAR_GLOBAL
 
   qw_cfg_ack       AT %QW21 : INT;   (* ack: last processed seq number *)
 
-  (* --- Modbus OUTPUT: Units (QW22..QW71) --- *)
-  (*   10 units x 5 fields: batch_id, location, status, state, target
-       Unit N at QW22 + (N-1)*5 .. QW22 + (N-1)*5 + 4            *)
-  qw_u1_batch   AT %QW22 : INT;
-  qw_u1_loc     AT %QW23 : INT;
-  qw_u1_status  AT %QW24 : INT;
-  qw_u1_state   AT %QW25 : INT;
-  qw_u1_target  AT %QW26 : INT;
-  qw_u2_batch   AT %QW27 : INT;
-  qw_u2_loc     AT %QW28 : INT;
-  qw_u2_status  AT %QW29 : INT;
-  qw_u2_state   AT %QW30 : INT;
-  qw_u2_target  AT %QW31 : INT;
-  qw_u3_batch   AT %QW32 : INT;
-  qw_u3_loc     AT %QW33 : INT;
-  qw_u3_status  AT %QW34 : INT;
-  qw_u3_state   AT %QW35 : INT;
-  qw_u3_target  AT %QW36 : INT;
-  qw_u4_batch   AT %QW37 : INT;
-  qw_u4_loc     AT %QW38 : INT;
-  qw_u4_status  AT %QW39 : INT;
-  qw_u4_state   AT %QW40 : INT;
-  qw_u4_target  AT %QW41 : INT;
-  qw_u5_batch   AT %QW42 : INT;
-  qw_u5_loc     AT %QW43 : INT;
-  qw_u5_status  AT %QW44 : INT;
-  qw_u5_state   AT %QW45 : INT;
-  qw_u5_target  AT %QW46 : INT;
-  qw_u6_batch   AT %QW47 : INT;
-  qw_u6_loc     AT %QW48 : INT;
-  qw_u6_status  AT %QW49 : INT;
-  qw_u6_state   AT %QW50 : INT;
-  qw_u6_target  AT %QW51 : INT;
-  qw_u7_batch   AT %QW52 : INT;
-  qw_u7_loc     AT %QW53 : INT;
-  qw_u7_status  AT %QW54 : INT;
-  qw_u7_state   AT %QW55 : INT;
-  qw_u7_target  AT %QW56 : INT;
-  qw_u8_batch   AT %QW57 : INT;
-  qw_u8_loc     AT %QW58 : INT;
-  qw_u8_status  AT %QW59 : INT;
-  qw_u8_state   AT %QW60 : INT;
-  qw_u8_target  AT %QW61 : INT;
-  qw_u9_batch   AT %QW62 : INT;
-  qw_u9_loc     AT %QW63 : INT;
-  qw_u9_status  AT %QW64 : INT;
-  qw_u9_state   AT %QW65 : INT;
-  qw_u9_target  AT %QW66 : INT;
-  qw_u10_batch  AT %QW67 : INT;
-  qw_u10_loc    AT %QW68 : INT;
-  qw_u10_status AT %QW69 : INT;
-  qw_u10_state  AT %QW70 : INT;
-  qw_u10_target AT %QW71 : INT;
-  qw_unit_ack   AT %QW72 : INT;   (* ack: last processed unit write seq *)
+  (* --- Modbus OUTPUT: Units (QW22..QW61) --- *)
+  (*   10 units x 4 fields: location, status, state, target
+       Unit N at QW22 + (N-1)*4 .. QW22 + (N-1)*4 + 3            *)
+  qw_u1_loc     AT %QW22 : INT;
+  qw_u1_status  AT %QW23 : INT;
+  qw_u1_state   AT %QW24 : INT;
+  qw_u1_target  AT %QW25 : INT;
+  qw_u2_loc     AT %QW26 : INT;
+  qw_u2_status  AT %QW27 : INT;
+  qw_u2_state   AT %QW28 : INT;
+  qw_u2_target  AT %QW29 : INT;
+  qw_u3_loc     AT %QW30 : INT;
+  qw_u3_status  AT %QW31 : INT;
+  qw_u3_state   AT %QW32 : INT;
+  qw_u3_target  AT %QW33 : INT;
+  qw_u4_loc     AT %QW34 : INT;
+  qw_u4_status  AT %QW35 : INT;
+  qw_u4_state   AT %QW36 : INT;
+  qw_u4_target  AT %QW37 : INT;
+  qw_u5_loc     AT %QW38 : INT;
+  qw_u5_status  AT %QW39 : INT;
+  qw_u5_state   AT %QW40 : INT;
+  qw_u5_target  AT %QW41 : INT;
+  qw_u6_loc     AT %QW42 : INT;
+  qw_u6_status  AT %QW43 : INT;
+  qw_u6_state   AT %QW44 : INT;
+  qw_u6_target  AT %QW45 : INT;
+  qw_u7_loc     AT %QW46 : INT;
+  qw_u7_status  AT %QW47 : INT;
+  qw_u7_state   AT %QW48 : INT;
+  qw_u7_target  AT %QW49 : INT;
+  qw_u8_loc     AT %QW50 : INT;
+  qw_u8_status  AT %QW51 : INT;
+  qw_u8_state   AT %QW52 : INT;
+  qw_u8_target  AT %QW53 : INT;
+  qw_u9_loc     AT %QW54 : INT;
+  qw_u9_status  AT %QW55 : INT;
+  qw_u9_state   AT %QW56 : INT;
+  qw_u9_target  AT %QW57 : INT;
+  qw_u10_loc    AT %QW58 : INT;
+  qw_u10_status AT %QW59 : INT;
+  qw_u10_state  AT %QW60 : INT;
+  qw_u10_target AT %QW61 : INT;
+  qw_unit_ack   AT %QW62 : INT;   (* ack: last processed unit write seq *)
 
-  (* --- Modbus INPUT: Unit write command (QW120..QW126) --- *)
+  (* --- Modbus INPUT: Unit write command (QW120..QW125) --- *)
   (*   NOTE: Uses %QW because %IW is read-only from Modbus master.  *)
   iw_unit_seq    AT %QW120 : INT;  (* sequence — triggers on change *)
   iw_unit_id     AT %QW121 : INT;  (* unit number 1..10 *)
-  iw_unit_batch  AT %QW122 : INT;  (* batch_id *)
-  iw_unit_loc    AT %QW123 : INT;  (* location (station number) *)
-  iw_unit_status AT %QW124 : INT;  (* NOT_USED=0, USED=1 *)
-  iw_unit_state  AT %QW125 : INT;  (* EMPTY=0, FULL=1 *)
-  iw_unit_target AT %QW126 : INT;  (* TO_NONE=0, TO_LOADING=1, TO_BUFFER=2, TO_PROCESS=3, TO_UNLOAD=4, TO_AVOID=5 *)
+  iw_unit_loc    AT %QW122 : INT;  (* location (station number) *)
+  iw_unit_status AT %QW123 : INT;  (* NOT_USED=0, USED=1 *)
+  iw_unit_state  AT %QW124 : INT;  (* EMPTY=0, FULL=1 *)
+  iw_unit_target AT %QW125 : INT;  (* TO_NONE=0, TO_LOADING=1, TO_BUFFER=2, TO_PROCESS=3, TO_UNLOAD=4, TO_AVOID=5 *)
+
+  (* --- Modbus INPUT: Batch write protocol (QW130..QW134, ack QW63) --- *)
+  (*   Writes batch data and initializes treatment program for a unit.
+       PLC handler also clears all stages of g_programs[unit] on write.  *)
+  iw_batch_seq     AT %QW130 : INT;  (* sequence number — triggers on change *)
+  iw_batch_unit    AT %QW131 : INT;  (* unit index 1..10 *)
+  iw_batch_code    AT %QW132 : INT;  (* numeric batch code *)
+  iw_batch_state   AT %QW133 : INT;  (* NOT_PROCESSED=0, IN_PROCESS=1, PROCESSED=2 *)
+  iw_batch_prog_id AT %QW134 : INT;  (* treatment program ID *)
+  qw_batch_ack     AT %QW63  : INT;  (* ack: last processed batch write seq *)
+
+  (* --- Modbus INPUT: Program stage write protocol (QW140..QW150, ack QW64) --- *)
+  (*   Writes one treatment program stage at a time.
+       Must send batch write first to set program_id and clear stages.  *)
+  iw_prog_seq      AT %QW140 : INT;  (* sequence number — triggers on change *)
+  iw_prog_unit     AT %QW141 : INT;  (* unit index 1..10 *)
+  iw_prog_stage    AT %QW142 : INT;  (* stage index 1..30 *)
+  iw_prog_s1       AT %QW143 : INT;  (* station 1 (0 = unused) *)
+  iw_prog_s2       AT %QW144 : INT;  (* station 2 (0 = unused) *)
+  iw_prog_s3       AT %QW145 : INT;  (* station 3 (0 = unused) *)
+  iw_prog_s4       AT %QW146 : INT;  (* station 4 (0 = unused) *)
+  iw_prog_s5       AT %QW147 : INT;  (* station 5 (0 = unused) *)
+  iw_prog_min_time AT %QW148 : INT;  (* min processing time in seconds *)
+  iw_prog_max_time AT %QW149 : INT;  (* max processing time in seconds *)
+  iw_prog_cal_time AT %QW150 : INT;  (* calculated / target time in seconds *)
+  qw_prog_ack      AT %QW64  : INT;  (* ack: last processed program stage seq *)
 END_VAR

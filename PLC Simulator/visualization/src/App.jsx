@@ -2659,7 +2659,7 @@ export default function App() {
           )}
 
         {showBatches && (
-          <DraggablePanel title="Units" onClose={() => { setShowBatches(false); resetBatchForm(); }}>
+          <DraggablePanel title="Units" onClose={() => { setShowBatches(false); resetBatchForm(); }} width={720}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {batchError && (
                 <div style={{ color: '#c62828', fontWeight: 600, fontSize: 13 }}>{batchError}</div>
@@ -2667,36 +2667,44 @@ export default function App() {
 
               {/* Unit list — read from PLC */}
               <div style={{ maxHeight: 260, overflowY: 'auto', border: '1px solid #eee', borderRadius: 6, padding: 8, background: '#fafafa' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ borderBottom: '2px solid #ccc', textAlign: 'left' }}>
-                      <th style={{ padding: '4px 6px' }}>#</th>
-                      <th style={{ padding: '4px 6px' }}>Batch</th>
-                      <th style={{ padding: '4px 6px' }}>Loc</th>
-                      <th style={{ padding: '4px 6px' }}>Status</th>
-                      <th style={{ padding: '4px 6px' }}>State</th>
-                      <th style={{ padding: '4px 6px' }}>Target</th>
-                      <th style={{ padding: '4px 6px' }}></th>
+                      <th style={{ padding: '3px 4px' }}>Unit</th>
+                      <th style={{ padding: '3px 4px' }}>Loc</th>
+                      <th style={{ padding: '3px 4px' }}>Status</th>
+                      <th style={{ padding: '3px 4px' }}>State</th>
+                      <th style={{ padding: '3px 4px' }}>Target</th>
+                      <th style={{ padding: '3px 4px', borderLeft: '2px solid #90caf9' }}>Batch</th>
+                      <th style={{ padding: '3px 4px' }}>B.State</th>
+                      <th style={{ padding: '3px 4px' }}>Prog</th>
+                      <th style={{ padding: '3px 4px' }}>Stage</th>
+                      <th style={{ padding: '3px 4px' }}></th>
                     </tr>
                   </thead>
                   <tbody>
                     {units.map(u => {
                       const statusLabels = { 0: 'not_used', 1: 'used' };
                       const stateLabels = { 'empty': 'empty', 'full': 'full', 0: 'empty', 1: 'full' };
-                      const targetLabels = { 'none': 'none', 'to_loading': 'to_loading', 'to_buffer': 'to_buffer', 'to_process': 'to_process', 'to_unload': 'to_unload', 'to_avoid': 'to_avoid', 0: 'none', 1: 'to_loading', 2: 'to_buffer', 3: 'to_process', 4: 'to_unload', 5: 'to_avoid' };
+                      const targetLabels = { 'none': 'none', 'to_loading': 'to_load', 'to_buffer': 'to_buf', 'to_process': 'to_proc', 'to_unload': 'to_unl', 'to_avoid': 'to_avoid', 0: 'none', 1: 'to_load', 2: 'to_buf', 3: 'to_proc', 4: 'to_unl', 5: 'to_avoid' };
+                      const batchStateLabels = { 'not_processed': 'N/P', 'in_process': 'IN_P', 'processed': 'DONE' };
                       const isUsed = u.status === 1;
+                      const hasBatch = u.batch_code && u.batch_code !== 0;
                       return (
                         <tr key={u.unit_id} style={{ borderBottom: '1px solid #f0f0f0', opacity: isUsed ? 1 : 0.5 }}>
-                          <td style={{ padding: '4px 6px', fontWeight: 700 }}>U{u.unit_id}</td>
-                          <td style={{ padding: '4px 6px', color: '#1565c0' }}>{u.batch_id || '—'}</td>
-                          <td style={{ padding: '4px 6px' }}>{u.location || '—'}</td>
-                          <td style={{ padding: '4px 6px' }}>{statusLabels[u.status] || u.status}</td>
-                          <td style={{ padding: '4px 6px' }}>{stateLabels[u.state] || u.state}</td>
-                          <td style={{ padding: '4px 6px' }}>{targetLabels[u.target] || u.target}</td>
-                          <td style={{ padding: '4px 6px' }}>
+                          <td style={{ padding: '3px 4px', fontWeight: 700 }}>U{u.unit_id}</td>
+                          <td style={{ padding: '3px 4px' }}>{u.location || '—'}</td>
+                          <td style={{ padding: '3px 4px' }}>{statusLabels[u.status] || u.status}</td>
+                          <td style={{ padding: '3px 4px' }}>{stateLabels[u.state] || u.state}</td>
+                          <td style={{ padding: '3px 4px' }}>{targetLabels[u.target] || u.target}</td>
+                          <td style={{ padding: '3px 4px', borderLeft: '2px solid #90caf9', color: hasBatch ? '#1565c0' : '#999', fontWeight: hasBatch ? 700 : 400 }}>{hasBatch ? u.batch_code : '—'}</td>
+                          <td style={{ padding: '3px 4px', color: hasBatch ? '#333' : '#999' }}>{hasBatch ? (batchStateLabels[u.batch_state] || u.batch_state) : '—'}</td>
+                          <td style={{ padding: '3px 4px', color: hasBatch ? '#333' : '#999' }}>{hasBatch ? (u.batch_program || '—') : '—'}</td>
+                          <td style={{ padding: '3px 4px', color: hasBatch ? '#333' : '#999' }}>{hasBatch ? (u.batch_stage || '—') : '—'}</td>
+                          <td style={{ padding: '3px 4px' }}>
                             <button
                               onClick={() => handleUnitSelect(String(u.unit_id))}
-                              style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #2196f3', background: selectedUnitId === String(u.unit_id) ? '#1565c0' : '#e3f2fd', color: selectedUnitId === String(u.unit_id) ? '#fff' : '#333', cursor: 'pointer', fontSize: 11 }}
+                              style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #2196f3', background: selectedUnitId === String(u.unit_id) ? '#1565c0' : '#e3f2fd', color: selectedUnitId === String(u.unit_id) ? '#fff' : '#333', cursor: 'pointer', fontSize: 11 }}
                             >
                               Edit
                             </button>
@@ -2705,7 +2713,7 @@ export default function App() {
                       );
                     })}
                     {units.length === 0 && (
-                      <tr><td colSpan={7} style={{ padding: 8, color: '#666', textAlign: 'center' }}>No units (PLC not connected?)</td></tr>
+                      <tr><td colSpan={10} style={{ padding: 8, color: '#666', textAlign: 'center' }}>No units (PLC not connected?)</td></tr>
                     )}
                   </tbody>
                 </table>

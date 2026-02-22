@@ -1717,8 +1717,15 @@ const stepSimulation = async (dtMs) => {
     
     if (!unitReadyForLoading) {
       // Ei valmista Unittia aloitusasemalla — lykkää spawnaamista.
-      // Viive alkaa alusta kun Unit tulee valmiiksi.
-      productionPlan.nextSpawnMs = simTimeMs + productionPlan.loadingIntervalMs;
+      // Asetetaan nextSpawnMs nollaksi jotta ensimmäinen erä ladataan heti
+      // kun Unit tulee valmiiksi (ei turhaa lastausajan odotusta).
+      // Jos erä on jo spawnattu aiemmin, nextSpawnMs > 0, joten
+      // seuraava erä saa lastausajan normaalisti kun Unit on taas valmis.
+      if (productionPlan.nextSpawnMs === 0) {
+        // Ensimmäinen erä — pidetään 0 jotta ladataan heti
+      } else {
+        productionPlan.nextSpawnMs = simTimeMs + productionPlan.loadingIntervalMs;
+      }
     } else {
       // Unit on valmis lastattavaksi. Tarkista onko viive kulunut.
       while (productionPlan.queue && productionPlan.queue.length > 0 && simTimeMs >= productionPlan.nextSpawnMs) {
@@ -1745,6 +1752,44 @@ const stepSimulation = async (dtMs) => {
           startUnit.state = 'loaded';
           startUnit.target = 'to_loaded_buffer';
           console.log(`[UNIT] Attached batch ${next.batchId} to unit ${startUnit.unit_id} at station ${productionPlan.startStation}, state -> loaded, target -> to_loaded_buffer`);
+          
+          // Upload batch + treatment program to PLC via gateway
+          try {
+            const plcStages = program.map(st => {
+              const minSt = Number(st.min_station) || 0;
+              const maxSt = Number(st.max_station) || minSt;
+              const stations = [];
+              for (let s = minSt; s <= maxSt && stations.length < 5; s++) {
+                stations.push(s);
+              }
+              return {
+                stations,
+                minTime: parseTimeToSeconds(st.min_time),
+                maxTime: parseTimeToSeconds(st.max_time),
+                calTime: parseTimeToSeconds(st.calc_time || st.min_time)
+              };
+            });
+            const batchPayload = {
+              unitIndex: startUnit.unit_id,
+              batchCode: next.batchId,
+              batchState: 0, // NOT_PROCESSED
+              programId: next.program,
+              stages: plcStages
+            };
+            const gwRes = await fetch('http://gateway:3001/api/batch', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(batchPayload)
+            });
+            const gwData = await gwRes.json();
+            if (gwData.ok) {
+              console.log(`[PLC-BATCH] Uploaded batch ${next.batchId} to PLC unit ${startUnit.unit_id}: ${gwData.stagesWritten} stages`);
+            } else {
+              console.error(`[PLC-BATCH] Gateway error: ${gwData.error}`);
+            }
+          } catch (plcErr) {
+            console.error(`[PLC-BATCH] Failed to upload to PLC: ${plcErr.message}`);
+          }
           
           lastBatchLocations.set(next.batchId, productionPlan.startStation);
           batchesChanged = true;
@@ -1781,13 +1826,39 @@ const stepSimulation = async (dtMs) => {
           batchesChanged = true;
           
           // Irrota batch Unitista — Unit jää finishStation-asemalle tyhjänä (vapaa kierrätettäväksi)
-          // Target nollataan → updateUnitTargets() sääntö 2 asettaa to_empty_buffer/none seuraavalla tickillä
           const unit = getUnitByBatchId(units, b.batch_id);
           if (unit) {
+            const queueHasBatches = productionPlan.queue && productionPlan.queue.length > 0;
             unit.batch_id = null;
             unit.state = 'empty';
-            unit.target = 'none';
-            console.log(`[UNIT] Detached batch ${b.batch_id} from unit ${unit.unit_id} at finish station ${productionPlan.finishStation}, state -> empty, target -> none`);
+            // Jos jonossa eriä → jää odottamaan lastaustapahtumaa (target=none)
+            // Jos jono tyhjä → ohjaa bufferiin
+            unit.target = queueHasBatches ? 'none' : 'to_buffer';
+            console.log(`[UNIT] Detached batch ${b.batch_id} from unit ${unit.unit_id} at finish station ${productionPlan.finishStation}, state -> empty, target -> ${unit.target} (queue ${queueHasBatches ? 'has batches' : 'empty'})`);
+
+            // Nollaa PLC:n batch- ja käsittelyohjelmatiedot tälle unit-indeksille
+            try {
+              const clearPayload = {
+                unitIndex: unit.unit_id,
+                batchCode: 0,
+                batchState: 0,
+                programId: 0,
+                stages: []
+              };
+              const gwRes = await fetch('http://gateway:3001/api/batch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(clearPayload)
+              });
+              const gwData = await gwRes.json();
+              if (gwData.ok) {
+                console.log(`[PLC-BATCH] Cleared batch+program for PLC unit ${unit.unit_id}`);
+              } else {
+                console.error(`[PLC-BATCH] Gateway clear error: ${gwData.error}`);
+              }
+            } catch (plcErr) {
+              console.error(`[PLC-BATCH] Failed to clear PLC data for unit ${unit.unit_id}: ${plcErr.message}`);
+            }
           }
           
           console.log(`[PROD] Removed batch ${b.batch_id} at finish station ${productionPlan.finishStation} after ${elapsedMs.toFixed(0)}ms`);

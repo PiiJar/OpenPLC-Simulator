@@ -71,9 +71,33 @@ STRUCT
 END_STRUCT;
 END_TYPE
 
+TYPE BATCH_T :
+STRUCT
+  batch_code : INT;     (* numeric batch code, e.g. 1, 2, 3 *)
+  state      : INT;     (* NOT_PROCESSED=0, IN_PROCESS=1, PROCESSED=2 *)
+  prog_id    : INT;     (* treatment program number *)
+  cur_stage  : INT;     (* current stage number, 0 = not started *)
+END_STRUCT;
+END_TYPE
+
+TYPE PROGRAM_STAGE_T :
+STRUCT
+  stations : ARRAY[1..5] OF INT;   (* up to MAX_PARALLELS station numbers *)
+  min_time : INT;                   (* minimum processing time (seconds) *)
+  max_time : INT;                   (* maximum processing time (seconds) *)
+  cal_time : INT;                   (* calculated / target time (seconds) *)
+END_STRUCT;
+END_TYPE
+
+TYPE TREATMENT_PROGRAM_T :
+STRUCT
+  program_id : INT;                      (* treatment program number *)
+  stages     : ARRAY[1..30] OF PROGRAM_STAGE_T;  (* up to MAX_STAGES *)
+END_STRUCT;
+END_TYPE
+
 TYPE UNIT_T :
 STRUCT
-  batch_id : INT;
   location : INT;    (* station number where unit currently is *)
   status   : INT;    (* NOT_USED=0, USED=1 *)
   state    : INT;    (* EMPTY=0, FULL=1 *)
