@@ -42,13 +42,25 @@ STRUCT
 END_STRUCT;
 END_TYPE
 
+TYPE TASK_AREA_T :
+STRUCT
+  min_lift : INT;
+  max_lift : INT;
+  min_sink : INT;
+  max_sink : INT;
+END_STRUCT;
+END_TYPE
+
 TYPE TRANSPORTER_CFG_T :
 STRUCT
-  id             : INT;
-  start_station  : INT;
-  x_min_limit    : REAL;
-  x_max_limit    : REAL;
-  phys2d         : PHYSICS_2D_T;
+  x_min_limit : REAL;
+  x_max_limit : REAL;
+  y_min_limit : REAL;
+  y_max_limit : REAL;
+  x_avoid_mm  : REAL;
+  y_avoid_mm  : REAL;
+  phys2d      : PHYSICS_2D_T;
+  task_area   : ARRAY[1..4] OF TASK_AREA_T;
 END_STRUCT;
 END_TYPE
 

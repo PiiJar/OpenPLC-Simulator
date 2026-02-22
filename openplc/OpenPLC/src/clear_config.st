@@ -18,6 +18,7 @@ VAR_EXTERNAL
   g_units            : ARRAY[1..10] OF UNIT_T;
   g_batches          : ARRAY[1..10] OF BATCH_T;
   g_programs         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
+  g_avoid_status     : ARRAY[101..125] OF INT;
 END_VAR
 VAR
   i : INT;
@@ -40,10 +41,12 @@ g_station_count := 0;
 
 (* --- Clear all transporter configs --- *)
 FOR i := 1 TO 3 DO
-  g_cfg[i].id            := 0;
-  g_cfg[i].start_station := 0;
   g_cfg[i].x_min_limit   := 0.0;
   g_cfg[i].x_max_limit   := 0.0;
+  g_cfg[i].y_min_limit   := 0.0;
+  g_cfg[i].y_max_limit   := 0.0;
+  g_cfg[i].x_avoid_mm    := 0.0;
+  g_cfg[i].y_avoid_mm    := 0.0;
   g_cfg[i].phys2d.x_accel_s     := 0.0;
   g_cfg[i].phys2d.x_decel_s     := 0.0;
   g_cfg[i].phys2d.x_max_mm_s    := 0.0;
@@ -55,6 +58,17 @@ FOR i := 1 TO 3 DO
   g_cfg[i].phys2d.z_fast_mm_s   := 0.0;
   g_cfg[i].phys2d.drip_delay_s  := 0.0;
   g_cfg[i].phys2d.avoid_mm      := 0.0;
+  FOR j := 1 TO 4 DO
+    g_cfg[i].task_area[j].min_lift := 0;
+    g_cfg[i].task_area[j].max_lift := 0;
+    g_cfg[i].task_area[j].min_sink := 0;
+    g_cfg[i].task_area[j].max_sink := 0;
+  END_FOR;
+END_FOR;
+
+(* --- Clear avoid status --- *)
+FOR i := 101 TO 125 DO
+  g_avoid_status[i] := 0;
 END_FOR;
 
 (* --- Clear all transporter states --- *)

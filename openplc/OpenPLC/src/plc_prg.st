@@ -119,6 +119,7 @@ VAR_EXTERNAL
   (* Batch and program arrays *)
   g_batches      : ARRAY[1..10] OF BATCH_T;
   g_programs     : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
+  g_avoid_status : ARRAY[101..125] OF INT;
   (* Modbus input: batch write protocol *)
   iw_batch_seq     : INT;
   iw_batch_unit    : INT;
@@ -148,24 +149,32 @@ VAR
   last_prog_seq  : INT := 0;
   j              : INT;
   k              : INT;
-  i            : INT;
+  i              : INT;
+  stn_num        : INT;
   idx          : INT;
   station_type : INT;
   device_delay : REAL;
   drop_time    : REAL;
-  slow_start   : REAL;
   arrived_x    : BOOL;
   nearest_num  : INT;
   min_dist     : REAL;
   dx           : REAL;
   tmp_x        : REAL;
   tmp_vx       : REAL;
-  fb_x1        : FB_XMotion;
-  fb_x2        : FB_XMotion;
-  fb_x3        : FB_XMotion;
+  fb_x1        : SIM_FB_XMotion;
+  fb_x2        : SIM_FB_XMotion;
+  fb_x3        : SIM_FB_XMotion;
+  fb_z1        : SIM_FB_ZMotion;
+  fb_z2        : SIM_FB_ZMotion;
+  fb_z3        : SIM_FB_ZMotion;
+  twa_calc     : TWA_FB_CalcLimits;
   lookup       : FB_StationLookup;
   clear_cfg    : FB_ClearConfig;
   cycle_count  : INT;
+  tmp_z        : REAL;
+  tmp_zs       : INT;
+  tmp_zt       : REAL;
+  arrived_z    : BOOL;
 END_VAR
 (* ============================================================
    CONFIG UPLOAD HANDLER
@@ -202,10 +211,9 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     g_station_count := iw_cfg_param;
 
     (* Transporter 1 config — hardcoded for now *)
-    g_cfg[1].id := 1;
-    g_cfg[1].start_station := 101;
     g_cfg[1].x_min_limit := 100.0;
     g_cfg[1].x_max_limit := 20600.0;
+    g_cfg[1].x_avoid_mm := 2000.0;
     g_cfg[1].phys2d.x_accel_s := 1.5;
     g_cfg[1].phys2d.x_decel_s := 1.5;
     g_cfg[1].phys2d.x_max_mm_s := 500.0;
@@ -217,12 +225,15 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     g_cfg[1].phys2d.z_fast_mm_s := 200.0;
     g_cfg[1].phys2d.drip_delay_s := 5.0;
     g_cfg[1].phys2d.avoid_mm := 2000.0;
+    g_cfg[1].task_area[1].min_lift := 101;
+    g_cfg[1].task_area[1].max_lift := 111;
+    g_cfg[1].task_area[1].min_sink := 101;
+    g_cfg[1].task_area[1].max_sink := 114;
 
     (* Transporter 2 config *)
-    g_cfg[2].id := 2;
-    g_cfg[2].start_station := 118;
     g_cfg[2].x_min_limit := 14300.0;
     g_cfg[2].x_max_limit := 29100.0;
+    g_cfg[2].x_avoid_mm := 2000.0;
     g_cfg[2].phys2d.x_accel_s := 1.5;
     g_cfg[2].phys2d.x_decel_s := 1.5;
     g_cfg[2].phys2d.x_max_mm_s := 500.0;
@@ -234,6 +245,10 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     g_cfg[2].phys2d.z_fast_mm_s := 200.0;
     g_cfg[2].phys2d.drip_delay_s := 5.0;
     g_cfg[2].phys2d.avoid_mm := 2000.0;
+    g_cfg[2].task_area[1].min_lift := 112;
+    g_cfg[2].task_area[1].max_lift := 121;
+    g_cfg[2].task_area[1].min_sink := 111;
+    g_cfg[2].task_area[1].max_sink := 121;
 
     (* Init transporter states *)
     FOR i := 1 TO 3 DO
@@ -250,10 +265,16 @@ IF iw_cfg_seq <> last_cfg_seq THEN
       g_state[i].x_min_limit := g_cfg[i].x_min_limit;
       g_state[i].x_max_limit := g_cfg[i].x_max_limit;
 
-      lookup(station_number := g_cfg[i].start_station);
+      (* Start position: use task_area[1].min_lift as start station *)
+      IF g_cfg[i].task_area[1].min_lift > 0 THEN
+        stn_num := g_cfg[i].task_area[1].min_lift;
+      ELSE
+        stn_num := 0;
+      END_IF;
+      lookup(station_number := stn_num);
       IF lookup.found THEN
         g_state[i].x_mm := lookup.x_mm;
-        g_state[i].current_station := g_cfg[i].start_station;
+        g_state[i].current_station := stn_num;
       ELSE
         g_state[i].x_mm := 0.0;
         g_state[i].current_station := 0;
@@ -270,6 +291,9 @@ END_IF;
    MAIN TRANSPORT CYCLE — only runs when init_done
    ============================================================ *)
 IF init_done THEN
+
+(* Calculate transporter working areas (X-limits) every cycle *)
+twa_calc();
 
 FOR i := 1 TO 3 DO
   IF g_state[i].active THEN
@@ -344,45 +368,66 @@ FOR i := 1 TO 3 DO
   IF g_state[i].phase = 2 THEN
     lookup(station_number := g_state[i].lift_station_target);
     station_type := lookup.stype;
-    IF IsWetStationType(station_type) THEN
-      slow_start := g_cfg[i].phys2d.z_slow_wet_mm;
-    ELSE
-      slow_start := g_cfg[i].phys2d.z_slow_dry_mm;
+    tmp_z := g_state[i].z_mm;
+    tmp_zs := g_state[i].z_stage;
+    tmp_zt := g_state[i].z_timer_s;
+    IF i = 1 THEN
+      fb_z1(
+        delta_t := 0.02,
+        station_type := station_type,
+        z_total_mm := g_cfg[i].phys2d.z_total_mm,
+        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
+        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
+        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
+        z_slow_mm_s := g_cfg[i].phys2d.z_slow_mm_s,
+        z_fast_mm_s := g_cfg[i].phys2d.z_fast_mm_s,
+        drip_delay_s := g_cfg[i].phys2d.drip_delay_s,
+        z_mm := tmp_z,
+        z_stage := tmp_zs,
+        z_timer_s := tmp_zt
+      );
+      arrived_z := fb_z1.done;
+    ELSIF i = 2 THEN
+      fb_z2(
+        delta_t := 0.02,
+        station_type := station_type,
+        z_total_mm := g_cfg[i].phys2d.z_total_mm,
+        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
+        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
+        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
+        z_slow_mm_s := g_cfg[i].phys2d.z_slow_mm_s,
+        z_fast_mm_s := g_cfg[i].phys2d.z_fast_mm_s,
+        drip_delay_s := g_cfg[i].phys2d.drip_delay_s,
+        z_mm := tmp_z,
+        z_stage := tmp_zs,
+        z_timer_s := tmp_zt
+      );
+      arrived_z := fb_z2.done;
+    ELSIF i = 3 THEN
+      fb_z3(
+        delta_t := 0.02,
+        station_type := station_type,
+        z_total_mm := g_cfg[i].phys2d.z_total_mm,
+        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
+        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
+        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
+        z_slow_mm_s := g_cfg[i].phys2d.z_slow_mm_s,
+        z_fast_mm_s := g_cfg[i].phys2d.z_fast_mm_s,
+        drip_delay_s := g_cfg[i].phys2d.drip_delay_s,
+        z_mm := tmp_z,
+        z_stage := tmp_zs,
+        z_timer_s := tmp_zt
+      );
+      arrived_z := fb_z3.done;
     END_IF;
-
-    CASE g_state[i].z_stage OF
-      1:
-        g_state[i].z_timer_s := g_state[i].z_timer_s - 0.02;
-        IF g_state[i].z_timer_s <= 0.0 THEN
-          g_state[i].z_stage := 2;
-          g_state[i].z_mm := g_cfg[i].phys2d.z_total_mm;
-        END_IF;
-      2:
-        g_state[i].z_mm := g_state[i].z_mm - g_cfg[i].phys2d.z_slow_mm_s * 0.02;
-        IF g_state[i].z_mm <= (g_cfg[i].phys2d.z_total_mm - slow_start) THEN
-          g_state[i].z_stage := 3;
-        END_IF;
-      3:
-        g_state[i].z_mm := g_state[i].z_mm - g_cfg[i].phys2d.z_fast_mm_s * 0.02;
-        IF g_state[i].z_mm <= g_cfg[i].phys2d.z_slow_end_mm THEN
-          g_state[i].z_stage := 4;
-        END_IF;
-      4:
-        g_state[i].z_mm := g_state[i].z_mm - g_cfg[i].phys2d.z_slow_mm_s * 0.02;
-        IF g_state[i].z_mm <= 0.0 THEN
-          g_state[i].z_mm := 0.0;
-          g_state[i].z_timer_s := g_cfg[i].phys2d.drip_delay_s;
-          g_state[i].z_stage := 5;
-        END_IF;
-      5:
-        g_state[i].z_timer_s := g_state[i].z_timer_s - 0.02;
-        IF g_state[i].z_timer_s <= 0.0 THEN
-          g_state[i].z_stage := 0;
-          lookup(station_number := g_state[i].sink_station_target);
-          g_state[i].target_x := lookup.x_mm;
-          g_state[i].phase := 3;
-        END_IF;
-    END_CASE;
+    g_state[i].z_mm := tmp_z;
+    g_state[i].z_stage := tmp_zs;
+    g_state[i].z_timer_s := tmp_zt;
+    IF arrived_z THEN
+      lookup(station_number := g_state[i].sink_station_target);
+      g_state[i].target_x := lookup.x_mm;
+      g_state[i].phase := 3;
+    END_IF;
   END_IF;
 
   IF g_state[i].phase = 3 THEN
@@ -444,31 +489,64 @@ FOR i := 1 TO 3 DO
   IF g_state[i].phase = 4 THEN
     lookup(station_number := g_state[i].sink_station_target);
     station_type := lookup.stype;
-    IF IsWetStationType(station_type) THEN
-      slow_start := g_cfg[i].phys2d.z_slow_wet_mm;
-    ELSE
-      slow_start := g_cfg[i].phys2d.z_slow_dry_mm;
+    tmp_z := g_state[i].z_mm;
+    tmp_zs := g_state[i].z_stage;
+    tmp_zt := g_state[i].z_timer_s;
+    IF i = 1 THEN
+      fb_z1(
+        delta_t := 0.02,
+        station_type := station_type,
+        z_total_mm := g_cfg[i].phys2d.z_total_mm,
+        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
+        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
+        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
+        z_slow_mm_s := g_cfg[i].phys2d.z_slow_mm_s,
+        z_fast_mm_s := g_cfg[i].phys2d.z_fast_mm_s,
+        drip_delay_s := g_cfg[i].phys2d.drip_delay_s,
+        z_mm := tmp_z,
+        z_stage := tmp_zs,
+        z_timer_s := tmp_zt
+      );
+      arrived_z := fb_z1.done;
+    ELSIF i = 2 THEN
+      fb_z2(
+        delta_t := 0.02,
+        station_type := station_type,
+        z_total_mm := g_cfg[i].phys2d.z_total_mm,
+        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
+        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
+        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
+        z_slow_mm_s := g_cfg[i].phys2d.z_slow_mm_s,
+        z_fast_mm_s := g_cfg[i].phys2d.z_fast_mm_s,
+        drip_delay_s := g_cfg[i].phys2d.drip_delay_s,
+        z_mm := tmp_z,
+        z_stage := tmp_zs,
+        z_timer_s := tmp_zt
+      );
+      arrived_z := fb_z2.done;
+    ELSIF i = 3 THEN
+      fb_z3(
+        delta_t := 0.02,
+        station_type := station_type,
+        z_total_mm := g_cfg[i].phys2d.z_total_mm,
+        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
+        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
+        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
+        z_slow_mm_s := g_cfg[i].phys2d.z_slow_mm_s,
+        z_fast_mm_s := g_cfg[i].phys2d.z_fast_mm_s,
+        drip_delay_s := g_cfg[i].phys2d.drip_delay_s,
+        z_mm := tmp_z,
+        z_stage := tmp_zs,
+        z_timer_s := tmp_zt
+      );
+      arrived_z := fb_z3.done;
     END_IF;
-
-    CASE g_state[i].z_stage OF
-      6:
-        g_state[i].z_timer_s := g_state[i].z_timer_s - 0.02;
-        IF g_state[i].z_timer_s <= 0.0 THEN
-          g_state[i].z_stage := 7;
-        END_IF;
-      7:
-        g_state[i].z_mm := g_state[i].z_mm + g_cfg[i].phys2d.z_fast_mm_s * 0.02;
-        IF g_state[i].z_mm >= (g_cfg[i].phys2d.z_total_mm - slow_start) THEN
-          g_state[i].z_stage := 8;
-        END_IF;
-      8:
-        g_state[i].z_mm := g_state[i].z_mm + g_cfg[i].phys2d.z_slow_mm_s * 0.02;
-        IF g_state[i].z_mm >= g_cfg[i].phys2d.z_total_mm THEN
-          g_state[i].z_mm := g_cfg[i].phys2d.z_total_mm;
-          g_state[i].z_stage := 0;
-          g_state[i].phase := 0;
-        END_IF;
-    END_CASE;
+    g_state[i].z_mm := tmp_z;
+    g_state[i].z_stage := tmp_zs;
+    g_state[i].z_timer_s := tmp_zt;
+    IF arrived_z THEN
+      g_state[i].phase := 0;
+    END_IF;
   END_IF;
 
   min_dist := 1.0e9;

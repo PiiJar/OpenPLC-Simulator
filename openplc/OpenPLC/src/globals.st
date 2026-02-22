@@ -19,12 +19,22 @@ VAR_GLOBAL CONSTANT
   TO_PROCESS       : INT := 3;
   TO_UNLOAD        : INT := 4;
   TO_AVOID         : INT := 5;
+  (* Station type *)
+  STN_DRY          : INT := 0;
+  STN_WET          : INT := 1;
   (* Batch state *)
   NOT_PROCESSED    : INT := 0;
   IN_PROCESS       : INT := 1;
   PROCESSED        : INT := 2;
   MAX_PARALLELS    : INT := 5;     (* max parallel stations per program stage *)
   MAX_STAGES       : INT := 30;    (* max stages in a treatment program *)
+  MAX_LINES        : INT := 4;     (* max production lines per transporter *)
+  (* Avoid status for stations (TWA) *)
+  AVOID_NONE       : INT := 0;     (* station not avoided *)
+  AVOID_PASS       : INT := 1;     (* pass through allowed, no stop *)
+  AVOID_BLOCK      : INT := 2;     (* hard block, cannot pass *)
+  (* TWA minimum working area *)
+  MIN_WORK_AREA    : REAL := 1000.0;  (* mm — minimum working area *)
 END_VAR
 
 VAR_GLOBAL
@@ -39,6 +49,7 @@ VAR_GLOBAL
   g_units            : ARRAY[1..10] OF UNIT_T;
   g_batches          : ARRAY[1..10] OF BATCH_T;
   g_programs         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
+  g_avoid_status     : ARRAY[101..125] OF INT;  (* AVOID_NONE/PASS/BLOCK per station *)
 
   (* --- Modbus OUTPUT: Transporter 1 (QW0..QW8) --- *)
   qw_t1_x_mm    AT %QW0  : INT;

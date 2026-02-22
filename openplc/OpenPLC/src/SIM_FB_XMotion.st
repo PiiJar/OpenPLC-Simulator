@@ -1,8 +1,8 @@
 (* ============================================================
-   fb_xmotion.st — Horizontal motion with accel / decel
+   SIM_FB_XMotion.st — Horizontal motion with accel / decel
    ============================================================ *)
 
-FUNCTION_BLOCK FB_XMotion
+FUNCTION_BLOCK SIM_FB_XMotion
 VAR_INPUT
   delta_t  : REAL;
   x_target : REAL;
@@ -93,3 +93,4 @@ END_VAR
     arrived := FALSE;
   END_IF;
 END_FUNCTION_BLOCK
+
