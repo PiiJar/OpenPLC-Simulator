@@ -116,3 +116,21 @@ STRUCT
   target   : INT;    (* TO_NONE=0, TO_LOADING=1, TO_BUFFER=2, TO_PROCESS=3, TO_UNLOAD=4, TO_AVOID=5 *)
 END_STRUCT;
 END_TYPE
+
+(* Precomputed movement times — timed from real motions, not calculated *)
+(* Index 1..25 maps to station 101..125 (idx = stn_num - 100)           *)
+(* Access: g_move[transporter].travel[from_idx].to_s[to_idx]            *)
+
+TYPE TRAVEL_FROM_T :
+STRUCT
+  to_s : ARRAY[1..25] OF REAL;   (* travel time to each station (seconds) *)
+END_STRUCT;
+END_TYPE
+
+TYPE MOVE_TIMES_T :
+STRUCT
+  lift_s  : ARRAY[1..25] OF REAL;           (* lift time per station (seconds) *)
+  sink_s  : ARRAY[1..25] OF REAL;           (* sink time per station (seconds) *)
+  travel  : ARRAY[1..25] OF TRAVEL_FROM_T;  (* travel[from].to_s[to] (seconds) *)
+END_STRUCT;
+END_TYPE

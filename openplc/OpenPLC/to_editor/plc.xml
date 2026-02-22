@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-22T15:47:34"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-22T15:47:34">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-22T17:02:51"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-22T17:02:51">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -286,6 +286,50 @@
           </struct>
         </baseType>
       </dataType>
+      <dataType name="TRAVEL_FROM_T">
+        <baseType>
+          <struct>
+            <variable name="to_s">
+              <type>
+                <array>
+                  <dimension lower="1" upper="25"/>
+                  <baseType><REAL/></baseType>
+                </array>
+              </type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
+      <dataType name="MOVE_TIMES_T">
+        <baseType>
+          <struct>
+            <variable name="lift_s">
+              <type>
+                <array>
+                  <dimension lower="1" upper="25"/>
+                  <baseType><REAL/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="sink_s">
+              <type>
+                <array>
+                  <dimension lower="1" upper="25"/>
+                  <baseType><REAL/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="travel">
+              <type>
+                <array>
+                  <dimension lower="1" upper="25"/>
+                  <baseType><derived name="TRAVEL_FROM_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
     </dataTypes>
     <pous>
       <pou name="TWA_CalcPriority" pouType="function">
@@ -330,6 +374,153 @@ ELSIF i_phase = 1 THEN
   TWA_CalcPriority := 100000.0 + (99999.0 - dist);
 ELSE
   TWA_CalcPriority := 1.0;
+END_IF;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
+      <pou name="FB_TimeMoves" pouType="functionBlock">
+        <interface>
+          <inputVars>
+            <variable name="t_id">
+              <type><INT/></type>
+            </variable>
+            <variable name="phase">
+              <type><INT/></type>
+            </variable>
+            <variable name="delta_t">
+              <type><REAL/></type>
+            </variable>
+            <variable name="vel_x">
+              <type><REAL/></type>
+            </variable>
+            <variable name="z_stage">
+              <type><INT/></type>
+            </variable>
+            <variable name="lift_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="sink_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="from_stn">
+              <type><INT/></type>
+            </variable>
+          </inputVars>
+          <externalVars>
+            <variable name="g_move">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="MOVE_TIMES_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="prev_phase">
+              <type><INT/></type>
+              <initialValue><simpleValue value="-1"/></initialValue>
+            </variable>
+            <variable name="timer">
+              <type><REAL/></type>
+              <initialValue><simpleValue value="0.0"/></initialValue>
+            </variable>
+            <variable name="travel_from">
+              <type><INT/></type>
+            </variable>
+            <variable name="travel_to">
+              <type><INT/></type>
+            </variable>
+            <variable name="lift_idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="sink_idx">
+              <type><INT/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[(* ---- Phase transition detection ---- *)
+IF phase <> prev_phase THEN
+
+  (* -- Save completed measurement and set up next -- *)
+
+  IF prev_phase = 1 AND phase = 2 THEN
+    (* Travel to lift complete → save travel time *)
+    IF travel_from >= 1 AND travel_from <= 25
+       AND travel_to >= 1 AND travel_to <= 25 THEN
+      g_move[t_id].travel[travel_from].to_s[travel_to] := timer;
+    END_IF;
+    (* Start timing lift — timer starts at 0, accumulates only in z_stage 2-4 *)
+    lift_idx := lift_stn - 100;
+    timer := 0.0;
+
+  ELSIF prev_phase = 2 AND phase = 3 THEN
+    (* Lift complete → save lift time (pure mechanical Z-motion only) *)
+    IF lift_idx >= 1 AND lift_idx <= 25 THEN
+      g_move[t_id].lift_s[lift_idx] := timer;
+    END_IF;
+    (* Start timing travel to sink *)
+    travel_from := lift_stn - 100;
+    travel_to := sink_stn - 100;
+    timer := 0.0;
+
+  ELSIF prev_phase = 3 AND phase = 4 THEN
+    (* Travel to sink complete → save travel time *)
+    IF travel_from >= 1 AND travel_from <= 25
+       AND travel_to >= 1 AND travel_to <= 25 THEN
+      g_move[t_id].travel[travel_from].to_s[travel_to] := timer;
+    END_IF;
+    (* Start timing sink — timer starts at 0, accumulates only in z_stage 7-8 *)
+    sink_idx := sink_stn - 100;
+    timer := 0.0;
+
+  ELSIF prev_phase = 4 AND phase = 0 THEN
+    (* Sink complete → save sink time (pure mechanical Z-motion only) *)
+    IF sink_idx >= 1 AND sink_idx <= 25 THEN
+      g_move[t_id].sink_s[sink_idx] := timer;
+    END_IF;
+    timer := 0.0;
+
+  ELSIF prev_phase = 0 AND phase = 1 THEN
+    (* New cycle starting → set up travel-to-lift *)
+    travel_from := from_stn - 100;
+    travel_to := lift_stn - 100;
+    timer := 0.0;
+
+  ELSE
+    (* Unexpected transition → just reset *)
+    timer := 0.0;
+  END_IF;
+
+  prev_phase := phase;
+
+ELSE
+  (* ---- No transition: accumulate timer ---- *)
+
+  IF phase = 1 OR phase = 3 THEN
+    (* Travel: only count time when actually moving *)
+    (* Filters out TWA collision avoidance stops    *)
+    IF ABS(vel_x) > 0.1 THEN
+      timer := timer + delta_t;
+    END_IF;
+
+  ELSIF phase = 2 THEN
+    (* Lift: only mechanical Z-motion stages 2-4 *)
+    (* Excludes: stage 1 (device_delay + dropping_time), stage 5 (drip_delay) *)
+    IF z_stage >= 2 AND z_stage <= 4 THEN
+      timer := timer + delta_t;
+    END_IF;
+
+  ELSIF phase = 4 THEN
+    (* Sink: only mechanical Z-motion stages 7-8 *)
+    (* Excludes: stage 6 (device_delay + drip_delay) *)
+    IF z_stage >= 7 AND z_stage <= 8 THEN
+      timer := timer + delta_t;
+    END_IF;
+  END_IF;
+
 END_IF;]]></xhtml:p>
           </ST>
         </body>
@@ -2672,6 +2863,14 @@ qw_b10_code := g_batches[10].batch_code; qw_b10_state := g_batches[10].state; qw
               <array>
                 <dimension lower="101" upper="125"/>
                 <baseType><INT/></baseType>
+              </array>
+            </type>
+          </variable>
+          <variable name="g_move">
+            <type>
+              <array>
+                <dimension lower="1" upper="3"/>
+                <baseType><derived name="MOVE_TIMES_T"/></baseType>
               </array>
             </type>
           </variable>

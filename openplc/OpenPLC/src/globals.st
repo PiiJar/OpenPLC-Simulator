@@ -50,6 +50,7 @@ VAR_GLOBAL
   g_batches          : ARRAY[1..10] OF BATCH_T;
   g_programs         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
   g_avoid_status     : ARRAY[101..125] OF INT;  (* AVOID_NONE/PASS/BLOCK per station *)
+  g_move             : ARRAY[1..3] OF MOVE_TIMES_T;  (* precomputed movement times per transporter *)
 
   (* --- Modbus OUTPUT: Transporter 1 (QW0..QW8) --- *)
   qw_t1_x_mm    AT %QW0  : INT;

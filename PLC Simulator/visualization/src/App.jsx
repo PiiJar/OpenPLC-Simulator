@@ -1349,25 +1349,6 @@ export default function App() {
             </button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 13, color: '#666', fontWeight: 500 }}>Time:</span>
-              <div style={{ display: 'flex', background: '#eee', borderRadius: 4, padding: 2 }}>
-                {[0, 0.5, 1, 5, 10].map((m) => (
-                  <button key={m} disabled style={{
-                    padding: '6px 12px', fontSize: '13px', fontWeight: 500,
-                    border: 'none', borderRadius: 3,
-                    background: m === speed ? '#fff' : 'transparent',
-                    boxShadow: m === speed ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                    cursor: 'default', opacity: 0.5
-                  }}>
-                    x{m}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div style={{ fontFamily: 'monospace', fontSize: 14, color: '#333', fontWeight: 600, minWidth: 80 }}>
-              {formatTime(elapsedMs)}
-            </div>
             <button disabled style={{
               padding: '8px 16px', fontSize: '13px', fontWeight: 600,
               border: 'none', borderRadius: '4px',
@@ -1703,33 +1684,6 @@ export default function App() {
           </button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 13, color: '#666', fontWeight: 500 }}>Time:</span>
-            <div style={{ display: 'flex', background: '#eee', borderRadius: 4, padding: 2 }}>
-              {[0, 0.5, 1, 5, 10].map((m) => (
-                <button
-                  key={m}
-                  onClick={() => handleSpeedChange(m)}
-                  style={{
-                    padding: '6px 12px',
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    border: 'none',
-                    borderRadius: 3,
-                    background: m === speed ? '#fff' : 'transparent',
-                    boxShadow: m === speed ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  x{m}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div style={{ fontFamily: 'monospace', fontSize: 14, color: '#333', fontWeight: 600, minWidth: 80 }}>
-            {formatTime(elapsedMs)}
-          </div>
           <button
             onClick={toggleRunning}
             style={{
