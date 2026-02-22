@@ -60,28 +60,31 @@ VAR_GLOBAL
   qw_init_done   AT %QW19 : INT;
   qw_cycle_cnt   AT %QW20 : INT;
 
-  (* --- Modbus INPUT: Commands (IW0..IW5) --- *)
-  iw_cmd_start_1 AT %IW0 : INT;
-  iw_cmd_lift_1  AT %IW1 : INT;
-  iw_cmd_sink_1  AT %IW2 : INT;
-  iw_cmd_start_2 AT %IW3 : INT;
-  iw_cmd_lift_2  AT %IW4 : INT;
-  iw_cmd_sink_2  AT %IW5 : INT;
+  (* --- Modbus INPUT: Commands (QW100..QW105) --- *)
+  (*   NOTE: Uses %QW (holding registers) because %IW (input registers)
+       are read-only from Modbus master perspective.                  *)
+  iw_cmd_start_1 AT %QW100 : INT;
+  iw_cmd_lift_1  AT %QW101 : INT;
+  iw_cmd_sink_1  AT %QW102 : INT;
+  iw_cmd_start_2 AT %QW103 : INT;
+  iw_cmd_lift_2  AT %QW104 : INT;
+  iw_cmd_sink_2  AT %QW105 : INT;
 
-  (* --- Config upload protocol (IW10..IW19, QW21) --- *)
+  (* --- Config upload protocol (QW110..QW119, QW21) --- *)
   (*   Gateway writes station config one at a time.
        Sequence number change triggers PLC processing.
-       cmd=1: write station, cmd=2: finish init         *)
-  iw_cfg_seq       AT %IW10 : INT;   (* sequence number — triggers on change *)
-  iw_cfg_cmd       AT %IW11 : INT;   (* 1=write_station, 2=init_transporters *)
-  iw_cfg_param     AT %IW12 : INT;   (* station_number or station_count *)
-  iw_cfg_d0        AT %IW13 : INT;   (* tank_id *)
-  iw_cfg_d1        AT %IW14 : INT;   (* x_position mm *)
-  iw_cfg_d2        AT %IW15 : INT;   (* y_position mm *)
-  iw_cfg_d3        AT %IW16 : INT;   (* z_position mm *)
-  iw_cfg_d4        AT %IW17 : INT;   (* type *)
-  iw_cfg_d5        AT %IW18 : INT;   (* dropping_time x10 *)
-  iw_cfg_d6        AT %IW19 : INT;   (* device_delay x10 *)
+       cmd=1: write_station, cmd=2: init, cmd=3: clear_all
+       NOTE: Uses %QW because %IW is read-only from Modbus master.  *)
+  iw_cfg_seq       AT %QW110 : INT;   (* sequence number — triggers on change *)
+  iw_cfg_cmd       AT %QW111 : INT;   (* 1=write_station, 2=init, 3=clear_all *)
+  iw_cfg_param     AT %QW112 : INT;   (* station_number or station_count *)
+  iw_cfg_d0        AT %QW113 : INT;   (* tank_id *)
+  iw_cfg_d1        AT %QW114 : INT;   (* x_position mm *)
+  iw_cfg_d2        AT %QW115 : INT;   (* y_position mm *)
+  iw_cfg_d3        AT %QW116 : INT;   (* z_position mm *)
+  iw_cfg_d4        AT %QW117 : INT;   (* type *)
+  iw_cfg_d5        AT %QW118 : INT;   (* dropping_time x10 *)
+  iw_cfg_d6        AT %QW119 : INT;   (* device_delay x10 *)
 
   qw_cfg_ack       AT %QW21 : INT;   (* ack: last processed seq number *)
 
@@ -140,12 +143,13 @@ VAR_GLOBAL
   qw_u10_target AT %QW71 : INT;
   qw_unit_ack   AT %QW72 : INT;   (* ack: last processed unit write seq *)
 
-  (* --- Modbus INPUT: Unit write command (IW20..IW26) --- *)
-  iw_unit_seq    AT %IW20 : INT;  (* sequence — triggers on change *)
-  iw_unit_id     AT %IW21 : INT;  (* unit number 1..10 *)
-  iw_unit_batch  AT %IW22 : INT;  (* batch_id *)
-  iw_unit_loc    AT %IW23 : INT;  (* location (station number) *)
-  iw_unit_status AT %IW24 : INT;  (* NOT_USED=0, USED=1 *)
-  iw_unit_state  AT %IW25 : INT;  (* EMPTY=0, NOT_PROCESSED=1, IN_PROCESS=2, PROCESSED=3 *)
-  iw_unit_target AT %IW26 : INT;  (* TO_NONE=0..TO_AVOID=4 *)
+  (* --- Modbus INPUT: Unit write command (QW120..QW126) --- *)
+  (*   NOTE: Uses %QW because %IW is read-only from Modbus master.  *)
+  iw_unit_seq    AT %QW120 : INT;  (* sequence — triggers on change *)
+  iw_unit_id     AT %QW121 : INT;  (* unit number 1..10 *)
+  iw_unit_batch  AT %QW122 : INT;  (* batch_id *)
+  iw_unit_loc    AT %QW123 : INT;  (* location (station number) *)
+  iw_unit_status AT %QW124 : INT;  (* NOT_USED=0, USED=1 *)
+  iw_unit_state  AT %QW125 : INT;  (* EMPTY=0, NOT_PROCESSED=1, IN_PROCESS=2, PROCESSED=3 *)
+  iw_unit_target AT %QW126 : INT;  (* TO_NONE=0..TO_AVOID=4 *)
 END_VAR

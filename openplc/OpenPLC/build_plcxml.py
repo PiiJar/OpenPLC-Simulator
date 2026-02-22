@@ -508,6 +508,87 @@ def build_plcxml(
     return '\n'.join(lines) + '\n'
 
 # ---------------------------------------------------------------------------
+# Flat ST output — concatenate src/*.st in correct order for iec2c compiler
+# ---------------------------------------------------------------------------
+
+def _extract_var_global_blocks(text: str) -> str:
+    """Extract all VAR_GLOBAL / VAR_GLOBAL CONSTANT blocks from globals.st.
+    Returns just the block text (VAR_GLOBAL...END_VAR) without file headers."""
+    import re
+    blocks = re.findall(
+        r'(VAR_GLOBAL(?:\s+CONSTANT)?\b.*?END_VAR)',
+        text, re.DOTALL
+    )
+    return '\n'.join(blocks)
+
+
+def _extract_resource_block(text: str) -> str:
+    """Extract the RESOURCE...END_RESOURCE block from config.st."""
+    import re
+    m = re.search(r'(RESOURCE\b.*?END_RESOURCE)', text, re.DOTALL)
+    return m.group(1) if m else ''
+
+
+def _extract_config_name(text: str) -> str:
+    """Extract CONFIGURATION name from config.st."""
+    import re
+    m = re.search(r'CONFIGURATION\s+(\w+)', text)
+    return m.group(1) if m else 'Config0'
+
+
+def build_flat_st(st_files: dict) -> str:
+    """Produce a single .st file from all sources in correct dependency order.
+
+    MATIEC requires VAR_GLOBAL blocks to be inside CONFIGURATION, not standalone.
+    Order: types → functions → function_blocks → programs → CONFIGURATION(globals+resource)
+    """
+    sections = []
+
+    # 1. Types
+    if 'types' in st_files:
+        sections.append(st_files['types'])
+
+    # 2. POUs sorted by kind (no globals, no config, no types)
+    skip = {'types', 'globals', 'config'}
+    pou_order = {'FUNCTION': 0, 'FUNCTION_BLOCK': 1, 'PROGRAM': 2}
+    pou_entries = []
+    for stem, text in st_files.items():
+        if stem in skip:
+            continue
+        clean = _strip_comments(text).strip()
+        first = clean.split()[0].upper() if clean else ''
+        order = pou_order.get(first, 1)
+        pou_entries.append((order, stem, text))
+    pou_entries.sort(key=lambda t: (t[0], t[1]))
+    for _, _, text in pou_entries:
+        sections.append(text)
+
+    # 3. CONFIGURATION block with globals embedded inside
+    cfg_name = 'Config0'
+    resource_block = ''
+    if 'config' in st_files:
+        cfg_name = _extract_config_name(st_files['config'])
+        resource_block = _extract_resource_block(st_files['config'])
+
+    globals_blocks = ''
+    if 'globals' in st_files:
+        globals_blocks = _extract_var_global_blocks(st_files['globals'])
+
+    config_section = f'CONFIGURATION {cfg_name}\n'
+    if globals_blocks:
+        # Indent globals inside CONFIGURATION
+        indented = '\n'.join('  ' + line for line in globals_blocks.splitlines())
+        config_section += indented + '\n\n'
+    if resource_block:
+        indented = '\n'.join('  ' + line for line in resource_block.splitlines())
+        config_section += indented + '\n'
+    config_section += 'END_CONFIGURATION\n'
+    sections.append(config_section)
+
+    return '\n\n'.join(sections) + '\n'
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -575,6 +656,13 @@ def main():
     out = Path(args.output)
     out.write_text(xml, encoding='utf-8')
     print(f"\n  ✓ Written {out}  ({len(xml)} bytes)")
+
+    # -- Generate flat ST --
+    flat = build_flat_st(st_files)
+    flat_out = Path(out).parent / 'build' / 'plc.st'
+    flat_out.parent.mkdir(parents=True, exist_ok=True)
+    flat_out.write_text(flat, encoding='utf-8')
+    print(f"  ✓ Written {flat_out}  ({len(flat)} bytes)")
 
 
 if __name__ == '__main__':

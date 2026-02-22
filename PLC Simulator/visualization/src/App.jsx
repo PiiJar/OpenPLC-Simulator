@@ -1092,8 +1092,8 @@ export default function App() {
   };
 
   const handleReset = async () => {
-    if (!selectedCustomer || !selectedPlant || !plantStatus?.isConfigured) {
-      console.warn('RESET: No customer/plant selected or not configured');
+    if (!selectedCustomer || !selectedPlant) {
+      console.warn('RESET: No customer/plant selected');
       return;
     }
 
@@ -1120,9 +1120,11 @@ export default function App() {
         console.log(`[RESET] Uploaded ${result.stations?.length || 0} stations to PLC`);
       } else {
         console.error('[RESET] Failed:', result.error);
+        alert(`Reset failed: ${result.error}`);
       }
     } catch (error) {
       console.error('[RESET] Error:', error);
+      alert(`Reset error: ${error.message}`);
     }
   };
 
@@ -1546,17 +1548,17 @@ export default function App() {
           </button>
           <button
             onClick={handleReset}
-            disabled={!selectedCustomer || !selectedPlant || !plantStatus?.isConfigured}
+            disabled={!selectedCustomer || !selectedPlant}
             style={{
               padding: '8px 16px',
               fontSize: '13px',
               fontWeight: 600,
               border: 'none',
               borderRadius: '4px',
-              cursor: (!selectedCustomer || !selectedPlant || !plantStatus?.isConfigured) ? 'not-allowed' : 'pointer',
-              background: (!selectedCustomer || !selectedPlant || !plantStatus?.isConfigured) ? '#666' : '#f44336',
+              cursor: (!selectedCustomer || !selectedPlant) ? 'not-allowed' : 'pointer',
+              background: (!selectedCustomer || !selectedPlant) ? '#666' : '#f44336',
               color: '#fff',
-              opacity: (!selectedCustomer || !selectedPlant || !plantStatus?.isConfigured) ? 0.5 : 1,
+              opacity: (!selectedCustomer || !selectedPlant) ? 0.5 : 1,
               transition: 'all 0.2s'
             }}
           >

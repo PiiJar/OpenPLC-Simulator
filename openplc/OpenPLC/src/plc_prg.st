@@ -137,18 +137,27 @@ VAR
   fb_x2        : FB_XMotion;
   fb_x3        : FB_XMotion;
   lookup       : FB_StationLookup;
+  clear_cfg    : FB_ClearConfig;
   cycle_count  : INT;
 END_VAR
 (* ============================================================
    CONFIG UPLOAD HANDLER
    Gateway writes station data one at a time via Modbus IW regs.
    Sequence number change triggers processing.
-   cmd=1: write one station  cmd=2: finish init (start sim)
+   cmd=1: write_station  cmd=2: init  cmd=3: clear_all
    ============================================================ *)
 IF iw_cfg_seq <> last_cfg_seq THEN
   last_cfg_seq := iw_cfg_seq;
 
-  IF iw_cfg_cmd = 1 THEN
+  IF iw_cfg_cmd = 3 THEN
+    (* --- Clear all config data --- *)
+    clear_cfg();
+    init_done := FALSE;
+    qw_init_done := 0;
+    qw_station_cnt := 0;
+    qw_cfg_ack := iw_cfg_seq;
+
+  ELSIF iw_cfg_cmd = 1 THEN
     (* --- Write one station to g_stations array --- *)
     IF (iw_cfg_param >= 101) AND (iw_cfg_param <= 125) THEN
       g_stations[iw_cfg_param].tank_id       := iw_cfg_d0;
@@ -164,18 +173,6 @@ IF iw_cfg_seq <> last_cfg_seq THEN
   ELSIF iw_cfg_cmd = 2 THEN
     (* --- Finish init: station data uploaded, now init transporters --- *)
     g_station_count := iw_cfg_param;
-
-    (* Clear old station data for slots not uploaded *)
-    FOR idx := 101 TO 125 DO
-      IF g_stations[idx].tank_id = 0 THEN
-        g_stations[idx].x_position := 0.0;
-        g_stations[idx].y_position := 0.0;
-        g_stations[idx].z_position := 0.0;
-        g_stations[idx].stn_type := 0;
-        g_stations[idx].dropping_time := 0.0;
-        g_stations[idx].device_delay := 0.0;
-      END_IF;
-    END_FOR;
 
     (* Transporter 1 config — hardcoded for now *)
     g_cfg[1].id := 1;

@@ -384,23 +384,22 @@ function buildTransporterState(id, cfg, regs) {
 }
 
 // Write command to PLC via Modbus
-// OpenPLC maps %IW to modbus input registers. To write to them externally,
-// we write to holding registers at offset 1024 + address.
+// OpenPLC %QW maps to holding registers directly.
+// Commands at QW100-105, config at QW110-119, units at QW120-126.
 async function writePLCCommand(transporterId, liftStation, sinkStation) {
   if (!connected) throw new Error('Not connected to PLC');
   
-  const baseAddr = transporterId === 1 ? 0 : 3;
-  const holdingBase = 1024 + baseAddr; // OpenPLC convention for writing to %IW
+  const baseAddr = transporterId === 1 ? 100 : 103; // QW100 for T1, QW103 for T2
   
   // Write lift station, sink station, then start command
-  await client.writeRegisters(holdingBase + 1, [liftStation]);  // iw_cmd_lift
-  await client.writeRegisters(holdingBase + 2, [sinkStation]);  // iw_cmd_sink
-  await client.writeRegisters(holdingBase, [1]);                 // iw_cmd_start = 1 (trigger)
+  await client.writeRegisters(baseAddr + 1, [liftStation]);  // iw_cmd_lift
+  await client.writeRegisters(baseAddr + 2, [sinkStation]);  // iw_cmd_sink
+  await client.writeRegisters(baseAddr, [1]);                 // iw_cmd_start = 1 (trigger)
   
   // Clear start after a short delay (PLC reads it, then we clear)
   setTimeout(async () => {
     try {
-      await client.writeRegisters(holdingBase, [0]);
+      await client.writeRegisters(baseAddr, [0]);
     } catch (_) {}
   }, 200);
   
@@ -493,16 +492,28 @@ app.post('/api/reset', async (req, res) => {
       return res.status(503).json({ success: false, error: 'PLC not connected' });
     }
 
-    // Upload each station to PLC via config protocol
+    // --- Step 1: Send clear_all command (cmd=3) ---
     let seq = 1;
-    const IW_BASE = 1024 + 10; // Holding offset for IW10
+    const CFG_BASE = 110; // QW110-QW119 for config upload protocol
 
+    await client.writeRegisters(CFG_BASE + 2, [0]);      // QW112 = param (unused)
+    await client.writeRegisters(CFG_BASE + 1, [3]);       // QW111 = cmd (3=clear_all)
+    await client.writeRegisters(CFG_BASE + 0, [seq]);     // QW110 = seq (triggers PLC)
+
+    const clearAck = await waitForCfgAck(seq, 3000);
+    if (!clearAck) {
+      return res.status(504).json({ success: false, error: 'PLC ack timeout for clear command' });
+    }
+    console.log(`[RESET] Clear done`);
+    seq++;
+
+    // --- Step 2: Upload stations (cmd=1) ---
     for (const st of stations) {
       const stNum = st.number; // e.g. 101..125
       if (stNum < 101 || stNum > 125) continue;
 
-      // Write data fields first (IW13..IW19 = d0..d6)
-      await client.writeRegisters(IW_BASE + 3, [
+      // Write data fields first (QW113..QW119 = d0..d6)
+      await client.writeRegisters(CFG_BASE + 3, [
         st.tank || 0,                              // d0 = tank_id
         Math.round(st.x_position || 0),            // d1 = x_position mm
         Math.round(st.y_position || 0),            // d2 = y_position mm
@@ -513,9 +524,9 @@ app.post('/api/reset', async (req, res) => {
       ]);
 
       // Write param (station number) and cmd
-      await client.writeRegisters(IW_BASE + 2, [stNum]);  // IW12 = param
-      await client.writeRegisters(IW_BASE + 1, [1]);       // IW11 = cmd (1=write_station)
-      await client.writeRegisters(IW_BASE + 0, [seq]);     // IW10 = seq (triggers PLC)
+      await client.writeRegisters(CFG_BASE + 2, [stNum]);  // QW112 = param
+      await client.writeRegisters(CFG_BASE + 1, [1]);       // QW111 = cmd (1=write_station)
+      await client.writeRegisters(CFG_BASE + 0, [seq]);     // QW110 = seq (triggers PLC)
 
       // Wait for PLC ack (QW21 = cfg_ack matches seq)
       const ackOk = await waitForCfgAck(seq, 2000);
@@ -528,10 +539,10 @@ app.post('/api/reset', async (req, res) => {
       seq++;
     }
 
-    // Send init command (cmd=2, param=station_count)
-    await client.writeRegisters(IW_BASE + 2, [stations.length]); // IW12 = station_count
-    await client.writeRegisters(IW_BASE + 1, [2]);               // IW11 = cmd (2=init)
-    await client.writeRegisters(IW_BASE + 0, [seq]);             // IW10 = seq
+    // --- Step 3: Send init command (cmd=2, param=station_count) ---
+    await client.writeRegisters(CFG_BASE + 2, [stations.length]); // QW112 = station_count
+    await client.writeRegisters(CFG_BASE + 1, [2]);               // QW111 = cmd (2=init)
+    await client.writeRegisters(CFG_BASE + 0, [seq]);             // QW110 = seq
 
     const initAck = await waitForCfgAck(seq, 3000);
     if (!initAck) {
@@ -642,7 +653,7 @@ app.get('/api/customers/:customer/plants/:plant/simulation-purpose', (req, res) 
 });
 
 app.get('/api/customers/:customer/plants/:plant/status', (req, res) => {
-  const plantDir = path.join(CUSTOMERS_DIR, req.params.customer, req.params.plant);
+  const plantDir = path.join(CUSTOMERS_ROOT, req.params.customer, req.params.plant);
   const hasStations = fs.existsSync(path.join(plantDir, 'stations.json'));
   const hasTanks = fs.existsSync(path.join(plantDir, 'tanks.json'));
   const isConfigured = fs.existsSync(plantDir) && (hasStations || hasTanks);
@@ -709,20 +720,20 @@ app.put('/api/units/:id', async (req, res) => {
     if (!connected) return res.status(503).json({ error: 'PLC not connected' });
 
     const { batch_id, location, status, state, target } = req.body;
-    const IW_BASE = 1024 + 20; // Holding offset for IW20
+    const UNIT_BASE = 120; // QW120-QW126 for unit write protocol
 
     // Write data fields first
-    await client.writeRegisters(IW_BASE + 1, [uid]);                    // IW21 = unit_id
-    await client.writeRegisters(IW_BASE + 2, [batch_id || 0]);          // IW22 = batch_id
-    await client.writeRegisters(IW_BASE + 3, [location || 0]);          // IW23 = location
-    await client.writeRegisters(IW_BASE + 4, [status || 0]);            // IW24 = status
-    await client.writeRegisters(IW_BASE + 5, [state || 0]);             // IW25 = state
-    await client.writeRegisters(IW_BASE + 6, [target || 0]);            // IW26 = target
+    await client.writeRegisters(UNIT_BASE + 1, [uid]);                    // QW121 = unit_id
+    await client.writeRegisters(UNIT_BASE + 2, [batch_id || 0]);          // QW122 = batch_id
+    await client.writeRegisters(UNIT_BASE + 3, [location || 0]);          // QW123 = location
+    await client.writeRegisters(UNIT_BASE + 4, [status || 0]);            // QW124 = status
+    await client.writeRegisters(UNIT_BASE + 5, [state || 0]);             // QW125 = state
+    await client.writeRegisters(UNIT_BASE + 6, [target || 0]);            // QW126 = target
 
     // Trigger with sequence number
     unitWriteSeq = (unitWriteSeq % 30000) + 1;
-    console.log(`[UNIT] Writing IW20-26: seq=${unitWriteSeq}, id=${uid}, batch=${batch_id||0}, loc=${location||0}, status=${status||0}, state=${state||0}, target=${target||0}`);
-    await client.writeRegisters(IW_BASE + 0, [unitWriteSeq]);           // IW20 = seq
+    console.log(`[UNIT] Writing QW120-126: seq=${unitWriteSeq}, id=${uid}, batch=${batch_id||0}, loc=${location||0}, status=${status||0}, state=${state||0}, target=${target||0}`);
+    await client.writeRegisters(UNIT_BASE + 0, [unitWriteSeq]);           // QW120 = seq
 
     // Wait for PLC ack (QW72)
     const ackOk = await waitForUnitAck(unitWriteSeq, 3000);
