@@ -53,9 +53,9 @@ const CUSTOMERS_ROOT = process.env.CUSTOMERS_ROOT ||
     ? '/data/customers'
     : path.join(__dirname, '..', '..', 'customers'));
 
-// Current selection (persisted in memory, changeable via API)
-let currentCustomer = process.env.DEFAULT_CUSTOMER || 'Nammo Lapua Oy';
-let currentPlant = process.env.DEFAULT_PLANT || 'Factory X Zinc Phosphating';
+// Current selection — empty on startup, set by user via RESET
+let currentCustomer = '';
+let currentPlant = '';
 
 // Dynamic customer path based on current selection
 function getCustomerPath(customer, plant) {
@@ -64,6 +64,12 @@ function getCustomerPath(customer, plant) {
 function getCurrentCustomerPath() {
   return getCustomerPath(currentCustomer, currentPlant);
 }
+
+// --- Unit state/target mappings (INT ↔ string) ---
+const STATE_INT_TO_STR = { 0: 'empty', 1: 'full' };
+const TARGET_INT_TO_STR = { 0: 'none', 1: 'to_loading', 2: 'to_buffer', 3: 'to_process', 4: 'to_unload', 5: 'to_avoid' };
+const STATE_STR_TO_INT = Object.fromEntries(Object.entries(STATE_INT_TO_STR).map(([k,v]) => [v, parseInt(k)]));
+const TARGET_STR_TO_INT = Object.fromEntries(Object.entries(TARGET_INT_TO_STR).map(([k,v]) => [v, parseInt(k)]));
 
 // --- Phase name mapping (matches server.js convention) ---
 const PHASE_NAMES = {
@@ -214,6 +220,12 @@ let transporterConfig = { transporters: [] };
 let stationsConfig = { stations: [] };
 
 function loadConfigs() {
+  if (!currentCustomer || !currentPlant) {
+    console.log('[CONFIG] No customer/plant selected yet — skipping config load');
+    transporterConfig = { transporters: [] };
+    stationsConfig = { stations: [] };
+    return;
+  }
   const cp = getCurrentCustomerPath();
   try {
     transporterConfig = JSON.parse(fs.readFileSync(path.join(cp, 'transporters.json'), 'utf8'));
@@ -295,13 +307,15 @@ async function readPLCState() {
     plcUnits = [];
     for (let u = 0; u < 10; u++) {
       const base = 22 + u * 5;
+      const stateInt = toSigned(r[base + 3]);
+      const targetInt = toSigned(r[base + 4]);
       plcUnits.push({
         unit_id: u + 1,
         batch_id: toSigned(r[base]),
         location: toSigned(r[base + 1]),
         status: toSigned(r[base + 2]),
-        state: toSigned(r[base + 3]),
-        target: toSigned(r[base + 4])
+        state: STATE_INT_TO_STR[stateInt] || 'empty',
+        target: TARGET_INT_TO_STR[targetInt] || 'none'
       });
     }
     
@@ -549,16 +563,83 @@ app.post('/api/reset', async (req, res) => {
       return res.status(504).json({ success: false, error: 'PLC ack timeout for init command' });
     }
 
+    console.log(`[RESET] Uploaded ${stations.length} stations to PLC for ${customer}/${plant}`);
+
+    // --- Step 4: Upload units from unit_setup.json (if exists) ---
+    const unitSetupFile = path.join(plantPath, 'unit_setup.json');
+    let units = [];
+    if (fs.existsSync(unitSetupFile)) {
+      const unitRaw = JSON.parse(fs.readFileSync(unitSetupFile, 'utf8'));
+      units = Array.isArray(unitRaw) ? unitRaw : (unitRaw.units || []);
+
+      // String → INT mappings matching PLC globals.st constants
+      const STATUS_MAP = { 'not_used': 0, 'used': 1 };
+
+      const UNIT_BASE = 120;
+      for (const u of units) {
+        const uid = u.unit_id;
+        if (uid < 1 || uid > 10) continue;
+
+        const statusInt = STATUS_MAP[u.status] ?? (typeof u.status === 'number' ? u.status : 0);
+        const stateInt  = STATE_STR_TO_INT[u.state]   ?? (typeof u.state  === 'number' ? u.state  : 0);
+        const targetInt = TARGET_STR_TO_INT[u.target]  ?? (typeof u.target === 'number' ? u.target : 0);
+        const batchId   = u.batch_id || 0;
+        const location  = u.location || 0;
+
+        await client.writeRegisters(UNIT_BASE + 1, [uid]);         // QW121
+        await client.writeRegisters(UNIT_BASE + 2, [batchId]);     // QW122
+        await client.writeRegisters(UNIT_BASE + 3, [location]);    // QW123
+        await client.writeRegisters(UNIT_BASE + 4, [statusInt]);   // QW124
+        await client.writeRegisters(UNIT_BASE + 5, [stateInt]);    // QW125
+        await client.writeRegisters(UNIT_BASE + 6, [targetInt]);   // QW126
+
+        unitWriteSeq = (unitWriteSeq % 30000) + 1;
+        await client.writeRegisters(UNIT_BASE + 0, [unitWriteSeq]); // QW120 = seq
+
+        const unitAck = await waitForUnitAck(unitWriteSeq, 2000);
+        if (!unitAck) {
+          return res.status(504).json({
+            success: false,
+            error: `PLC ack timeout for unit ${uid} (seq=${unitWriteSeq})`
+          });
+        }
+      }
+      console.log(`[RESET] Uploaded ${units.length} units to PLC`);
+    } else {
+      console.log(`[RESET] No unit_setup.json found, skipping unit upload`);
+    }
+
     // Update current selection
     currentCustomer = customer;
     currentPlant = plant;
+    loadConfigs();
+
+    // Notify simulator of customer/plant selection
+    try {
+      const simRes = await fetch('http://simulator:3002/api/copy-customer-plant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customer, plant })
+      });
+      const simData = await simRes.json();
+      console.log(`[RESET] Simulator notified: ${simData.success ? 'OK' : simData.error}`);
+    } catch (simErr) {
+      console.warn(`[RESET] Could not notify simulator: ${simErr.message}`);
+    }
 
     // Reset simulation timer
     simRunning = true;
     simStartTime = Date.now();
 
-    console.log(`[RESET] Uploaded ${stations.length} stations to PLC for ${customer}/${plant}`);
-    res.json({ success: true, stations, tanks, transporters });
+    // Include layout_config if available
+    let layoutConfig = null;
+    const layoutFile = path.join(plantPath, 'layout_config.json');
+    if (fs.existsSync(layoutFile)) {
+      const raw = JSON.parse(fs.readFileSync(layoutFile, 'utf8'));
+      layoutConfig = raw.layout || raw;
+    }
+
+    res.json({ success: true, stations, tanks, transporters, units, layoutConfig });
   } catch (err) {
     console.error(`[RESET] Error: ${err.message}`);
     res.status(500).json({ success: false, error: err.message });
@@ -578,133 +659,6 @@ async function waitForCfgAck(expectedSeq, timeoutMs) {
   return false;
 }
 
-// Simulation time
-app.get('/api/sim/time', (req, res) => {
-  const elapsed = simRunning ? (Date.now() - simStartTime) / 1000 : 0;
-  res.json({
-    elapsed_s: elapsed,
-    speed: 1.0,
-    running: simRunning,
-    plc_alive: plcAlive,
-    plc_cycle: plcMeta.cycle_count
-  });
-});
-
-// Sim control stubs
-app.post('/api/sim/start', (req, res) => res.json({ ok: true }));
-app.post('/api/sim/speed', (req, res) => res.json({ ok: true, speed: 1.0 }));
-
-// Customer/plant selection — reads from customers folder
-app.get('/api/current-selection', (req, res) => {
-  res.json({ success: true, customer: currentCustomer, plant: currentPlant });
-});
-
-app.post('/api/current-selection', (req, res) => {
-  const { customer, plant } = req.body;
-  if (customer) currentCustomer = customer;
-  if (plant) currentPlant = plant;
-  // Reload configs for new selection
-  loadConfigs();
-  console.log(`[SELECT] ${currentCustomer} / ${currentPlant}`);
-  res.json({ ok: true, customer: currentCustomer, plant: currentPlant });
-});
-
-// List customers — read directory names from CUSTOMERS_ROOT
-app.get('/api/customers', (req, res) => {
-  try {
-    const dirs = fs.readdirSync(CUSTOMERS_ROOT, { withFileTypes: true })
-      .filter(d => d.isDirectory())
-      .map(d => d.name)
-      .sort();
-    res.json({ success: true, customers: dirs });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// List plants for a customer — subdirectories that contain stations.json
-app.get('/api/customers/:customer/plants', (req, res) => {
-  try {
-    const customerDir = path.join(CUSTOMERS_ROOT, req.params.customer);
-    if (!fs.existsSync(customerDir)) {
-      return res.status(404).json({ success: false, error: 'Customer not found' });
-    }
-    const dirs = fs.readdirSync(customerDir, { withFileTypes: true })
-      .filter(d => d.isDirectory())
-      .filter(d => {
-        // Only include dirs that have stations.json (real plant configs)
-        return fs.existsSync(path.join(customerDir, d.name, 'stations.json'));
-      })
-      .map(d => d.name)
-      .sort();
-    res.json({ success: true, plants: dirs });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-app.get('/api/customers/:customer/plants/:plant/simulation-purpose', (req, res) => {
-  const filePath = path.join(getCustomerPath(req.params.customer, req.params.plant), 'simulation_purpose.json');
-  if (fs.existsSync(filePath)) {
-    res.json({ success: true, data: JSON.parse(fs.readFileSync(filePath, 'utf8')) });
-  } else {
-    res.json({ success: true, data: { purpose: 'PLC Simulation' } });
-  }
-});
-
-app.get('/api/customers/:customer/plants/:plant/status', (req, res) => {
-  const plantDir = path.join(CUSTOMERS_ROOT, req.params.customer, req.params.plant);
-  const hasStations = fs.existsSync(path.join(plantDir, 'stations.json'));
-  const hasTanks = fs.existsSync(path.join(plantDir, 'tanks.json'));
-  const isConfigured = fs.existsSync(plantDir) && (hasStations || hasTanks);
-  res.json({
-    success: true,
-    status: simRunning ? 'running' : 'stopped',
-    plc_alive: plcAlive,
-    isConfigured,
-    files: {
-      stations: hasStations,
-      tanks: hasTanks,
-      transporters: fs.existsSync(path.join(plantDir, 'transporters.json')),
-      treatment_program: fs.existsSync(path.join(plantDir, 'treatment_program_001.csv')),
-    }
-  });
-});
-
-// Transporter tasks (stub — scheduler not yet in PLC)
-app.get('/api/transporter-tasks', (req, res) => {
-  res.json([]);
-});
-
-app.get('/api/manual-tasks', (req, res) => {
-  res.json([]);
-});
-app.post('/api/manual-tasks', (req, res) => {
-  res.json({ ok: true, id: Date.now() });
-});
-app.delete('/api/manual-tasks/:id', (req, res) => {
-  res.json({ ok: true });
-});
-
-// Scheduler state (stub)
-app.get('/api/scheduler/state', (req, res) => {
-  res.json({ mode: 'plc', running: simRunning });
-});
-
-// Batches (stub — not yet in PLC)
-app.get('/api/batches', (req, res) => {
-  res.json([]);
-});
-app.post('/api/batches', (req, res) => {
-  res.json({ ok: true });
-});
-app.put('/api/batches/:id', (req, res) => {
-  res.json({ ok: true });
-});
-app.delete('/api/batches/:id', (req, res) => {
-  res.json({ ok: true });
-});
-
 // Units — read from PLC via Modbus
 let plcUnits = [];
 let unitWriteSeq = 0;
@@ -722,17 +676,21 @@ app.put('/api/units/:id', async (req, res) => {
     const { batch_id, location, status, state, target } = req.body;
     const UNIT_BASE = 120; // QW120-QW126 for unit write protocol
 
+    // Convert string state/target to INT if needed
+    const stateInt  = typeof state  === 'string' ? (STATE_STR_TO_INT[state]   ?? 0) : (state  || 0);
+    const targetInt = typeof target === 'string' ? (TARGET_STR_TO_INT[target]  ?? 0) : (target || 0);
+
     // Write data fields first
     await client.writeRegisters(UNIT_BASE + 1, [uid]);                    // QW121 = unit_id
     await client.writeRegisters(UNIT_BASE + 2, [batch_id || 0]);          // QW122 = batch_id
     await client.writeRegisters(UNIT_BASE + 3, [location || 0]);          // QW123 = location
     await client.writeRegisters(UNIT_BASE + 4, [status || 0]);            // QW124 = status
-    await client.writeRegisters(UNIT_BASE + 5, [state || 0]);             // QW125 = state
-    await client.writeRegisters(UNIT_BASE + 6, [target || 0]);            // QW126 = target
+    await client.writeRegisters(UNIT_BASE + 5, [stateInt]);               // QW125 = state
+    await client.writeRegisters(UNIT_BASE + 6, [targetInt]);              // QW126 = target
 
     // Trigger with sequence number
     unitWriteSeq = (unitWriteSeq % 30000) + 1;
-    console.log(`[UNIT] Writing QW120-126: seq=${unitWriteSeq}, id=${uid}, batch=${batch_id||0}, loc=${location||0}, status=${status||0}, state=${state||0}, target=${target||0}`);
+    console.log(`[UNIT] Writing QW120-126: seq=${unitWriteSeq}, id=${uid}, batch=${batch_id||0}, loc=${location||0}, status=${status||0}, state=${stateInt}, target=${targetInt}`);
     await client.writeRegisters(UNIT_BASE + 0, [unitWriteSeq]);           // QW120 = seq
 
     // Wait for PLC ack (QW72)
@@ -771,43 +729,6 @@ async function waitForUnitAck(expectedSeq, timeoutMs) {
   console.log(`[UNIT-ACK] TIMEOUT after ${timeoutMs}ms, lastVal=${lastVal}, expected=${expectedSeq}, reads=${readCount}`);
   return false;
 }
-
-// Avoid statuses
-app.get('/api/avoid-statuses', (req, res) => {
-  res.json({});
-});
-app.post('/api/avoid-statuses', (req, res) => {
-  res.json({ ok: true });
-});
-
-// Plant setups & production
-app.get('/api/plant-setups', (req, res) => {
-  res.json([]);
-});
-app.get('/api/production-setup', (req, res) => {
-  res.json({});
-});
-app.post('/api/production', (req, res) => {
-  res.json({ ok: true });
-});
-
-// Treatment programs
-app.get('/api/treatment-programs', (req, res) => {
-  const csvPath = path.join(getCurrentCustomerPath(), 'treatment_program_001.csv');
-  if (fs.existsSync(csvPath)) {
-    res.json([{ id: 1, name: 'treatment_program_001', file: 'treatment_program_001.csv' }]);
-  } else {
-    res.json([]);
-  }
-});
-
-// Copy customer/plant (stub)
-app.post('/api/copy-customer-plant', (req, res) => {
-  res.json({ ok: true });
-});
-app.post('/api/customers/:customer/plants/:plant/copy-template', (req, res) => {
-  res.json({ ok: true });
-});
 
 // PLC info endpoint (combined Modbus + Runtime API state)
 app.get('/api/plc/status', (req, res) => {
@@ -890,7 +811,7 @@ async function main() {
     console.log(`[GATEWAY] PLC polling every ${POLL_MS}ms`);
     console.log(`[GATEWAY] PLC Runtime API: https://${PLC_API_HOST}:${PLC_API_PORT}`);
     console.log(`[GATEWAY] Customers root: ${CUSTOMERS_ROOT}`);
-    console.log(`[GATEWAY] Default: ${currentCustomer} / ${currentPlant}`);
+    console.log(`[GATEWAY] No customer/plant selected — waiting for RESET`);
   });
 }
 

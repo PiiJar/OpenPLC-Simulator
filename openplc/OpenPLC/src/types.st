@@ -76,7 +76,7 @@ STRUCT
   batch_id : INT;
   location : INT;    (* station number where unit currently is *)
   status   : INT;    (* NOT_USED=0, USED=1 *)
-  state    : INT;    (* EMPTY=0, NOT_PROCESSED=1, IN_PROCESS=2, PROCESSED=3 *)
-  target   : INT;    (* TO_NONE=0, TO_LOADING=1, TO_BUFFER=2, TO_UNLOAD=3, TO_AVOID=4 *)
+  state    : INT;    (* EMPTY=0, FULL=1 *)
+  target   : INT;    (* TO_NONE=0, TO_LOADING=1, TO_BUFFER=2, TO_PROCESS=3, TO_UNLOAD=4, TO_AVOID=5 *)
 END_STRUCT;
 END_TYPE

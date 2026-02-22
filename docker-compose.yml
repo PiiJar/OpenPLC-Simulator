@@ -34,4 +34,21 @@ services:
       - "5173:80"
     depends_on:
       - gateway
+      - simulator
+    restart: unless-stopped
+
+  simulator:
+    build:
+      context: ./PLC Simulator
+      dockerfile: containers/simulator/Dockerfile
+    container_name: plc_simulator
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - PLANT_TEMPLATES_DIR=/data/plant_templates
+      - CUSTOMERS_DIR=/data/customers
+    volumes:
+      - ./customers:/data/customers
+      - ./plant_templates:/data/plant_templates
     restart: unless-stopped

@@ -100,8 +100,8 @@ export default function App() {
   const [unitLocationEdit, setUnitLocationEdit] = useState('');
   const [unitBatchEdit, setUnitBatchEdit] = useState(0);
   const [unitStatusEdit, setUnitStatusEdit] = useState(0);
-  const [unitStateEdit, setUnitStateEdit] = useState(0);
-  const [unitTargetEdit, setUnitTargetEdit] = useState(0);
+  const [unitStateEdit, setUnitStateEdit] = useState('empty');
+  const [unitTargetEdit, setUnitTargetEdit] = useState('none');
   const [unitSaving, setUnitSaving] = useState(false);
   const lastTickRef = useRef(null);
   const elapsedMsRef = useRef(0);
@@ -122,41 +122,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const loadCurrentSelection = async () => {
-      try {
-        const res = await fetch('/api/current-selection');
-        const data = await res.json();
-        if (data.success && data.customer) {
-          console.log('Loaded current selection:', data.customer, data.plant);
-          setSelectedCustomer(data.customer);
-          if (data.plant) {
-            setSelectedPlant(data.plant);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load current selection:', error);
-      }
-    };
-    loadCurrentSelection();
-  }, []);
-
-  // Save customer/plant selection to backend when changed
-  useEffect(() => {
-    if (selectedCustomer) {
-      fetch('/api/current-selection', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customer: selectedCustomer, plant: selectedPlant })
-      }).catch(err => console.error('Failed to save selection:', err));
-    }
-  }, [selectedCustomer, selectedPlant]);
-
-  useEffect(() => {
     const initializeData = async () => {
       try {
         console.log("Loading configuration files...");
-        // Load all configuration files from current plant setup via API
-        // Kaikki API-kutsut nginxin kautta suhteellisella polulla
+        // Try to load config from current plant setup via API
+        // If no customer/plant is selected yet, the API will return errors — this is OK
         const [configRes, transportersRes, stationsRes, tanksRes] = await Promise.all([
           fetch('/api/config/layout_config.json'),
           fetch('/api/config/transporters.json'),
@@ -164,10 +134,17 @@ export default function App() {
           fetch('/api/config/tanks.json')
         ]);
 
+        // If any config fetch fails (no customer selected), show waiting state
+        if (!configRes.ok || !stationsRes.ok || !transportersRes.ok) {
+          console.log("No configuration loaded — waiting for customer/plant selection");
+          setLoadError(null);  // Not an error, just no selection yet
+          return;
+        }
+
         const configData = await configRes.json();
         const transportersData = await transportersRes.json();
         const stationsData = await stationsRes.json();
-        const tanksData = await tanksRes.json();
+        const tanksData = tanksRes.ok ? await tanksRes.json() : { tanks: [] };
         
         console.log("Config loaded:", configData.layout);
         console.log("Transporters loaded:", transportersData.transporters.length);
@@ -465,9 +442,13 @@ export default function App() {
   // Interpolate/extrapolate between polls for smoother motion
   useEffect(() => {
     let rafId;
+    let lastRef = null;
     const tick = () => {
       const snapshot = latestSnapshotRef.current;
-      setDisplayTransporterStates(snapshot.transporters);
+      if (snapshot.transporters !== lastRef) {
+        lastRef = snapshot.transporters;
+        setDisplayTransporterStates(snapshot.transporters);
+      }
       rafId = requestAnimationFrame(tick);
     };
     rafId = requestAnimationFrame(tick);
@@ -758,8 +739,8 @@ export default function App() {
     setUnitLocationEdit('');
     setUnitBatchEdit(0);
     setUnitStatusEdit(0);
-    setUnitStateEdit(0);
-    setUnitTargetEdit(0);
+    setUnitStateEdit('empty');
+    setUnitTargetEdit('none');
   };
 
   // Käsittele Unit-valinnan muutos dropdownista
@@ -769,8 +750,8 @@ export default function App() {
       setUnitLocationEdit('');
       setUnitBatchEdit(0);
       setUnitStatusEdit(0);
-      setUnitStateEdit(0);
-      setUnitTargetEdit(0);
+      setUnitStateEdit('empty');
+      setUnitTargetEdit('none');
       return;
     }
     const uid = Number(unitIdStr);
@@ -779,8 +760,8 @@ export default function App() {
       setUnitLocationEdit(String(unit.location || 0));
       setUnitBatchEdit(unit.batch_id || 0);
       setUnitStatusEdit(unit.status || 0);
-      setUnitStateEdit(unit.state || 0);
-      setUnitTargetEdit(unit.target || 0);
+      setUnitStateEdit(unit.state || 'empty');
+      setUnitTargetEdit(unit.target || 'none');
     }
   };
 
@@ -800,8 +781,8 @@ export default function App() {
           batch_id: Number(unitBatchEdit) || 0,
           location: newLoc,
           status: Number(unitStatusEdit) || 0,
-          state: Number(unitStateEdit) || 0,
-          target: Number(unitTargetEdit) || 0
+          state: unitStateEdit || 'empty',
+          target: unitTargetEdit || 'none'
         })
       });
       if (!res.ok) {
@@ -1114,10 +1095,13 @@ export default function App() {
 
       if (result.success) {
         // Update UI layout with the returned config data
+        if (result.layoutConfig) setConfig(result.layoutConfig);
         if (result.stations) setStations(result.stations);
         if (result.tanks) setTanks(result.tanks);
         if (result.transporters) setTransporters(result.transporters);
         console.log(`[RESET] Uploaded ${result.stations?.length || 0} stations to PLC`);
+
+
       } else {
         console.error('[RESET] Failed:', result.error);
         alert(`Reset failed: ${result.error}`);
@@ -1201,15 +1185,6 @@ export default function App() {
     }
   };
 
-  if (!config) {
-    return (
-      <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, background: '#f5f5f5', color: '#333', fontFamily: 'sans-serif' }}>
-        <div style={{ fontSize: 18, fontWeight: 700 }}>Loading view…</div>
-        {loadError && <div style={{ fontSize: 14, color: '#c62828' }}>{loadError}</div>}
-      </div>
-    );
-  }
-
   const formatTime = (ms) => {
     const totalMs = Math.max(0, Math.floor(ms));
     const hours = Math.floor(totalMs / 3600000).toString().padStart(2, '0');
@@ -1218,6 +1193,231 @@ export default function App() {
     const millis = (totalMs % 1000).toString().padStart(3, '0');
     return `${hours}:${minutes}:${seconds}.${millis}`;
   };
+
+  // Guard: use lightweight render while config is loading / not yet selected
+  // Show the exact same toolbar as the main view, just with empty layout area
+  if (!config) {
+    return (
+      <div style={{ 
+        width: '100vw', 
+        height: '100vh', 
+        display: 'flex', 
+        flexDirection: 'column',
+        background: '#f5f5f5'
+      }}>
+        <div style={{ 
+          padding: '12px 24px', 
+          background: '#fff', 
+          borderBottom: '1px solid #ddd',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {/* Logo + version */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <img src="/OpenPLC_logo.jpg" alt="OpenPLC" style={{ height: 36, width: 36, borderRadius: 6, objectFit: 'cover' }} />
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#333', letterSpacing: 0.5 }}>OpenPLC_v3</span>
+            </div>
+
+            {/* Start / Stop — IEC 60073 */}
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button
+                disabled={plcToggling || plcStatus.runtime_status === 'running'}
+                onClick={async () => {
+                  setPlcToggling(true);
+                  try { await fetch('/api/plc/start', { method: 'POST' }); } catch {}
+                  setTimeout(async () => {
+                    try { const r = await fetch('/api/plc/status'); if (r.ok) setPlcStatus(await r.json()); } catch {}
+                    setPlcToggling(false);
+                  }, 2000);
+                }}
+                title="Start PLC"
+                style={{
+                  width: 34, height: 34,
+                  border: plcStatus.runtime_status === 'running' ? '2px solid #2e7d32' : '1px solid #ccc',
+                  borderRadius: 6, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: plcStatus.runtime_status === 'running' ? '#e8f5e9' : '#f5f5f5',
+                  opacity: plcToggling ? 0.5 : 1
+                }}
+              >
+                <svg width="14" height="16" viewBox="0 0 14 16">
+                  <polygon points="1,0 14,8 1,16" fill={plcStatus.plc_alive && plcStatus.runtime_status === 'running' ? '#2e7d32' : '#bbb'} />
+                </svg>
+              </button>
+              <button
+                disabled={plcToggling || plcStatus.runtime_status === 'stopped'}
+                onClick={async () => {
+                  setPlcToggling(true);
+                  try { await fetch('/api/plc/stop', { method: 'POST' }); } catch {}
+                  setTimeout(async () => {
+                    try { const r = await fetch('/api/plc/status'); if (r.ok) setPlcStatus(await r.json()); } catch {}
+                    setPlcToggling(false);
+                  }, 3000);
+                }}
+                title="Stop PLC"
+                style={{
+                  width: 34, height: 34,
+                  border: plcStatus.runtime_status === 'stopped' ? '2px solid #c62828' : '1px solid #ccc',
+                  borderRadius: 6, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: plcStatus.runtime_status === 'stopped' ? '#ffebee' : '#f5f5f5',
+                  opacity: plcToggling ? 0.5 : 1
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14">
+                  <circle cx="7" cy="7" r="7" fill={plcStatus.plc_alive && plcStatus.runtime_status !== 'running' ? '#c62828' : '#bbb'} />
+                </svg>
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div style={{ width: 1, height: 32, background: '#ddd' }} />
+
+            {/* Customer / Plant */}
+            {selectedCustomer && selectedPlant && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#333' }}>{selectedCustomer}</span>
+                <span style={{ color: '#999', fontSize: 13 }}>/</span>
+                <span style={{ fontSize: 13, color: '#666' }}>{selectedPlant}</span>
+              </div>
+            )}
+
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => setShowCustomer((v) => !v)}
+              style={{
+                padding: '8px 12px', fontSize: '12px', fontWeight: 600, borderRadius: '4px',
+                border: '1px solid #ccc', background: showCustomer ? '#1976d2' : '#fff',
+                color: showCustomer ? '#fff' : '#333', cursor: 'pointer', width: 80,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2
+              }}
+            >
+              <span style={{ fontSize: 18 }}>👤</span>
+              <span>Customer</span>
+            </button>
+            <button disabled style={{
+              padding: '8px 12px', fontSize: '12px', fontWeight: 600, borderRadius: '4px',
+              border: '1px solid #ccc', background: '#fff', color: '#aaa', width: 80,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'default', opacity: 0.5
+            }}>
+              <span style={{ fontSize: 18 }}>⚙️</span>
+              <span>Config</span>
+            </button>
+            <button disabled style={{
+              padding: '8px 12px', fontSize: '12px', fontWeight: 600, borderRadius: '4px',
+              border: '1px solid #ccc', background: '#fff', color: '#aaa', width: 80,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'default', opacity: 0.5
+            }}>
+              <span style={{ fontSize: 18 }}>🏭</span>
+              <span>Production</span>
+            </button>
+            <button disabled style={{
+              padding: '8px 12px', fontSize: '12px', fontWeight: 600, borderRadius: '4px',
+              border: '1px solid #ccc', background: '#fff', color: '#aaa', width: 80,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'default', opacity: 0.5
+            }}>
+              <span style={{ fontSize: 18 }}>📦</span>
+              <span>Units</span>
+            </button>
+            <button disabled style={{
+              padding: '8px 12px', fontSize: '12px', fontWeight: 600, borderRadius: '4px',
+              border: '1px solid #ccc', background: '#fff', color: '#aaa', width: 80,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'default', opacity: 0.5
+            }}>
+              <span style={{ fontSize: 18 }}>📋</span>
+              <span>Tasks</span>
+            </button>
+            <button disabled style={{
+              padding: '8px 12px', fontSize: '12px', fontWeight: 600, borderRadius: '4px',
+              border: '1px solid #ccc', background: '#fff', color: '#aaa', width: 80,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'default', opacity: 0.5
+            }}>
+              <span style={{ fontSize: 18 }}>📅</span>
+              <span>Schedule</span>
+            </button>
+            <button disabled style={{
+              padding: '8px 12px', fontSize: '12px', fontWeight: 600, borderRadius: '4px',
+              border: '1px solid #ccc', background: '#fff', color: '#aaa', width: 80,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'default', opacity: 0.5
+            }}>
+              <span style={{ fontSize: 18 }}>📊</span>
+              <span>Dashboard</span>
+            </button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 13, color: '#666', fontWeight: 500 }}>Time:</span>
+              <div style={{ display: 'flex', background: '#eee', borderRadius: 4, padding: 2 }}>
+                {[0, 0.5, 1, 5, 10].map((m) => (
+                  <button key={m} disabled style={{
+                    padding: '6px 12px', fontSize: '13px', fontWeight: 500,
+                    border: 'none', borderRadius: 3,
+                    background: m === speed ? '#fff' : 'transparent',
+                    boxShadow: m === speed ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    cursor: 'default', opacity: 0.5
+                  }}>
+                    x{m}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ fontFamily: 'monospace', fontSize: 14, color: '#333', fontWeight: 600, minWidth: 80 }}>
+              {formatTime(elapsedMs)}
+            </div>
+            <button disabled style={{
+              padding: '8px 16px', fontSize: '13px', fontWeight: 600,
+              border: 'none', borderRadius: '4px',
+              background: '#4caf50', color: '#fff', opacity: 0.5, cursor: 'default'
+            }}>
+              START
+            </button>
+            <button
+              onClick={handleReset}
+              disabled={!selectedCustomer || !selectedPlant}
+              style={{
+                padding: '8px 16px', fontSize: '13px', fontWeight: 600,
+                border: 'none', borderRadius: '4px',
+                cursor: (!selectedCustomer || !selectedPlant) ? 'not-allowed' : 'pointer',
+                background: (!selectedCustomer || !selectedPlant) ? '#666' : '#f44336',
+                color: '#fff',
+                opacity: (!selectedCustomer || !selectedPlant) ? 0.5 : 1
+              }}
+            >
+              RESET
+            </button>
+          </div>
+        </div>
+        <div style={{ flex: 1, overflow: 'hidden', padding: '16px' }} />
+        {showCustomer && (
+          <DraggablePanel title="Customer" onClose={() => { setShowCustomer(false); setCustomerError(''); }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 350 }}>
+              {customerError && <div style={{ color: '#c62828', fontWeight: 600, fontSize: 13 }}>{customerError}</div>}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontWeight: 600, fontSize: 13 }}>Select Customer</label>
+                <select value={selectedCustomer} onChange={(e) => { setSelectedCustomer(e.target.value); setSelectedPlant(''); }} style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc', fontSize: 13 }}>
+                  <option value="">-- Select customer --</option>
+                  {customers.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              {selectedCustomer && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontWeight: 600, fontSize: 13 }}>Select Plant</label>
+                  <select value={selectedPlant} onChange={(e) => setSelectedPlant(e.target.value)} style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc', fontSize: 13 }}>
+                    <option value="">-- Select plant --</option>
+                    {customerPlants.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+              )}
+            </div>
+          </DraggablePanel>
+        )}
+      </div>
+    );
+  }
 
   const debugTransporterState = debugTransporterId != null
     ? transporterStates.find((t) => t.id === debugTransporterId)
@@ -2482,8 +2682,8 @@ export default function App() {
                   <tbody>
                     {units.map(u => {
                       const statusLabels = { 0: 'not_used', 1: 'used' };
-                      const stateLabels = { 0: 'empty', 1: 'not_processed', 2: 'in_process', 3: 'processed' };
-                      const targetLabels = { 0: 'none', 1: 'to_loading', 2: 'to_buffer', 3: 'to_unload', 4: 'to_avoid' };
+                      const stateLabels = { 'empty': 'empty', 'full': 'full', 0: 'empty', 1: 'full' };
+                      const targetLabels = { 'none': 'none', 'to_loading': 'to_loading', 'to_buffer': 'to_buffer', 'to_process': 'to_process', 'to_unload': 'to_unload', 'to_avoid': 'to_avoid', 0: 'none', 1: 'to_loading', 2: 'to_buffer', 3: 'to_process', 4: 'to_unload', 5: 'to_avoid' };
                       const isUsed = u.status === 1;
                       return (
                         <tr key={u.unit_id} style={{ borderBottom: '1px solid #f0f0f0', opacity: isUsed ? 1 : 0.5 }}>
@@ -2555,27 +2755,26 @@ export default function App() {
                       State
                       <select
                         value={unitStateEdit}
-                        onChange={(e) => setUnitStateEdit(Number(e.target.value))}
+                        onChange={(e) => setUnitStateEdit(e.target.value)}
                         style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #90caf9', background: '#fff', fontSize: 13 }}
                       >
-                        <option value={0}>EMPTY (0)</option>
-                        <option value={1}>NOT_PROCESSED (1)</option>
-                        <option value={2}>IN_PROCESS (2)</option>
-                        <option value={3}>PROCESSED (3)</option>
+                        <option value="empty">EMPTY (0)</option>
+                        <option value="full">FULL (1)</option>
                       </select>
                     </label>
                     <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, flex: 1 }}>
                       Target
                       <select
                         value={unitTargetEdit}
-                        onChange={(e) => setUnitTargetEdit(Number(e.target.value))}
+                        onChange={(e) => setUnitTargetEdit(e.target.value)}
                         style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #90caf9', background: '#fff', fontSize: 13 }}
                       >
-                        <option value={0}>TO_NONE (0)</option>
-                        <option value={1}>TO_LOADING (1)</option>
-                        <option value={2}>TO_BUFFER (2)</option>
-                        <option value={3}>TO_UNLOAD (3)</option>
-                        <option value={4}>TO_AVOID (4)</option>
+                        <option value="none">TO_NONE (0)</option>
+                        <option value="to_loading">TO_LOADING (1)</option>
+                        <option value="to_buffer">TO_BUFFER (2)</option>
+                        <option value="to_process">TO_PROCESS (3)</option>
+                        <option value="to_unload">TO_UNLOAD (4)</option>
+                        <option value="to_avoid">TO_AVOID (5)</option>
                       </select>
                     </label>
                     <button

@@ -11,15 +11,14 @@ VAR_GLOBAL CONSTANT
   NOT_USED         : INT := 0;
   (* Unit state *)
   EMPTY            : INT := 0;
-  NOT_PROCESSED    : INT := 1;
-  IN_PROCESS       : INT := 2;
-  PROCESSED        : INT := 3;
+  FULL             : INT := 1;
   (* Unit target *)
   TO_NONE          : INT := 0;
   TO_LOADING       : INT := 1;
   TO_BUFFER        : INT := 2;
-  TO_UNLOAD        : INT := 3;
-  TO_AVOID         : INT := 4;
+  TO_PROCESS       : INT := 3;
+  TO_UNLOAD        : INT := 4;
+  TO_AVOID         : INT := 5;
 END_VAR
 
 VAR_GLOBAL
@@ -150,6 +149,6 @@ VAR_GLOBAL
   iw_unit_batch  AT %QW122 : INT;  (* batch_id *)
   iw_unit_loc    AT %QW123 : INT;  (* location (station number) *)
   iw_unit_status AT %QW124 : INT;  (* NOT_USED=0, USED=1 *)
-  iw_unit_state  AT %QW125 : INT;  (* EMPTY=0, NOT_PROCESSED=1, IN_PROCESS=2, PROCESSED=3 *)
-  iw_unit_target AT %QW126 : INT;  (* TO_NONE=0..TO_AVOID=4 *)
+  iw_unit_state  AT %QW125 : INT;  (* EMPTY=0, FULL=1 *)
+  iw_unit_target AT %QW126 : INT;  (* TO_NONE=0, TO_LOADING=1, TO_BUFFER=2, TO_PROCESS=3, TO_UNLOAD=4, TO_AVOID=5 *)
 END_VAR

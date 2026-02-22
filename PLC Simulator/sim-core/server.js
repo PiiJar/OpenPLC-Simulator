@@ -364,8 +364,8 @@ const ensureMovementTimesLoaded = async () => {
   return null;
 };
 
-// Plant setup selection
-let currentPlantSetup = '1_One_Line_One_2D_Transporter';
+// Plant setup selection — empty on startup, set via /api/copy-customer-plant from gateway RESET
+let currentPlantSetup = '';
 let isCustomerPlant = false; // true when using customer plant, false when using template
 
 // Middleware
@@ -6555,8 +6555,6 @@ app.post('/api/copy-plant-setup', async (req, res) => {
 // Initialize server - no file copying needed, reading directly from plant_setup
 (async () => {
   try {
-    console.log(`Initializing plant setup: ${currentPlantSetup}`);
-    
     // Ensure runtime directory exists
     const runtimeDir = path.join(__dirname, '..', 'visualization', 'runtime');
     try {
@@ -6566,10 +6564,14 @@ app.post('/api/copy-plant-setup', async (req, res) => {
       console.log('Created runtime directory');
     }
     
-    // Lataa runtime-tila muistiin käynnistyksessä
-    await loadRuntimeState();
-    
-    console.log(`Plant setup ready: ${currentPlantSetup}`);
+    if (currentPlantSetup) {
+      console.log(`Initializing plant setup: ${currentPlantSetup}`);
+      // Lataa runtime-tila muistiin käynnistyksessä
+      await loadRuntimeState();
+      console.log(`Plant setup ready: ${currentPlantSetup}`);
+    } else {
+      console.log('No plant setup selected — waiting for customer/plant selection via RESET');
+    }
   } catch (err) {
     console.error('Error initializing:', err.message);
   }

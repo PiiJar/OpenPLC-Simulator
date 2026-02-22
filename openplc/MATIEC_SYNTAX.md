@@ -1,6 +1,6 @@
 # matiec/iec2c — Syntaksisäännöt ja rajoitukset
 
-**Testattu:** 2026-02-21  
+**Testattu:** 2026-02-22  
 **Versio:** matiec (OpenPLC Editor, /opt/openplc-editor/matiec/iec2c)  
 **Lähde:** Testikäännökset + iec_bison.yy -parserin analyysi
 
@@ -106,6 +106,34 @@ VAR
 END_VAR
 ```
 
+### ❌ EI TOIMI: Tyhjä VAR_INPUT-lohko
+
+```iecst
+(* VIRHE: "no variable declared in input variable(s) declaration" *)
+FUNCTION_BLOCK FB_MyBlock
+  VAR_INPUT
+  END_VAR
+  VAR
+    i : INT;
+  END_VAR
+  (* ... *)
+END_FUNCTION_BLOCK
+```
+
+**Korjaus:** Poista tyhjä `VAR_INPUT / END_VAR` kokonaan:
+
+```iecst
+FUNCTION_BLOCK FB_MyBlock
+  VAR
+    i : INT;
+  END_VAR
+  (* ... *)
+END_FUNCTION_BLOCK
+```
+
+> **HUOM:** Tämä koskee kaikkia tyhjiä VAR-lohkoja (VAR_INPUT, VAR_OUTPUT, VAR_IN_OUT).
+> Jos lohkossa ei ole yhtään muuttujaa, lohkoa ei saa kirjoittaa ollenkaan.
+
 ---
 
 ## 3. Globaalit muuttujat ja näkyvyys
@@ -121,6 +149,52 @@ CONFIGURATION Config0
   ...
 END_CONFIGURATION
 ```
+
+### ❌ EI TOIMI: VAR_GLOBAL erillään (flat ST -tiedostossa)
+
+Kun iec2c saa yhden flat .st -tiedoston, `VAR_GLOBAL`-lohkot **pitää** olla
+`CONFIGURATION`-osion sisällä. Erilliset VAR_GLOBAL-lohkot tiedoston
+yläosassa aiheuttavat virheen:
+
+```iecst
+(* VIRHE: "unknown syntax error" riveillä joissa VAR_GLOBAL *)
+VAR_GLOBAL
+  g_count : INT;
+END_VAR
+
+PROGRAM PLC_PRG
+  ...
+END_PROGRAM
+
+CONFIGURATION Config0
+  RESOURCE Res0 ON PLC
+    TASK task0(INTERVAL := T#20ms, PRIORITY := 0);
+    PROGRAM instance0 WITH task0 : PLC_PRG;
+  END_RESOURCE
+END_CONFIGURATION
+```
+
+**Korjaus:** Siirrä VAR_GLOBAL CONFIGURATION-lohkon sisään:
+
+```iecst
+PROGRAM PLC_PRG
+  ...
+END_PROGRAM
+
+CONFIGURATION Config0
+  VAR_GLOBAL
+    g_count : INT;
+  END_VAR
+  RESOURCE Res0 ON PLC
+    TASK task0(INTERVAL := T#20ms, PRIORITY := 0);
+    PROGRAM instance0 WITH task0 : PLC_PRG;
+  END_RESOURCE
+END_CONFIGURATION
+```
+
+> **HUOM:** Tämä koskee flat .st -tiedostoja joissa kaikki koodi on yhdessä
+> tiedostossa. OpenPLC Editorin XML → ST -käännös tekee tämän automaattisesti.
+> Oma `build_plcxml.py` generaattorin `build_flat_st()` funktio hoitaa tämän.
 
 ### ✅ Toimii: Vakiot (CONSTANT)
 
@@ -579,7 +653,53 @@ END_CONFIGURATION
 
 ---
 
-## 12. Yhteenveto rajoituksista
+## 12. Modbus-osoitteet ja AT-direktiivit
+
+### ✅ Toimii: %QW (holding registers — luku/kirjoitus)
+
+```iecst
+CONFIGURATION Config0
+  VAR_GLOBAL
+    qw_x_pos  AT %QW0  : INT;   (* Modbus holding register 0, FC3/FC16 *)
+    iw_cmd    AT %QW100 : INT;   (* holding register 100, gateway voi kirjoittaa *)
+  END_VAR
+  ...
+END_CONFIGURATION
+```
+
+> `%QW` → Modbus **holding registers** (FC3 Read, FC16 Write).
+> Gateway (Modbus master) voi sekä lukea että kirjoittaa.
+
+### ⚠️ VAROITUS: %IW (input registers — vain luku masterilta)
+
+```iecst
+(* %IW = Modbus input registers, FC4 = vain luku *)
+CONFIGURATION Config0
+  VAR_GLOBAL
+    sensor_val AT %IW0 : INT;   (* PLC kirjoittaa, master lukee FC4:llä *)
+  END_VAR
+END_CONFIGURATION
+```
+
+> **KRIITTINEN:** `%IW`-rekisterit ovat **input registers** (FC4).
+> Modbus master (gateway) EI voi kirjoittaa niihin.
+> Jos gateway kirjoittaa holding-rekisteriin osoitteella 1024+N
+> (FC16), se menee eri muistialueelle kuin `%IW` N.
+>
+> **Jos gateway tarvitsee kirjoittaa arvoja PLC:lle, käytä `%QW`.**
+
+### Muistialueiden yhteenveto
+
+| AT-osoite | Modbus-tyyppi | FC-koodi | Master (gateway) | PLC |
+|-----------|--------------|----------|-------------------|-----|
+| `%QX` | Coils | FC1/FC5/FC15 | Luku + Kirjoitus | Luku + Kirjoitus |
+| `%IX` | Discrete Inputs | FC2 | Vain luku | Kirjoitus |
+| `%QW` | Holding Registers | FC3/FC16 | Luku + Kirjoitus | Luku + Kirjoitus |
+| `%IW` | Input Registers | FC4 | Vain luku | Kirjoitus |
+
+---
+
+## 13. Yhteenveto rajoituksista
 
 | # | Rajoitus | Kiertotapa |
 |---|----------|------------|
@@ -589,3 +709,6 @@ END_CONFIGURATION
 | 4 | Globaalit eivät näy ilman `VAR_EXTERNAL` | Lisää `VAR_EXTERNAL`-lohko jokaiseen POU:hun |
 | 5 | `dt` on varattu sana (DATE_AND_TIME) | Käytä `delta_t` |
 | 6 | `END_IF` jne. vaatii puolipisteen | iec2c-wrapper hoitaa automaattisesti |
+| 7 | Tyhjä `VAR_INPUT END_VAR` ei sallittu | Poista tyhjä lohko kokonaan |
+| 8 | `VAR_GLOBAL` erillään flat .st:ssä | Siirrä `CONFIGURATION`-osion sisään |
+| 9 | `%IW` read-only Modbus-masterilta | Käytä `%QW` jos gateway kirjoittaa |

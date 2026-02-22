@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-22T11:59:31"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-22T11:59:31">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-22T12:22:25"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-22T12:22:25">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -1439,17 +1439,9 @@ qw_u10_target := g_units[10].target;]]></xhtml:p>
             <type><INT/></type>
             <initialValue><simpleValue value="0"/></initialValue>
           </variable>
-          <variable name="NOT_PROCESSED">
+          <variable name="FULL">
             <type><INT/></type>
             <initialValue><simpleValue value="1"/></initialValue>
-          </variable>
-          <variable name="IN_PROCESS">
-            <type><INT/></type>
-            <initialValue><simpleValue value="2"/></initialValue>
-          </variable>
-          <variable name="PROCESSED">
-            <type><INT/></type>
-            <initialValue><simpleValue value="3"/></initialValue>
           </variable>
           <variable name="TO_NONE">
             <type><INT/></type>
@@ -1463,13 +1455,17 @@ qw_u10_target := g_units[10].target;]]></xhtml:p>
             <type><INT/></type>
             <initialValue><simpleValue value="2"/></initialValue>
           </variable>
-          <variable name="TO_UNLOAD">
+          <variable name="TO_PROCESS">
             <type><INT/></type>
             <initialValue><simpleValue value="3"/></initialValue>
           </variable>
-          <variable name="TO_AVOID">
+          <variable name="TO_UNLOAD">
             <type><INT/></type>
             <initialValue><simpleValue value="4"/></initialValue>
+          </variable>
+          <variable name="TO_AVOID">
+            <type><INT/></type>
+            <initialValue><simpleValue value="5"/></initialValue>
           </variable>
           <variable name="g_station_count">
             <type><INT/></type>
