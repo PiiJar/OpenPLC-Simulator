@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-22T17:02:51"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-22T17:02:51">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-22T19:02:14"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-22T19:02:14">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -282,6 +282,136 @@
             </variable>
             <variable name="target">
               <type><INT/></type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
+      <dataType name="TSK_STAGE_T">
+        <baseType>
+          <struct>
+            <variable name="station">
+              <type><INT/></type>
+            </variable>
+            <variable name="entry_time">
+              <type><REAL/></type>
+            </variable>
+            <variable name="exit_time">
+              <type><REAL/></type>
+            </variable>
+            <variable name="min_time">
+              <type><REAL/></type>
+            </variable>
+            <variable name="calc_time">
+              <type><REAL/></type>
+            </variable>
+            <variable name="max_time">
+              <type><REAL/></type>
+            </variable>
+            <variable name="transfer_time">
+              <type><REAL/></type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
+      <dataType name="TSK_SCHEDULE_T">
+        <baseType>
+          <struct>
+            <variable name="stage_count">
+              <type><INT/></type>
+            </variable>
+            <variable name="stages">
+              <type>
+                <array>
+                  <dimension lower="1" upper="30"/>
+                  <baseType><derived name="TSK_STAGE_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
+      <dataType name="TSK_TASK_T">
+        <baseType>
+          <struct>
+            <variable name="unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="stage">
+              <type><INT/></type>
+            </variable>
+            <variable name="lift_station">
+              <type><INT/></type>
+            </variable>
+            <variable name="sink_station">
+              <type><INT/></type>
+            </variable>
+            <variable name="start_time">
+              <type><REAL/></type>
+            </variable>
+            <variable name="finish_time">
+              <type><REAL/></type>
+            </variable>
+            <variable name="calc_time">
+              <type><REAL/></type>
+            </variable>
+            <variable name="min_time">
+              <type><REAL/></type>
+            </variable>
+            <variable name="max_time">
+              <type><REAL/></type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
+      <dataType name="TSK_QUEUE_T">
+        <baseType>
+          <struct>
+            <variable name="count">
+              <type><INT/></type>
+            </variable>
+            <variable name="queue">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="TSK_TASK_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
+      <dataType name="TSK_CHECKED_T">
+        <baseType>
+          <struct>
+            <variable name="unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="stage">
+              <type><INT/></type>
+            </variable>
+            <variable name="transporter">
+              <type><INT/></type>
+            </variable>
+            <variable name="start_time">
+              <type><REAL/></type>
+            </variable>
+            <variable name="end_time">
+              <type><REAL/></type>
+            </variable>
+            <variable name="flex_down">
+              <type><REAL/></type>
+            </variable>
+            <variable name="flex_up">
+              <type><REAL/></type>
+            </variable>
+            <variable name="x_min">
+              <type><REAL/></type>
+            </variable>
+            <variable name="x_max">
+              <type><REAL/></type>
+            </variable>
+            <variable name="is_conflict">
+              <type><BOOL/></type>
             </variable>
           </struct>
         </baseType>
@@ -788,6 +918,1815 @@ CASE z_stage OF
     END_IF;
 
 END_CASE;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
+      <pou name="TSK_FB_Analyze" pouType="functionBlock">
+        <interface>
+          <outputVars>
+            <variable name="o_has_conflict">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="o_conf_type">
+              <type><INT/></type>
+            </variable>
+            <variable name="o_conf_unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="o_conf_stage">
+              <type><INT/></type>
+            </variable>
+            <variable name="o_conf_trans">
+              <type><INT/></type>
+            </variable>
+            <variable name="o_blocked_unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="o_blocked_stage">
+              <type><INT/></type>
+            </variable>
+            <variable name="o_deficit">
+              <type><REAL/></type>
+            </variable>
+            <variable name="checked_count">
+              <type><INT/></type>
+            </variable>
+          </outputVars>
+          <externalVars>
+            <variable name="g_tasks">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="TSK_QUEUE_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_move">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="MOVE_TIMES_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_stations">
+              <type>
+                <array>
+                  <dimension lower="101" upper="125"/>
+                  <baseType><derived name="STATION_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="sorted">
+              <type>
+                <array>
+                  <dimension lower="1" upper="30"/>
+                  <baseType><derived name="TSK_TASK_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="sorted_trans">
+              <type>
+                <array>
+                  <dimension lower="1" upper="30"/>
+                  <baseType><INT/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="sorted_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="chk">
+              <type>
+                <array>
+                  <dimension lower="1" upper="30"/>
+                  <baseType><derived name="TSK_CHECKED_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="chk_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="ti">
+              <type><INT/></type>
+            </variable>
+            <variable name="qi">
+              <type><INT/></type>
+            </variable>
+            <variable name="si">
+              <type><INT/></type>
+            </variable>
+            <variable name="ins">
+              <type><INT/></type>
+            </variable>
+            <variable name="ci">
+              <type><INT/></type>
+            </variable>
+            <variable name="tmp_task">
+              <type><derived name="TSK_TASK_T"/></type>
+            </variable>
+            <variable name="tmp_tid">
+              <type><INT/></type>
+            </variable>
+            <variable name="prev_sink">
+              <type><INT/></type>
+            </variable>
+            <variable name="next_lift">
+              <type><INT/></type>
+            </variable>
+            <variable name="from_idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="to_idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="travel_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="gap_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="deficit_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="calc_t">
+              <type><REAL/></type>
+            </variable>
+            <variable name="min_t">
+              <type><REAL/></type>
+            </variable>
+            <variable name="max_t">
+              <type><REAL/></type>
+            </variable>
+            <variable name="f_down">
+              <type><REAL/></type>
+            </variable>
+            <variable name="f_up">
+              <type><REAL/></type>
+            </variable>
+            <variable name="x1_min">
+              <type><REAL/></type>
+            </variable>
+            <variable name="x1_max">
+              <type><REAL/></type>
+            </variable>
+            <variable name="x2_min">
+              <type><REAL/></type>
+            </variable>
+            <variable name="x2_max">
+              <type><REAL/></type>
+            </variable>
+            <variable name="xo_start">
+              <type><REAL/></type>
+            </variable>
+            <variable name="xo_end">
+              <type><REAL/></type>
+            </variable>
+            <variable name="to_start">
+              <type><REAL/></type>
+            </variable>
+            <variable name="to_end">
+              <type><REAL/></type>
+            </variable>
+            <variable name="lift_x">
+              <type><REAL/></type>
+            </variable>
+            <variable name="sink_x">
+              <type><REAL/></type>
+            </variable>
+            <variable name="l_idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="s_idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="DEFICIT_TOL">
+              <type><REAL/></type>
+              <initialValue><simpleValue value="1.0"/></initialValue>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[o_has_conflict := FALSE;
+o_conf_type    := 0;
+o_deficit      := 0.0;
+checked_count  := 0;
+chk_cnt        := 0;
+
+(* ══════ Step 1: Merge all queues into sorted[] by start_time (insertion sort) ══════ *)
+sorted_cnt := 0;
+FOR ti := 1 TO 3 DO
+  FOR qi := 1 TO g_tasks[ti].count DO
+    IF g_tasks[ti].queue[qi].unit > 0 THEN
+      (* Insert into sorted position *)
+      sorted_cnt := sorted_cnt + 1;
+      IF sorted_cnt <= 30 THEN
+        sorted[sorted_cnt] := g_tasks[ti].queue[qi];
+        sorted_trans[sorted_cnt] := ti;
+        (* Insertion sort: bubble up *)
+        ins := sorted_cnt;
+        WHILE ins > 1 DO
+          IF sorted[ins].start_time < sorted[ins - 1].start_time THEN
+            tmp_task := sorted[ins];
+            tmp_tid  := sorted_trans[ins];
+            sorted[ins] := sorted[ins - 1];
+            sorted_trans[ins] := sorted_trans[ins - 1];
+            sorted[ins - 1] := tmp_task;
+            sorted_trans[ins - 1] := tmp_tid;
+            ins := ins - 1;
+          ELSE
+            ins := 0; (* break *)
+          END_IF;
+        END_WHILE;
+      END_IF;
+    END_IF;
+  END_FOR;
+END_FOR;
+
+IF sorted_cnt = 0 THEN RETURN; END_IF;
+
+(* ══════ Step 2: Walk sorted list, build checked[], detect conflicts ══════ *)
+FOR si := 1 TO sorted_cnt DO
+
+  (* Calculate flex for this task *)
+  calc_t := sorted[si].calc_time;
+  min_t  := sorted[si].min_time;
+  max_t  := sorted[si].max_time;
+  f_down := calc_t - min_t;
+  IF f_down < 0.0 THEN f_down := 0.0; END_IF;
+  f_up := max_t - calc_t;
+  IF f_up < 0.0 THEN f_up := 0.0; END_IF;
+
+  (* Get X range for this task *)
+  l_idx := sorted[si].lift_station - 100;
+  s_idx := sorted[si].sink_station - 100;
+  IF l_idx >= 1 AND l_idx <= 25 THEN
+    lift_x := g_stations[sorted[si].lift_station].x_position;
+  ELSE
+    lift_x := 0.0;
+  END_IF;
+  IF s_idx >= 1 AND s_idx <= 25 THEN
+    sink_x := g_stations[sorted[si].sink_station].x_position;
+  ELSE
+    sink_x := 0.0;
+  END_IF;
+  IF lift_x < sink_x THEN
+    x1_min := lift_x;
+    x1_max := sink_x;
+  ELSE
+    x1_min := sink_x;
+    x1_max := lift_x;
+  END_IF;
+
+  (* Add to checked list *)
+  chk_cnt := chk_cnt + 1;
+  IF chk_cnt <= 30 THEN
+    chk[chk_cnt].unit        := sorted[si].unit;
+    chk[chk_cnt].stage       := sorted[si].stage;
+    chk[chk_cnt].transporter := sorted_trans[si];
+    chk[chk_cnt].start_time  := sorted[si].start_time;
+    chk[chk_cnt].end_time    := sorted[si].finish_time;
+    chk[chk_cnt].flex_down   := f_down;
+    chk[chk_cnt].flex_up     := f_up;
+    chk[chk_cnt].x_min       := x1_min;
+    chk[chk_cnt].x_max       := x1_max;
+    chk[chk_cnt].is_conflict := FALSE;
+  END_IF;
+
+  (* ─── Check TASK_SEQUENCE: same transporter, previous task ─── *)
+  (* Find the previous task for this transporter in sorted order *)
+  FOR ci := si - 1 TO 1 BY -1 DO
+    IF sorted_trans[ci] = sorted_trans[si] THEN
+      (* Found previous task on same transporter *)
+      prev_sink := sorted[ci].sink_station;
+      next_lift := sorted[si].lift_station;
+      from_idx  := prev_sink - 100;
+      to_idx    := next_lift - 100;
+
+      travel_s := 0.0;
+      IF from_idx >= 1 AND from_idx <= 25 AND to_idx >= 1 AND to_idx <= 25 THEN
+        travel_s := g_move[sorted_trans[si]].travel[from_idx].to_s[to_idx];
+      END_IF;
+
+      gap_s := sorted[si].start_time - sorted[ci].finish_time;
+      deficit_s := travel_s - gap_s;
+
+      IF deficit_s > DEFICIT_TOL THEN
+        (* TASK_SEQUENCE conflict! *)
+        o_has_conflict  := TRUE;
+        o_conf_type     := 1;
+        o_conf_unit     := sorted[si].unit;
+        o_conf_stage    := sorted[si].stage;
+        o_conf_trans    := sorted_trans[si];
+        o_blocked_unit  := sorted[ci].unit;
+        o_blocked_stage := sorted[ci].stage;
+        o_deficit       := deficit_s;
+        IF chk_cnt <= 30 THEN
+          chk[chk_cnt].is_conflict := TRUE;
+        END_IF;
+        checked_count := chk_cnt;
+        RETURN;
+      END_IF;
+
+      EXIT; (* only check immediate predecessor *)
+    END_IF;
+  END_FOR;
+
+  (* ─── Check TRANSPORTER_COLLISION: different transporter, X+time overlap ─── *)
+  FOR ci := 1 TO chk_cnt - 1 DO
+    IF chk[ci].transporter <> sorted_trans[si] THEN
+      (* X overlap *)
+      x2_min := chk[ci].x_min;
+      x2_max := chk[ci].x_max;
+      xo_start := x1_min;
+      IF x2_min > xo_start THEN xo_start := x2_min; END_IF;
+      xo_end := x1_max;
+      IF x2_max < xo_end THEN xo_end := x2_max; END_IF;
+
+      IF xo_start < xo_end THEN
+        (* Time overlap *)
+        to_start := sorted[si].start_time;
+        IF chk[ci].start_time > to_start THEN to_start := chk[ci].start_time; END_IF;
+        to_end := sorted[si].finish_time;
+        IF chk[ci].end_time < to_end THEN to_end := chk[ci].end_time; END_IF;
+
+        IF to_start < to_end THEN
+          (* TRANSPORTER_COLLISION conflict! *)
+          deficit_s := (to_end - to_start) + 2.0; (* +2s margin *)
+          o_has_conflict  := TRUE;
+          o_conf_type     := 2;
+          o_conf_unit     := sorted[si].unit;
+          o_conf_stage    := sorted[si].stage;
+          o_conf_trans    := sorted_trans[si];
+          o_blocked_unit  := chk[ci].unit;
+          o_blocked_stage := chk[ci].stage;
+          o_deficit       := deficit_s;
+          IF chk_cnt <= 30 THEN
+            chk[chk_cnt].is_conflict := TRUE;
+          END_IF;
+          checked_count := chk_cnt;
+          RETURN;
+        END_IF;
+      END_IF;
+    END_IF;
+  END_FOR;
+
+END_FOR;
+
+(* No conflict found *)
+checked_count := chk_cnt;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
+      <pou name="TSK_FB_CalcSchedule" pouType="functionBlock">
+        <interface>
+          <inputVars>
+            <variable name="i_unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="i_trans">
+              <type><INT/></type>
+            </variable>
+            <variable name="i_time_s">
+              <type><REAL/></type>
+            </variable>
+          </inputVars>
+          <externalVars>
+            <variable name="g_batches">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="BATCH_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_programs">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="TREATMENT_PROGRAM_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_units">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="UNIT_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_stations">
+              <type>
+                <array>
+                  <dimension lower="101" upper="125"/>
+                  <baseType><derived name="STATION_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_move">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="MOVE_TIMES_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_schedule">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_station_count">
+              <type><INT/></type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="st">
+              <type><INT/></type>
+            </variable>
+            <variable name="stn_num">
+              <type><INT/></type>
+            </variable>
+            <variable name="stn_idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="prev_idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="prev_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="cur_stage">
+              <type><INT/></type>
+            </variable>
+            <variable name="location">
+              <type><INT/></type>
+            </variable>
+            <variable name="start_st">
+              <type><INT/></type>
+            </variable>
+            <variable name="entry_t">
+              <type><REAL/></type>
+            </variable>
+            <variable name="exit_t">
+              <type><REAL/></type>
+            </variable>
+            <variable name="xfer_t">
+              <type><REAL/></type>
+            </variable>
+            <variable name="lift_t">
+              <type><REAL/></type>
+            </variable>
+            <variable name="sink_t">
+              <type><REAL/></type>
+            </variable>
+            <variable name="travel_t">
+              <type><REAL/></type>
+            </variable>
+            <variable name="calc_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="min_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="max_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="is_on_stn">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="is_first">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="remain_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="elapsed_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="out_count">
+              <type><INT/></type>
+            </variable>
+            <variable name="p">
+              <type><INT/></type>
+            </variable>
+            <variable name="chosen_stn">
+              <type><INT/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[(* -- Validate inputs -- *)
+IF i_unit < 1 OR i_unit > 10 THEN RETURN; END_IF;
+IF i_trans < 1 OR i_trans > 3 THEN RETURN; END_IF;
+
+(* -- Read batch and unit data -- *)
+cur_stage := g_batches[i_unit].cur_stage;
+location  := g_units[i_unit].location;
+is_on_stn := location >= 100;
+out_count := 0;
+
+(* -- Clear old schedule -- *)
+FOR st := 1 TO 30 DO
+  g_schedule[i_unit].stages[st].station := 0;
+  g_schedule[i_unit].stages[st].entry_time := 0.0;
+  g_schedule[i_unit].stages[st].exit_time := 0.0;
+  g_schedule[i_unit].stages[st].min_time := 0.0;
+  g_schedule[i_unit].stages[st].calc_time := 0.0;
+  g_schedule[i_unit].stages[st].max_time := 0.0;
+  g_schedule[i_unit].stages[st].transfer_time := 0.0;
+END_FOR;
+
+(* -- Determine start stage -- *)
+(* Stage 90 = waiting batch, treat as stage 0 *)
+IF cur_stage = 90 THEN
+  cur_stage := 0;
+END_IF;
+
+(* If on transporter, start from next stage; if on station, from current *)
+IF is_on_stn THEN
+  start_st := cur_stage;
+ELSE
+  start_st := cur_stage + 1;
+END_IF;
+
+(* Force minimum stage 1 *)
+IF start_st < 1 THEN
+  start_st := 1;
+END_IF;
+
+(* -- Previous station (where transfer starts from) -- *)
+IF is_on_stn THEN
+  prev_stn := location;
+ELSIF cur_stage >= 1 AND cur_stage <= 30 THEN
+  (* On transporter: use previous stage station *)
+  prev_stn := g_programs[i_unit].stages[cur_stage].stations[1];
+ELSE
+  prev_stn := 0;
+END_IF;
+
+(* -- prevExitTime: when next stage can begin -- *)
+IF is_on_stn THEN
+  (* Unit is on station: calculate remaining time *)
+  calc_s := INT_TO_REAL(g_batches[i_unit].cur_stage);
+  (* For first stage, remaining time based on calc_time *)
+  exit_t := i_time_s;
+ELSE
+  exit_t := i_time_s;
+END_IF;
+
+is_first := TRUE;
+
+(* ============================================================
+   MAIN LOOP: Calculate schedule for each program stage
+   ============================================================ *)
+FOR st := start_st TO 30 DO
+
+  (* Check if stage has a valid station *)
+  chosen_stn := 0;
+  FOR p := 1 TO 5 DO
+    IF g_programs[i_unit].stages[st].stations[p] > 0 AND chosen_stn = 0 THEN
+      chosen_stn := g_programs[i_unit].stages[st].stations[p];
+    END_IF;
+  END_FOR;
+
+  (* No station means end of program *)
+  IF chosen_stn = 0 THEN
+    EXIT;
+  END_IF;
+
+  stn_num := chosen_stn;
+
+  (* Read treatment times from program *)
+  calc_s := INT_TO_REAL(g_programs[i_unit].stages[st].cal_time);
+  min_s  := INT_TO_REAL(g_programs[i_unit].stages[st].min_time);
+  max_s  := INT_TO_REAL(g_programs[i_unit].stages[st].max_time);
+
+  (* -- Calculate transfer time from prev_stn to stn_num -- *)
+  xfer_t := 0.0;
+  IF prev_stn > 0 AND prev_stn <> stn_num THEN
+    prev_idx := prev_stn - 100;
+    stn_idx  := stn_num - 100;
+    IF prev_idx >= 1 AND prev_idx <= 25 AND stn_idx >= 1 AND stn_idx <= 25 THEN
+      lift_t   := g_move[i_trans].lift_s[prev_idx];
+      travel_t := g_move[i_trans].travel[prev_idx].to_s[stn_idx];
+      sink_t   := g_move[i_trans].sink_s[stn_idx];
+      xfer_t   := lift_t + travel_t + sink_t;
+    END_IF;
+  END_IF;
+
+  (* -- Calculate entry and exit times -- *)
+  IF is_first AND is_on_stn AND st = cur_stage THEN
+    (* Batch is currently at this station *)
+    entry_t := i_time_s;
+    (* Remaining time: calc_time - elapsed *)
+    remain_s := calc_s;
+    IF remain_s < 1.0 THEN remain_s := 1.0; END_IF;
+    exit_t := i_time_s + remain_s;
+  ELSIF is_first AND NOT is_on_stn THEN
+    (* Batch is on transporter: entry = now (transfer in progress) *)
+    entry_t := exit_t;
+    exit_t  := entry_t + calc_s;
+  ELSE
+    (* Normal stage: entry = prev exit + transfer *)
+    entry_t := exit_t + xfer_t;
+    exit_t  := entry_t + calc_s;
+  END_IF;
+
+  (* -- Write to schedule -- *)
+  out_count := out_count + 1;
+  IF out_count <= 30 THEN
+    g_schedule[i_unit].stages[out_count].station       := stn_num;
+    g_schedule[i_unit].stages[out_count].entry_time    := entry_t;
+    g_schedule[i_unit].stages[out_count].exit_time     := exit_t;
+    g_schedule[i_unit].stages[out_count].min_time      := min_s;
+    g_schedule[i_unit].stages[out_count].calc_time     := calc_s;
+    g_schedule[i_unit].stages[out_count].max_time      := max_s;
+    g_schedule[i_unit].stages[out_count].transfer_time := xfer_t;
+  END_IF;
+
+  (* -- Update for next iteration -- *)
+  prev_stn := stn_num;
+  is_first := FALSE;
+
+END_FOR;
+
+g_schedule[i_unit].stage_count := out_count;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
+      <pou name="TSK_FB_CreateTasks" pouType="functionBlock">
+        <interface>
+          <inputVars>
+            <variable name="i_unit">
+              <type><INT/></type>
+            </variable>
+          </inputVars>
+          <externalVars>
+            <variable name="g_batches">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="BATCH_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_schedule">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_cfg">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="TRANSPORTER_CFG_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_tasks">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="TSK_QUEUE_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="si">
+              <type><INT/></type>
+            </variable>
+            <variable name="sc">
+              <type><INT/></type>
+            </variable>
+            <variable name="lift_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="sink_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="cur_stage">
+              <type><INT/></type>
+            </variable>
+            <variable name="skip_before">
+              <type><INT/></type>
+            </variable>
+            <variable name="tid">
+              <type><INT/></type>
+            </variable>
+            <variable name="ti">
+              <type><INT/></type>
+            </variable>
+            <variable name="ai">
+              <type><INT/></type>
+            </variable>
+            <variable name="area">
+              <type><derived name="TASK_AREA_T"/></type>
+            </variable>
+            <variable name="can_lift">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="can_sink">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="qi">
+              <type><INT/></type>
+            </variable>
+            <variable name="stg_num">
+              <type><INT/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[IF i_unit < 1 OR i_unit > 10 THEN RETURN; END_IF;
+
+sc := g_schedule[i_unit].stage_count;
+IF sc < 2 THEN RETURN; END_IF;
+
+cur_stage := g_batches[i_unit].cur_stage;
+IF cur_stage = 90 THEN
+  skip_before := 0;
+ELSE
+  skip_before := cur_stage;
+END_IF;
+
+(* Loop through consecutive stage pairs *)
+FOR si := 1 TO sc - 1 DO
+  (* schedule index si = current stage, si+1 = next stage *)
+  stg_num := si;   (* simplified: schedule stage index = stage number *)
+
+  (* Skip already completed stages *)
+  IF stg_num >= skip_before THEN
+    lift_stn := g_schedule[i_unit].stages[si].station;
+    sink_stn := g_schedule[i_unit].stages[si + 1].station;
+
+    IF lift_stn > 0 AND sink_stn > 0 THEN
+      (* -- Find transporter via task_area matching -- *)
+      tid := 0;
+      FOR ti := 1 TO 3 DO
+        IF tid = 0 THEN
+          FOR ai := 1 TO 4 DO
+            IF tid = 0 THEN
+              area := g_cfg[ti].task_area[ai];
+              (* Skip unconfigured areas *)
+              IF area.min_lift > 0 OR area.max_lift > 0 THEN
+                can_lift := (lift_stn >= area.min_lift) AND (lift_stn <= area.max_lift);
+                can_sink := (sink_stn >= area.min_sink) AND (sink_stn <= area.max_sink);
+                IF can_lift AND can_sink THEN
+                  tid := ti;
+                END_IF;
+              END_IF;
+            END_IF;
+          END_FOR;
+        END_IF;
+      END_FOR;
+
+      (* -- Append task to transporter queue -- *)
+      IF tid >= 1 AND tid <= 3 THEN
+        qi := g_tasks[tid].count + 1;
+        IF qi <= 10 THEN
+          g_tasks[tid].queue[qi].unit         := i_unit;
+          g_tasks[tid].queue[qi].stage        := stg_num;
+          g_tasks[tid].queue[qi].lift_station := lift_stn;
+          g_tasks[tid].queue[qi].sink_station := sink_stn;
+          g_tasks[tid].queue[qi].start_time   := g_schedule[i_unit].stages[si].exit_time;
+          g_tasks[tid].queue[qi].finish_time  := g_schedule[i_unit].stages[si + 1].entry_time;
+          g_tasks[tid].queue[qi].calc_time    := g_schedule[i_unit].stages[si].calc_time;
+          g_tasks[tid].queue[qi].min_time     := g_schedule[i_unit].stages[si].min_time;
+          g_tasks[tid].queue[qi].max_time     := g_schedule[i_unit].stages[si].max_time;
+          g_tasks[tid].count := qi;
+        END_IF;
+      END_IF;
+    END_IF;
+  END_IF;
+END_FOR;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
+      <pou name="TSK_FB_NoTreatment" pouType="functionBlock">
+        <interface>
+          <inputVars>
+            <variable name="i_time_s">
+              <type><REAL/></type>
+            </variable>
+          </inputVars>
+          <externalVars>
+            <variable name="g_units">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="UNIT_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_state">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="TRANSPORTER_STATE_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_cfg">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="TRANSPORTER_CFG_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_tasks">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="TSK_QUEUE_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_move">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="MOVE_TIMES_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_stations">
+              <type>
+                <array>
+                  <dimension lower="101" upper="125"/>
+                  <baseType><derived name="STATION_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_station_count">
+              <type><INT/></type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="ui">
+              <type><INT/></type>
+            </variable>
+            <variable name="ti">
+              <type><INT/></type>
+            </variable>
+            <variable name="ai">
+              <type><INT/></type>
+            </variable>
+            <variable name="qi">
+              <type><INT/></type>
+            </variable>
+            <variable name="loc">
+              <type><INT/></type>
+            </variable>
+            <variable name="tgt">
+              <type><INT/></type>
+            </variable>
+            <variable name="cov_t">
+              <type><INT/></type>
+            </variable>
+            <variable name="area">
+              <type><derived name="TASK_AREA_T"/></type>
+            </variable>
+            <variable name="dest_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="si">
+              <type><INT/></type>
+            </variable>
+            <variable name="stn_free">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="stn_ok">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="from_idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="to_idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="travel_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="xfer_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="lift_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="sink_s_v">
+              <type><REAL/></type>
+            </variable>
+            <variable name="task_start">
+              <type><REAL/></type>
+            </variable>
+            <variable name="task_end">
+              <type><REAL/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[FOR ui := 1 TO 10 DO
+  tgt := g_units[ui].target;
+  loc := g_units[ui].location;
+
+  (* Skip: no target, target is process (handled by schedule), not on station *)
+  IF tgt <> 0 AND tgt <> 3 AND loc >= 100 THEN
+    (* Find covering transporter *)
+    cov_t := 0;
+    FOR ti := 1 TO 3 DO
+      IF cov_t = 0 THEN
+        FOR ai := 1 TO 4 DO
+          IF cov_t = 0 THEN
+            area := g_cfg[ti].task_area[ai];
+            IF area.min_lift > 0 OR area.max_lift > 0 THEN
+              IF loc >= area.min_lift AND loc <= area.max_lift THEN
+                cov_t := ti;
+              END_IF;
+            END_IF;
+          END_IF;
+        END_FOR;
+      END_IF;
+    END_FOR;
+
+    IF cov_t >= 1 AND cov_t <= 3 THEN
+      (* Check transporter is idle: phase=0, active *)
+      IF g_state[cov_t].phase = 0 AND g_state[cov_t].active THEN
+
+        (* Find destination station: first available in transporter area *)
+        dest_stn := 0;
+        FOR ai := 1 TO 4 DO
+          IF dest_stn = 0 THEN
+            area := g_cfg[cov_t].task_area[ai];
+            IF area.min_sink > 0 THEN
+              FOR si := area.min_sink TO area.max_sink DO
+                IF dest_stn = 0 AND si <> loc AND si >= 101 AND si <= 125 THEN
+                  (* Check station is free: no unit there *)
+                  stn_free := TRUE;
+                  FOR qi := 1 TO 10 DO
+                    IF g_units[qi].location = si AND g_units[qi].status = 1 THEN
+                      stn_free := FALSE;
+                    END_IF;
+                  END_FOR;
+                  IF stn_free THEN
+                    dest_stn := si;
+                  END_IF;
+                END_IF;
+              END_FOR;
+            END_IF;
+          END_IF;
+        END_FOR;
+
+        IF dest_stn > 0 THEN
+          (* Calculate timing *)
+          from_idx := loc - 100;
+          to_idx   := dest_stn - 100;
+          travel_s := 0.0;
+          lift_s   := 0.0;
+          sink_s_v := 0.0;
+          IF from_idx >= 1 AND from_idx <= 25 AND to_idx >= 1 AND to_idx <= 25 THEN
+            lift_s   := g_move[cov_t].lift_s[from_idx];
+            travel_s := g_move[cov_t].travel[from_idx].to_s[to_idx];
+            sink_s_v := g_move[cov_t].sink_s[to_idx];
+          END_IF;
+          xfer_s := lift_s + travel_s + sink_s_v;
+
+          task_start := i_time_s;
+          task_end   := task_start + xfer_s;
+
+          (* Append to queue *)
+          qi := g_tasks[cov_t].count + 1;
+          IF qi <= 10 THEN
+            g_tasks[cov_t].queue[qi].unit         := ui;
+            g_tasks[cov_t].queue[qi].stage        := 0;  (* no program stage *)
+            g_tasks[cov_t].queue[qi].lift_station := loc;
+            g_tasks[cov_t].queue[qi].sink_station := dest_stn;
+            g_tasks[cov_t].queue[qi].start_time   := task_start;
+            g_tasks[cov_t].queue[qi].finish_time  := task_end;
+            g_tasks[cov_t].queue[qi].calc_time    := 0.0;
+            g_tasks[cov_t].queue[qi].min_time     := 0.0;
+            g_tasks[cov_t].queue[qi].max_time     := 0.0;
+            g_tasks[cov_t].count := qi;
+          END_IF;
+        END_IF;
+
+      END_IF; (* transporter idle *)
+    END_IF; (* covering transporter found *)
+  END_IF; (* valid target *)
+END_FOR;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
+      <pou name="TSK_FB_Resolve" pouType="functionBlock">
+        <interface>
+          <inputVars>
+            <variable name="i_conf_unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="i_conf_stage">
+              <type><INT/></type>
+            </variable>
+            <variable name="i_conf_trans">
+              <type><INT/></type>
+            </variable>
+            <variable name="i_blocked_unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="i_blocked_stage">
+              <type><INT/></type>
+            </variable>
+            <variable name="i_deficit">
+              <type><REAL/></type>
+            </variable>
+          </inputVars>
+          <outputVars>
+            <variable name="o_solved">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="o_total_delay">
+              <type><REAL/></type>
+            </variable>
+            <variable name="o_total_adv">
+              <type><REAL/></type>
+            </variable>
+          </outputVars>
+          <externalVars>
+            <variable name="g_tasks">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="TSK_QUEUE_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_schedule">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_batches">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="BATCH_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="remain">
+              <type><REAL/></type>
+            </variable>
+            <variable name="cap">
+              <type><REAL/></type>
+            </variable>
+            <variable name="flex">
+              <type><REAL/></type>
+            </variable>
+            <variable name="amount">
+              <type><REAL/></type>
+            </variable>
+            <variable name="qi">
+              <type><INT/></type>
+            </variable>
+            <variable name="si">
+              <type><INT/></type>
+            </variable>
+            <variable name="cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="sc">
+              <type><INT/></type>
+            </variable>
+            <variable name="locks">
+              <type>
+                <array>
+                  <dimension lower="1" upper="50"/>
+                  <baseType><INT/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="lock_dir">
+              <type>
+                <array>
+                  <dimension lower="1" upper="50"/>
+                  <baseType><INT/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="lock_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="lock_key">
+              <type><INT/></type>
+            </variable>
+            <variable name="is_locked">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="lock_i">
+              <type><INT/></type>
+            </variable>
+            <variable name="prev_flex">
+              <type><REAL/></type>
+            </variable>
+            <variable name="next_flex">
+              <type><REAL/></type>
+            </variable>
+            <variable name="prev_stage_flex">
+              <type><REAL/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[o_solved      := FALSE;
+o_total_delay := 0.0;
+o_total_adv   := 0.0;
+remain        := i_deficit;
+
+IF remain <= 0.1 THEN
+  o_solved := TRUE;
+  RETURN;
+END_IF;
+
+(* ══════ Phase 1: ADVANCE prev batch (blocked_unit, blocked_stage) ══════ *)
+(* Reduce treatment time toward min_time = flex_down *)
+
+(* Find flex_down for blocked stage in schedule *)
+prev_flex := 0.0;
+IF i_blocked_unit >= 1 AND i_blocked_unit <= 10 THEN
+  sc := g_schedule[i_blocked_unit].stage_count;
+  FOR si := 1 TO sc DO
+    IF si = i_blocked_stage THEN
+      prev_flex := g_schedule[i_blocked_unit].stages[si].calc_time
+                 - g_schedule[i_blocked_unit].stages[si].min_time;
+      IF prev_flex < 0.0 THEN prev_flex := 0.0; END_IF;
+    END_IF;
+  END_FOR;
+END_IF;
+
+IF prev_flex > 0.1 THEN
+  (* Cap: 90% if batch is on this stage, 50% otherwise *)
+  IF g_batches[i_blocked_unit].cur_stage = i_blocked_stage THEN
+    cap := 0.9;
+  ELSE
+    cap := 0.5;
+  END_IF;
+  amount := prev_flex * cap;
+  IF amount > remain THEN amount := remain; END_IF;
+
+  (* Apply: shift blocked batch's stage exit earlier *)
+  IF i_blocked_stage >= 1 AND i_blocked_stage <= 30 THEN
+    g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time :=
+      g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time - amount;
+    g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time :=
+      g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time - amount;
+    (* Propagate: shift all later stages earlier *)
+    sc := g_schedule[i_blocked_unit].stage_count;
+    FOR si := i_blocked_stage + 1 TO sc DO
+      g_schedule[i_blocked_unit].stages[si].entry_time :=
+        g_schedule[i_blocked_unit].stages[si].entry_time - amount;
+      g_schedule[i_blocked_unit].stages[si].exit_time :=
+        g_schedule[i_blocked_unit].stages[si].exit_time - amount;
+    END_FOR;
+  END_IF;
+
+  (* Update tasks for blocked unit in all transporter queues *)
+  FOR qi := 1 TO 3 DO
+    FOR si := 1 TO g_tasks[qi].count DO
+      IF g_tasks[qi].queue[si].unit = i_blocked_unit
+         AND g_tasks[qi].queue[si].stage >= i_blocked_stage THEN
+        g_tasks[qi].queue[si].start_time :=
+          g_tasks[qi].queue[si].start_time - amount;
+        g_tasks[qi].queue[si].finish_time :=
+          g_tasks[qi].queue[si].finish_time - amount;
+      END_IF;
+    END_FOR;
+  END_FOR;
+
+  remain := remain - amount;
+  o_total_adv := o_total_adv + amount;
+END_IF;
+
+IF remain <= 0.1 THEN
+  o_solved := TRUE;
+  RETURN;
+END_IF;
+
+(* ══════ Phase 2: DELAY next batch conflict stage (conf_unit, conf_stage) ══════ *)
+(* Increase treatment time toward max_time = flex_up *)
+next_flex := 0.0;
+IF i_conf_unit >= 1 AND i_conf_unit <= 10 AND i_conf_stage >= 1 AND i_conf_stage <= 30 THEN
+  next_flex := g_schedule[i_conf_unit].stages[i_conf_stage].max_time
+             - g_schedule[i_conf_unit].stages[i_conf_stage].calc_time;
+  IF next_flex < 0.0 THEN next_flex := 0.0; END_IF;
+END_IF;
+
+IF next_flex > 0.1 THEN
+  IF g_batches[i_conf_unit].cur_stage = i_conf_stage THEN
+    cap := 0.9;
+  ELSE
+    cap := 0.5;
+  END_IF;
+  amount := next_flex * cap;
+  IF amount > remain THEN amount := remain; END_IF;
+
+  (* Apply: extend conflict stage, shift later stages forward *)
+  g_schedule[i_conf_unit].stages[i_conf_stage].calc_time :=
+    g_schedule[i_conf_unit].stages[i_conf_stage].calc_time + amount;
+  g_schedule[i_conf_unit].stages[i_conf_stage].exit_time :=
+    g_schedule[i_conf_unit].stages[i_conf_stage].exit_time + amount;
+  sc := g_schedule[i_conf_unit].stage_count;
+  FOR si := i_conf_stage + 1 TO sc DO
+    g_schedule[i_conf_unit].stages[si].entry_time :=
+      g_schedule[i_conf_unit].stages[si].entry_time + amount;
+    g_schedule[i_conf_unit].stages[si].exit_time :=
+      g_schedule[i_conf_unit].stages[si].exit_time + amount;
+  END_FOR;
+
+  (* Update tasks *)
+  FOR qi := 1 TO 3 DO
+    FOR si := 1 TO g_tasks[qi].count DO
+      IF g_tasks[qi].queue[si].unit = i_conf_unit
+         AND g_tasks[qi].queue[si].stage >= i_conf_stage THEN
+        g_tasks[qi].queue[si].start_time :=
+          g_tasks[qi].queue[si].start_time + amount;
+        g_tasks[qi].queue[si].finish_time :=
+          g_tasks[qi].queue[si].finish_time + amount;
+      END_IF;
+    END_FOR;
+  END_FOR;
+
+  remain := remain - amount;
+  o_total_delay := o_total_delay + amount;
+END_IF;
+
+IF remain <= 0.1 THEN
+  o_solved := TRUE;
+  RETURN;
+END_IF;
+
+(* ══════ Phase 3: DELAY next batch previous stage (conf_stage - 1) ══════ *)
+IF i_conf_stage > 1 THEN
+  prev_stage_flex := 0.0;
+  IF i_conf_unit >= 1 AND i_conf_unit <= 10 AND (i_conf_stage - 1) >= 1 THEN
+    prev_stage_flex := g_schedule[i_conf_unit].stages[i_conf_stage - 1].max_time
+                     - g_schedule[i_conf_unit].stages[i_conf_stage - 1].calc_time;
+    IF prev_stage_flex < 0.0 THEN prev_stage_flex := 0.0; END_IF;
+  END_IF;
+
+  IF prev_stage_flex > 0.1 THEN
+    IF g_batches[i_conf_unit].cur_stage = (i_conf_stage - 1) THEN
+      cap := 0.9;
+    ELSE
+      cap := 0.5;
+    END_IF;
+    amount := prev_stage_flex * cap;
+    IF amount > remain THEN amount := remain; END_IF;
+
+    (* Apply: extend previous stage, propagate from conf_stage onward *)
+    g_schedule[i_conf_unit].stages[i_conf_stage - 1].calc_time :=
+      g_schedule[i_conf_unit].stages[i_conf_stage - 1].calc_time + amount;
+    g_schedule[i_conf_unit].stages[i_conf_stage - 1].exit_time :=
+      g_schedule[i_conf_unit].stages[i_conf_stage - 1].exit_time + amount;
+    sc := g_schedule[i_conf_unit].stage_count;
+    FOR si := i_conf_stage TO sc DO
+      g_schedule[i_conf_unit].stages[si].entry_time :=
+        g_schedule[i_conf_unit].stages[si].entry_time + amount;
+      g_schedule[i_conf_unit].stages[si].exit_time :=
+        g_schedule[i_conf_unit].stages[si].exit_time + amount;
+    END_FOR;
+
+    FOR qi := 1 TO 3 DO
+      FOR si := 1 TO g_tasks[qi].count DO
+        IF g_tasks[qi].queue[si].unit = i_conf_unit
+           AND g_tasks[qi].queue[si].stage >= (i_conf_stage - 1) THEN
+          g_tasks[qi].queue[si].start_time :=
+            g_tasks[qi].queue[si].start_time + amount;
+          g_tasks[qi].queue[si].finish_time :=
+            g_tasks[qi].queue[si].finish_time + amount;
+        END_IF;
+      END_FOR;
+    END_FOR;
+
+    remain := remain - amount;
+    o_total_delay := o_total_delay + amount;
+  END_IF;
+END_IF;
+
+IF remain <= 0.1 THEN
+  o_solved := TRUE;
+  RETURN;
+END_IF;
+
+(* ══════ Phase 4: DELAY prev past next (forced reorder) ══════ *)
+(* Delay blocked_unit's stage to push it past conflict *)
+prev_flex := 0.0;
+IF i_blocked_unit >= 1 AND i_blocked_unit <= 10 AND i_blocked_stage >= 1 AND i_blocked_stage <= 30 THEN
+  prev_flex := g_schedule[i_blocked_unit].stages[i_blocked_stage].max_time
+             - g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time;
+  IF prev_flex < 0.0 THEN prev_flex := 0.0; END_IF;
+END_IF;
+
+IF prev_flex > 0.1 THEN
+  IF g_batches[i_blocked_unit].cur_stage = i_blocked_stage THEN
+    cap := 0.9;
+  ELSE
+    cap := 0.5;
+  END_IF;
+  amount := prev_flex * cap;
+  IF amount > remain THEN amount := remain; END_IF;
+
+  g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time :=
+    g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time + amount;
+  g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time :=
+    g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time + amount;
+  sc := g_schedule[i_blocked_unit].stage_count;
+  FOR si := i_blocked_stage + 1 TO sc DO
+    g_schedule[i_blocked_unit].stages[si].entry_time :=
+      g_schedule[i_blocked_unit].stages[si].entry_time + amount;
+    g_schedule[i_blocked_unit].stages[si].exit_time :=
+      g_schedule[i_blocked_unit].stages[si].exit_time + amount;
+  END_FOR;
+
+  FOR qi := 1 TO 3 DO
+    FOR si := 1 TO g_tasks[qi].count DO
+      IF g_tasks[qi].queue[si].unit = i_blocked_unit
+         AND g_tasks[qi].queue[si].stage >= i_blocked_stage THEN
+        g_tasks[qi].queue[si].start_time :=
+          g_tasks[qi].queue[si].start_time + amount;
+        g_tasks[qi].queue[si].finish_time :=
+          g_tasks[qi].queue[si].finish_time + amount;
+      END_IF;
+    END_FOR;
+  END_FOR;
+
+  remain := remain - amount;
+  o_total_delay := o_total_delay + amount;
+END_IF;
+
+IF remain <= 0.1 THEN
+  o_solved := TRUE;
+END_IF;
+
+(* If not solved, partial resolution was still applied *)]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
+      <pou name="TSK_FB_Scheduler" pouType="functionBlock">
+        <interface>
+          <inputVars>
+            <variable name="i_run">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="i_time_s">
+              <type><REAL/></type>
+            </variable>
+          </inputVars>
+          <outputVars>
+            <variable name="o_phase">
+              <type><INT/></type>
+            </variable>
+            <variable name="o_batch_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="o_task_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="o_cycle_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="o_conflict">
+              <type><BOOL/></type>
+            </variable>
+          </outputVars>
+          <externalVars>
+            <variable name="g_batches">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="BATCH_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_units">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="UNIT_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_programs">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="TREATMENT_PROGRAM_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_tasks">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="TSK_QUEUE_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_schedule">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_cfg">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="TRANSPORTER_CFG_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="phase">
+              <type><INT/></type>
+              <initialValue><simpleValue value="0"/></initialValue>
+            </variable>
+            <variable name="next_phase">
+              <type><INT/></type>
+            </variable>
+            <variable name="batch_idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="batch_list">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><INT/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="batch_count">
+              <type><INT/></type>
+            </variable>
+            <variable name="conflict_iter">
+              <type><INT/></type>
+            </variable>
+            <variable name="MAX_CONFLICT_ITER">
+              <type><INT/></type>
+              <initialValue><simpleValue value="20"/></initialValue>
+            </variable>
+            <variable name="fb_calc">
+              <type><derived name="TSK_FB_CalcSchedule"/></type>
+            </variable>
+            <variable name="fb_create">
+              <type><derived name="TSK_FB_CreateTasks"/></type>
+            </variable>
+            <variable name="fb_swap">
+              <type><derived name="TSK_FB_SwapTasks"/></type>
+            </variable>
+            <variable name="fb_analyze">
+              <type><derived name="TSK_FB_Analyze"/></type>
+            </variable>
+            <variable name="fb_resolve">
+              <type><derived name="TSK_FB_Resolve"/></type>
+            </variable>
+            <variable name="fb_notrt">
+              <type><derived name="TSK_FB_NoTreatment"/></type>
+            </variable>
+            <variable name="sched_trans">
+              <type><INT/></type>
+            </variable>
+            <variable name="bi">
+              <type><INT/></type>
+            </variable>
+            <variable name="ti">
+              <type><INT/></type>
+            </variable>
+            <variable name="qi">
+              <type><INT/></type>
+            </variable>
+            <variable name="ui">
+              <type><INT/></type>
+            </variable>
+            <variable name="total_tasks">
+              <type><INT/></type>
+            </variable>
+            <variable name="ins_i">
+              <type><INT/></type>
+            </variable>
+            <variable name="ins_j">
+              <type><INT/></type>
+            </variable>
+            <variable name="ins_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="tmp_task">
+              <type><derived name="TSK_TASK_T"/></type>
+            </variable>
+            <variable name="cycle_count">
+              <type><INT/></type>
+              <initialValue><simpleValue value="0"/></initialValue>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[IF NOT i_run THEN
+  phase := 0;
+  o_phase := 0;
+  RETURN;
+END_IF;
+
+next_phase := phase;
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* PHASE 0: STOPPED — wait for i_run                            *)
+(* ══════════════════════════════════════════════════════════════ *)
+IF phase = 0 THEN
+  next_phase := 1;
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* PHASE 1: INIT — collect active batches                       *)
+(* ══════════════════════════════════════════════════════════════ *)
+ELSIF phase = 1 THEN
+  batch_count := 0;
+  FOR bi := 1 TO 10 DO
+    (* Active batch: state = IN_PROCESS (1) or has valid program *)
+    IF g_batches[bi].state = 1 THEN
+      batch_count := batch_count + 1;
+      batch_list[batch_count] := bi;
+    END_IF;
+  END_FOR;
+  o_batch_cnt := batch_count;
+  conflict_iter := 0;
+
+  IF batch_count = 0 THEN
+    (* No active batches — go to READY directly *)
+    next_phase := 10000;
+  ELSE
+    next_phase := 1000;
+  END_IF;
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* PHASE 1000: SCHEDULE_START                                   *)
+(* ══════════════════════════════════════════════════════════════ *)
+ELSIF phase = 1000 THEN
+  batch_idx := 1;
+  next_phase := 1001;
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* PHASE 1001..1010: SCHEDULE per batch (one per tick)          *)
+(* ══════════════════════════════════════════════════════════════ *)
+ELSIF phase >= 1001 AND phase <= 1010 THEN
+  IF batch_idx <= batch_count THEN
+    ui := batch_list[batch_idx];
+
+    (* Find transporter for this unit — first one with matching task_area *)
+    sched_trans := 1; (* default *)
+    FOR ti := 1 TO 3 DO
+      FOR qi := 1 TO 4 DO
+        IF g_units[ui].location >= g_cfg[ti].task_area[qi].min_lift
+           AND g_units[ui].location <= g_cfg[ti].task_area[qi].max_lift THEN
+          sched_trans := ti;
+        END_IF;
+      END_FOR;
+    END_FOR;
+
+    fb_calc(i_unit := ui, i_trans := sched_trans, i_time_s := i_time_s);
+
+    batch_idx := batch_idx + 1;
+    IF batch_idx <= batch_count THEN
+      next_phase := phase + 1;
+    ELSE
+      next_phase := 1900;
+    END_IF;
+  ELSE
+    next_phase := 1900;
+  END_IF;
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* PHASE 1900: SCHEDULE_DONE                                    *)
+(* ══════════════════════════════════════════════════════════════ *)
+ELSIF phase = 1900 THEN
+  next_phase := 2000;
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* PHASE 2000: TASKS_START — clear all task queues              *)
+(* ══════════════════════════════════════════════════════════════ *)
+ELSIF phase = 2000 THEN
+  FOR ti := 1 TO 3 DO
+    g_tasks[ti].count := 0;
+    FOR qi := 1 TO 10 DO
+      g_tasks[ti].queue[qi].unit := 0;
+      g_tasks[ti].queue[qi].stage := 0;
+      g_tasks[ti].queue[qi].lift_station := 0;
+      g_tasks[ti].queue[qi].sink_station := 0;
+      g_tasks[ti].queue[qi].start_time := 0.0;
+      g_tasks[ti].queue[qi].finish_time := 0.0;
+      g_tasks[ti].queue[qi].calc_time := 0.0;
+      g_tasks[ti].queue[qi].min_time := 0.0;
+      g_tasks[ti].queue[qi].max_time := 0.0;
+    END_FOR;
+  END_FOR;
+  batch_idx := 1;
+  next_phase := 2001;
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* PHASE 2001..2010: CREATE_TASKS per batch (one per tick)      *)
+(* ══════════════════════════════════════════════════════════════ *)
+ELSIF phase >= 2001 AND phase <= 2010 THEN
+  IF batch_idx <= batch_count THEN
+    ui := batch_list[batch_idx];
+    fb_create(i_unit := ui);
+    batch_idx := batch_idx + 1;
+    IF batch_idx <= batch_count THEN
+      next_phase := phase + 1;
+    ELSE
+      next_phase := 2200;
+    END_IF;
+  ELSE
+    next_phase := 2200;
+  END_IF;
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* PHASE 2200: TASKS_SORT — insertion sort each queue by time   *)
+(* ══════════════════════════════════════════════════════════════ *)
+ELSIF phase = 2200 THEN
+  FOR ti := 1 TO 3 DO
+    ins_cnt := g_tasks[ti].count;
+    IF ins_cnt >= 2 THEN
+      FOR ins_i := 2 TO ins_cnt DO
+        tmp_task := g_tasks[ti].queue[ins_i];
+        ins_j := ins_i - 1;
+        WHILE ins_j >= 1 AND g_tasks[ti].queue[ins_j].start_time > tmp_task.start_time DO
+          g_tasks[ti].queue[ins_j + 1] := g_tasks[ti].queue[ins_j];
+          ins_j := ins_j - 1;
+        END_WHILE;
+        g_tasks[ti].queue[ins_j + 1] := tmp_task;
+      END_FOR;
+    END_IF;
+  END_FOR;
+  next_phase := 2201;
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* PHASE 2201: TASKS_SWAP                                       *)
+(* ══════════════════════════════════════════════════════════════ *)
+ELSIF phase = 2201 THEN
+  fb_swap();
+  next_phase := 2202;
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* PHASE 2202: TASKS_ANALYZE                                    *)
+(* ══════════════════════════════════════════════════════════════ *)
+ELSIF phase = 2202 THEN
+  fb_analyze();
+  o_conflict := fb_analyze.o_has_conflict;
+  IF fb_analyze.o_has_conflict THEN
+    next_phase := 2203;
+  ELSE
+    next_phase := 2204;
+  END_IF;
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* PHASE 2203: TASKS_RESOLVE                                    *)
+(* One conflict per cycle → recalculate                         *)
+(* ══════════════════════════════════════════════════════════════ *)
+ELSIF phase = 2203 THEN
+  fb_resolve(
+    i_conf_unit     := fb_analyze.o_conf_unit,
+    i_conf_stage    := fb_analyze.o_conf_stage,
+    i_conf_trans    := fb_analyze.o_conf_trans,
+    i_blocked_unit  := fb_analyze.o_blocked_unit,
+    i_blocked_stage := fb_analyze.o_blocked_stage,
+    i_deficit       := fb_analyze.o_deficit
+  );
+
+  conflict_iter := conflict_iter + 1;
+
+  IF conflict_iter >= MAX_CONFLICT_ITER THEN
+    (* Max iterations reached — accept partial solution *)
+    next_phase := 2204;
+  ELSE
+    (* Re-analyze: SORT → SWAP → ANALYZE again *)
+    next_phase := 2200;
+  END_IF;
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* PHASE 2204: TASKS_NO_TREATMENT                               *)
+(* Task list is stable (no conflicts). Create unit-target tasks *)
+(* ══════════════════════════════════════════════════════════════ *)
+ELSIF phase = 2204 THEN
+  fb_notrt(i_time_s := i_time_s);
+  o_conflict := FALSE;
+  next_phase := 10000;
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* PHASE 10000: READY — cycle complete                          *)
+(* ══════════════════════════════════════════════════════════════ *)
+ELSIF phase = 10000 THEN
+  (* Count total tasks *)
+  total_tasks := 0;
+  FOR ti := 1 TO 3 DO
+    total_tasks := total_tasks + g_tasks[ti].count;
+  END_FOR;
+  o_task_cnt := total_tasks;
+  next_phase := 10110;
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* PHASE 10110: RESTART — begin new cycle                       *)
+(* ══════════════════════════════════════════════════════════════ *)
+ELSIF phase = 10110 THEN
+  cycle_count := cycle_count + 1;
+  o_cycle_cnt := cycle_count;
+  next_phase := 1;  (* back to INIT *)
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* Unknown phase → reset to INIT                                *)
+(* ══════════════════════════════════════════════════════════════ *)
+ELSE
+  next_phase := 1;
+END_IF;
+
+(* ── Phase assignment at end of scan ── *)
+phase := next_phase;
+o_phase := phase;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
+      <pou name="TSK_FB_SwapTasks" pouType="functionBlock">
+        <interface>
+          <outputVars>
+            <variable name="o_swap_count">
+              <type><INT/></type>
+            </variable>
+          </outputVars>
+          <externalVars>
+            <variable name="g_tasks">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="TSK_QUEUE_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="ti">
+              <type><INT/></type>
+            </variable>
+            <variable name="qi">
+              <type><INT/></type>
+            </variable>
+            <variable name="cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="tmp">
+              <type><derived name="TSK_TASK_T"/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[o_swap_count := 0;
+
+FOR ti := 1 TO 3 DO
+  cnt := g_tasks[ti].count;
+  IF cnt >= 2 THEN
+    FOR qi := 1 TO cnt - 1 DO
+      (* Check: different units AND prev.sink == next.lift *)
+      IF g_tasks[ti].queue[qi].unit <> g_tasks[ti].queue[qi + 1].unit
+         AND g_tasks[ti].queue[qi].sink_station = g_tasks[ti].queue[qi + 1].lift_station THEN
+        (* Swap *)
+        tmp := g_tasks[ti].queue[qi];
+        g_tasks[ti].queue[qi] := g_tasks[ti].queue[qi + 1];
+        g_tasks[ti].queue[qi + 1] := tmp;
+        o_swap_count := o_swap_count + 1;
+      END_IF;
+    END_FOR;
+  END_IF;
+END_FOR;]]></xhtml:p>
           </ST>
         </body>
       </pou>
@@ -2019,6 +3958,37 @@ dropping_time_s := 0.0;]]></xhtml:p>
             <variable name="qw_prog_ack">
               <type><INT/></type>
             </variable>
+            <variable name="g_epoch_h">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_time_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="iw_epoch_h">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_time_hi">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_time_lo">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_schedule">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_tasks">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="TSK_QUEUE_T"/></baseType>
+                </array>
+              </type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="init_done">
@@ -2124,6 +4094,9 @@ dropping_time_s := 0.0;]]></xhtml:p>
             </variable>
             <variable name="arrived_z">
               <type><BOOL/></type>
+            </variable>
+            <variable name="tsk_sched">
+              <type><derived name="TSK_FB_Scheduler"/></type>
             </variable>
           </localVars>
         </interface>
@@ -2247,6 +4220,15 @@ IF init_done THEN
 
 (* Calculate transporter working areas (X-limits) every cycle *)
 twa_calc();
+
+(* ── Epoch-offset time decode ── *)
+(* Server writes iw_epoch_h, iw_time_hi, iw_time_lo via Modbus.
+   g_time_s = (iw_time_hi * 65536 + iw_time_lo) / 10.0 *)
+g_epoch_h := iw_epoch_h;
+g_time_s  := (INT_TO_REAL(iw_time_hi) * 65536.0 + INT_TO_REAL(iw_time_lo)) / 10.0;
+
+(* ── Task Scheduler ── *)
+tsk_sched(i_run := init_done, i_time_s := g_time_s);
 
 FOR i := 1 TO 3 DO
   IF g_state[i].active THEN
@@ -2874,6 +4856,28 @@ qw_b10_code := g_batches[10].batch_code; qw_b10_state := g_batches[10].state; qw
               </array>
             </type>
           </variable>
+          <variable name="g_schedule">
+            <type>
+              <array>
+                <dimension lower="1" upper="10"/>
+                <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
+              </array>
+            </type>
+          </variable>
+          <variable name="g_tasks">
+            <type>
+              <array>
+                <dimension lower="1" upper="3"/>
+                <baseType><derived name="TSK_QUEUE_T"/></baseType>
+              </array>
+            </type>
+          </variable>
+          <variable name="g_epoch_h">
+            <type><INT/></type>
+          </variable>
+          <variable name="g_time_s">
+            <type><REAL/></type>
+          </variable>
           <variable name="qw_t1_x_mm" address="%QW0">
             <type><INT/></type>
           </variable>
@@ -3301,6 +5305,15 @@ qw_b10_code := g_batches[10].batch_code; qw_b10_state := g_batches[10].state; qw
             <type><INT/></type>
           </variable>
           <variable name="qw_prog_ack" address="%QW64">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_epoch_h" address="%QW160">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_time_hi" address="%QW161">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_time_lo" address="%QW162">
             <type><INT/></type>
           </variable>
         </globalVars>

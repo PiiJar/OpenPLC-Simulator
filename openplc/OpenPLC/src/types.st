@@ -117,6 +117,72 @@ STRUCT
 END_STRUCT;
 END_TYPE
 
+(* ── Task Scheduler types (TSK_) ─────────────────────────────────── *)
+(* Calculated batch schedule — one per unit, stages indexed 1..30       *)
+(* Times are absolute epoch-offset seconds (g_time_s reference frame)   *)
+(* Access: g_schedule[unit].stages[stage].entry_time                    *)
+
+TYPE TSK_STAGE_T :
+STRUCT
+  station       : INT;     (* station number, 0 = unused stage *)
+  entry_time    : REAL;    (* absolute arrival time (s) *)
+  exit_time     : REAL;    (* absolute departure time (s) *)
+  min_time      : REAL;    (* minimum treatment time (s) *)
+  calc_time     : REAL;    (* calculated target treatment time (s) *)
+  max_time      : REAL;    (* maximum treatment time (s) *)
+  transfer_time : REAL;    (* transfer time from previous station (s) *)
+END_STRUCT;
+END_TYPE
+
+TYPE TSK_SCHEDULE_T :
+STRUCT
+  stage_count : INT;                              (* number of active stages *)
+  stages      : ARRAY[1..30] OF TSK_STAGE_T;     (* MAX_STAGES *)
+END_STRUCT;
+END_TYPE
+
+(* Transporter task queue — indexed by transporter, then task slot       *)
+(* unit is direct index to g_batches, g_programs, g_schedule, g_units   *)
+(* Access: g_tasks[transporter].queue[slot].lift_station                *)
+
+TYPE TSK_TASK_T :
+STRUCT
+  unit         : INT;     (* unit index 1..10, 0 = no task *)
+  stage        : INT;     (* program stage that created this task *)
+  lift_station : INT;     (* station to pick up from *)
+  sink_station : INT;     (* station to put down to *)
+  start_time   : REAL;    (* absolute time task begins (s) *)
+  finish_time  : REAL;    (* absolute time task completes (s) *)
+  calc_time    : REAL;    (* treatment calc_time for flex (s) *)
+  min_time     : REAL;    (* treatment min_time for flex_down (s) *)
+  max_time     : REAL;    (* treatment max_time for flex_up (s) *)
+END_STRUCT;
+END_TYPE
+
+TYPE TSK_QUEUE_T :
+STRUCT
+  count : INT;                                    (* number of active tasks *)
+  queue : ARRAY[1..10] OF TSK_TASK_T;             (* task slots, MAX_UNITS *)
+END_STRUCT;
+END_TYPE
+
+(* Conflict analysis — internal working data for FB_AnalyzeConflicts    *)
+
+TYPE TSK_CHECKED_T :
+STRUCT
+  unit         : INT;     (* batch unit index *)
+  stage        : INT;     (* program stage *)
+  transporter  : INT;     (* assigned transporter *)
+  start_time   : REAL;    (* task start (s) *)
+  end_time     : REAL;    (* task end (s) *)
+  flex_down    : REAL;    (* available advance margin (s) *)
+  flex_up      : REAL;    (* available delay margin (s) *)
+  x_min        : REAL;    (* X-area minimum (mm) *)
+  x_max        : REAL;    (* X-area maximum (mm) *)
+  is_conflict  : BOOL;    (* TRUE if this task is in conflict *)
+END_STRUCT;
+END_TYPE
+
 (* Precomputed movement times — timed from real motions, not calculated *)
 (* Index 1..25 maps to station 101..125 (idx = stn_num - 100)           *)
 (* Access: g_move[transporter].travel[from_idx].to_s[to_idx]            *)

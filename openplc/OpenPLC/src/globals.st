@@ -51,7 +51,14 @@ VAR_GLOBAL
   g_programs         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
   g_avoid_status     : ARRAY[101..125] OF INT;  (* AVOID_NONE/PASS/BLOCK per station *)
   g_move             : ARRAY[1..3] OF MOVE_TIMES_T;  (* precomputed movement times per transporter *)
-
+  g_schedule         : ARRAY[1..10] OF TSK_SCHEDULE_T;  (* calculated schedule per unit *)
+  g_tasks            : ARRAY[1..3] OF TSK_QUEUE_T;       (* task queue per transporter *)
+  (* --- Epoch-offset time model --- *)
+  (* g_epoch_h = Unix hours, g_time_s = seconds since epoch_h              *)
+  (* Absolute time = g_epoch_h * 3600 + g_time_s                           *)
+  (* All schedule/task times use g_time_s reference frame                  *)
+  g_epoch_h          : INT;           (* epoch reference: Unix hours *)
+  g_time_s           : REAL;          (* seconds since epoch_h (server updates) *)
   (* --- Modbus OUTPUT: Transporter 1 (QW0..QW8) --- *)
   qw_t1_x_mm    AT %QW0  : INT;
   qw_t1_z_mm    AT %QW1  : INT;
@@ -230,4 +237,11 @@ VAR_GLOBAL
   iw_prog_max_time AT %QW149 : INT;  (* max processing time in seconds *)
   iw_prog_cal_time AT %QW150 : INT;  (* calculated / target time in seconds *)
   qw_prog_ack      AT %QW64  : INT;  (* ack: last processed program stage seq *)
+
+  (* --- Modbus INPUT: Epoch time (QW160..QW162) --- *)
+  (*   Server writes epoch-offset time every tick.                       *)
+  (*   g_epoch_h = iw_epoch_h, g_time_s = (iw_time_hi * 65536 + iw_time_lo) / 10 *)
+  iw_epoch_h   AT %QW160 : INT;  (* Unix hours — epoch reference *)
+  iw_time_hi   AT %QW161 : INT;  (* g_time_s upper: floor(time_s*10 / 65536) *)
+  iw_time_lo   AT %QW162 : INT;  (* g_time_s lower: time_s*10 MOD 65536 *)
 END_VAR

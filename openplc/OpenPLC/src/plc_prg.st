@@ -140,6 +140,15 @@ VAR_EXTERNAL
   iw_prog_max_time : INT;
   iw_prog_cal_time : INT;
   qw_prog_ack      : INT;
+  (* Epoch-offset time model *)
+  g_epoch_h   : INT;
+  g_time_s    : REAL;
+  iw_epoch_h  : INT;
+  iw_time_hi  : INT;
+  iw_time_lo  : INT;
+  (* Task scheduler globals *)
+  g_schedule  : ARRAY[1..10] OF TSK_SCHEDULE_T;
+  g_tasks     : ARRAY[1..3] OF TSK_QUEUE_T;
 END_VAR
 VAR
   init_done      : BOOL := FALSE;
@@ -175,6 +184,7 @@ VAR
   tmp_zs       : INT;
   tmp_zt       : REAL;
   arrived_z    : BOOL;
+  tsk_sched    : TSK_FB_Scheduler;
 END_VAR
 (* ============================================================
    CONFIG UPLOAD HANDLER
@@ -294,6 +304,15 @@ IF init_done THEN
 
 (* Calculate transporter working areas (X-limits) every cycle *)
 twa_calc();
+
+(* ── Epoch-offset time decode ── *)
+(* Server writes iw_epoch_h, iw_time_hi, iw_time_lo via Modbus.
+   g_time_s = (iw_time_hi * 65536 + iw_time_lo) / 10.0 *)
+g_epoch_h := iw_epoch_h;
+g_time_s  := (INT_TO_REAL(iw_time_hi) * 65536.0 + INT_TO_REAL(iw_time_lo)) / 10.0;
+
+(* ── Task Scheduler ── *)
+tsk_sched(i_run := init_done, i_time_s := g_time_s);
 
 FOR i := 1 TO 3 DO
   IF g_state[i].active THEN
