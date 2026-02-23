@@ -6,17 +6,19 @@
    - Different slow zones for wet vs dry stations
    - Device delays and drip delays
    
+   Coordinate convention: z=0 is bottom (sunk), z=z_total is top (lifted)
+   
    LIFT sequence (z_stage 1-5):
      1: Init delay  (device_delay + dropping_time)
-     2: Slow lift    z_total → (z_total - slow_zone)
-     3: Fast lift    → z_slow_end_mm
-     4: Slow end     → 0 mm
+     2: Slow lift    0 → slow_zone
+     3: Fast lift    → (z_total - z_slow_end_mm)
+     4: Slow end     → z_total_mm
      5: Drip delay   at top position
    
    SINK sequence (z_stage 6-8):
      6: Init delay  (device_delay + drip_delay)
-     7: Fast sink    0 → (z_total - slow_zone)
-     8: Slow sink    → z_total_mm
+     7: Fast sink    z_total → slow_zone
+     8: Slow sink    → 0 mm
    
    Caller sets z_stage and z_timer_s before first call.
    Output 'done' pulses TRUE when sequence completes.
@@ -60,31 +62,31 @@ END_VAR
 
   CASE z_stage OF
 
-    (* === LIFT: stages 1-5 — nosto altaasta ylös === *)
+    (* === LIFT: stages 1-5 — nosto altaasta ylös (z kasvaa: 0 → z_total) === *)
 
     1: (* Init delay: device_delay + dropping_time *)
       z_timer_s := z_timer_s - delta_t;
       IF z_timer_s <= 0.0 THEN
         z_stage := 2;
-        z_mm := z_total_mm;
+        z_mm := 0.0;
       END_IF;
 
     2: (* Slow lift start — hidas nosto nesteestä *)
-      z_mm := z_mm - z_slow_mm_s * delta_t;
-      IF z_mm <= (z_total_mm - slow_zone) THEN
+      z_mm := z_mm + z_slow_mm_s * delta_t;
+      IF z_mm >= slow_zone THEN
         z_stage := 3;
       END_IF;
 
     3: (* Fast lift — nopea nosto *)
-      z_mm := z_mm - z_fast_mm_s * delta_t;
-      IF z_mm <= z_slow_end_mm THEN
+      z_mm := z_mm + z_fast_mm_s * delta_t;
+      IF z_mm >= (z_total_mm - z_slow_end_mm) THEN
         z_stage := 4;
       END_IF;
 
     4: (* Slow lift end — hidas loppunosto *)
-      z_mm := z_mm - z_slow_mm_s * delta_t;
-      IF z_mm <= 0.0 THEN
-        z_mm := 0.0;
+      z_mm := z_mm + z_slow_mm_s * delta_t;
+      IF z_mm >= z_total_mm THEN
+        z_mm := z_total_mm;
         z_timer_s := drip_delay_s;
         z_stage := 5;
       END_IF;
@@ -96,7 +98,7 @@ END_VAR
         done := TRUE;
       END_IF;
 
-    (* === SINK: stages 6-8 — lasku altaaseen === *)
+    (* === SINK: stages 6-8 — lasku altaaseen (z pienenee: z_total → 0) === *)
 
     6: (* Init delay: device_delay + drip_delay *)
       z_timer_s := z_timer_s - delta_t;
@@ -105,15 +107,15 @@ END_VAR
       END_IF;
 
     7: (* Fast sink — nopea lasku *)
-      z_mm := z_mm + z_fast_mm_s * delta_t;
-      IF z_mm >= (z_total_mm - slow_zone) THEN
+      z_mm := z_mm - z_fast_mm_s * delta_t;
+      IF z_mm <= slow_zone THEN
         z_stage := 8;
       END_IF;
 
     8: (* Slow sink — hidas lasku nesteeseen *)
-      z_mm := z_mm + z_slow_mm_s * delta_t;
-      IF z_mm >= z_total_mm THEN
-        z_mm := z_total_mm;
+      z_mm := z_mm - z_slow_mm_s * delta_t;
+      IF z_mm <= 0.0 THEN
+        z_mm := 0.0;
         z_stage := 0;
         done := TRUE;
       END_IF;

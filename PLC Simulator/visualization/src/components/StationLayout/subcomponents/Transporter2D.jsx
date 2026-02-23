@@ -81,7 +81,7 @@ function Transporter2D({
     transporterY = yScale(currentY) - Math.abs(yScale(0) - yScale(transporterHeightMM)) / 2;
   }
 
-  // Z bar on right edge (0 at bottom, max at top)
+  // Z bar on right edge — z=0 is bottom (sunk), z=z_total is top (lifted)
   const zTotal = transporter.physics_2D?.z_total_distance_mm || 1;
   const zPos = Math.max(0, Math.min(zTotal, transporterState.state.z_position || 0));
   const zFrac = Math.max(0, Math.min(1, zPos / zTotal));

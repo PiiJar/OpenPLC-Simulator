@@ -52,18 +52,25 @@ export default function CalibrationPanel({ onClose, stations, transporterStates 
   const [error, setError] = useState('');
   const [existingFile, setExistingFile] = useState(null);
 
-  // Categorize stations
-  const wetStations = (stations || []).filter(s => s.type === 1);
-  const dryStations = (stations || []).filter(s => s.type === 0);
+  // Filter stations reachable by a given transporter (within x drive limits)
+  const stationsForTransporter = (t) => {
+    const xMin = t?.state?.x_min_drive_limit || 0;
+    const xMax = t?.state?.x_max_drive_limit || 0;
+    if (xMin === 0 && xMax === 0) return stations || [];
+    return (stations || []).filter(s => s.x_position >= xMin && s.x_position <= xMax);
+  };
 
   // Initialize default plans for active transporters
   useEffect(() => {
     const defaults = {};
     activeTransporters.forEach(t => {
       if (!plans[t.id]) {
+        const reachable = stationsForTransporter(t);
+        const wet = reachable.filter(s => s.type === 1);
+        const dry = reachable.filter(s => s.type === 0);
         defaults[t.id] = {
-          wet_station: wetStations[0]?.number || 0,
-          dry_station: dryStations[0]?.number || 0
+          wet_station: wet[0]?.number || 0,
+          dry_station: dry[0]?.number || 0
         };
       }
     });
@@ -289,7 +296,7 @@ export default function CalibrationPanel({ onClose, stations, transporterStates 
                   <select style={selectStyle} value={plan.wet_station || ''}
                     disabled={!isIdle} onChange={e => updatePlan(t.id, 'wet_station', e.target.value)}>
                     <option value="">--</option>
-                    {wetStations.map(s => <option key={s.number} value={s.number}>{s.number}</option>)}
+                    {stationsForTransporter(t).filter(s => s.type === 1).map(s => <option key={s.number} value={s.number}>{s.number}</option>)}
                   </select>
                 </label>
                 <label style={{ fontSize: '11px', color: '#666' }}>
@@ -297,7 +304,7 @@ export default function CalibrationPanel({ onClose, stations, transporterStates 
                   <select style={selectStyle} value={plan.dry_station || ''}
                     disabled={!isIdle} onChange={e => updatePlan(t.id, 'dry_station', e.target.value)}>
                     <option value="">--</option>
-                    {dryStations.map(s => <option key={s.number} value={s.number}>{s.number}</option>)}
+                    {stationsForTransporter(t).filter(s => s.type === 0).map(s => <option key={s.number} value={s.number}>{s.number}</option>)}
                   </select>
                 </label>
               </div>

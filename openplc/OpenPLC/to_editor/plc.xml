@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-23T16:51:21"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-23T16:51:21">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-23T17:12:07"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-23T17:12:07">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -2888,31 +2888,31 @@ END_IF;
 
 CASE z_stage OF
 
-  (* === LIFT: stages 1-5 — nosto altaasta ylös === *)
+  (* === LIFT: stages 1-5 — nosto altaasta ylös (z kasvaa: 0 → z_total) === *)
 
   1: (* Init delay: device_delay + dropping_time *)
     z_timer_s := z_timer_s - delta_t;
     IF z_timer_s <= 0.0 THEN
       z_stage := 2;
-      z_mm := z_total_mm;
+      z_mm := 0.0;
     END_IF;
 
   2: (* Slow lift start — hidas nosto nesteestä *)
-    z_mm := z_mm - z_slow_mm_s * delta_t;
-    IF z_mm <= (z_total_mm - slow_zone) THEN
+    z_mm := z_mm + z_slow_mm_s * delta_t;
+    IF z_mm >= slow_zone THEN
       z_stage := 3;
     END_IF;
 
   3: (* Fast lift — nopea nosto *)
-    z_mm := z_mm - z_fast_mm_s * delta_t;
-    IF z_mm <= z_slow_end_mm THEN
+    z_mm := z_mm + z_fast_mm_s * delta_t;
+    IF z_mm >= (z_total_mm - z_slow_end_mm) THEN
       z_stage := 4;
     END_IF;
 
   4: (* Slow lift end — hidas loppunosto *)
-    z_mm := z_mm - z_slow_mm_s * delta_t;
-    IF z_mm <= 0.0 THEN
-      z_mm := 0.0;
+    z_mm := z_mm + z_slow_mm_s * delta_t;
+    IF z_mm >= z_total_mm THEN
+      z_mm := z_total_mm;
       z_timer_s := drip_delay_s;
       z_stage := 5;
     END_IF;
@@ -2924,7 +2924,7 @@ CASE z_stage OF
       done := TRUE;
     END_IF;
 
-  (* === SINK: stages 6-8 — lasku altaaseen === *)
+  (* === SINK: stages 6-8 — lasku altaaseen (z pienenee: z_total → 0) === *)
 
   6: (* Init delay: device_delay + drip_delay *)
     z_timer_s := z_timer_s - delta_t;
@@ -2933,15 +2933,15 @@ CASE z_stage OF
     END_IF;
 
   7: (* Fast sink — nopea lasku *)
-    z_mm := z_mm + z_fast_mm_s * delta_t;
-    IF z_mm >= (z_total_mm - slow_zone) THEN
+    z_mm := z_mm - z_fast_mm_s * delta_t;
+    IF z_mm <= slow_zone THEN
       z_stage := 8;
     END_IF;
 
   8: (* Slow sink — hidas lasku nesteeseen *)
-    z_mm := z_mm + z_slow_mm_s * delta_t;
-    IF z_mm >= z_total_mm THEN
-      z_mm := z_total_mm;
+    z_mm := z_mm - z_slow_mm_s * delta_t;
+    IF z_mm <= 0.0 THEN
+      z_mm := 0.0;
       z_stage := 0;
       done := TRUE;
     END_IF;

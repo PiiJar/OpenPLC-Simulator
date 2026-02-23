@@ -499,18 +499,65 @@ app.post('/api/transporter-states', (req, res) => {
   res.json(plcState);
 });
 
+// --- Manual task tracking ---
+let manualTasks = [];
+let manualTaskSeq = 0;
+
 // Move command (UI sends manual commands)
 app.post('/api/command/move', async (req, res) => {
   try {
-    const { transporterId, liftStation, sinkStation } = req.body;
-    if (!transporterId || !liftStation || !sinkStation) {
+    const { transporterId, liftStation, sinkStation, lift_station, sink_station } = req.body;
+    const lift = liftStation || lift_station;
+    const sink = sinkStation || sink_station;
+    if (!transporterId || !lift || !sink) {
       return res.status(400).json({ error: 'Missing transporterId, liftStation, sinkStation' });
     }
-    await writePLCCommand(transporterId, liftStation, sinkStation);
-    res.json({ ok: true });
+    await writePLCCommand(transporterId, lift, sink);
+    manualTaskSeq++;
+    const task = {
+      id: manualTaskSeq,
+      transporterId,
+      liftStation: lift,
+      sinkStation: sink,
+      status: 'queued',
+      createdAt: new Date().toISOString()
+    };
+    manualTasks.push(task);
+    // Auto-remove after 60s
+    setTimeout(() => {
+      manualTasks = manualTasks.filter(t => t.id !== task.id);
+    }, 60000);
+    res.json({ ok: true, queued: true, taskId: task.id });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// GET /api/manual-tasks — list queued/active manual tasks
+app.get('/api/manual-tasks', (req, res) => {
+  res.json({ tasks: manualTasks });
+});
+
+// DELETE /api/manual-tasks/:id — cancel a manual task
+app.delete('/api/manual-tasks/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  manualTasks = manualTasks.filter(t => t.id !== id);
+  res.json({ ok: true });
+});
+
+// GET /api/transporter-tasks — current task queue from PLC state
+app.get('/api/transporter-tasks', (req, res) => {
+  // Build task list from current transporter states
+  const tasks = (plcState.transporters || [])
+    .filter(t => t && t.state && t.state.phase > 0)
+    .map(t => ({
+      transporterId: t.id,
+      liftStation: t.state.lift_station_target,
+      sinkStation: t.state.sink_station_target,
+      phase: t.state.phase,
+      operation: t.state.operation
+    }));
+  res.json({ tasks });
 });
 
 // Legacy alias
@@ -955,14 +1002,6 @@ app.post('/api/batch', async (req, res) => {
         );
       }
     }
-
-    console.log(`[BATCH] Complete: unit=${unitIndex}, prog=${programId}, ${(stages || []).length} stages`);
-    res.json({ ok: true, stagesWritten: (stages || []).length });
-  } catch (err) {
-    console.error(`[BATCH] Error: ${err.message}`);
-    res.status(500).json({ error: err.message });
-  }
-});
 
     console.log(`[BATCH] Complete: unit=${unitIndex}, prog=${programId}, ${(stages || []).length} stages`);
     res.json({ ok: true, stagesWritten: (stages || []).length });
