@@ -125,7 +125,7 @@ END_IF;
    ================================================================ *)
 IF cal_step = 10 THEN
   (* Issue task 1: lift from dry, sink to wet *)
-  task_key := g_time_s + 0.001;
+  task_key := INT_TO_REAL(REAL_TO_INT(g_time_s));
   g_transporter[tid].task_id := task_key;
   g_transporter[tid].lift_station := g_cal[tid].dry_station;
   g_transporter[tid].sink_station := g_cal[tid].wet_station;
@@ -207,7 +207,7 @@ END_IF;
    ================================================================ *)
 IF cal_step = 20 THEN
   (* Issue task 2: lift from wet, sink to dry *)
-  task_key := g_time_s + 0.001;
+  task_key := INT_TO_REAL(REAL_TO_INT(g_time_s));
   g_transporter[tid].task_id := task_key;
   g_transporter[tid].lift_station := g_cal[tid].wet_station;
   g_transporter[tid].sink_station := g_cal[tid].dry_station;

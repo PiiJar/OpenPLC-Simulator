@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-23T20:29:53"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-23T20:29:53">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-23T21:20:10"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-23T21:20:10">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -3314,7 +3314,7 @@ END_IF;
    ================================================================ *)
 IF cal_step = 10 THEN
   (* Issue task 1: lift from dry, sink to wet *)
-  task_key := g_time_s + 0.001;
+  task_key := INT_TO_REAL(REAL_TO_INT(g_time_s));
   g_transporter[tid].task_id := task_key;
   g_transporter[tid].lift_station := g_cal[tid].dry_station;
   g_transporter[tid].sink_station := g_cal[tid].wet_station;
@@ -3396,7 +3396,7 @@ END_IF;
    ================================================================ *)
 IF cal_step = 20 THEN
   (* Issue task 2: lift from wet, sink to dry *)
-  task_key := g_time_s + 0.001;
+  task_key := INT_TO_REAL(REAL_TO_INT(g_time_s));
   g_transporter[tid].task_id := task_key;
   g_transporter[tid].lift_station := g_cal[tid].wet_station;
   g_transporter[tid].sink_station := g_cal[tid].dry_station;
