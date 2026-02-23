@@ -36,6 +36,8 @@ VAR_EXTERNAL
   g_programs : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
   g_tasks    : ARRAY[1..3] OF TSK_QUEUE_T;
   g_schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
+  (* DEP handshake *)
+  g_dep_pending : DEP_PENDING_WRITE_T;
 END_VAR
 VAR_OUTPUT
   o_phase      : INT;     (* current phase *)
@@ -271,7 +273,27 @@ ELSIF phase = 10000 THEN
     total_tasks := total_tasks + g_tasks[ti].count;
   END_FOR;
   o_task_cnt := total_tasks;
-  next_phase := 10110;
+  next_phase := 10100;
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* PHASE 10100: CHECK_DEP_PENDING — DEP activated a batch       *)
+(* Copy pending data to globals and trigger full recalculation  *)
+(* ══════════════════════════════════════════════════════════════ *)
+ELSIF phase = 10100 THEN
+  IF g_dep_pending.valid THEN
+    (* Apply DEP’s pending data: programs + stage change *)
+    FOR ui := 1 TO 10 DO
+      g_programs[ui] := g_dep_pending.programs[ui];
+    END_FOR;
+    IF g_dep_pending.batch_unit >= 1 AND g_dep_pending.batch_unit <= 10 THEN
+      g_batches[g_dep_pending.batch_unit].cur_stage := g_dep_pending.batch_stage;
+    END_IF;
+    g_dep_pending.valid := FALSE;
+    (* Full recalculation with new data *)
+    next_phase := 1;
+  ELSE
+    next_phase := 10110;
+  END_IF;
 
 (* ══════════════════════════════════════════════════════════════ *)
 (* PHASE 10110: RESTART — begin new cycle                       *)

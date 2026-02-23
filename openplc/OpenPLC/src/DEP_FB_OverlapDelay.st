@@ -1,0 +1,117 @@
+(* ============================================================
+   DEP_FB_OverlapDelay — Overlap conflict delay calculation
+   ============================================================
+   When a new task uses a station in the overlap zone (covered
+   by multiple transporters), checks for time conflicts with
+   tasks on OTHER transporters at the same station.
+
+   Iteratively calculates the minimum delay needed to avoid
+   overlap conflicts (max 20 iterations).
+
+   Source: departureScheduler.js calculateOverlapDelay()
+
+   Used by: DEP_FB_Scheduler / DEP_FB_FitTaskToSlot
+   ============================================================ *)
+
+FUNCTION_BLOCK DEP_FB_OverlapDelay
+VAR_INPUT
+  i_lift_stn   : INT;     (* task lift station *)
+  i_sink_stn   : INT;     (* task sink station *)
+  i_trans_id   : INT;     (* task transporter id *)
+  i_task_start : REAL;    (* task start time (s), already shifted *)
+  i_task_end   : REAL;    (* task end time (s), already shifted *)
+  i_margin_s   : REAL;    (* conflict margin (s), default 1.0 *)
+END_VAR
+VAR_OUTPUT
+  o_delay_s : REAL;       (* total delay needed (s), 0 = no conflict *)
+END_VAR
+VAR_EXTERNAL
+  g_tasks       : ARRAY[1..3] OF TSK_QUEUE_T;
+  g_dep_overlap : DEP_OVERLAP_T;
+END_VAR
+VAR
+  lift_is_overlap : BOOL;
+  sink_is_overlap : BOOL;
+  round    : INT;
+  ti       : INT;    (* transporter index *)
+  qi       : INT;    (* queue index *)
+  max_conf : REAL;   (* maximum conflict in this round *)
+  t_start  : REAL;   (* shifted task start *)
+  t_end    : REAL;   (* shifted task end *)
+  e_start  : REAL;   (* existing task start *)
+  e_end    : REAL;   (* existing task end *)
+  e_lift   : INT;
+  e_sink   : INT;
+  has_ovlp : BOOL;
+  needed   : REAL;
+END_VAR
+
+o_delay_s := 0.0;
+
+(* Check if lift/sink are in overlap zone *)
+IF i_lift_stn >= 101 AND i_lift_stn <= 125 THEN
+  lift_is_overlap := g_dep_overlap.flags[i_lift_stn];
+ELSE
+  lift_is_overlap := FALSE;
+END_IF;
+IF i_sink_stn >= 101 AND i_sink_stn <= 125 THEN
+  sink_is_overlap := g_dep_overlap.flags[i_sink_stn];
+ELSE
+  sink_is_overlap := FALSE;
+END_IF;
+
+(* No overlap stations involved → no delay *)
+IF NOT lift_is_overlap AND NOT sink_is_overlap THEN
+  RETURN;
+END_IF;
+
+(* Iterative conflict resolution — max 20 rounds *)
+FOR round := 1 TO 20 DO
+  max_conf := 0.0;
+  t_start  := i_task_start + o_delay_s;
+  t_end    := i_task_end + o_delay_s;
+
+  (* Check all tasks on OTHER transporters *)
+  FOR ti := 1 TO 3 DO
+    IF ti <> i_trans_id THEN
+      FOR qi := 1 TO 10 DO
+        IF qi > g_tasks[ti].count THEN
+          EXIT;
+        END_IF;
+
+        e_lift  := g_tasks[ti].queue[qi].lift_station;
+        e_sink  := g_tasks[ti].queue[qi].sink_station;
+        e_start := g_tasks[ti].queue[qi].start_time;
+        e_end   := g_tasks[ti].queue[qi].finish_time;
+
+        (* Does existing task share an overlap station? *)
+        has_ovlp := FALSE;
+        IF lift_is_overlap AND (e_lift = i_lift_stn OR e_sink = i_lift_stn) THEN
+          has_ovlp := TRUE;
+        END_IF;
+        IF sink_is_overlap AND (e_lift = i_sink_stn OR e_sink = i_sink_stn) THEN
+          has_ovlp := TRUE;
+        END_IF;
+
+        IF has_ovlp THEN
+          (* Time overlap check: task overlaps with existing? *)
+          IF t_start < (e_end + i_margin_s) AND t_end > (e_start - i_margin_s) THEN
+            needed := (e_end + i_margin_s) - t_start;
+            IF needed > max_conf THEN
+              max_conf := needed;
+            END_IF;
+          END_IF;
+        END_IF;
+
+      END_FOR;  (* qi *)
+    END_IF;
+  END_FOR;  (* ti *)
+
+  (* No conflict found → done *)
+  IF max_conf <= 0.0 THEN
+    EXIT;
+  END_IF;
+  o_delay_s := o_delay_s + max_conf;
+END_FOR;  (* round *)
+
+END_FUNCTION_BLOCK

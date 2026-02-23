@@ -200,3 +200,81 @@ STRUCT
   travel  : ARRAY[1..25] OF TRAVEL_FROM_T;  (* travel[from].to_s[to] (seconds) *)
 END_STRUCT;
 END_TYPE
+
+(* ── Departure Scheduler types (DEP_) ────────────────────────────── *)
+(* Idle slot: a time window where a transporter has no tasks           *)
+(* Used by departure scheduler to fit new batch activations            *)
+
+TYPE DEP_IDLE_SLOT_T :
+STRUCT
+  start_time   : REAL;    (* idle window start (s) *)
+  end_time     : REAL;    (* idle window end (s), 0.0 = open-ended *)
+  lift_station : INT;     (* transporter at this station at idle start *)
+  sink_station : INT;     (* transporter at this station at idle end *)
+END_STRUCT;
+END_TYPE
+
+TYPE DEP_IDLE_SLOT_SET_T :
+STRUCT
+  slots : ARRAY[1..20] OF DEP_IDLE_SLOT_T;
+  count : INT;
+END_STRUCT;
+END_TYPE
+
+(* Fit result: outcome of trying to fit a departure task into idle slots *)
+
+TYPE DEP_FIT_RESULT_T :
+STRUCT
+  fits         : BOOL;    (* TRUE = task fits in a slot *)
+  delay_s      : REAL;    (* delay needed to make it fit (s) *)
+  need_extra_s : REAL;    (* extra time that does not fit (s) *)
+  task_end_s   : REAL;    (* calculated task end time (s) *)
+  slot_idx     : INT;     (* index of the used idle slot *)
+  trans_id     : INT;     (* transporter id that can handle it *)
+END_STRUCT;
+END_TYPE
+
+(* Delay action: a schedule adjustment to accommodate departure *)
+
+TYPE DEP_DELAY_ACTION_T :
+STRUCT
+  stage   : INT;     (* program stage to delay *)
+  delay_s : REAL;    (* delay amount (s) *)
+  target  : INT;     (* 0=batch cur_stage delay, 1=program stage delay *)
+  valid   : BOOL;
+END_STRUCT;
+END_TYPE
+
+(* Overlap: stations covered by multiple transporters *)
+
+TYPE DEP_OVERLAP_T :
+STRUCT
+  flags : ARRAY[101..125] OF BOOL;  (* TRUE = station is in overlap zone *)
+  count : INT;
+END_STRUCT;
+END_TYPE
+
+(* Sandbox: isolated copy of scheduler state for departure planning *)
+
+TYPE DEP_SANDBOX_T :
+STRUCT
+  schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
+  batches  : ARRAY[1..10] OF BATCH_T;
+  programs : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
+  tasks    : ARRAY[1..3] OF TSK_QUEUE_T;
+  valid    : BOOL;
+END_STRUCT;
+END_TYPE
+
+(* Pending write: data to commit from sandbox to globals after ACTIVATE *)
+
+TYPE DEP_PENDING_WRITE_T :
+STRUCT
+  valid      : BOOL;
+  programs   : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
+  schedule   : ARRAY[1..10] OF TSK_SCHEDULE_T;
+  batch_unit : INT;     (* activated batch: unit index *)
+  batch_stage : INT;    (* activated batch: new stage *)
+  time_s     : REAL;    (* activation time (s) *)
+END_STRUCT;
+END_TYPE

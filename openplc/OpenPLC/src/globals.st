@@ -35,6 +35,10 @@ VAR_GLOBAL CONSTANT
   AVOID_BLOCK      : INT := 2;     (* hard block, cannot pass *)
   (* TWA minimum working area *)
   MIN_WORK_AREA    : REAL := 1000.0;  (* mm — minimum working area *)
+  (* Departure Scheduler constants *)
+  DEP_MAX_IDLE_SLOTS : INT := 20;   (* max idle slots per transporter *)
+  DEP_MAX_DELAY_ACTS : INT := 10;   (* max delay actions per cycle *)
+  DEP_MAX_WAITING    : INT := 10;   (* max waiting batches *)
 END_VAR
 
 VAR_GLOBAL
@@ -53,6 +57,15 @@ VAR_GLOBAL
   g_move             : ARRAY[1..3] OF MOVE_TIMES_T;  (* precomputed movement times per transporter *)
   g_schedule         : ARRAY[1..10] OF TSK_SCHEDULE_T;  (* calculated schedule per unit *)
   g_tasks            : ARRAY[1..3] OF TSK_QUEUE_T;       (* task queue per transporter *)
+  (* --- Departure Scheduler state --- *)
+  g_dep_sandbox       : DEP_SANDBOX_T;                    (* sandbox: isolated copy for planning *)
+  g_dep_idle_slots    : ARRAY[1..3] OF DEP_IDLE_SLOT_SET_T;  (* idle slots per transporter *)
+  g_dep_waiting       : ARRAY[1..10] OF INT;              (* waiting batch unit indices *)
+  g_dep_waiting_count : INT;
+  g_dep_overlap       : DEP_OVERLAP_T;                    (* overlap station flags *)
+  g_dep_pending       : DEP_PENDING_WRITE_T;              (* ACTIVATE → write buffer *)
+  g_dep_activated     : BOOL;                             (* handshake TSK ← DEP *)
+  g_dep_stable        : BOOL;                             (* handshake TSK → DEP: task list stable *)
   (* --- Epoch-offset time model --- *)
   (* g_epoch_h = Unix hours, g_time_s = seconds since epoch_h              *)
   (* Absolute time = g_epoch_h * 3600 + g_time_s                           *)
