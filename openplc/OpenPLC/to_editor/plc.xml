@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-23T21:41:01"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-23T21:41:01">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-23T21:57:58"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-23T21:57:58">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -6751,14 +6751,8 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
             <variable name="qw_prog_ack">
               <type><INT/></type>
             </variable>
-            <variable name="g_epoch_h">
-              <type><INT/></type>
-            </variable>
             <variable name="g_time_s">
               <type><LINT/></type>
-            </variable>
-            <variable name="iw_epoch_h">
-              <type><INT/></type>
             </variable>
             <variable name="iw_time_hi">
               <type><INT/></type>
@@ -6924,6 +6918,24 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
               <type><INT/></type>
               <initialValue><simpleValue value="0"/></initialValue>
             </variable>
+            <variable name="time_hi">
+              <type><LINT/></type>
+            </variable>
+            <variable name="time_lo">
+              <type><LINT/></type>
+            </variable>
+            <variable name="time_cycle_cnt">
+              <type><INT/></type>
+              <initialValue><simpleValue value="0"/></initialValue>
+            </variable>
+            <variable name="last_sync_hi">
+              <type><INT/></type>
+              <initialValue><simpleValue value="0"/></initialValue>
+            </variable>
+            <variable name="last_sync_lo">
+              <type><INT/></type>
+              <initialValue><simpleValue value="0"/></initialValue>
+            </variable>
           </localVars>
         </interface>
         <body>
@@ -7082,11 +7094,32 @@ IF init_done THEN
 (* Calculate transporter working areas (X-limits) every cycle *)
 twa_calc();
 
-(* ── Epoch-offset time decode ── *)
-(* Server writes iw_epoch_h, iw_time_hi, iw_time_lo via Modbus.
-   g_time_s = (iw_time_hi * 65536 + iw_time_lo) / 10  (integer seconds) *)
-g_epoch_h := iw_epoch_h;
-g_time_s  := REAL_TO_LINT((INT_TO_REAL(iw_time_hi) * 65536.0 + INT_TO_REAL(iw_time_lo)) / 10.0);
+(* ── Unix time maintenance ── *)
+(* PLC keeps g_time_s by incrementing +1 every 50 cycles (50 × 20 ms = 1 s).
+   Gateway periodically writes reference unix seconds to QW160/QW161.
+   When PLC detects the register values changed → sync to gateway time. *)
+IF iw_time_hi <> last_sync_hi OR iw_time_lo <> last_sync_lo THEN
+  (* Gateway wrote new reference time — sync *)
+  time_hi := INT_TO_LINT(iw_time_hi);
+  IF time_hi < LINT#0 THEN
+    time_hi := time_hi + LINT#65536;
+  END_IF;
+  time_lo := INT_TO_LINT(iw_time_lo);
+  IF time_lo < LINT#0 THEN
+    time_lo := time_lo + LINT#65536;
+  END_IF;
+  g_time_s := time_hi * LINT#65536 + time_lo;
+  last_sync_hi := iw_time_hi;
+  last_sync_lo := iw_time_lo;
+  time_cycle_cnt := 0;
+ELSE
+  (* Self-increment: +1 second every 50 cycles (50 × 20 ms) *)
+  time_cycle_cnt := time_cycle_cnt + 1;
+  IF time_cycle_cnt >= 50 THEN
+    g_time_s := g_time_s + LINT#1;
+    time_cycle_cnt := 0;
+  END_IF;
+END_IF;
 
 (* ── Main Scheduler (TSK + DEP alternating cycles) ── *)
 main_sched(i_run := init_done, i_time_s := g_time_s);
@@ -7538,9 +7571,6 @@ qw_cal_t3_x_max    := REAL_TO_INT(g_cal[3].x_max_mm_s);]]></xhtml:p>
           <variable name="g_cal_active">
             <type><BOOL/></type>
           </variable>
-          <variable name="g_epoch_h">
-            <type><INT/></type>
-          </variable>
           <variable name="g_time_s">
             <type><LINT/></type>
           </variable>
@@ -7973,13 +8003,10 @@ qw_cal_t3_x_max    := REAL_TO_INT(g_cal[3].x_max_mm_s);]]></xhtml:p>
           <variable name="qw_prog_ack" address="%QW64">
             <type><INT/></type>
           </variable>
-          <variable name="iw_epoch_h" address="%QW160">
+          <variable name="iw_time_hi" address="%QW160">
             <type><INT/></type>
           </variable>
-          <variable name="iw_time_hi" address="%QW161">
-            <type><INT/></type>
-          </variable>
-          <variable name="iw_time_lo" address="%QW162">
+          <variable name="iw_time_lo" address="%QW161">
             <type><INT/></type>
           </variable>
           <variable name="qw_cal_step" address="%QW170">

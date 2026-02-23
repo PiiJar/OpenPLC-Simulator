@@ -66,11 +66,9 @@ VAR_GLOBAL
   (* --- Calibration state --- *)
   g_cal              : ARRAY[1..3] OF CALIBRATION_T;      (* calibration plan + results per transporter *)
   g_cal_active       : BOOL;                              (* TRUE during calibration — inhibits schedulers *)
-  (* --- Epoch-offset time model --- *)
-  (* g_epoch_h = Unix hours, g_time_s = seconds since epoch_h              *)
-  (* Absolute time = g_epoch_h * 3600 + g_time_s                           *)
-  (* All schedule/task times use g_time_s reference frame                  *)
-  g_epoch_h          : INT;           (* epoch reference: Unix hours *)
+  (* --- Unix time --- *)
+  (* g_time_s = absolute unix time in seconds (LINT)                       *)
+  (* Gateway writes upper/lower 16-bit halves to QW160/QW161 every tick   *)
   g_time_s           : LINT;          (* absolute time in unix seconds *)
   (* --- Modbus OUTPUT: Transporter 1 (QW0..QW8) --- *)
   qw_t1_x_mm    AT %QW0  : INT;
@@ -251,12 +249,11 @@ VAR_GLOBAL
   iw_prog_cal_time AT %QW150 : INT;  (* calculated / target time in seconds *)
   qw_prog_ack      AT %QW64  : INT;  (* ack: last processed program stage seq *)
 
-  (* --- Modbus INPUT: Epoch time (QW160..QW162) --- *)
-  (*   Server writes epoch-offset time every tick.                       *)
-  (*   g_epoch_h = iw_epoch_h, g_time_s = (iw_time_hi * 65536 + iw_time_lo) / 10 *)
-  iw_epoch_h   AT %QW160 : INT;  (* Unix hours — epoch reference *)
-  iw_time_hi   AT %QW161 : INT;  (* g_time_s upper: floor(time_s*10 / 65536) *)
-  iw_time_lo   AT %QW162 : INT;  (* g_time_s lower: time_s*10 MOD 65536 *)
+  (* --- Modbus INPUT: Unix time (QW160..QW161) --- *)
+  (*   Gateway writes 32-bit unix seconds as two unsigned 16-bit halves.  *)
+  (*   g_time_s = (uint16(iw_time_hi) * 65536) + uint16(iw_time_lo)      *)
+  iw_time_hi   AT %QW160 : INT;  (* unix seconds upper 16 bits (unsigned) *)
+  iw_time_lo   AT %QW161 : INT;  (* unix seconds lower 16 bits (unsigned) *)
 
   (* --- Modbus OUTPUT: Calibration status & results (QW170..QW192) --- *)
   (*   Gateway polls these during/after calibration.

@@ -137,10 +137,8 @@ VAR_EXTERNAL
   iw_prog_max_time : INT;
   iw_prog_cal_time : INT;
   qw_prog_ack      : INT;
-  (* Epoch-offset time model *)
-  g_epoch_h   : INT;
+  (* Unix time *)
   g_time_s    : LINT;
-  iw_epoch_h  : INT;
   iw_time_hi  : INT;
   iw_time_lo  : INT;
   (* Task scheduler globals *)
@@ -193,6 +191,12 @@ VAR
   run_tasks    : SIM_FB_RunTasks;
   calibrate    : STC_FB_Calibrate;
   cal_cmd      : INT := 0;
+  (* Time-keeping vars *)
+  time_hi        : LINT;
+  time_lo        : LINT;
+  time_cycle_cnt : INT := 0;      (* counts 20ms cycles, resets at 50 = 1 s *)
+  last_sync_hi   : INT := 0;      (* previous gateway iw_time_hi — for change detect *)
+  last_sync_lo   : INT := 0;      (* previous gateway iw_time_lo *)
 END_VAR
 (* ============================================================
    CONFIG UPLOAD HANDLER
@@ -348,11 +352,32 @@ IF init_done THEN
 (* Calculate transporter working areas (X-limits) every cycle *)
 twa_calc();
 
-(* ── Epoch-offset time decode ── *)
-(* Server writes iw_epoch_h, iw_time_hi, iw_time_lo via Modbus.
-   g_time_s = (iw_time_hi * 65536 + iw_time_lo) / 10  (integer seconds) *)
-g_epoch_h := iw_epoch_h;
-g_time_s  := REAL_TO_LINT((INT_TO_REAL(iw_time_hi) * 65536.0 + INT_TO_REAL(iw_time_lo)) / 10.0);
+(* ── Unix time maintenance ── *)
+(* PLC keeps g_time_s by incrementing +1 every 50 cycles (50 × 20 ms = 1 s).
+   Gateway periodically writes reference unix seconds to QW160/QW161.
+   When PLC detects the register values changed → sync to gateway time. *)
+IF iw_time_hi <> last_sync_hi OR iw_time_lo <> last_sync_lo THEN
+  (* Gateway wrote new reference time — sync *)
+  time_hi := INT_TO_LINT(iw_time_hi);
+  IF time_hi < LINT#0 THEN
+    time_hi := time_hi + LINT#65536;
+  END_IF;
+  time_lo := INT_TO_LINT(iw_time_lo);
+  IF time_lo < LINT#0 THEN
+    time_lo := time_lo + LINT#65536;
+  END_IF;
+  g_time_s := time_hi * LINT#65536 + time_lo;
+  last_sync_hi := iw_time_hi;
+  last_sync_lo := iw_time_lo;
+  time_cycle_cnt := 0;
+ELSE
+  (* Self-increment: +1 second every 50 cycles (50 × 20 ms) *)
+  time_cycle_cnt := time_cycle_cnt + 1;
+  IF time_cycle_cnt >= 50 THEN
+    g_time_s := g_time_s + LINT#1;
+    time_cycle_cnt := 0;
+  END_IF;
+END_IF;
 
 (* ── Main Scheduler (TSK + DEP alternating cycles) ── *)
 main_sched(i_run := init_done, i_time_s := g_time_s);

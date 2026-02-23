@@ -462,6 +462,27 @@ async function writePLCCommand(transporterId, liftStation, sinkStation) {
   console.log(`[CMD] T${transporterId}: lift=${liftStation} sink=${sinkStation}`);
 }
 
+// --- Write unix time to PLC ---
+// Sends current wall-clock unix seconds as two unsigned 16-bit words
+// to QW160 (upper) and QW161 (lower). PLC reconstructs full 32-bit value.
+// Called periodically (TIME_SYNC_MS) — PLC keeps its own clock between syncs.
+const TIME_SYNC_MS = parseInt(process.env.TIME_SYNC_MS || '60000'); // default 60 s
+let lastTimeSyncMs = 0;
+
+async function writeTimeToPLC() {
+  if (!connected) return;
+  try {
+    const unixSeconds = Math.floor(Date.now() / 1000);
+    const hi = (unixSeconds >>> 16) & 0xFFFF;
+    const lo = unixSeconds & 0xFFFF;
+    await client.writeRegisters(160, [hi, lo]);
+    console.log(`[TIME] Synced PLC time: ${unixSeconds} (${new Date().toISOString()})`);
+  } catch (err) {
+    // Non-critical — PLC continues with its own clock
+    console.error(`[TIME] Write error: ${err.message}`);
+  }
+}
+
 // --- Polling loop ---
 let pollTimer = null;
 function startPolling() {
@@ -469,6 +490,12 @@ function startPolling() {
     if (!connected) {
       await connectModbus();
       return;
+    }
+    // Periodic time sync (default every 60 s, also on first connection)
+    const now = Date.now();
+    if (now - lastTimeSyncMs >= TIME_SYNC_MS) {
+      await writeTimeToPLC();
+      lastTimeSyncMs = now;
     }
     await readPLCState();
   }, POLL_MS);
