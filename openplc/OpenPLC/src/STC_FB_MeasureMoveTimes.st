@@ -1,5 +1,5 @@
 (* ============================================================
-   FB_TimeMoves — Times actual transporter movements
+   FB_TimeMoves → STC_FB_MeasureMoveTimes — Times actual transporter movements
    ============================================================
    Records real lift, sink, and travel times into g_move table
    by observing phase transitions in the transport cycle.
@@ -35,7 +35,7 @@
      sink   := g_move[2].sink_s[12];            sink at stn 112
    ============================================================ *)
 
-FUNCTION_BLOCK FB_TimeMoves
+FUNCTION_BLOCK STC_FB_MeasureMoveTimes
 VAR_INPUT
   t_id     : INT;     (* transporter index 1..3 *)
   phase    : INT;     (* current phase 0..4 *)

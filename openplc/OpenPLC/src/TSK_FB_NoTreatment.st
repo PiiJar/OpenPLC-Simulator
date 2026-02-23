@@ -23,13 +23,11 @@ VAR_EXTERNAL
   g_state    : ARRAY[1..3] OF TRANSPORTER_STATE_T;
   g_cfg      : ARRAY[1..3] OF TRANSPORTER_CFG_T;
   g_tasks    : ARRAY[1..3] OF TSK_QUEUE_T;
-  g_move     : ARRAY[1..3] OF MOVE_TIMES_T;
   g_stations : ARRAY[101..125] OF STATION_T;
   g_station_count : INT;
 END_VAR
 VAR
   ui     : INT;     (* unit loop *)
-  ti     : INT;     (* transporter loop *)
   ai     : INT;     (* task area loop *)
   qi     : INT;     (* queue index *)
   loc    : INT;     (* unit location station *)
@@ -42,14 +40,12 @@ VAR
   stn_free : BOOL;
   stn_ok   : BOOL;
   (* Timing *)
-  from_idx : INT;
-  to_idx   : INT;
-  travel_s : REAL;  (* travel to pickup *)
   xfer_s   : REAL;  (* total transfer time *)
-  lift_s   : REAL;
-  sink_s_v : REAL;
   task_start : REAL;
   task_end   : REAL;
+  (* Shared FB instances *)
+  fb_find  : STC_FB_FindTransporter;
+  fb_xfer  : STC_FB_CalcTransferTime;
 END_VAR
 
 FOR ui := 1 TO 10 DO
@@ -59,21 +55,8 @@ FOR ui := 1 TO 10 DO
   (* Skip: no target, target is process (handled by schedule), not on station *)
   IF tgt <> 0 AND tgt <> 3 AND loc >= 100 THEN
     (* Find covering transporter *)
-    cov_t := 0;
-    FOR ti := 1 TO 3 DO
-      IF cov_t = 0 THEN
-        FOR ai := 1 TO 4 DO
-          IF cov_t = 0 THEN
-            area := g_cfg[ti].task_area[ai];
-            IF area.min_lift > 0 OR area.max_lift > 0 THEN
-              IF loc >= area.min_lift AND loc <= area.max_lift THEN
-                cov_t := ti;
-              END_IF;
-            END_IF;
-          END_IF;
-        END_FOR;
-      END_IF;
-    END_FOR;
+    fb_find(i_lift_stn := loc, i_sink_stn := 0);
+    cov_t := fb_find.o_trans_id;
 
     IF cov_t >= 1 AND cov_t <= 3 THEN
       (* Check transporter is idle: phase=0, active *)
@@ -105,17 +88,8 @@ FOR ui := 1 TO 10 DO
 
         IF dest_stn > 0 THEN
           (* Calculate timing *)
-          from_idx := loc - 100;
-          to_idx   := dest_stn - 100;
-          travel_s := 0.0;
-          lift_s   := 0.0;
-          sink_s_v := 0.0;
-          IF from_idx >= 1 AND from_idx <= 25 AND to_idx >= 1 AND to_idx <= 25 THEN
-            lift_s   := g_move[cov_t].lift_s[from_idx];
-            travel_s := g_move[cov_t].travel[from_idx].to_s[to_idx];
-            sink_s_v := g_move[cov_t].sink_s[to_idx];
-          END_IF;
-          xfer_s := lift_s + travel_s + sink_s_v;
+          fb_xfer(i_from_stn := loc, i_to_stn := dest_stn, i_trans := cov_t);
+          xfer_s := fb_xfer.o_total_s;
 
           task_start := i_time_s;
           task_end   := task_start + xfer_s;

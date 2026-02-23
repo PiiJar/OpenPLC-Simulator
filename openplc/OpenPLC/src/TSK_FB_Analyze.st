@@ -26,7 +26,6 @@
 FUNCTION_BLOCK TSK_FB_Analyze
 VAR_EXTERNAL
   g_tasks    : ARRAY[1..3] OF TSK_QUEUE_T;
-  g_move     : ARRAY[1..3] OF MOVE_TIMES_T;
   g_stations : ARRAY[101..125] OF STATION_T;
 END_VAR
 VAR_OUTPUT
@@ -60,8 +59,6 @@ VAR
   (* Conflict check vars *)
   prev_sink : INT;
   next_lift : INT;
-  from_idx  : INT;
-  to_idx    : INT;
   travel_s  : REAL;
   gap_s     : REAL;
   deficit_s : REAL;
@@ -85,6 +82,7 @@ VAR
   l_idx    : INT;
   s_idx    : INT;
   DEFICIT_TOL : REAL := 1.0;
+  fb_travel : STC_FB_CalcHorizontalTravel;  (* shared horizontal travel calc *)
 END_VAR
 
 o_has_conflict := FALSE;
@@ -180,13 +178,9 @@ FOR si := 1 TO sorted_cnt DO
       (* Found previous task on same transporter *)
       prev_sink := sorted[ci].sink_station;
       next_lift := sorted[si].lift_station;
-      from_idx  := prev_sink - 100;
-      to_idx    := next_lift - 100;
 
-      travel_s := 0.0;
-      IF from_idx >= 1 AND from_idx <= 25 AND to_idx >= 1 AND to_idx <= 25 THEN
-        travel_s := g_move[sorted_trans[si]].travel[from_idx].to_s[to_idx];
-      END_IF;
+      fb_travel(i_from_stn := prev_sink, i_to_stn := next_lift, i_trans := sorted_trans[si]);
+      travel_s := fb_travel.o_travel_s;
 
       gap_s := sorted[si].start_time - sorted[ci].finish_time;
       deficit_s := travel_s - gap_s;

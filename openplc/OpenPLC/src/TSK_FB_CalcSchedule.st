@@ -25,15 +25,12 @@ VAR_EXTERNAL
   g_programs : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
   g_units    : ARRAY[1..10] OF UNIT_T;
   g_stations : ARRAY[101..125] OF STATION_T;
-  g_move     : ARRAY[1..3] OF MOVE_TIMES_T;
   g_schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
   g_station_count : INT;
 END_VAR
 VAR
   st         : INT;      (* loop: stage index *)
   stn_num    : INT;      (* target station number *)
-  stn_idx    : INT;      (* station index in g_move (1..25) *)
-  prev_idx   : INT;      (* previous station index in g_move *)
   prev_stn   : INT;      (* previous station number *)
   cur_stage  : INT;      (* batch current stage *)
   location   : INT;      (* unit location *)
@@ -41,9 +38,6 @@ VAR
   entry_t    : REAL;     (* entry time for stage *)
   exit_t     : REAL;     (* exit time for stage *)
   xfer_t     : REAL;     (* transfer time *)
-  lift_t     : REAL;     (* lift time *)
-  sink_t     : REAL;     (* sink time *)
-  travel_t   : REAL;     (* horizontal travel time *)
   calc_s     : REAL;     (* calc_time in seconds *)
   min_s      : REAL;     (* min_time in seconds *)
   max_s      : REAL;     (* max_time in seconds *)
@@ -54,6 +48,7 @@ VAR
   out_count  : INT;      (* output stage counter *)
   p          : INT;      (* parallel station loop index *)
   chosen_stn : INT;      (* chosen parallel station *)
+  fb_xfer    : STC_FB_CalcTransferTime;  (* shared transfer time calc *)
 END_VAR
 
 (* -- Validate inputs -- *)
@@ -143,17 +138,8 @@ FOR st := start_st TO 30 DO
   max_s  := INT_TO_REAL(g_programs[i_unit].stages[st].max_time);
 
   (* -- Calculate transfer time from prev_stn to stn_num -- *)
-  xfer_t := 0.0;
-  IF prev_stn > 0 AND prev_stn <> stn_num THEN
-    prev_idx := prev_stn - 100;
-    stn_idx  := stn_num - 100;
-    IF prev_idx >= 1 AND prev_idx <= 25 AND stn_idx >= 1 AND stn_idx <= 25 THEN
-      lift_t   := g_move[i_trans].lift_s[prev_idx];
-      travel_t := g_move[i_trans].travel[prev_idx].to_s[stn_idx];
-      sink_t   := g_move[i_trans].sink_s[stn_idx];
-      xfer_t   := lift_t + travel_t + sink_t;
-    END_IF;
-  END_IF;
+  fb_xfer(i_from_stn := prev_stn, i_to_stn := stn_num, i_trans := i_trans);
+  xfer_t := fb_xfer.o_total_s;
 
   (* -- Calculate entry and exit times -- *)
   IF is_first AND is_on_stn AND st = cur_stage THEN

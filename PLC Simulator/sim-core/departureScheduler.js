@@ -80,7 +80,21 @@ const PHASE = {
 };
 
 const END_DELAY_TICKS = 100;  // 100 tyhjää tickiä stabilointia varten
+
+// ── PLC fixed-array bounds (ST: VAR_GLOBAL CONSTANT) ──
 const MAX_WAITING_BATCHES = 20;
+const MAX_BATCHES = 50;
+const MAX_TASKS = 200;
+const MAX_STATIONS = 200;
+const MAX_TRANSPORTERS = 10;
+const MAX_STRETCHES = 50;
+const MAX_CALC_BATCHES = 50;
+const MAX_IN_FLIGHT_TASKS = 10;
+const MAX_DELAY_ACTIONS = 20;
+const MAX_CYCLE_HISTORY = 1000;
+const MAX_PHASE_LOG = 100;
+const REAL_MAX = 1.0e+38;
+const REAL_MIN = -1.0e+38;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TILAKONE - TILA (säilyy tikien välillä)
@@ -105,23 +119,35 @@ const state = {
     longestCycleTimeMs: 0,
     longestCycleTicks: 0,
     cycleHistory: [],        // wall-clock ms per cycle (max 1000)
+    cycleHistoryCount: 0,
     cycleTickHistory: [],    // ticks per cycle (max 1000)
+    cycleTickHistoryCount: 0,
     cycleSimTimeHistory: [], // sim-time ms per cycle (max 1000)
+    cycleSimTimeHistoryCount: 0,
     
-    // Kierroksen data (kopioidaan INIT:ssä)
+    // Kierroksen data (kopioidaan INIT:ssä) — PLC: counter-based arrays
     batches: [],
+    batchCount: 0,
     stations: [],
+    stationCount: 0,
     transporters: [],
+    transporterCount: 0,
     transporterStates: [],
+    transporterStateCount: 0,
     
-    // Tulokset
-    schedulesByBatchId: {},
-    programsByBatchId: {},
-    waitingSchedules: {},
-    waitingBatchAnalysis: {},
-    waitingBatchTasks: {},
+    // Tulokset — PLC: indexed arrays with counters
+    schedules: [],
+    scheduleCount: 0,
+    programs: [],
+    programCount: 0,
+    waitingScheds: [],
+    waitingSchedCount: 0,
+    waitingAnalyses: [],
+    waitingAnalysisCount: 0,
+    waitingTaskSets: [],
+    waitingTaskSetCount: 0,
     
-    // Lähtölupalaskenta
+    // Lähtölupalaskenta — PLC: counter-based arrays
     waitingBatches: [],
     waitingBatchCount: 0,
     currentWaitingIndex: 0,
@@ -131,12 +157,18 @@ const state = {
     departureSandbox: null,
     sandboxSnapshot: null,
     combinedTasks: [],
+    combinedTaskCount: 0,
     departureAnalysis: null,
     departureCandidateStretches: [],
     candidateStretches: [],
+    candidateStretchCount: 0,
     pendingDelay: null,
     pendingDelays: [],
-    departureLockedStages: {},
+    pendingDelayCount: 0,
+    departureLockedStages: [],
+    depLockedStageCount: 0,
+    inFlightTasks: [],
+    inFlightTaskCount: 0,
     
     // Handshake TASKS-tilakoneen kanssa
     // PLC-vastine: DB-bitti jonka FB_DEPARTURE asettaa ja FB_TASKS lukee
@@ -156,8 +188,9 @@ const state = {
     // Kierroksittainen eteneminen (target): DEPARTURE-kierrosten välinen tila
     departureRound: 0,       // Monesko sovittelukierros tälle erälle (0 = ensimmäinen)
     
-    // Statistiikka
+    // Statistiikka — PLC: counter-based
     departureTimes: [],
+    departureTimeCount: 0,
     avgDepartureIntervalSec: 0,
     lastDepartureConflict: null,
     finalDepartureConflict: null,
@@ -166,8 +199,9 @@ const state = {
     // END_DELAY laskuri
     endDelayCounter: 0,
     
-    // Debug
-    phaseLog: []
+    // Debug — PLC: ring buffer with counter
+    phaseLog: [],
+    phaseLogCount: 0
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -177,47 +211,527 @@ const state = {
 let ctx = {};
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// APUFUNKTIOT
+// PLC-YHTEENSOPIVAT APUFUNKTIOT (ST: FUNCTION-blocks)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function log(msg) {
-    state.phaseLog.push({ phase: state.phase, msg, time: Date.now() });
-    if (state.phaseLog.length > 100) state.phaseLog.shift();
-    console.log(`[DEPARTURE ${state.phase}] ${msg}`);
+// G2: PLC → GET_SYSTEM_TIME (RTC milliseconds)
+function _getSystemTimeMs() { return Date.now(); }
+
+// G4: PLC → (x > REAL_MIN) AND (x < REAL_MAX) — ST:ssä REAL on aina numero, ei NaN:ia
+function _isFinite(x) {
+    return (typeof x === 'number') && (x === x) && (x > REAL_MIN) && (x < REAL_MAX);
 }
+
+// G5: PLC-compatible ring buffer write (linear shift when full)
+// ST: IF count >= maxSize THEN FOR i:=0 TO maxSize-2 DO arr[i]:=arr[i+1]; arr[maxSize-1]:=value; ELSE arr[count]:=value; count:=count+1; END_IF
+function _ringBufferWrite(arr, count, maxSize, value) {
+    if (count >= maxSize) {
+        for (let i = 0; i < maxSize - 1; i++) arr[i] = arr[i + 1];
+        arr[maxSize - 1] = value;
+        return count;
+    }
+    arr[count] = value;
+    return count + 1;
+}
+
+/** Insertion sort — PLC-yhteensopiva, ei rekursiota, stabiili.
+ *  C3: context-parametri välittää lisätiedot compareFn:lle (korvaa sulkeuman). */
+function _insertionSort(arr, count, compareFn, context) {
+    for (let i = 1; i < count; i++) {
+        const key = arr[i];
+        let j = i - 1;
+        while (j >= 0 && compareFn(arr[j], key, context) > 0) {
+            arr[j + 1] = arr[j];
+            j--;
+        }
+        arr[j + 1] = key;
+    }
+}
+
+/** PLC-compatible array search (replaces .includes()) */
+function _arrayIncludes(arr, count, value) {
+    for (let i = 0; i < count; i++) {
+        if (arr[i] === value) return true;
+    }
+    return false;
+}
+
+// ── A1: Schedule indexed-array helpers (replaces schedulesByBatchId hash map) ──
+
+function _findScheduleIndex(batchId) {
+    for (let i = 0; i < state.scheduleCount; i++) {
+        if (state.schedules[i].batchId === batchId) return i;
+    }
+    return -1;
+}
+
+function _getSchedule(batchId) {
+    const idx = _findScheduleIndex(batchId);
+    return idx >= 0 ? state.schedules[idx].data : null;
+}
+
+function _setSchedule(batchId, scheduleData) {
+    const idx = _findScheduleIndex(batchId);
+    if (idx >= 0) {
+        state.schedules[idx].data = scheduleData;
+    } else if (state.scheduleCount < MAX_BATCHES) {
+        state.schedules[state.scheduleCount++] = { batchId: batchId, data: scheduleData };
+    }
+}
+
+function _removeSchedule(batchId) {
+    const idx = _findScheduleIndex(batchId);
+    if (idx < 0) return;
+    for (let i = idx; i < state.scheduleCount - 1; i++) {
+        state.schedules[i] = state.schedules[i + 1];
+    }
+    state.scheduleCount--;
+}
+
+/** Convert schedules array → hash map for external API */
+function _schedulesToHashMap() {
+    const map = {};
+    for (let i = 0; i < state.scheduleCount; i++) {
+        map[String(state.schedules[i].batchId)] = state.schedules[i].data;
+    }
+    return map;
+}
+
+/** Load hash map → schedules indexed array */
+function _schedulesFromHashMap(hashMap) {
+    state.schedules = [];
+    state.scheduleCount = 0;
+    if (!hashMap) return;
+    for (const batchIdStr of Object.keys(hashMap)) {
+        if (state.scheduleCount < MAX_BATCHES) {
+            state.schedules[state.scheduleCount++] = { batchId: Number(batchIdStr), data: hashMap[batchIdStr] };
+        }
+    }
+}
+
+// ── A2: Program indexed-array helpers (replaces programsByBatchId hash map) ──
+
+function _findProgramIndex(batchId) {
+    for (let i = 0; i < state.programCount; i++) {
+        if (state.programs[i].batchId === batchId) return i;
+    }
+    return -1;
+}
+
+function _getProgram(batchId) {
+    const idx = _findProgramIndex(batchId);
+    return idx >= 0 ? state.programs[idx].data : null;
+}
+
+function _setProgram(batchId, programData) {
+    const idx = _findProgramIndex(batchId);
+    if (idx >= 0) {
+        state.programs[idx].data = programData;
+    } else if (state.programCount < MAX_BATCHES) {
+        state.programs[state.programCount++] = { batchId: batchId, data: programData };
+    }
+}
+
+/** Convert programs array → hash map for external API */
+function _programsToHashMap() {
+    const map = {};
+    for (let i = 0; i < state.programCount; i++) {
+        map[String(state.programs[i].batchId)] = state.programs[i].data;
+    }
+    return map;
+}
+
+/** Load hash map → programs indexed array */
+function _programsFromHashMap(hashMap) {
+    state.programs = [];
+    state.programCount = 0;
+    if (!hashMap) return;
+    for (const batchIdStr of Object.keys(hashMap)) {
+        if (state.programCount < MAX_BATCHES) {
+            state.programs[state.programCount++] = { batchId: Number(batchIdStr), data: hashMap[batchIdStr] };
+        }
+    }
+}
+
+// ── A3: _calcScheds indexed-array helpers (replaces _calcSchedules temp hash map) ──
+
+function _findCalcSchedIndex(batchId) {
+    for (let i = 0; i < state._calcSchedCount; i++) {
+        if (state._calcScheds[i].batchId === batchId) return i;
+    }
+    return -1;
+}
+
+function _getCalcSched(batchId) {
+    const idx = _findCalcSchedIndex(batchId);
+    return idx >= 0 ? state._calcScheds[idx].data : null;
+}
+
+function _setCalcSched(batchId, scheduleData) {
+    const idx = _findCalcSchedIndex(batchId);
+    if (idx >= 0) {
+        state._calcScheds[idx].data = scheduleData;
+    } else if (state._calcSchedCount < MAX_BATCHES) {
+        state._calcScheds[state._calcSchedCount++] = { batchId: batchId, data: scheduleData };
+    }
+}
+
+// ── A4: WaitingSched indexed-array helpers (replaces waitingSchedules hash map) ──
+
+function _findWaitingSchedIndex(batchId) {
+    for (let i = 0; i < state.waitingSchedCount; i++) {
+        if (state.waitingScheds[i].batchId === batchId) return i;
+    }
+    return -1;
+}
+
+function _getWaitingSched(batchId) {
+    const idx = _findWaitingSchedIndex(batchId);
+    return idx >= 0 ? state.waitingScheds[idx].data : null;
+}
+
+function _setWaitingSched(batchId, scheduleData) {
+    const idx = _findWaitingSchedIndex(batchId);
+    if (idx >= 0) {
+        state.waitingScheds[idx].data = scheduleData;
+    } else if (state.waitingSchedCount < MAX_WAITING_BATCHES) {
+        state.waitingScheds[state.waitingSchedCount++] = { batchId: batchId, data: scheduleData };
+    }
+}
+
+function _removeWaitingSched(batchId) {
+    const idx = _findWaitingSchedIndex(batchId);
+    if (idx < 0) return;
+    for (let i = idx; i < state.waitingSchedCount - 1; i++) {
+        state.waitingScheds[i] = state.waitingScheds[i + 1];
+    }
+    state.waitingSchedCount--;
+}
+
+// ── A5: WaitingAnalysis indexed-array helpers (replaces waitingBatchAnalysis hash map) ──
+
+function _findWaitingAnalysisIndex(batchId) {
+    for (let i = 0; i < state.waitingAnalysisCount; i++) {
+        if (state.waitingAnalyses[i].batchId === batchId) return i;
+    }
+    return -1;
+}
+
+function _getWaitingAnalysis(batchId) {
+    const idx = _findWaitingAnalysisIndex(batchId);
+    return idx >= 0 ? state.waitingAnalyses[idx].data : null;
+}
+
+function _setWaitingAnalysis(batchId, analysisData) {
+    const idx = _findWaitingAnalysisIndex(batchId);
+    if (idx >= 0) {
+        state.waitingAnalyses[idx].data = analysisData;
+    } else if (state.waitingAnalysisCount < MAX_WAITING_BATCHES) {
+        state.waitingAnalyses[state.waitingAnalysisCount++] = { batchId: batchId, data: analysisData };
+    }
+}
+
+// ── A6: WaitingTaskSet indexed-array helpers (replaces waitingBatchTasks hash map) ──
+
+function _findWaitingTaskSetIndex(batchId) {
+    for (let i = 0; i < state.waitingTaskSetCount; i++) {
+        if (state.waitingTaskSets[i].batchId === batchId) return i;
+    }
+    return -1;
+}
+
+function _getWaitingTaskSet(batchId) {
+    const idx = _findWaitingTaskSetIndex(batchId);
+    return idx >= 0 ? state.waitingTaskSets[idx].tasks : null;
+}
+
+function _setWaitingTaskSet(batchId, tasks) {
+    const idx = _findWaitingTaskSetIndex(batchId);
+    if (idx >= 0) {
+        state.waitingTaskSets[idx].tasks = tasks;
+    } else if (state.waitingTaskSetCount < MAX_WAITING_BATCHES) {
+        state.waitingTaskSets[state.waitingTaskSetCount++] = { batchId: batchId, tasks: tasks };
+    }
+}
+
+function _removeWaitingTaskSet(batchId) {
+    const idx = _findWaitingTaskSetIndex(batchId);
+    if (idx < 0) return;
+    for (let i = idx; i < state.waitingTaskSetCount - 1; i++) {
+        state.waitingTaskSets[i] = state.waitingTaskSets[i + 1];
+    }
+    state.waitingTaskSetCount--;
+}
+
+function log(msg) {
+    // PLC: vain ring buffer, ei konsoli-I/O:ta (sama kuin taskScheduler)
+    var entry = { phase: state.phase, msg: msg, time: _getSystemTimeMs() };
+    state.phaseLogCount = _ringBufferWrite(state.phaseLog, state.phaseLogCount, MAX_PHASE_LOG, entry);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PLC-YHTEENSOPIVAT KOPIOFUNKTIOT (ST: field-by-field struct copy)
+// Korvaa JSON.parse(JSON.stringify(...)) -patternin
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Copy single batch struct field-by-field.
+ *  PLC: ST_Batch := src; (struct assignment) */
+function _copyBatch(src) {
+    return {
+        batch_id: src.batch_id,
+        stage: src.stage,
+        treatment_program: src.treatment_program,
+        start_time: src.start_time,
+        calc_time_s: src.calc_time_s,
+        min_time_s: src.min_time_s,
+        max_time_s: src.max_time_s,
+        isDelayed: src.isDelayed,
+        justActivated: src.justActivated,
+        loaded_s: src.loaded_s,
+        start_time_s: src.start_time_s
+    };
+}
+
+/** Copy batches array field-by-field.
+ *  PLC: FOR i:=0 TO count-1 DO arr[i] := src[i]; */
+function _copyBatchesArray(srcArr) {
+    const result = [];
+    if (!srcArr) return result;
+    const len = srcArr.length;
+    for (let i = 0; i < len; i++) {
+        result[i] = _copyBatch(srcArr[i]);
+    }
+    return result;
+}
+
+/** Copy single transporter state struct (nested .state — two-level copy).
+ *  PLC: ST_TransporterState := src; */
+function _copyTransporterState(src) {
+    const copy = {
+        id: src.id,
+        name: src.name
+    };
+    if (src.state) {
+        copy.state = {
+            status: src.state.status,
+            phase: src.state.phase,
+            x_position: src.state.x_position,
+            sink_station_target: src.state.sink_station_target,
+            lift_station_target: src.state.lift_station_target,
+            est_finish_s: src.state.est_finish_s,
+            pending_batch_id: src.state.pending_batch_id,
+            current_task_lift_station_id: src.state.current_task_lift_station_id
+        };
+    } else {
+        copy.state = null;
+    }
+    return copy;
+}
+
+/** Copy transporter states array field-by-field. */
+function _copyTransporterStatesArray(srcArr) {
+    const result = [];
+    if (!srcArr) return result;
+    const len = srcArr.length;
+    for (let i = 0; i < len; i++) {
+        result[i] = _copyTransporterState(srcArr[i]);
+    }
+    return result;
+}
+
+/** Copy single schedule stage struct field-by-field.
+ *  PLC: ST_ScheduleStage := src; */
+function _copyScheduleStage(src) {
+    const copy = {
+        stage: src.stage,
+        station: src.station,
+        entry_time_s: src.entry_time_s,
+        exit_time_s: src.exit_time_s,
+        treatment_time_s: src.treatment_time_s,
+        transfer_time_s: src.transfer_time_s,
+        min_time_s: src.min_time_s,
+        max_time_s: src.max_time_s
+    };
+    if (src.station_name !== undefined) copy.station_name = src.station_name;
+    if (src.station_id !== undefined) copy.station_id = src.station_id;
+    if (src.entry_time !== undefined) copy.entry_time = src.entry_time;
+    if (src.exit_time !== undefined) copy.exit_time = src.exit_time;
+    if (src.min_exit_time_s !== undefined) copy.min_exit_time_s = src.min_exit_time_s;
+    if (src.max_exit_time_s !== undefined) copy.max_exit_time_s = src.max_exit_time_s;
+    if (src.transfer_details !== undefined) copy.transfer_details = src.transfer_details;
+    if (src.parallel_stations !== undefined) copy.parallel_stations = src.parallel_stations;
+    if (src.selected_from_parallel !== undefined) copy.selected_from_parallel = src.selected_from_parallel;
+    return copy;
+}
+
+/** Copy single schedule object (with stages array).
+ *  PLC: Deep copy schedule struct + stages array */
+function _copySchedule(srcData) {
+    if (!srcData) return null;
+    const copy = {};
+    if (srcData.batchStage !== undefined) copy.batchStage = srcData.batchStage;
+    if (srcData.totalTime !== undefined) copy.totalTime = srcData.totalTime;
+    if (srcData.totalTransferTime !== undefined) copy.totalTransferTime = srcData.totalTransferTime;
+    if (srcData.dynamicOffsetSec !== undefined) copy.dynamicOffsetSec = srcData.dynamicOffsetSec;
+    if (srcData.calculated_at !== undefined) copy.calculated_at = srcData.calculated_at;
+    if (srcData.stages) {
+        copy.stages = [];
+        const len = srcData.stages.length;
+        for (let si = 0; si < len; si++) {
+            copy.stages[si] = _copyScheduleStage(srcData.stages[si]);
+        }
+    }
+    return copy;
+}
+
+/** Copy single program stage struct field-by-field.
+ *  PLC: ST_ProgramStage := src; */
+function _copyProgramStage(src) {
+    return {
+        stage: src.stage,
+        min_station: src.min_station,
+        max_station: src.max_station,
+        min_time: src.min_time,
+        max_time: src.max_time,
+        calc_time: src.calc_time
+    };
+}
+
+/** Copy program (array of stage objects) field-by-field.
+ *  PLC: FOR i:=0 TO count-1 DO program[i] := src[i]; */
+function _copyProgram(srcProg) {
+    if (!srcProg) return [];
+    const result = [];
+    const len = srcProg.length;
+    for (let pi = 0; pi < len; pi++) {
+        result[pi] = _copyProgramStage(srcProg[pi]);
+    }
+    return result;
+}
+
+/** Copy programs hash map field-by-field (each value is a program array). */
+function _copyProgramsHashMap(srcMap) {
+    const copy = {};
+    if (!srcMap) return copy;
+    for (const batchIdStr of Object.keys(srcMap)) {
+        copy[batchIdStr] = _copyProgram(srcMap[batchIdStr]);
+    }
+    return copy;
+}
+
+/** Copy single task struct field-by-field.
+ *  PLC: ST_Task := src; */
+function _copyTask(src) {
+    return {
+        batch_id: src.batch_id,
+        stage: src.stage,
+        transporter_id: src.transporter_id,
+        lift_station_id: src.lift_station_id,
+        sink_station_id: src.sink_station_id,
+        task_start_time: src.task_start_time,
+        task_finished_time: src.task_finished_time,
+        is_no_treatment: src.is_no_treatment,
+        is_primary_destination: src.is_primary_destination,
+        unit_id: src.unit_id,
+        unit_target: src.unit_target,
+        min_time_s: src.min_time_s,
+        max_time_s: src.max_time_s,
+        calc_time_s: src.calc_time_s,
+        isInFlight: src.isInFlight
+    };
+}
+
+/** Deep copy departureSandbox field-by-field.
+ *  Sandbox uses hash maps internally (temporary calculation structure).
+ *  PLC: Copies all sub-structures entry-by-entry. */
+function _copyDepartureSandbox(src) {
+    if (!src) return null;
+    const sb = {};
+
+    // Copy batches
+    sb.batches = [];
+    if (src.batches) {
+        const len = src.batches.length;
+        for (let i = 0; i < len; i++) {
+            sb.batches[i] = _copyBatch(src.batches[i]);
+        }
+    }
+
+    // Copy schedulesByBatchId (hash map of schedules)
+    sb.schedulesByBatchId = {};
+    if (src.schedulesByBatchId) {
+        for (const batchIdStr of Object.keys(src.schedulesByBatchId)) {
+            sb.schedulesByBatchId[batchIdStr] = _copySchedule(src.schedulesByBatchId[batchIdStr]);
+        }
+    }
+
+    // Copy programsByBatchId (hash map of programs)
+    sb.programsByBatchId = _copyProgramsHashMap(src.programsByBatchId);
+
+    // Copy tasks
+    sb.tasks = [];
+    if (src.tasks) {
+        const len = src.tasks.length;
+        for (let i = 0; i < len; i++) {
+            sb.tasks[i] = _copyTask(src.tasks[i]);
+        }
+    }
+
+    return sb;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// APUFUNKTIOT
+// ═══════════════════════════════════════════════════════════════════════════════
 
 /**
  * Laske overlap-asemat: asemat joissa USEAMPI nostin voi toimia.
  * Vertaa jokaisen nostimen task_areas-alueita (lift + sink) ja etsii
  * asemanumerot jotka kuuluvat vähintään kahden eri nostimen alueisiin.
  * 
+ * PLC: Palauttaa { flags: BOOL[MAX_STATIONS+1], count: INT } (Set-korvaaja).
+ * 
  * @param {Array} transporters - Nostimet task_areas-tiedoilla
- * @returns {Set<number>} Overlap-asemanumerot
+ * @returns {{ flags: boolean[], count: number }} Overlap-asemanumerot boolean-arrayna
  */
 function computeOverlapStations(transporters) {
-    const stationCoverage = new Map(); // station number → Set<transporter id>
-    for (const t of transporters) {
+    // PLC: coverageCount[station] = kuinka monta nostinta kattaa aseman
+    const coverageCount = [];
+    for (let i = 0; i <= MAX_STATIONS; i++) coverageCount[i] = 0;
+
+    for (let ti = 0; ti < (transporters ? transporters.length : 0); ti++) {
+        const t = transporters[ti];
         if (!t.task_areas) continue;
-        for (const area of Object.values(t.task_areas)) {
-            const ranges = [
-                [area.min_lift_station || 0, area.max_lift_station || 0],
-                [area.min_sink_station || 0, area.max_sink_station || 0]
-            ];
-            for (const [min, max] of ranges) {
-                if (min > 0 && max > 0) {
-                    for (let n = min; n <= max; n++) {
-                        if (!stationCoverage.has(n)) stationCoverage.set(n, new Set());
-                        stationCoverage.get(n).add(t.id);
-                    }
+        // PLC: BOOL-taulukko — estää saman aseman laskemisen kahdesti per nostin
+        const covered = [];
+        for (let i = 0; i <= MAX_STATIONS; i++) covered[i] = false;
+        const areaKeys = Object.keys(t.task_areas);
+        for (let ak = 0; ak < areaKeys.length; ak++) {
+            const area = t.task_areas[areaKeys[ak]];
+            const minLift = area.min_lift_station || 0;
+            const maxLift = area.max_lift_station || 0;
+            const minSink = area.min_sink_station || 0;
+            const maxSink = area.max_sink_station || 0;
+            if (minLift > 0 && maxLift > 0) {
+                for (let n = minLift; n <= maxLift && n <= MAX_STATIONS; n++) {
+                    if (!covered[n]) { covered[n] = true; coverageCount[n]++; }
+                }
+            }
+            if (minSink > 0 && maxSink > 0) {
+                for (let n = minSink; n <= maxSink && n <= MAX_STATIONS; n++) {
+                    if (!covered[n]) { covered[n] = true; coverageCount[n]++; }
                 }
             }
         }
     }
-    const overlapStations = new Set();
-    for (const [station, tIds] of stationCoverage) {
-        if (tIds.size > 1) overlapStations.add(station);
+
+    const flags = [];
+    let count = 0;
+    for (let i = 0; i <= MAX_STATIONS; i++) {
+        flags[i] = (coverageCount[i] > 1);
+        if (flags[i]) count++;
     }
-    return overlapStations;
+    return { flags: flags, count: count };
 }
 
 /**
@@ -231,14 +745,17 @@ function computeOverlapStations(transporters) {
  * @param {Object} task - Tehtävä (lift_station_id, sink_station_id, transporter_id, task_start_time, task_finished_time)
  * @param {number} cumulativeShift - Kumulatiivinen viive aiemmista stageista
  * @param {Array} existingTasks - Olemassa olevat tehtävät (linja-erien)
- * @param {Set<number>} overlapStations - Overlap-asemanumerot
+ * @param {{ flags: boolean[], count: number }} overlapStations - Overlap-asemat boolean-arrayna
  * @param {number} [marginSec=2] - Turvamarginaali (sekuntia)
  * @returns {number} Tarvittava lisäviive (0 = ei konfliktia)
  */
 function calculateOverlapDelay(task, cumulativeShift, existingTasks, overlapStations, marginSec) {
-    if (!overlapStations || overlapStations.size === 0) return 0;
+    if (!overlapStations || overlapStations.count === 0) return 0;
     
-    const isOverlap = overlapStations.has(task.lift_station_id) || overlapStations.has(task.sink_station_id);
+    const liftId = task.lift_station_id;
+    const sinkId = task.sink_station_id;
+    const isOverlap = (liftId >= 0 && liftId <= MAX_STATIONS && overlapStations.flags[liftId]) ||
+                      (sinkId >= 0 && sinkId <= MAX_STATIONS && overlapStations.flags[sinkId]);
     if (!isOverlap) return 0;
     
     const taskDuration = task.task_finished_time - task.task_start_time;
@@ -256,7 +773,10 @@ function calculateOverlapDelay(task, cumulativeShift, existingTasks, overlapStat
             if (existing.transporter_id === tId) continue;
             
             // Tarkista käyttääkö olemassa oleva tehtävä overlap-asemaa
-            if (!overlapStations.has(existing.lift_station_id) && !overlapStations.has(existing.sink_station_id)) {
+            const eLift = existing.lift_station_id;
+            const eSink = existing.sink_station_id;
+            if (!(eLift >= 0 && eLift <= MAX_STATIONS && overlapStations.flags[eLift]) &&
+                !(eSink >= 0 && eSink <= MAX_STATIONS && overlapStations.flags[eSink])) {
                 continue;
             }
             
@@ -276,18 +796,40 @@ function calculateOverlapDelay(task, cumulativeShift, existingTasks, overlapStat
 }
 
 function summarizeTasks(label, tasks) {
-    const byBatch = new Map();
-    for (const t of tasks || []) {
-        const key = `B${t.batch_id}`;
-        if (!byBatch.has(key)) byBatch.set(key, { count: 0, stages: new Set() });
-        const entry = byBatch.get(key);
-        entry.count++;
-        entry.stages.add(t.stage);
+    // PLC: Korvaa Map/Set yksinkertaisilla taulukoilla
+    const batchIds = [];
+    const batchCounts = [];
+    const batchStages = [];  // taulukko taulukoita
+    let batchGroupCount = 0;
+    const taskArr = tasks || [];
+    for (let ti = 0; ti < taskArr.length; ti++) {
+        const t = taskArr[ti];
+        const key = t.batch_id;
+        let found = -1;
+        for (let bi = 0; bi < batchGroupCount; bi++) {
+            if (batchIds[bi] === key) { found = bi; break; }
+        }
+        if (found < 0) {
+            found = batchGroupCount++;
+            batchIds[found] = key;
+            batchCounts[found] = 0;
+            batchStages[found] = [];
+        }
+        batchCounts[found]++;
+        // Add stage if not already present
+        let stageExists = false;
+        for (let si = 0; si < batchStages[found].length; si++) {
+            if (batchStages[found][si] === t.stage) { stageExists = true; break; }
+        }
+        if (!stageExists) batchStages[found].push(t.stage);
     }
-    const summary = [...byBatch.entries()]
-        .map(([key, info]) => `${key}:${info.count} s[${[...info.stages].sort((a, b) => a - b).join(',')}]`)
-        .join('; ');
-    console.log(`${label}: ${(tasks || []).length} tasks${summary ? ` (${summary})` : ''}`);
+    let summary = '';
+    for (let bi = 0; bi < batchGroupCount; bi++) {
+        batchStages[bi].sort(function(a, b) { return a - b; });
+        if (bi > 0) summary += '; ';
+        summary += 'B' + batchIds[bi] + ':' + batchCounts[bi] + ' s[' + batchStages[bi].join(',') + ']';
+    }
+    log(label + ': ' + taskArr.length + ' tasks' + (summary ? ' (' + summary + ')' : ''));
 }
 
 /**
@@ -296,7 +838,7 @@ function summarizeTasks(label, tasks) {
  * Uses sandbox line tasks for idle-slot calculation.
  */
 function calculateWaitingBatchSchedule(batch, batchId) {
-    const program = state.programsByBatchId[String(batchId)];
+    const program = _getProgram(batchId);
     if (!program) return null;
     
     const transporter = state.transporters[0];
@@ -304,13 +846,17 @@ function calculateWaitingBatchSchedule(batch, batchId) {
     const baseTime = now;
     
     // 1. Line tasks from sandbox + in-flight
-    const lineTasks = [...(state.departureSandbox?.tasks || [])];
+    // PLC: FOR-loop copy (korvaa spread-operaattori)
+    const lineTasks = [];
+    const _sbTasks = (state.departureSandbox ? state.departureSandbox.tasks : null) || [];
+    for (let _li = 0; _li < _sbTasks.length; _li++) lineTasks[_li] = _sbTasks[_li];
     if (state._inFlightTasks && state._inFlightTasks.length > 0) {
-        lineTasks.push(...state._inFlightTasks);
+        for (let _ifi = 0; _ifi < state._inFlightTasks.length; _ifi++) lineTasks.push(state._inFlightTasks[_ifi]);
     }
     
     // 2. Find stage 0 transporter
-    const firstStageStation = parseInt(program[0]?.min_station, 10);
+    // PLC: explicit null check (korvaa ?.)
+    const firstStageStation = parseInt(program[0] ? program[0].min_station : 0, 10);
     const batchLoc = ctx.getBatchLocation(batch.batch_id);
     const pickupStation = scheduler.findStation(batchLoc, state.stations);
     let stage0Transporter = null;
@@ -337,8 +883,11 @@ function calculateWaitingBatchSchedule(batch, batchId) {
             if (slot.prevTask) {
                 fromStation = scheduler.findStation(slot.prevTask.sink_station_id, state.stations);
             } else {
-                const tCurrentState = (ctx.transporterStates || []).find(ts => ts.id === tId);
-                const currentX = tCurrentState?.state?.x_position;
+                // PLC: FOR-loop (korvaa .find())
+                let tCurrentState = null;
+                const _tsArr1 = ctx.transporterStates || [];
+                for (let _tsi = 0; _tsi < _tsArr1.length; _tsi++) { if (_tsArr1[_tsi].id === tId) { tCurrentState = _tsArr1[_tsi]; break; } }
+                const currentX = (tCurrentState && tCurrentState.state) ? tCurrentState.state.x_position : undefined;
                 if (currentX != null && Number.isFinite(currentX)) {
                     fromStation = { number: -1, x_position: currentX };
                 } else if (stage0Transporter.start_station) {
@@ -355,7 +904,8 @@ function calculateWaitingBatchSchedule(batch, batchId) {
                         fromStation, pickupStation, stage0Transporter,
                         ctx.movementTimes || null
                     );
-                    travelToPickup = transfer?.phase3_travel_s ?? 0;
+                    // PLC: explicit null check (korvaa ?. ??)
+                    travelToPickup = (transfer && transfer.phase3_travel_s != null) ? transfer.phase3_travel_s : 0;
                 }
             }
         }
@@ -372,29 +922,35 @@ function calculateWaitingBatchSchedule(batch, batchId) {
     batch.calc_time_s = stage0CalcTime;
     batch.min_time_s = s0min;
     batch.max_time_s = s0max;
-    log(`CHECK B${batchId}: stage 0 pre-calc → calc=${stage0CalcTime.toFixed(1)}s, min=${s0min.toFixed(1)}s, max=${s0max.toFixed(1)}s (T${tId}, ${idleSlots.length} idle-slots)`);
+    log('CHECK B' + batchId + ': stage 0 pre-calc → calc=' + stage0CalcTime.toFixed(1) + 's, min=' + s0min.toFixed(1) + 's, max=' + s0max.toFixed(1) + 's (T' + tId + ', ' + idleSlots.length + ' idle-slots)');
     
     // 6. Calculate full schedule
-    const existingSchedules = Object.entries(state.schedulesByBatchId)
-        .filter(([id]) => id !== String(batchId))
-        .map(([, sched]) => sched);
-    const occupiedStations = new Set(
-        (ctx.units || [])
-            .filter(u => u.batch_id != null && u.batch_id !== batch.batch_id && u.location > 0)
-            .map(u => u.location)
-    );
+    const existingSchedules = [];
+    for (let si = 0; si < state.scheduleCount; si++) {
+        if (state.schedules[si].batchId !== batchId) {
+            existingSchedules.push(state.schedules[si].data);
+        }
+    }
+    // PLC: FOR-loop (korvaa .filter().map() → Set)
+    const occupiedStations = new Set();
+    const _cwUnits1 = ctx.units || [];
+    for (let _ui = 0; _ui < _cwUnits1.length; _ui++) {
+        const _u = _cwUnits1[_ui];
+        if (_u.batch_id != null && _u.batch_id !== batch.batch_id && _u.location > 0) occupiedStations.add(_u.location);
+    }
     const batchLocForCalc = ctx.getBatchLocation(batch.batch_id);
     const isOnTransporter = batchLocForCalc != null && batchLocForCalc < 100;
     let calcTransporterState = null;
     if (isOnTransporter) {
-        const tState = (ctx.transporterStates || []).find(t => t.id === batchLocForCalc);
-        if (tState) calcTransporterState = tState;
+        // PLC: FOR-loop (korvaa .find())
+        const _tsArr2 = ctx.transporterStates || [];
+        for (let _tsi = 0; _tsi < _tsArr2.length; _tsi++) { if (_tsArr2[_tsi].id === batchLocForCalc) { calcTransporterState = _tsArr2[_tsi]; break; } }
     }
     
     try {
         const scheduleResult = scheduler.calculateBatchSchedule(
             batch, program, state.stations,
-            isOnTransporter ? (state.transporters.find(t => t.id === batchLocForCalc) || transporter) : transporter,
+            isOnTransporter ? (function() { for (var _fi = 0; _fi < state.transporters.length; _fi++) { if (state.transporters[_fi].id === batchLocForCalc) return state.transporters[_fi]; } return transporter; })() : transporter,
             baseTime, batch.isDelayed, calcTransporterState,
             {
                 movementTimes: ctx.movementTimes || null,
@@ -409,9 +965,13 @@ function calculateWaitingBatchSchedule(batch, batchId) {
             scheduleResult.batchStage = batch.stage;
             scheduleResult.dynamicOffsetSec = baseTime - now;
             
-            const stage0Sched = scheduleResult.stages?.find(s => s.stage === 0);
+            // PLC: FOR-loop (korvaa .find())
+            let stage0Sched = null;
+            if (scheduleResult.stages) { for (let _si = 0; _si < scheduleResult.stages.length; _si++) { if (scheduleResult.stages[_si].stage === 0) { stage0Sched = scheduleResult.stages[_si]; break; } } }
             if (stage0Sched) {
-                const sandboxBatch = state.departureSandbox?.batches?.find(b => b.batch_id === batchId);
+                // PLC: FOR-loop (korvaa .find())
+                let sandboxBatch = null;
+                if (state.departureSandbox && state.departureSandbox.batches) { for (let _sbi = 0; _sbi < state.departureSandbox.batches.length; _sbi++) { if (state.departureSandbox.batches[_sbi].batch_id === batchId) { sandboxBatch = state.departureSandbox.batches[_sbi]; break; } } }
                 if (sandboxBatch) {
                     sandboxBatch.calc_time_s = stage0Sched.treatment_time_s;
                     sandboxBatch.min_time_s = stage0Sched.min_time_s;
@@ -420,16 +980,16 @@ function calculateWaitingBatchSchedule(batch, batchId) {
                 batch.calc_time_s = stage0Sched.treatment_time_s;
                 batch.min_time_s = stage0Sched.min_time_s;
                 batch.max_time_s = stage0Sched.max_time_s;
-                log(`CHECK B${batchId}: stage 0 → calc=${stage0Sched.treatment_time_s.toFixed(1)}s, min=${stage0Sched.min_time_s.toFixed(1)}s, max=${stage0Sched.max_time_s.toFixed(1)}s`);
+                log('CHECK B' + batchId + ': stage 0 → calc=' + stage0Sched.treatment_time_s.toFixed(1) + 's, min=' + stage0Sched.min_time_s.toFixed(1) + 's, max=' + stage0Sched.max_time_s.toFixed(1) + 's');
             }
             
-            state.schedulesByBatchId[String(batchId)] = scheduleResult;
+            _setSchedule(batchId, scheduleResult);
             state.departureSandbox.schedulesByBatchId[String(batchId)] = scheduleResult;
-            state.waitingSchedules[String(batchId)] = scheduleResult;
+            _setWaitingSched(batchId, scheduleResult);
         }
         return scheduleResult;
     } catch (err) {
-        log(`CHECK B${batchId} schedule error: ${err.message}`);
+        log('CHECK B' + batchId + ' schedule error: ' + err.message);
         return null;
     }
 }
@@ -450,8 +1010,8 @@ async function tick(context) {
     // Päivitä TASKS-tilakoneen tila synkronointia varten
     state.tasksPhase = ctx.tasksPhase || 0;
     
-    // DEBUG: Tulosta aina tick-tila
-    console.log(`[DEPARTURE TICK] phase=${p} (${getPhaseName(p)}), tasksPhase=${state.tasksPhase}, simTick=${ctx.simTick || 0}`);
+    // PLC: tick-tila ring bufferiin
+    log('TICK phase=' + p + ' (' + getPhaseName(p) + '), tasksPhase=' + state.tasksPhase + ', simTick=' + (ctx.simTick || 0));
     
     // ═══════════════════════════════════════════════════════════════════════════════
     // PHASE 0: WAITING_FOR_TASKS
@@ -462,20 +1022,20 @@ async function tick(context) {
         const TASKS_SAVE = 10001;
         const tasksConflictResolved = ctx.tasksConflictResolved || false;
         
-        console.log(`[DEPARTURE] WAITING_FOR_TASKS: tasksPhase=${state.tasksPhase}, conflictResolved=${tasksConflictResolved}`);
+        log('WAITING_FOR_TASKS: tasksPhase=' + state.tasksPhase + ', conflictResolved=' + tasksConflictResolved);
         
         // DEPARTURE odottaa kunnes:
         // 1. TASKS on valmis (phase >= READY)
         // 2. TASKS:n konfliktianalyysi on stabiili (conflictResolved = true)
         // Stabiili lähtötilanne takaa luotettavat idle-slotit.
         if (state.tasksPhase >= TASKS_READY && tasksConflictResolved) {
-            log(`TASKS ready & stable (phase=${state.tasksPhase}, conflictResolved=${tasksConflictResolved}), starting DEPARTURE cycle`);
+            log('TASKS ready & stable (phase=' + state.tasksPhase + ', conflictResolved=' + tasksConflictResolved + '), starting DEPARTURE cycle');
             state.lastTasksReadyTick = ctx.simTick || 0;
             nextPhase = PHASE.INIT;
         } else if (state.tasksPhase >= TASKS_READY && !tasksConflictResolved) {
-            console.log(`[DEPARTURE] TASKS ready but conflicts unresolved — waiting for stable state`);
+            log('TASKS ready but conflicts unresolved — waiting for stable state');
         } else {
-            console.log(`[DEPARTURE] Waiting for TASKS... (current: ${state.tasksPhase})`);
+            log('Waiting for TASKS... (current: ' + state.tasksPhase + ')');
         }
     }
     
@@ -501,13 +1061,17 @@ async function tick(context) {
         //
         // HUOM: schedulesByBatchId EI kopioida TASKS:lta!
         // DEPARTURE laskee KAIKKI aikataulut itse DEPARTURE_CALC -vaiheessa.
-        state.batches = ctx.batches ? JSON.parse(JSON.stringify(ctx.batches)) : [];
-        state.stations = ctx.stations ? JSON.parse(JSON.stringify(ctx.stations)) : [];
-        state.transporters = ctx.transporters ? JSON.parse(JSON.stringify(ctx.transporters)) : [];
-        state.transporterStates = ctx.transporterStates ? JSON.parse(JSON.stringify(ctx.transporterStates)) : [];
-        // schedulesByBatchId EI nollata tässä — API lukee sen suoraan.
-        // Käytetään _calcSchedules-välimuistia laskennassa, korvataan atomisesti CALC_DONE:ssa.
-        state._calcSchedules = {};
+        state.batches = ctx.batches ? _copyBatchesArray(ctx.batches) : [];
+        // PLC: FOR-loop copy (korvaa .slice())
+        state.stations = [];
+        if (ctx.stations) { for (let _si = 0; _si < ctx.stations.length; _si++) state.stations[_si] = ctx.stations[_si]; }
+        state.transporters = [];
+        if (ctx.transporters) { for (let _ti = 0; _ti < ctx.transporters.length; _ti++) state.transporters[_ti] = ctx.transporters[_ti]; }
+        state.transporterStates = ctx.transporterStates ? _copyTransporterStatesArray(ctx.transporterStates) : [];
+        // schedules EI nollata tässä — API lukee sen suoraan.
+        // Käytetään _calcScheds-välimuistia laskennassa, korvataan atomisesti CALC_DONE:ssa.
+        state._calcScheds = [];
+        state._calcSchedCount = 0;
         
         // Säilytä odottavan erän sandboxin ohjelma ja batch-tiedot jos samaa erää jatketaan (round > 0)
         // Stage 0 viive kirjataan sandbox-batchin calc_time_s:ään, ja sen pitää säilyä
@@ -515,12 +1079,14 @@ async function tick(context) {
         const continuingBatchId = state._currentDepartureBatchId;
         let savedWaitingProgram = null;
         let savedWaitingBatchTimes = null;
-        if (continuingBatchId && state.departureSandbox?.programsByBatchId?.[String(continuingBatchId)]) {
-            savedWaitingProgram = JSON.parse(JSON.stringify(
+        if (continuingBatchId && state.departureSandbox && state.departureSandbox.programsByBatchId && state.departureSandbox.programsByBatchId[String(continuingBatchId)]) {
+            savedWaitingProgram = _copyProgram(
                 state.departureSandbox.programsByBatchId[String(continuingBatchId)]
-            ));
+            );
             // Säilytä myös sandbox-batchin calc_time_s/min_time_s/max_time_s (stage 0 viive)
-            const savedBatch = state.departureSandbox.batches?.find(b => b.batch_id === continuingBatchId);
+            // PLC: FOR-loop (korvaa .find())
+            let savedBatch = null;
+            if (state.departureSandbox.batches) { for (let _sbi = 0; _sbi < state.departureSandbox.batches.length; _sbi++) { if (state.departureSandbox.batches[_sbi].batch_id === continuingBatchId) { savedBatch = state.departureSandbox.batches[_sbi]; break; } } }
             if (savedBatch) {
                 savedWaitingBatchTimes = {
                     calc_time_s: savedBatch.calc_time_s,
@@ -528,33 +1094,36 @@ async function tick(context) {
                     max_time_s: savedBatch.max_time_s
                 };
             }
-            log(`INIT: Säilytetään B${continuingBatchId} sandboxin ohjelma ja batch-ajat (round=${state.departureRound}, calc=${savedWaitingBatchTimes?.calc_time_s?.toFixed?.(1)}s)`);
+            // PLC: explicit null checks (korvaa ?.)
+            var _calcStr = (savedWaitingBatchTimes && savedWaitingBatchTimes.calc_time_s != null && typeof savedWaitingBatchTimes.calc_time_s.toFixed === 'function') ? savedWaitingBatchTimes.calc_time_s.toFixed(1) : '?';
+            log('INIT: Säilytetään B' + continuingBatchId + ' sandboxin ohjelma ja batch-ajat (round=' + state.departureRound + ', calc=' + _calcStr + 's)');
         }
         
-        state.programsByBatchId = ctx.programsByBatchId ? JSON.parse(JSON.stringify(ctx.programsByBatchId)) : {};
+        _programsFromHashMap(ctx.programsByBatchId ? _copyProgramsHashMap(ctx.programsByBatchId) : {});
         
         // Luo puhdas sandbox (ei valmiita aikatauluja, ei TASKS:n taskeja)
+        // Sandbox käyttää hash map -muotoa sisäisesti (väliaikainen laskentarakenne)
         state.departureSandbox = {
-            batches: JSON.parse(JSON.stringify(state.batches)),
+            batches: _copyBatchesArray(state.batches),
             schedulesByBatchId: {},  // Lasketaan DEPARTURE_CALC:ssa
-            programsByBatchId: JSON.parse(JSON.stringify(state.programsByBatchId)),
+            programsByBatchId: _copyProgramsHashMap(_programsToHashMap()),
             tasks: []  // Rakennetaan schedulen pohjalta
         };
         
         // Palauta säilytetty ohjelma sandboxiin ja state:een
         if (continuingBatchId && savedWaitingProgram) {
             state.departureSandbox.programsByBatchId[String(continuingBatchId)] = savedWaitingProgram;
-            state.programsByBatchId[String(continuingBatchId)] = JSON.parse(JSON.stringify(savedWaitingProgram));
-            log(`INIT: Palautettu B${continuingBatchId} ohjelma sandboxista (viiveet säilytetty)`);
+            _setProgram(continuingBatchId, _copyProgram(savedWaitingProgram));
+            log('INIT: Palautettu B' + continuingBatchId + ' ohjelma sandboxista (viiveet säilytetty)');
         }
         
         // Nollaa kierroksen muuttujat
         state.waitingBatches = [];
-        state.waitingSchedules = {};
-        state.waitingBatchAnalysis = {};
-        state.waitingBatchTasks = {};
+        state.waitingScheds = []; state.waitingSchedCount = 0;
+        state.waitingAnalyses = []; state.waitingAnalysisCount = 0;
+        state.waitingTaskSets = []; state.waitingTaskSetCount = 0;
         state.departureCandidateStretches = [];
-        state.departureLockedStages = {};
+        state.departureLockedStages = []; state.depLockedStageCount = 0;
         state.departureIteration = 0;
         state.lastDepartureConflict = null;
         
@@ -585,18 +1154,18 @@ async function tick(context) {
                 // Only add to waitingBatches, NOT allCalcBatches
                 const unitForBatch = ctx.getUnitByBatchId ? ctx.getUnitByBatchId(batch.batch_id) : null;
                 if (unitForBatch && unitForBatch.target && unitForBatch.target !== 'none') {
-                    log(`CALC_START: B${batch.batch_id} stage=90 SKIP — unit U${unitForBatch.unit_id} target='${unitForBatch.target}' (not 'none')`);
+                    log('CALC_START: B' + batch.batch_id + ' stage=90 SKIP — unit U' + unitForBatch.unit_id + ' target=\'' + unitForBatch.target + '\' (not \'none\')');
                     continue;
                 }
                 state.waitingBatches.push(i);
                 // Populate analysis metadata for SORT (no schedule needed)
-                const prog = state.programsByBatchId[String(batch.batch_id)];
-                state.waitingBatchAnalysis[String(batch.batch_id)] = {
+                const prog = _getProgram(batch.batch_id);
+                _setWaitingAnalysis(batch.batch_id, {
                     batch_id: batch.batch_id,
                     program_id: batch.treatment_program,
                     loaded_s: batch.loaded_s || batch.start_time_s || 0,
                     stage_count: prog ? prog.length : 0
-                };
+                });
             }
             // stage 0, 61-89, 91+: skip
         }
@@ -606,7 +1175,7 @@ async function tick(context) {
         state.currentCalcIndex = 0;
         state.currentWaitingIndex = 0;
         
-        log(`CALC_START: ${state.allCalcBatches.length} line batches to calculate, ${state.waitingBatches.length} waiting for CHECK phase`);
+        log('CALC_START: ' + state.allCalcBatches.length + ' line batches to calculate, ' + state.waitingBatches.length + ' waiting for CHECK phase');
         
         // ═══════════════════════════════════════════════════════════════
         // Rakenna in-flight-tehtävät nostimien tiloista.
@@ -618,7 +1187,8 @@ async function tick(context) {
         // ═══════════════════════════════════════════════════════════════
         state._inFlightTasks = [];
         for (const t of (ctx.transporterStates || [])) {
-            const s = t?.state;
+            // PLC: explicit null check (korvaa ?.)
+            const s = (t != null) ? t.state : null;
             if (!s || s.phase === 0) continue;
             if (s.current_task_batch_id == null) continue;
             const estFinish = Number(s.current_task_est_finish_s);
@@ -634,7 +1204,7 @@ async function tick(context) {
                 stage: -1,  // pseudo-stage: meneillään oleva siirto
                 isInFlight: true
             });
-            log(`CALC_START: In-flight T${t.id} B${s.current_task_batch_id} ${s.current_task_lift_station_id}→${s.current_task_sink_station_id} est_finish=${estFinish.toFixed(1)}s`);
+            log('CALC_START: In-flight T' + t.id + ' B' + s.current_task_batch_id + ' ' + s.current_task_lift_station_id + '→' + s.current_task_sink_station_id + ' est_finish=' + estFinish.toFixed(1) + 's');
         }
         
         if (state.allCalcCount > 0) {
@@ -657,13 +1227,14 @@ async function tick(context) {
         } else {
             const batchIndex = state.allCalcBatches[calcIndex];
             const batch = state.batches[batchIndex];
-            const batchId = batch?.batch_id;
-            const isWaiting = batch?.stage === 90;
+            // PLC: explicit null check (korvaa ?.)
+            const batchId = batch ? batch.batch_id : null;
+            const isWaiting = batch ? batch.stage === 90 : false;
             
             if (batch && batchId) {
-                log(`CALC B${batchId} stage=${batch.stage} (${calcIndex + 1}/${state.allCalcCount})${isWaiting ? ' [WAITING]' : ''}`);
+                log('CALC B' + batchId + ' stage=' + batch.stage + ' (' + (calcIndex + 1) + '/' + state.allCalcCount + ')' + (isWaiting ? ' [WAITING]' : ''));
                 
-                const program = state.programsByBatchId[String(batchId)];
+                const program = _getProgram(batchId);
                 
                 if (program) {
                     const transporter = state.transporters[0];
@@ -687,11 +1258,15 @@ async function tick(context) {
                     if (isWaiting) {
                         // 1. Rakenna tehtävälista jo lasketuista linja-erien aikatauluista
                         const lineTasks = [];
-                        for (const [id, sched] of Object.entries(state._calcSchedules || {})) {
-                            const lineBatch = state.batches.find(b => b.batch_id === Number(id) || b.batch_id === id);
-                            if (lineBatch && sched) {
-                                const tasks = scheduler.createTaskListFromSchedule(sched, lineBatch, state.transporters);
-                                lineTasks.push(...tasks);
+                        for (let ci = 0; ci < state._calcSchedCount; ci++) {
+                            const calcEntry = state._calcScheds[ci];
+                            // PLC: FOR-loop (korvaa .find())
+                            let lineBatch = null;
+                            for (let _bi = 0; _bi < state.batches.length; _bi++) { if (state.batches[_bi].batch_id === calcEntry.batchId) { lineBatch = state.batches[_bi]; break; } }
+                            if (lineBatch && calcEntry.data) {
+                                const tasks = scheduler.createTaskListFromSchedule(calcEntry.data, lineBatch, state.transporters);
+                                // PLC: FOR-loop (korvaa .push(...spread))
+                                for (let _ti = 0; _ti < tasks.length; _ti++) lineTasks.push(tasks[_ti]);
                             }
                         }
                         
@@ -701,11 +1276,12 @@ async function tick(context) {
                             for (const ift of state._inFlightTasks) {
                                 lineTasks.push(ift);
                             }
-                            log(`CALC B${batchId}: Added ${state._inFlightTasks.length} in-flight tasks to lineTasks`);
+                            log('CALC B' + batchId + ': Added ' + state._inFlightTasks.length + ' in-flight tasks to lineTasks');
                         }
                         
                         // 2. Selvitä mikä nostin hoitaa ensimmäisen siirron
-                        const firstStageStation = parseInt(program[0]?.min_station, 10);
+                        // PLC: explicit null check (korvaa ?.)
+                        const firstStageStation = parseInt(program[0] ? program[0].min_station : 0, 10);
                         const batchLoc = ctx.getBatchLocation(batch.batch_id);
                         const pickupStation = scheduler.findStation(batchLoc, state.stations);
                         let stage0Transporter = null;
@@ -739,8 +1315,11 @@ async function tick(context) {
                                 } else {
                                     // Ensimmäinen idle-slot ilman edeltävää tehtävää:
                                     // Käytä nostimen TODELLISTA sijaintia, ei konfiguraation start_station:ia.
-                                    const tCurrentState = (ctx.transporterStates || []).find(ts => ts.id === tId);
-                                    const currentX = tCurrentState?.state?.x_position;
+                                    // PLC: FOR-loop (korvaa .find())
+                                    let tCurrentState = null;
+                                    const _tsArr3 = ctx.transporterStates || [];
+                                    for (let _tsi = 0; _tsi < _tsArr3.length; _tsi++) { if (_tsArr3[_tsi].id === tId) { tCurrentState = _tsArr3[_tsi]; break; } }
+                                    const currentX = (tCurrentState && tCurrentState.state) ? tCurrentState.state.x_position : undefined;
                                     if (currentX != null && Number.isFinite(currentX)) {
                                         // Luo virtuaalinen "asema" nostimen x-positiosta
                                         fromStation = { number: -1, x_position: currentX };
@@ -760,8 +1339,8 @@ async function tick(context) {
                                             fromStation, pickupStation, stage0Transporter,
                                             ctx.movementTimes || null
                                         );
-                                        // Käytä vain matka-aikaa (phase3), ei nosto/lasku -aikoja
-                                        travelToPickup = transfer?.phase3_travel_s ?? 0;
+                                        // PLC: explicit null check (korvaa ?. ??)
+                                        travelToPickup = (transfer && transfer.phase3_travel_s != null) ? transfer.phase3_travel_s : 0;
                                     }
                                 }
                             }
@@ -781,20 +1360,25 @@ async function tick(context) {
                         batch.calc_time_s = stage0CalcTime;
                         batch.min_time_s = minTime;
                         batch.max_time_s = maxTime;
-                        log(`CALC B${batchId}: stage 0 pre-calc → calc=${stage0CalcTime.toFixed(1)}s, min=${minTime.toFixed(1)}s, max=${maxTime.toFixed(1)}s (T${tId}, ${idleSlots.length} idle-slots)`);
+                        log('CALC B' + batchId + ': stage 0 pre-calc → calc=' + stage0CalcTime.toFixed(1) + 's, min=' + minTime.toFixed(1) + 's, max=' + maxTime.toFixed(1) + 's (T' + tId + ', ' + idleSlots.length + ' idle-slots)');
                     }
                     
                     try {
                         // Other batch schedules for parallel station selection (use current calc results)
-                        const existingSchedules = Object.entries(state._calcSchedules || {})
-                            .filter(([id]) => id !== String(batchId))
-                            .map(([, sched]) => sched);
+                        const existingSchedules = [];
+                        for (let ci = 0; ci < state._calcSchedCount; ci++) {
+                            if (state._calcScheds[ci].batchId !== batchId) {
+                                existingSchedules.push(state._calcScheds[ci].data);
+                            }
+                        }
                         
-                        const occupiedStations = new Set(
-                            (ctx.units || [])
-                                .filter(u => u.batch_id != null && u.batch_id !== batch.batch_id && u.location > 0)
-                                .map(u => u.location)
-                        );
+                        // PLC: FOR-loop (korvaa .filter().map() → Set)
+                        const occupiedStations = new Set();
+                        const _dcUnits = ctx.units || [];
+                        for (let _ui = 0; _ui < _dcUnits.length; _ui++) {
+                            const _u = _dcUnits[_ui];
+                            if (_u.batch_id != null && _u.batch_id !== batch.batch_id && _u.location > 0) occupiedStations.add(_u.location);
+                        }
                         
                         // Etsi nostimen tila jos erä on nostimessa
                         // → calculateBatchSchedule käyttää est_finish_s:ää entry_time:na
@@ -802,17 +1386,16 @@ async function tick(context) {
                         const isOnTransporter = batchLocForCalc != null && batchLocForCalc < 100;
                         let calcTransporterState = null;
                         if (isOnTransporter) {
-                            const tState = (ctx.transporterStates || []).find(t => t.id === batchLocForCalc);
-                            if (tState) {
-                                calcTransporterState = tState;
-                            }
+                            // PLC: FOR-loop (korvaa .find())
+                            const _tsArr4 = ctx.transporterStates || [];
+                            for (let _tsi = 0; _tsi < _tsArr4.length; _tsi++) { if (_tsArr4[_tsi].id === batchLocForCalc) { calcTransporterState = _tsArr4[_tsi]; break; } }
                         }
                         
                         const scheduleResult = scheduler.calculateBatchSchedule(
                             batch,
                             program,
                             state.stations,
-                            isOnTransporter ? (state.transporters.find(t => t.id === batchLocForCalc) || transporter) : transporter,
+                            isOnTransporter ? (function() { for (var _fi = 0; _fi < state.transporters.length; _fi++) { if (state.transporters[_fi].id === batchLocForCalc) return state.transporters[_fi]; } return transporter; })() : transporter,
                             baseTime,
                             batch.isDelayed,
                             calcTransporterState,
@@ -832,9 +1415,13 @@ async function tick(context) {
                                 
                                 // Kirjoita stage 0:n calc_time sandbox-batchiin
                                 // ACTIVATE lukee sandbox.batches — EI state.batches!
-                                const stage0 = scheduleResult.stages?.find(s => s.stage === 0);
+                                // PLC: FOR-loop (korvaa .find())
+                                let stage0 = null;
+                                if (scheduleResult.stages) { for (let _si = 0; _si < scheduleResult.stages.length; _si++) { if (scheduleResult.stages[_si].stage === 0) { stage0 = scheduleResult.stages[_si]; break; } } }
                                 if (stage0) {
-                                    const sandboxBatch = state.departureSandbox?.batches?.find(b => b.batch_id === batchId);
+                                    // PLC: FOR-loop (korvaa .find())
+                                    let sandboxBatch = null;
+                                    if (state.departureSandbox && state.departureSandbox.batches) { for (let _sbi = 0; _sbi < state.departureSandbox.batches.length; _sbi++) { if (state.departureSandbox.batches[_sbi].batch_id === batchId) { sandboxBatch = state.departureSandbox.batches[_sbi]; break; } } }
                                     if (sandboxBatch) {
                                         sandboxBatch.calc_time_s = stage0.treatment_time_s;
                                         sandboxBatch.min_time_s = stage0.min_time_s;
@@ -844,26 +1431,26 @@ async function tick(context) {
                                     batch.calc_time_s = stage0.treatment_time_s;
                                     batch.min_time_s = stage0.min_time_s;
                                     batch.max_time_s = stage0.max_time_s;
-                                    log(`CALC B${batchId}: stage 0 → calc=${stage0.treatment_time_s.toFixed(1)}s, min=${stage0.min_time_s.toFixed(1)}s, max=${stage0.max_time_s.toFixed(1)}s`);
+                                    log('CALC B' + batchId + ': stage 0 → calc=' + stage0.treatment_time_s.toFixed(1) + 's, min=' + stage0.min_time_s.toFixed(1) + 's, max=' + stage0.max_time_s.toFixed(1) + 's');
                                 }
                             }
                             
-                            // Store in _calcSchedules (temp buffer, swapped to schedulesByBatchId in CALC_DONE)
-                            state._calcSchedules[String(batchId)] = scheduleResult;
+                            // Store in _calcScheds (temp buffer, swapped to schedules in CALC_DONE)
+                            _setCalcSched(batchId, scheduleResult);
                             state.departureSandbox.schedulesByBatchId[String(batchId)] = scheduleResult;
                             
                             if (isWaiting) {
-                                state.waitingSchedules[String(batchId)] = scheduleResult;
-                                state.waitingBatchAnalysis[String(batchId)] = {
+                                _setWaitingSched(batchId, scheduleResult);
+                                _setWaitingAnalysis(batchId, {
                                     batch_id: batchId,
                                     program_id: batch.treatment_program,
                                     loaded_s: batch.loaded_s || batch.start_time_s || 0,
                                     stage_count: program.length
-                                };
+                                });
                             }
                         }
                     } catch (err) {
-                        log(`CALC B${batchId} error: ${err.message}`);
+                        log('CALC B' + batchId + ' error: ' + err.message);
                     }
                 }
             }
@@ -884,28 +1471,37 @@ async function tick(context) {
     // PHASE 1900: DEPARTURE_CALC_DONE
     // ═══════════════════════════════════════════════════════════════════════════════
     else if (p === PHASE.DEPARTURE_CALC_DONE) {
-        // Atomic swap: replace schedulesByBatchId only when ALL calcs are done → no API flicker
-        state.schedulesByBatchId = state._calcSchedules;
-        state._calcSchedules = {};
+        // Atomic swap: copy _calcScheds → schedules (PLC: indexed array copy)
+        state.schedules = [];
+        state.scheduleCount = 0;
+        for (let ci = 0; ci < state._calcSchedCount; ci++) {
+            state.schedules[state.scheduleCount++] = { batchId: state._calcScheds[ci].batchId, data: state._calcScheds[ci].data };
+        }
+        state._calcScheds = [];
+        state._calcSchedCount = 0;
         
-        const totalSchedules = Object.keys(state.schedulesByBatchId).length;
-        const waitingSchedules = Object.keys(state.waitingSchedules).length;
-        log(`CALC done: ${totalSchedules} total schedules (${totalSchedules - waitingSchedules} line + ${waitingSchedules} waiting)`);
+        const totalSchedules = state.scheduleCount;
+        const waitingSchedTotal = state.waitingSchedCount;
+        log('CALC done: ' + totalSchedules + ' total schedules (' + (totalSchedules - waitingSchedTotal) + ' line + ' + waitingSchedTotal + ' waiting)');
         
         // Build sandbox tasks from ALL calculated schedules
         const allTasks = [];
-        for (const [batchIdStr, schedule] of Object.entries(state.schedulesByBatchId)) {
+        for (let si = 0; si < state.scheduleCount; si++) {
+            const schedule = state.schedules[si].data;
             if (!schedule || !schedule.stages) continue;
-            const batch = state.batches.find(b => b.batch_id === Number(batchIdStr));
+            // PLC: FOR-loop (korvaa .find())
+            let batch = null;
+            for (let _bi = 0; _bi < state.batches.length; _bi++) { if (state.batches[_bi].batch_id === state.schedules[si].batchId) { batch = state.batches[_bi]; break; } }
             if (!batch) continue;
             // Only non-waiting batch tasks go into sandbox.tasks (waiting batch tasks are added per-check)
             if (batch.stage !== 90) {
                 const tasks = scheduler.createTaskListFromSchedule(schedule, batch, state.transporters);
-                allTasks.push(...tasks);
+                // PLC: FOR-loop (korvaa .push(...spread))
+                for (let _ti = 0; _ti < tasks.length; _ti++) allTasks.push(tasks[_ti]);
             }
         }
         state.departureSandbox.tasks = allTasks;
-        log(`Built ${allTasks.length} sandbox tasks from line batch schedules`);
+        log('Built ' + allTasks.length + ' sandbox tasks from line batch schedules');
         
         nextPhase = PHASE.WAITING_SORT_START;
     }
@@ -920,16 +1516,17 @@ async function tick(context) {
     
     else if (p === PHASE.WAITING_SORT_LOADED) {
         if (state.waitingBatches.length > 1) {
-            state.waitingBatches.sort((aIdx, bIdx) => {
+            // PLC: _insertionSort (korvaa .sort())
+            _insertionSort(state.waitingBatches, state.waitingBatches.length, function(aIdx, bIdx) {
                 const batchA = state.batches[aIdx];
                 const batchB = state.batches[bIdx];
-                const analysisA = state.waitingBatchAnalysis[String(batchA?.batch_id)] || {};
-                const analysisB = state.waitingBatchAnalysis[String(batchB?.batch_id)] || {};
-                const loadedA = analysisA.loaded_s || batchA?.loaded_s || batchA?.start_time_s || 0;
-                const loadedB = analysisB.loaded_s || batchB?.loaded_s || batchB?.start_time_s || 0;
+                const analysisA = _getWaitingAnalysis(batchA ? batchA.batch_id : undefined) || {};
+                const analysisB = _getWaitingAnalysis(batchB ? batchB.batch_id : undefined) || {};
+                const loadedA = analysisA.loaded_s || (batchA ? batchA.loaded_s : 0) || (batchA ? batchA.start_time_s : 0) || 0;
+                const loadedB = analysisB.loaded_s || (batchB ? batchB.loaded_s : 0) || (batchB ? batchB.start_time_s : 0) || 0;
                 return loadedA - loadedB;
             });
-            log(`Sorted ${state.waitingBatches.length} batches by loaded_s (FIFO)`);
+            log('Sorted ' + state.waitingBatches.length + ' batches by loaded_s (FIFO)');
         }
         
         state.currentWaitingIndex = 0;
@@ -949,16 +1546,15 @@ async function tick(context) {
         state.pendingDelays = [];
         state.departureAnalysis = null;
         
-        console.log(`\n${'='.repeat(80)}`);
-        console.log(`[DEPARTURE] CHECK_START: waitingBatchCount=${state.waitingBatchCount}, currentIndex=${state.currentWaitingIndex}`);
+        log('CHECK_START: waitingBatchCount=' + state.waitingBatchCount + ', currentIndex=' + state.currentWaitingIndex);
         if (state.waitingBatches && state.waitingBatches.length > 0) {
             for (let i = 0; i < state.waitingBatches.length; i++) {
                 const bIdx = state.waitingBatches[i];
                 const b = state.batches[bIdx];
-                console.log(`[DEPARTURE]   [${i}] B${b?.batch_id} stage=${b?.stage} location=${b?.location}`);
+                // PLC: explicit null check (korvaa ?.)
+                log('  [' + i + '] B' + (b ? b.batch_id : '?') + ' stage=' + (b ? b.stage : '?') + ' location=' + (b ? b.location : '?'));
             }
         }
-        console.log(`${'='.repeat(80)}\n`);
         
         if (state.waitingBatchCount === 0) {
             log('No waiting batches → back to WAITING_FOR_TASKS');
@@ -967,7 +1563,7 @@ async function tick(context) {
             log('All batches processed, no departure granted → back to WAITING_FOR_TASKS');
             nextPhase = PHASE.WAITING_FOR_TASKS;
         } else {
-            log(`CHECK: ${state.waitingBatchCount} waiting, index=${state.currentWaitingIndex}`);
+            log('CHECK: ' + state.waitingBatchCount + ' waiting, index=' + state.currentWaitingIndex);
             nextPhase = PHASE.CHECK_CREATE_TASKS;
         }
     }
@@ -978,42 +1574,46 @@ async function tick(context) {
     else if (p === PHASE.CHECK_CREATE_TASKS) {
         const batchIndex = state.waitingBatches[state.currentWaitingIndex];
         const batch = state.batches[batchIndex];
-        const batchId = batch?.batch_id;
+        // PLC: explicit null check (korvaa ?.)
+        const batchId = batch ? batch.batch_id : null;
         
         if (!batch || !batchId) {
             state.currentWaitingIndex++;
             nextPhase = PHASE.CHECK_START;
         } else {
-            log(`CHECK B${batchId}: Create tasks`);
+            log('CHECK B' + batchId + ': Create tasks');
             
             // Nollaa kierroslaskuri ja snapshot VAIN kun erä vaihtuu
             // (saman erän jatko-kierroksilla sandbox ja round säilyvät)
             if (state._currentDepartureBatchId !== batchId) {
                 state._currentDepartureBatchId = batchId;
-                state.sandboxSnapshot = JSON.parse(JSON.stringify(state.departureSandbox));
+                state.sandboxSnapshot = _copyDepartureSandbox(state.departureSandbox);
                 state.departureRound = 0;  // Kierroslaskuri tälle erälle
-                log(`New batch B${batchId} — reset round=0, fresh snapshot`);
+                log('New batch B' + batchId + ' — reset round=0, fresh snapshot');
             } else {
-                log(`Continue batch B${batchId} — round=${state.departureRound}, keeping sandbox`);
+                log('Continue batch B' + batchId + ' — round=' + state.departureRound + ', keeping sandbox');
             }
             state.departureCandidateStretches = [];
             state.departureIteration = 0;
             
             // Calculate schedule for this waiting batch (if not already done by RECALC)
-            if (!state.waitingSchedules[String(batchId)]) {
+            if (!_getWaitingSched(batchId)) {
                 calculateWaitingBatchSchedule(batch, batchId);
             }
             
-            const schedule = state.waitingSchedules[String(batchId)];
+            const schedule = _getWaitingSched(batchId);
             
             if (!schedule || !schedule.stages) {
                 state.currentWaitingIndex++;
                 nextPhase = PHASE.CHECK_START;
             } else {
                 // DEBUG: Näytä schedulen joustovarat
-                console.log(`\n[DEPARTURE-DEBUG] B${batchId} schedule stages:`);
-                for (const s of schedule.stages.slice(0, 5)) {
-                    console.log(`[DEPARTURE-DEBUG]   stage ${s.stage}: treatment=${s.treatment_time_s}s, min=${s.min_time_s}s, max=${s.max_time_s}s`);
+                log('DEBUG B' + batchId + ' schedule stages:');
+                // PLC: FOR-loop (korvaa .slice(0, 5))
+                const _stgLimit1 = Math.min(schedule.stages.length, 5);
+                for (let _di = 0; _di < _stgLimit1; _di++) {
+                    const s = schedule.stages[_di];
+                    log('  stage ' + s.stage + ': treatment=' + s.treatment_time_s + 's, min=' + s.min_time_s + 's, max=' + s.max_time_s + 's');
                 }
                 
                 const tasks = scheduler.createTaskListFromSchedule(
@@ -1022,12 +1622,13 @@ async function tick(context) {
                     state.transporters
                 );
                 
-                state.waitingBatchTasks[String(batchId)] = tasks;
+                _setWaitingTaskSet(batchId, tasks);
                 
                 // Lue in-flight tehtävät
                 const inFlightTasks = [];
                 for (const t of (ctx.transporterStates || [])) {
-                    const s = t?.state;
+                    // PLC: explicit null check (korvaa ?.)
+                    const s = (t != null) ? t.state : null;
                     if (!s || s.phase === 0) continue;
                     
                     let pendingBatchId = s.pending_batch_id;
@@ -1036,19 +1637,26 @@ async function tick(context) {
                     
                     if (pendingBatchId == null && s.phase > 0) {
                         const unitOnT = ctx.getUnitAtLocation(t.id);
-                        const batchOnTransporter = unitOnT ? state.batches.find(b => b.batch_id === unitOnT.batch_id) : null;
+                        // PLC: FOR-loop (korvaa .find())
+                        let batchOnTransporter = null;
+                        if (unitOnT) { for (let _bi = 0; _bi < state.batches.length; _bi++) { if (state.batches[_bi].batch_id === unitOnT.batch_id) { batchOnTransporter = state.batches[_bi]; break; } } }
                         if (batchOnTransporter) pendingBatchId = batchOnTransporter.batch_id;
                     }
                     
                     if (pendingBatchId != null && liftStation != null && sinkStation != null) {
-                        const batchObj = state.batches.find(b => b.batch_id === pendingBatchId);
-                        const inferredStage = batchObj?.stage || 0;
+                        // PLC: FOR-loop (korvaa .find())
+                        let batchObj = null;
+                        for (let _bi = 0; _bi < state.batches.length; _bi++) { if (state.batches[_bi].batch_id === pendingBatchId) { batchObj = state.batches[_bi]; break; } }
+                        const inferredStage = (batchObj ? batchObj.stage : 0) || 0;
                         
-                        const batchSchedule = state.departureSandbox?.schedulesByBatchId?.[String(pendingBatchId)];
-                        const sinkStageSchedule = batchSchedule?.stages?.find(st => st.station_id === sinkStation);
-                        const taskFinishedTime = sinkStageSchedule?.entry_time || (ctx.currentTimeSec + 60);
-                        const liftStageSchedule = batchSchedule?.stages?.find(st => st.station_id === liftStation);
-                        const taskStartTime = liftStageSchedule?.exit_time || ctx.currentTimeSec;
+                        const batchSchedule = (state.departureSandbox && state.departureSandbox.schedulesByBatchId) ? state.departureSandbox.schedulesByBatchId[String(pendingBatchId)] : null;
+                        // PLC: FOR-loop (korvaa .find())
+                        let sinkStageSchedule = null;
+                        if (batchSchedule && batchSchedule.stages) { for (let _si = 0; _si < batchSchedule.stages.length; _si++) { if (batchSchedule.stages[_si].station_id === sinkStation) { sinkStageSchedule = batchSchedule.stages[_si]; break; } } }
+                        const taskFinishedTime = (sinkStageSchedule ? sinkStageSchedule.entry_time : null) || (ctx.currentTimeSec + 60);
+                        let liftStageSchedule = null;
+                        if (batchSchedule && batchSchedule.stages) { for (let _si = 0; _si < batchSchedule.stages.length; _si++) { if (batchSchedule.stages[_si].station_id === liftStation) { liftStageSchedule = batchSchedule.stages[_si]; break; } } }
+                        const taskStartTime = (liftStageSchedule ? liftStageSchedule.exit_time : null) || ctx.currentTimeSec;
                         
                         inFlightTasks.push({
                             batch_id: pendingBatchId,
@@ -1064,26 +1672,45 @@ async function tick(context) {
                 }
                 
                 // Yhdistä: in-flight + sandbox + odottavan erän tehtävät
-                let sandboxTasks = state.departureSandbox?.tasks || [];
+                let sandboxTasks = (state.departureSandbox ? state.departureSandbox.tasks : null) || [];
                 
                 // DEBUG: Näytä sandboxin tehtävien joustovarat
-                console.log(`[DEPARTURE-DEBUG] Sandbox tasks (${sandboxTasks.length}):`);
-                for (const t of sandboxTasks.slice(0, 5)) {
-                    console.log(`[DEPARTURE-DEBUG]   B${t.batch_id}s${t.stage}: calc=${t.calc_time_s}s, min=${t.min_time_s}s, max=${t.max_time_s}s → flex_down=${Math.max(0, (t.calc_time_s || 0) - (t.min_time_s || 0))}s, flex_up=${Math.max(0, (t.max_time_s || 0) - (t.calc_time_s || 0))}s`);
+                log('DEBUG Sandbox tasks (' + sandboxTasks.length + '):');
+                // PLC: FOR-loop (korvaa .slice(0, 5))
+                const _sbLimit = Math.min(sandboxTasks.length, 5);
+                for (let _di = 0; _di < _sbLimit; _di++) {
+                    const t = sandboxTasks[_di];
+                    log('  B' + t.batch_id + 's' + t.stage + ': calc=' + t.calc_time_s + 's, min=' + t.min_time_s + 's, max=' + t.max_time_s + 's');
                 }
                 
                 // Suodata pois in-flight tehtävät (korvataan tuoreemmilla)
+                // PLC: lineaarinen haku avaintaulukkoon (korvaa Set)
                 if (inFlightTasks.length > 0) {
-                    const inFlightKeys = new Set(inFlightTasks.map(t => `${t.batch_id}_${t.stage}`));
-                    sandboxTasks = sandboxTasks.filter(t => !inFlightKeys.has(`${t.batch_id}_${t.stage}`));
+                    const ifKeys = [];
+                    for (let ifi = 0; ifi < inFlightTasks.length; ifi++) {
+                        ifKeys[ifi] = inFlightTasks[ifi].batch_id + '_' + inFlightTasks[ifi].stage;
+                    }
+                    const filtered = [];
+                    for (let si = 0; si < sandboxTasks.length; si++) {
+                        const key = sandboxTasks[si].batch_id + '_' + sandboxTasks[si].stage;
+                        let isInFlight = false;
+                        for (let ki = 0; ki < ifKeys.length; ki++) {
+                            if (ifKeys[ki] === key) { isInFlight = true; break; }
+                        }
+                        if (!isInFlight) filtered.push(sandboxTasks[si]);
+                    }
+                    sandboxTasks = filtered;
                 }
                 
                 // combinedTasks = vain linja-erien taskit (in-flight + sandbox)
                 // Odottavan erän taskit EIVÄT kuulu tänne — ne haetaan erikseen CHECK_ANALYZE:ssa
                 // waitingBatchTasks-mapista. Jos ne olisivat täällä, SORT ja SWAP sotkisivat
                 // linja-erien taskijärjestyksen ja idle-slotit laskettaisiin väärin.
-                state.combinedTasks = [...inFlightTasks, ...sandboxTasks];
-                console.log(`[DEPARTURE-3001] Combined: ${inFlightTasks.length} in-flight + ${sandboxTasks.length} sandbox = ${state.combinedTasks.length} total (waiting B${batchId}: ${tasks.length} tasks separate)`);
+                // PLC: FOR-loop concat (korvaa [...spread])
+                state.combinedTasks = [];
+                for (let _ci = 0; _ci < inFlightTasks.length; _ci++) state.combinedTasks.push(inFlightTasks[_ci]);
+                for (let _ci = 0; _ci < sandboxTasks.length; _ci++) state.combinedTasks.push(sandboxTasks[_ci]);
+                log('Combined: ' + inFlightTasks.length + ' in-flight + ' + sandboxTasks.length + ' sandbox = ' + state.combinedTasks.length + ' total (waiting B' + batchId + ': ' + tasks.length + ' tasks separate)');
                 
                 nextPhase = PHASE.CHECK_SORT;
             }
@@ -1096,13 +1723,15 @@ async function tick(context) {
     else if (p === PHASE.CHECK_SORT) {
         const batchIndex = state.waitingBatches[state.currentWaitingIndex];
         const batch = state.batches[batchIndex];
-        const batchId = batch?.batch_id;
+        // PLC: explicit null check (korvaa ?.)
+        const batchId = batch ? batch.batch_id : null;
         
         // Idle-slot -strategia: yksi läpikäynti, ei iteraatiota
-        console.log(`[DEPARTURE] CHECK_SORT B${batchId}: sorting ${(state.combinedTasks || []).length} tasks`);
+        log('CHECK_SORT B' + batchId + ': sorting ' + (state.combinedTasks || []).length + ' tasks');
         
         if (state.combinedTasks && state.combinedTasks.length > 0) {
-            state.combinedTasks.sort((a, b) => a.task_start_time - b.task_start_time);
+            // PLC: _insertionSort (korvaa .sort())
+            _insertionSort(state.combinedTasks, state.combinedTasks.length, function(a, b) { return a.task_start_time - b.task_start_time; });
         }
         
         nextPhase = PHASE.CHECK_SWAP;
@@ -1115,12 +1744,24 @@ async function tick(context) {
         let swapCount = 0;
         
         if (state.combinedTasks && state.combinedTasks.length > 1) {
-            const transporterIds = [...new Set(state.combinedTasks.map(t => t.transporter_id))];
+            // PLC: Collect unique transporter IDs without Set
+            const transporterIds = [];
+            const tIdSeen = [];
+            for (let i = 0; i <= MAX_TRANSPORTERS; i++) tIdSeen[i] = false;
+            for (let ti = 0; ti < state.combinedTasks.length; ti++) {
+                const tid = state.combinedTasks[ti].transporter_id;
+                if (tid !== null && tid !== undefined && tid >= 0 && tid <= MAX_TRANSPORTERS && !tIdSeen[tid]) {
+                    tIdSeen[tid] = true;
+                    transporterIds.push(tid);
+                }
+            }
             
             for (const transporterId of transporterIds) {
                 if (transporterId === null) continue;
                 
-                const transporterTasks = state.combinedTasks.filter(t => t.transporter_id === transporterId);
+                // PLC: FOR-loop (korvaa .filter())
+                const transporterTasks = [];
+                for (let _fi = 0; _fi < state.combinedTasks.length; _fi++) { if (state.combinedTasks[_fi].transporter_id === transporterId) transporterTasks.push(state.combinedTasks[_fi]); }
                 
                 for (let i = 0; i < transporterTasks.length - 1; i++) {
                     const prevTask = transporterTasks[i];
@@ -1132,8 +1773,11 @@ async function tick(context) {
                         swapCount++;
                         [transporterTasks[i], transporterTasks[i + 1]] = [transporterTasks[i + 1], transporterTasks[i]];
                         
-                        const globalPrevIdx = state.combinedTasks.indexOf(prevTask);
-                        const globalNextIdx = state.combinedTasks.indexOf(nextTask);
+                        // PLC: FOR-loop (korvaa .indexOf())
+                        let globalPrevIdx = -1;
+                        for (let _gi = 0; _gi < state.combinedTasks.length; _gi++) { if (state.combinedTasks[_gi] === prevTask) { globalPrevIdx = _gi; break; } }
+                        let globalNextIdx = -1;
+                        for (let _gi = 0; _gi < state.combinedTasks.length; _gi++) { if (state.combinedTasks[_gi] === nextTask) { globalNextIdx = _gi; break; } }
                         if (globalPrevIdx !== -1 && globalNextIdx !== -1) {
                             [state.combinedTasks[globalPrevIdx], state.combinedTasks[globalNextIdx]] = 
                                 [state.combinedTasks[globalNextIdx], state.combinedTasks[globalPrevIdx]];
@@ -1165,11 +1809,10 @@ async function tick(context) {
     else if (p === PHASE.CHECK_ANALYZE) {
         const batchIndex = state.waitingBatches[state.currentWaitingIndex];
         const batch = state.batches[batchIndex];
-        const batchId = batch?.batch_id;
+        // PLC: explicit null check (korvaa ?.)
+        const batchId = batch ? batch.batch_id : null;
         
-        console.log(`\n${'='.repeat(80)}`);
-        console.log(`[DEPARTURE] ★★★ CHECK_ANALYZE B${batchId} (TAVOITETILA) round=${state.departureRound} ★★★`);
-        console.log(`${'='.repeat(80)}`);
+        log('CHECK_ANALYZE B' + batchId + ' (TAVOITETILA) round=' + state.departureRound);
         
         const currentTimeSec = ctx.currentTimeSec || 0;
         const flexUpFactor = state.flexUpFactor;
@@ -1185,35 +1828,62 @@ async function tick(context) {
         
         // Hae odottavan erän taskit — tallennettu erikseen 3001:ssä
         // EI JÄRJESTETÄ: tehtävälista pysyy laskennan mukaisena (target)
-        const waitingBatchTasks = (state.waitingBatchTasks[String(batchId)] || []);
+        const waitingBatchTasks = (_getWaitingTaskSet(batchId) || []);
         
         // Kerää nostintunnisteet SEKÄ linja-erien ETTÄ odottavan erän taskeista
-        const transporterIds = [...new Set([
-            ...(state.combinedTasks || [])
-                .filter(t => t.transporter_id !== null)
-                .map(t => t.transporter_id),
-            ...waitingBatchTasks
-                .filter(t => t.transporter_id !== null)
-                .map(t => t.transporter_id)
-        ])];
+        // PLC: Collect unique transporter IDs without Set
+        const transporterIds = [];
+        const tIdSeen = [];
+        for (let i = 0; i <= MAX_TRANSPORTERS; i++) tIdSeen[i] = false;
+        const combined = state.combinedTasks || [];
+        for (let ti = 0; ti < combined.length; ti++) {
+            const tid = combined[ti].transporter_id;
+            if (tid !== null && tid !== undefined && tid >= 0 && tid <= MAX_TRANSPORTERS && !tIdSeen[tid]) {
+                tIdSeen[tid] = true;
+                transporterIds.push(tid);
+            }
+        }
+        for (let ti = 0; ti < waitingBatchTasks.length; ti++) {
+            const tid = waitingBatchTasks[ti].transporter_id;
+            if (tid !== null && tid !== undefined && tid >= 0 && tid <= MAX_TRANSPORTERS && !tIdSeen[tid]) {
+                tIdSeen[tid] = true;
+                transporterIds.push(tid);
+            }
+        }
         
         // Laske idle-slotit VAIN linja-erien tehtävistä (odottavan erän taskit eivät mukana)
-        const existingTasks = (state.combinedTasks || []).filter(t => t.batch_id !== batchId);
+        // PLC: FOR-loop (korvaa .filter())
+        const existingTasks = [];
+        const _ctArr = state.combinedTasks || [];
+        for (let _fi = 0; _fi < _ctArr.length; _fi++) { if (_ctArr[_fi].batch_id !== batchId) existingTasks.push(_ctArr[_fi]); }
         
         // ★ OVERLAP: Laske overlap-asemat (asemat joissa useampi nostin voi toimia)
         const overlapStations = computeOverlapStations(state.transporters);
-        if (overlapStations.size > 0) {
-            console.log(`[OVERLAP] Overlap-asemat: [${[...overlapStations].sort((a, b) => a - b).join(', ')}]`);
+        if (overlapStations.count > 0) {
+            // PLC: Muodosta lokitettava lista overlap-asemista
+            let overlapList = '';
+            for (let oi = 0; oi <= MAX_STATIONS; oi++) {
+                if (overlapStations.flags[oi]) {
+                    if (overlapList.length > 0) overlapList += ', ';
+                    overlapList += String(oi);
+                }
+            }
+            log('OVERLAP Overlap-asemat: [' + overlapList + ']');
             // Logita olemassa olevat overlap-tehtävät per nostin
             for (const tId of transporterIds) {
-                const overlapTasks = existingTasks.filter(t =>
-                    t.transporter_id !== tId &&
-                    (overlapStations.has(t.lift_station_id) || overlapStations.has(t.sink_station_id))
-                );
+                // PLC: FOR-loop (korvaa .filter())
+                const overlapTasks = [];
+                for (let _oi = 0; _oi < existingTasks.length; _oi++) {
+                    const _ot = existingTasks[_oi];
+                    if (_ot.transporter_id !== tId && (overlapStations.flags[_ot.lift_station_id] || overlapStations.flags[_ot.sink_station_id])) overlapTasks.push(_ot);
+                }
                 if (overlapTasks.length > 0) {
-                    console.log(`[OVERLAP] T${tId}: ${overlapTasks.length} cross-transporter overlap task(s):`);
-                    for (const ot of overlapTasks.slice(0, 5)) {
-                        console.log(`[OVERLAP]   B${ot.batch_id}s${ot.stage} T${ot.transporter_id}: lift=${ot.lift_station_id} sink=${ot.sink_station_id} ${ot.task_start_time?.toFixed(0)}-${ot.task_finished_time?.toFixed(0)}s`);
+                    log('OVERLAP T' + tId + ': ' + overlapTasks.length + ' cross-transporter overlap task(s):');
+                    // PLC: FOR-loop (korvaa .slice(0, 5))
+                    const _otLimit = Math.min(overlapTasks.length, 5);
+                    for (let _oi = 0; _oi < _otLimit; _oi++) {
+                        const ot = overlapTasks[_oi];
+                        log('OVERLAP   B' + ot.batch_id + 's' + ot.stage + ' T' + ot.transporter_id + ': lift=' + ot.lift_station_id + ' sink=' + ot.sink_station_id + ' ' + (ot.task_start_time ? ot.task_start_time.toFixed(0) : '?') + '-' + (ot.task_finished_time ? ot.task_finished_time.toFixed(0) : '?') + 's');
                     }
                 }
             }
@@ -1229,18 +1899,24 @@ async function tick(context) {
         // Log idle-slotit
         for (const tId of transporterIds) {
             const slots = idleSlotsPerTransporter[tId];
-            console.log(`[IDLE-SLOT] T${tId}: ${slots.length} idle-slottia`);
-            for (const s of slots.slice(0, 10)) {
-                const prevInfo = s.prevTask ? `B${s.prevTask.batch_id}s${s.prevTask.stage}` : 'START';
-                const nextInfo = s.nextTask ? `B${s.nextTask.batch_id}s${s.nextTask.stage}` : 'END';
-                console.log(`[IDLE-SLOT]   ${s.start.toFixed(0)}-${s.end.toFixed(0)} (${s.duration.toFixed(0)}s) [${prevInfo} → ${nextInfo}]`);
+            log('IDLE-SLOT T' + tId + ': ' + slots.length + ' idle-slottia');
+            // PLC: FOR-loop (korvaa .slice(0, 10))
+            const _slotLimit = Math.min(slots.length, 10);
+            for (let _si = 0; _si < _slotLimit; _si++) {
+                const s = slots[_si];
+                const prevInfo = s.prevTask ? ('B' + s.prevTask.batch_id + 's' + s.prevTask.stage) : 'START';
+                const nextInfo = s.nextTask ? ('B' + s.nextTask.batch_id + 's' + s.nextTask.stage) : 'END';
+                log('IDLE-SLOT   ' + s.start.toFixed(0) + '-' + s.end.toFixed(0) + ' (' + s.duration.toFixed(0) + 's) [' + prevInfo + ' -> ' + nextInfo + ']');
             }
         }
         
-        console.log(`[IDLE-SLOT] B${batchId}: ${waitingBatchTasks.length} taskia sovitettavana`);
+        log('IDLE-SLOT B' + batchId + ': ' + waitingBatchTasks.length + ' taskia sovitettavana');
         for (const t of waitingBatchTasks) {
             const flex_up = Math.max(0, (t.max_time_s || 0) - (t.calc_time_s || 0));
-            console.log(`[IDLE-SLOT]   B${batchId}s${t.stage} T${t.transporter_id || '?'}: ${t.task_start_time?.toFixed(1)}s → ${t.task_finished_time?.toFixed(1)}s (flex_up=${flex_up.toFixed(0)}s)`);
+            // PLC: explicit null check (korvaa ?.)
+            var _tStart = (t.task_start_time != null && typeof t.task_start_time.toFixed === 'function') ? t.task_start_time.toFixed(1) : '?';
+            var _tEnd = (t.task_finished_time != null && typeof t.task_finished_time.toFixed === 'function') ? t.task_finished_time.toFixed(1) : '?';
+            log('IDLE-SLOT   B' + batchId + 's' + t.stage + ' T' + (t.transporter_id || '?') + ': ' + _tStart + 's -> ' + _tEnd + 's (flex_up=' + flex_up.toFixed(0) + 's)');
         }
         
         // ═══════════════════════════════════════════════════════════════════
@@ -1267,7 +1943,7 @@ async function tick(context) {
             if (task.stage === 0) {
                 const tId = task.transporter_id;
                 const slots = idleSlotsPerTransporter[tId] || [];
-                console.log(`[IDLE-SLOT-DBG] Stage 0: tId=${tId}, slots=${slots.length}, keys=${Object.keys(idleSlotsPerTransporter)}`);
+                log('IDLE-SLOT-DBG Stage 0: tId=' + tId + ', slots=' + slots.length + ', keys=' + Object.keys(idleSlotsPerTransporter));
                 
                 let stage0Fitted = false;
                 for (const slot of slots) {
@@ -1275,7 +1951,9 @@ async function tick(context) {
                     
                     // Travel idle_start_pos → nostoasema
                     let travelToPickup = 0;
-                    const transporter = state.transporters.find(t => t.id === tId);
+                    // PLC: FOR-loop (korvaa .find())
+                    let transporter = null;
+                    for (let _ti = 0; _ti < state.transporters.length; _ti++) { if (state.transporters[_ti].id === tId) { transporter = state.transporters[_ti]; break; } }
                     const pickupStation = scheduler.findStation(task.lift_station_id, state.stations);
                     if (slot.prevTask) {
                         const fromStation = scheduler.findStation(slot.prevTask.sink_station_id, state.stations);
@@ -1285,7 +1963,8 @@ async function tick(context) {
                                 fromStation, pickupStation, transporter,
                                 ctx.movementTimes || null
                             );
-                            travelToPickup = transfer?.phase3_travel_s ?? 0;
+                            // PLC: explicit null check (korvaa ?. ??)
+                            travelToPickup = (transfer && transfer.phase3_travel_s != null) ? transfer.phase3_travel_s : 0;
                         }
                     } else if (transporter && transporter.start_station) {
                         const fromStation = scheduler.findStation(transporter.start_station, state.stations);
@@ -1295,7 +1974,8 @@ async function tick(context) {
                                 fromStation, pickupStation, transporter,
                                 ctx.movementTimes || null
                             );
-                            travelToPickup = transfer?.phase3_travel_s ?? 0;
+                            // PLC: explicit null check (korvaa ?. ??)
+                            travelToPickup = (transfer && transfer.phase3_travel_s != null) ? transfer.phase3_travel_s : 0;
                         }
                     }
                     
@@ -1313,7 +1993,8 @@ async function tick(context) {
                                 sinkStation, toStation, transporter,
                                 ctx.movementTimes || null
                             );
-                            travelFromSink = transfer?.phase3_travel_s ?? 0;
+                            // PLC: explicit null check (korvaa ?. ??)
+                            travelFromSink = (transfer && transfer.phase3_travel_s != null) ? transfer.phase3_travel_s : 0;
                         }
                     }
                     
@@ -1322,19 +2003,19 @@ async function tick(context) {
                     
                     // ★ OVERLAP CHECK: Stage 0 – jos nosto/lasku käyttää overlap-asemaa,
                     // varmista ettei toisen nostimen overlap-tehtävä ole samaan aikaan.
-                    if (overlapStations.size > 0 &&
-                        (overlapStations.has(task.lift_station_id) || overlapStations.has(task.sink_station_id))) {
+                    if (overlapStations.count > 0 &&
+                        (overlapStations.flags[task.lift_station_id] || overlapStations.flags[task.sink_station_id])) {
                         const stage0OverlapDelay = calculateOverlapDelay(
                             task, effectiveStart - task.task_start_time,
                             existingTasks, overlapStations, fitParams.conflictMarginSec
                         );
                         if (stage0OverlapDelay > 0) {
-                            console.log(`[OVERLAP] B${batchId}s0: overlap conflict → shift effectiveStart +${stage0OverlapDelay.toFixed(1)}s`);
+                            log('OVERLAP B' + batchId + 's0: overlap conflict, shift effectiveStart +' + stage0OverlapDelay.toFixed(1) + 's');
                             effectiveStart += stage0OverlapDelay;
                         }
                     }
                     
-                    console.log(`[IDLE-SLOT-DBG] Stage 0 check: effectiveStart=${effectiveStart.toFixed(1)}, taskDuration=${taskDuration.toFixed(1)}, slotEnd=${slotEnd.toFixed(1)}, fits=${effectiveStart + taskDuration <= slotEnd}`);
+                    log('IDLE-SLOT-DBG Stage 0 check: effectiveStart=' + effectiveStart.toFixed(1) + ', taskDuration=' + taskDuration.toFixed(1) + ', slotEnd=' + slotEnd.toFixed(1) + ', fits=' + (effectiveStart + taskDuration <= slotEnd));
                     
                     if (effectiveStart + taskDuration <= slotEnd) {
                         // Laske stage 0:n viive: ero sovitetun aloitusajan ja schedulen aloitusajan välillä
@@ -1343,12 +2024,12 @@ async function tick(context) {
                         // ★ maxInitialWaitS -tarkistus: odotus ei saa ylittää maksimiarvoa (oletus 120s)
                         const maxInitWait = state.maxInitialWaitS || 120;
                         if (stage0Delay > maxInitWait) {
-                            console.log(`[IDLE-SLOT] ✗ Stage 0: slot ${slot.start.toFixed(0)}-${slot.end.toFixed(0)} delay=${stage0Delay.toFixed(1)}s > maxInitialWait=${maxInitWait}s → hylätty`);
+                            log('IDLE-SLOT Stage 0: slot ' + slot.start.toFixed(0) + '-' + slot.end.toFixed(0) + ' delay=' + stage0Delay.toFixed(1) + 's > maxInitialWait=' + maxInitWait + 's, rejected');
                             continue;  // Kokeillaan seuraavaa slottia
                         }
                         
                         stage0Fitted = true;
-                        console.log(`[IDLE-SLOT] ✓ Stage 0: mahtuu slottiin ${slot.start.toFixed(0)}-${slot.end.toFixed(0)} (delay=${stage0Delay.toFixed(1)}s)`);
+                        log('IDLE-SLOT Stage 0: fits slot ' + slot.start.toFixed(0) + '-' + slot.end.toFixed(0) + ' (delay=' + stage0Delay.toFixed(1) + 's)');
                         
                         // Typistä idle-slottia
                         const taskEndTime = effectiveStart + taskDuration;
@@ -1362,20 +2043,20 @@ async function tick(context) {
                                 stage: 0,
                                 delay: stage0Delay,
                                 writeTarget: 'batch',
-                                log: `Stage 0: calc_time offset ${stage0Delay.toFixed(1)}s (slot ${slot.start.toFixed(0)}-${slot.end.toFixed(0)})`
+                                log: 'Stage 0: calc_time offset ' + stage0Delay.toFixed(1) + 's (slot ' + slot.start.toFixed(0) + '-' + slot.end.toFixed(0) + ')'
                             });
                             allFitNoChanges = false;
-                            console.log(`[DEPARTURE] Stage 0 offset: ${stage0Delay.toFixed(1)}s → sovittelukierros (RECALC)`);
+                            log('Stage 0 offset: ' + stage0Delay.toFixed(1) + 's, RECALC');
                         }
                         break;
                     }
                 }
                 
                 if (!stage0Fitted) {
-                    console.log(`\n[DEPARTURE] ✗ B${batchId}: Stage 0 ei mahdu → REJECT\n`);
+                    log('B' + batchId + ': Stage 0 ei mahdu, REJECT');
                     state.idleSlotResult = {
                         fits: false, actions: [], log: ['Stage 0: ei sopivaa idle-slottia'],
-                        userReason: `Nostin T${task.transporter_id} varattu — ei vapaata slottia`
+                        userReason: 'Nostin T' + task.transporter_id + ' varattu — ei vapaata slottia'
                     };
                     rejected = true;
                     break;
@@ -1398,7 +2079,7 @@ async function tick(context) {
                 task, 0, existingTasks, overlapStations, fitParams.conflictMarginSec
             );
             if (overlapDelay > 0) {
-                console.log(`[OVERLAP] B${batchId}s${task.stage} T${task.transporter_id}: overlap conflict → delay ${overlapDelay.toFixed(1)}s (lift=${task.lift_station_id}, sink=${task.sink_station_id})`);
+                log('OVERLAP B' + batchId + 's' + task.stage + ' T' + task.transporter_id + ': overlap conflict, delay ' + overlapDelay.toFixed(1) + 's (lift=' + task.lift_station_id + ', sink=' + task.sink_station_id + ')');
                 allFitNoChanges = false;
             }
             
@@ -1406,7 +2087,7 @@ async function tick(context) {
             const fitResult = scheduler.fitSingleTaskToIdleSlots(
                 task, idleSlotsPerTransporter, overlapDelay, fitParams
             );
-            console.log(`[IDLE-SLOT] ${fitResult.log}`);
+            log('IDLE-SLOT ' + fitResult.log);
             
             if (fitResult.fits) {
                 // Typistä idle-slottia: tehtävä varaa alun, slotin start siirtyy tehtävän loppuun
@@ -1414,7 +2095,7 @@ async function tick(context) {
                     const oldStart = fitResult.slot.start;
                     fitResult.slot.start = fitResult.taskEndTime;
                     fitResult.slot.duration = fitResult.slot.end - fitResult.slot.start;
-                    console.log(`[IDLE-SLOT] Slot typistetty: ${oldStart.toFixed(0)}-${fitResult.slot.end.toFixed(0)} → ${fitResult.slot.start.toFixed(0)}-${fitResult.slot.end.toFixed(0)} (${fitResult.slot.duration.toFixed(0)}s jäljellä)`);
+                    log('IDLE-SLOT Slot trimmed: ' + oldStart.toFixed(0) + '-' + fitResult.slot.end.toFixed(0) + ' -> ' + fitResult.slot.start.toFixed(0) + '-' + fitResult.slot.end.toFixed(0) + ' (' + fitResult.slot.duration.toFixed(0) + 's remaining)');
                 }
                 // Mahtuu — kirjaa mahdollinen viive
                 // Nostimen vaihtuminen ei vaadi erillistä tarkistusta:
@@ -1435,7 +2116,7 @@ async function tick(context) {
                             : fitResult.log
                     });
                     // Tavoitetila: yksi viive per kierros → päätä kierros tähän
-                    console.log(`[DEPARTURE] Viive stage ${task.stage}: ${totalDelay.toFixed(1)}s (overlap=${overlapDelay.toFixed(1)}s, idle=${(fitResult.delay || 0).toFixed(1)}s) → kierros päätetään`);
+                    log('Delay stage ' + task.stage + ': ' + totalDelay.toFixed(1) + 's (overlap=' + overlapDelay.toFixed(1) + 's, idle=' + (fitResult.delay || 0).toFixed(1) + 's), ending round');
                     delayNeeded = true;
                     break;
                 }
@@ -1447,15 +2128,15 @@ async function tick(context) {
             // Ei mahdu → backward chaining
             // Kulje taaksepäin yksi tehtävä kerrallaan, ketjuta viiveet
             // ═══════════════════════════════════════════════════════════════
-            console.log(`[IDLE-SLOT] Stage ${task.stage} ei mahdu → backward chaining`);
+            log('IDLE-SLOT Stage ' + task.stage + ' no fit, backward chaining');
             
             // needExtra = viivästystarve joka ylittää tehtävän oman jouston (dokumentti: "jäljelle jäävä viivästystarve")
             // Jos needExtra puuttuu, slot ei löytynyt lainkaan → backward chaining ei voi auttaa
             if (fitResult.needExtra == null || fitResult.needExtra <= 0) {
-                console.log(`\n[DEPARTURE] ✗ B${batchId}: Stage ${task.stage} ei sopivaa idle-slottia → REJECT\n`);
+                log('B' + batchId + ': Stage ' + task.stage + ' no idle-slot, REJECT');
                 state.idleSlotResult = {
-                    fits: false, actions: [], log: [`Stage ${task.stage}: ei sopivaa idle-slottia`],
-                    userReason: `Stage ${task.stage}: nostin T${task.transporter_id} varattu`
+                    fits: false, actions: [], log: ['Stage ' + task.stage + ': ei sopivaa idle-slottia'],
+                    userReason: 'Stage ' + task.stage + ': nostin T' + task.transporter_id + ' varattu'
                 };
                 rejected = true;
                 break;
@@ -1477,37 +2158,38 @@ async function tick(context) {
                         stage: prevTask.stage,
                         delay: useDelay,
                         writeTarget: prevTask.stage === 0 ? 'batch' : 'program',
-                        log: `backward chain: stage ${prevTask.stage} delay ${useDelay.toFixed(1)}s (flex_up=${prevFlexUp.toFixed(0)}s × ${flexUpFactor})`
+                        log: 'backward chain: stage ' + prevTask.stage + ' delay ' + useDelay.toFixed(1) + 's (flex_up=' + prevFlexUp.toFixed(0) + 's × ' + flexUpFactor + ')'
                     });
                     remainingNeed -= useDelay;
-                    console.log(`[BACKWARD] Stage ${prevTask.stage}: delay ${useDelay.toFixed(1)}s, remaining need ${remainingNeed.toFixed(1)}s`);
+                    log('BACKWARD Stage ' + prevTask.stage + ': delay ' + useDelay.toFixed(1) + 's, remaining need ' + remainingNeed.toFixed(1) + 's');
                 }
             }
             
             if (remainingNeed <= fitParams.marginSec) {
                 // Backward chaining riitti!
-                console.log(`[BACKWARD] ✓ Ketju riittää, ${chainDelays.length} viivettä`);
+                log('BACKWARD chain sufficient, ' + chainDelays.length + ' delays');
                 allFitNoChanges = false;
                 delayNeeded = true;
                 
                 // Lisää ketjutetut viiveet + alkuperäinen tehtävä
-                delayActions.push(...chainDelays);
+                // PLC: FOR-loop (korvaa .push(...spread))
+                for (let _di = 0; _di < chainDelays.length; _di++) delayActions.push(chainDelays[_di]);
                 // Alkuperäinen tehtävä saa saman viiveen mikä oli fitResult.delay (se mahtuisi nyt)
                 if (fitResult.delay > fitParams.marginSec) {
                     delayActions.push({
                         stage: task.stage,
                         delay: fitResult.delay,
                         writeTarget: 'program',
-                        log: `Stage ${task.stage}: delay ${fitResult.delay.toFixed(1)}s (after backward chain)`
+                        log: 'Stage ' + task.stage + ': delay ' + fitResult.delay.toFixed(1) + 's (after backward chain)'
                     });
                 }
                 break;  // Kierros päätetään
             } else {
                 // Backward chaining ei riittänyt → REJECT
-                console.log(`\n[DEPARTURE] ✗ B${batchId}: backward chaining ei riitä (remaining ${remainingNeed.toFixed(1)}s) → REJECT\n`);
+                log('B' + batchId + ': backward chaining insufficient (remaining ' + remainingNeed.toFixed(1) + 's), REJECT');
                 state.idleSlotResult = {
-                    fits: false, actions: [], log: [`Stage ${task.stage}: backward chain insufficient, remaining ${remainingNeed.toFixed(1)}s`],
-                    userReason: `Stage ${task.stage}: joustovara ei riitä, puuttuu ${remainingNeed.toFixed(0)}s`
+                    fits: false, actions: [], log: ['Stage ' + task.stage + ': backward chain insufficient, remaining ' + remainingNeed.toFixed(1) + 's'],
+                    userReason: 'Stage ' + task.stage + ': joustovara ei riitä, puuttuu ' + remainingNeed.toFixed(0) + 's'
                 };
                 rejected = true;
                 break;
@@ -1522,7 +2204,7 @@ async function tick(context) {
             nextPhase = PHASE.CHECK_RESOLVE;
         } else if (!delayNeeded) {
             // 1) Kaikki tehtävät mahtuvat — ei viiveitä tarvita
-            console.log(`\n[DEPARTURE] ✓ B${batchId}: Kaikki tehtävät mahtuvat (round ${state.departureRound}) → ACTIVATE\n`);
+            log('B' + batchId + ': All tasks fit (round ' + state.departureRound + '), ACTIVATE');
             state.idleSlotResult = { fits: true, actions: delayActions, log: ['Kaikki mahtuvat'] };
             nextPhase = PHASE.CHECK_RESOLVE;
         } else if (delayNeeded) {
@@ -1534,25 +2216,27 @@ async function tick(context) {
             // Turvarajoitin: max 50 sovittelukierrosta
             const MAX_FIT_ROUNDS = 50;
             if (state.departureRound > MAX_FIT_ROUNDS) {
-                console.log(`\n[DEPARTURE] ✗ B${batchId}: Max sovittelukierrokset (${MAX_FIT_ROUNDS}) ylitetty → REJECT\n`);
+                log('B' + batchId + ': Max fit rounds (' + MAX_FIT_ROUNDS + ') exceeded, REJECT');
                 state.idleSlotResult = {
-                    fits: false, actions: [], log: [`Max ${MAX_FIT_ROUNDS} fit-rounds exceeded`],
-                    userReason: `Sovittelu ei konvergoidu ${MAX_FIT_ROUNDS} kierroksella`
+                    fits: false, actions: [], log: ['Max ' + MAX_FIT_ROUNDS + ' fit-rounds exceeded'],
+                    userReason: 'Sovittelu ei konvergoidu ' + MAX_FIT_ROUNDS + ' kierroksella'
                 };
                 nextPhase = PHASE.CHECK_RESOLVE;
             } else {
-                console.log(`\n[DEPARTURE] ⟳ B${batchId}: Viiveet kirjataan, sovittelukierros ${state.departureRound} → RECALC\n`);
+                log('B' + batchId + ': Delays recorded, fit round ' + state.departureRound + ', RECALC');
                 
                 // Kirjaa viiveet sandbox-batchiin ja -ohjelmaan
                 for (const action of delayActions) {
                     if (action.writeTarget === 'batch') {
                         // Stage 0: kirjaa batch-tietoihin
-                        const sandboxBatch = state.departureSandbox?.batches?.find(b => b.batch_id === batchId);
+                        // PLC: FOR-loop (korvaa .find())
+                        let sandboxBatch = null;
+                        if (state.departureSandbox && state.departureSandbox.batches) { for (let _sbi = 0; _sbi < state.departureSandbox.batches.length; _sbi++) { if (state.departureSandbox.batches[_sbi].batch_id === batchId) { sandboxBatch = state.departureSandbox.batches[_sbi]; break; } } }
                         if (sandboxBatch) {
                             sandboxBatch.calc_time_s = (sandboxBatch.calc_time_s || 0) + action.delay;
                             sandboxBatch.min_time_s = sandboxBatch.calc_time_s;
                             sandboxBatch.max_time_s = Math.max(sandboxBatch.calc_time_s, 2 * sandboxBatch.calc_time_s);
-                            log(`Viive kirjattu batch B${batchId} stage 0: calc=${sandboxBatch.calc_time_s.toFixed(1)}s`);
+                            log('Viive kirjattu batch B' + batchId + ' stage 0: calc=' + sandboxBatch.calc_time_s.toFixed(1) + 's');
                         }
                         // Kirjaa myös state.batches (RECALC_SCHEDULE lukee tätä)
                         if (batch) {
@@ -1562,7 +2246,8 @@ async function tick(context) {
                         }
                     } else {
                         // Stage 1+: kirjaa käsittelyohjelmaan
-                        const program = state.departureSandbox?.programsByBatchId?.[String(batchId)];
+                        // PLC: explicit null check (korvaa ?.)
+                        const program = (state.departureSandbox && state.departureSandbox.programsByBatchId) ? state.departureSandbox.programsByBatchId[String(batchId)] : null;
                         if (program) {
                             const programIdx = action.stage - 1;
                             const stageEntry = program[programIdx];
@@ -1571,11 +2256,11 @@ async function tick(context) {
                                 const maxTimeS = scheduler.parseTimeToSeconds(stageEntry.max_time) || oldCalcS;
                                 const newCalcS = Math.min(maxTimeS, oldCalcS + action.delay);
                                 stageEntry.calc_time = scheduler.formatSecondsToTime(newCalcS);
-                                log(`Viive kirjattu program B${batchId} stage ${action.stage}: ${oldCalcS.toFixed(0)}s → ${newCalcS.toFixed(0)}s`);
+                                log('Viive kirjattu program B' + batchId + ' stage ' + action.stage + ': ' + oldCalcS.toFixed(0) + 's → ' + newCalcS.toFixed(0) + 's');
                             }
                         }
                         // Kirjaa myös server-puolen ohjelmaan
-                        const serverProgram = state.programsByBatchId?.[String(batchId)];
+                        const serverProgram = _getProgram(batchId);
                         if (serverProgram) {
                             const programIdx = action.stage - 1;
                             const stageEntry = serverProgram[programIdx];
@@ -1589,15 +2274,18 @@ async function tick(context) {
                     }
                 }
                 
-                log(`Sovittelukierros ${state.departureRound}: viiveet kirjattu → RECALC_SCHEDULE`);
+                log('Sovittelukierros ' + state.departureRound + ': viiveet kirjattu → RECALC_SCHEDULE');
                 
                 // Sovittelukierros: laske aikataulu uudelleen sandboxista → uudet taskit → uusi sovitus
                 nextPhase = PHASE.CHECK_RECALC_SCHEDULE;
             }
         } else {
             // Kaikki mahtuvat viiveillä jotka eivät vaadi uutta kierrosta
-            console.log(`\n[DEPARTURE] ✓ B${batchId}: Kaikki tehtävät mahtuvat (viiveet kirjattu) → ACTIVATE\n`);
-            state.idleSlotResult = { fits: true, actions: delayActions, log: delayActions.map(a => a.log) };
+            log('B' + batchId + ': All tasks fit (delays recorded), ACTIVATE');
+            // PLC: FOR-loop (korvaa .map())
+            const _daLogs = [];
+            for (let _di = 0; _di < delayActions.length; _di++) _daLogs.push(delayActions[_di].log);
+            state.idleSlotResult = { fits: true, actions: delayActions, log: _daLogs };
             nextPhase = PHASE.CHECK_RESOLVE;
         }
     }
@@ -1612,7 +2300,8 @@ async function tick(context) {
     else if (p === PHASE.CHECK_RESOLVE) {
         const batchIndex = state.waitingBatches[state.currentWaitingIndex];
         const batch = state.batches[batchIndex];
-        const batchId = batch?.batch_id;
+        // PLC: explicit null check (korvaa ?.)
+        const batchId = batch ? batch.batch_id : null;
         
         const idleSlotResult = state.idleSlotResult || { fits: false, actions: [], log: [] };
         
@@ -1621,49 +2310,49 @@ async function tick(context) {
             // OK: Kaikki taskit mahtuivat → suoraan ACTIVATE
             // Viiveet kirjataan ACTIVATE-vaiheessa batchiin ja ohjelmaan
             // ═══════════════════════════════════════════════════════════════
-            console.log(`\n[DEPARTURE] ✓ B${batchId}: Idle-slot OK → ACTIVATE (${idleSlotResult.actions.length} viivettä)`);
-            log(`CHECK B${batchId}: Idle-slot fit → ACTIVATE`);
+            log('B' + batchId + ': Idle-slot OK, ACTIVATE (' + idleSlotResult.actions.length + ' delays)');
+            log('CHECK B' + batchId + ': Idle-slot fit → ACTIVATE');
             state.lastDepartureConflict = null;
             nextPhase = PHASE.ACTIVATE;
         } else {
             // ═══════════════════════════════════════════════════════════════
             // FAIL: Taski ei mahtunut → REJECT
             // ═══════════════════════════════════════════════════════════════
-            const failLog = idleSlotResult.log.filter(l => l.includes('FAIL') || l.includes('OVERFLOW'));
-            
-            console.log(`\n${'='.repeat(80)}`);
-            console.log(`[DEPARTURE] ╔═══════════════════════════════════════════════════════╗`);
-            console.log(`[DEPARTURE] ║ IDLE-SLOT FAIL → B${batchId} HYLÄTTY                    ║`);
-            console.log(`[DEPARTURE] ╠═══════════════════════════════════════════════════════╣`);
-            for (const line of failLog) {
-                console.log(`[DEPARTURE] ║ ${line}`);
+            // PLC: FOR-loop (korvaa .filter() + .includes())
+            const failLog = [];
+            for (let _fl = 0; _fl < idleSlotResult.log.length; _fl++) {
+                const _l = idleSlotResult.log[_fl];
+                if (_l.indexOf('FAIL') !== -1 || _l.indexOf('OVERFLOW') !== -1) failLog.push(_l);
             }
-            console.log(`[DEPARTURE] ╚═══════════════════════════════════════════════════════╝`);
-            console.log(`${'='.repeat(80)}\n`);
             
-            log(`CHECK B${batchId}: REJECT (idle-slot fail)`);
+            log('IDLE-SLOT FAIL B' + batchId + ': REJECTED');
+            for (var _fli = 0; _fli < failLog.length; _fli++) {
+                log('FAIL: ' + failLog[_fli]);
+            }
+            
+            log('CHECK B' + batchId + ': REJECT (idle-slot fail)');
             
             state.lastDepartureConflict = {
                 waitingBatchId: batchId,
-                reason: `IDLE_SLOT_FAIL: ${failLog[0] || 'unknown'}`
+                reason: 'IDLE_SLOT_FAIL: ' + (failLog[0] || 'unknown')
             };
             
             // Palauta sandbox snapshotista (palauttaa vain linja-erien schedulet)
             if (state.sandboxSnapshot) {
-                state.departureSandbox = JSON.parse(JSON.stringify(state.sandboxSnapshot));
+                state.departureSandbox = _copyDepartureSandbox(state.sandboxSnapshot);
             }
             // Poista hylätyn erän schedule
-            delete state.schedulesByBatchId[String(batchId)];
-            delete state.waitingSchedules[String(batchId)];
+            _removeSchedule(batchId);
+            _removeWaitingSched(batchId);
             state.departureRound = 0;  // Nollaa sovittelukierros REJECT:in jälkeen
             state.departureCandidateStretches = [];
-            state.departureLockedStages = {};
+            state.departureLockedStages = []; state.depLockedStageCount = 0;
             
             // Siirry seuraavaan odottavaan erään
             state.currentWaitingIndex++;
             
             if (state.currentWaitingIndex >= state.waitingBatchCount) {
-                log(`All waiting batches checked, no activation → resync with TASKS`);
+                log('All waiting batches checked, no activation → resync with TASKS');
                 state.finalDepartureConflict = state.lastDepartureConflict || null;
                 state.lastDepartureConflict = null;
                 nextPhase = PHASE.WAITING_FOR_TASKS;
@@ -1682,7 +2371,9 @@ async function tick(context) {
         if (pendingList.length === 0) {
             nextPhase = PHASE.CHECK_SORT;
         } else {
-            const applyDeltaToProgram = (program, targetStage, delay_s, propagate = false) => {
+            // PLC: explicit function (korvaa =>)
+            var applyDeltaToProgram = function(program, targetStage, delay_s, propagate) {
+                if (propagate === undefined) propagate = false;
                 if (!program) return null;
                 
                 const results = [];
@@ -1709,29 +2400,36 @@ async function tick(context) {
                 // sandbox-batchin calc_time_s:n → ei saa lisätä uudelleen (tuplaus!)
                 // Tarvitaan vain loki.
                 if (pending.stage === 0) {
-                    const sandboxBatch = state.departureSandbox?.batches?.find(b => b.batch_id === pending.batch_id);
+                    // PLC: FOR-loop (korvaa .find())
+                    let sandboxBatch = null;
+                    if (state.departureSandbox && state.departureSandbox.batches) { for (let _sbi = 0; _sbi < state.departureSandbox.batches.length; _sbi++) { if (state.departureSandbox.batches[_sbi].batch_id === pending.batch_id) { sandboxBatch = state.departureSandbox.batches[_sbi]; break; } } }
                     if (sandboxBatch) {
                         // Stage 0 ei ole käsittelyohjelmassa.
                         // propagateDelayToBatch on päivittänyt calc, min JA max (suhteellinen flex-ikkuna).
-                        log(`Stage 0 delay for B${pending.batch_id}: calc=${sandboxBatch.calc_time_s?.toFixed(1)}s, min=${sandboxBatch.min_time_s?.toFixed(1)}s, max=${sandboxBatch.max_time_s?.toFixed(1)}s (applied by propagateDelayToBatch)`);
+                        log('Stage 0 delay for B' + pending.batch_id + ': calc=' + (sandboxBatch.calc_time_s ? sandboxBatch.calc_time_s.toFixed(1) : '?') + 's, min=' + (sandboxBatch.min_time_s ? sandboxBatch.min_time_s.toFixed(1) : '?') + 's, max=' + (sandboxBatch.max_time_s ? sandboxBatch.max_time_s.toFixed(1) : '?') + 's (applied by propagateDelayToBatch)');
                     }
                     continue;
                 }
                 
                 const results = applyDeltaToProgram(
-                    state.departureSandbox?.programsByBatchId[String(pending.batch_id)],
+                    (state.departureSandbox && state.departureSandbox.programsByBatchId) ? state.departureSandbox.programsByBatchId[String(pending.batch_id)] : null,
                     pending.stage,
                     pending.delay_s,
                     pending.propagate
                 );
                 
                 if (results && results.length > 0) {
-                    const sandboxBatch = state.departureSandbox?.batches?.find(b => b.batch_id === pending.batch_id);
-                    const currentStageResult = results.find(r => r.stage === sandboxBatch?.stage);
-                    if (sandboxBatch && currentStageResult) {
-                        sandboxBatch.calc_time_s = currentStageResult.newCalc;
-                        sandboxBatch.min_time_s = currentStageResult.minTime;
-                        sandboxBatch.max_time_s = currentStageResult.maxTime;
+                    // PLC: FOR-loop (korvaa .find())
+                    let sandboxBatch2 = null;
+                    if (state.departureSandbox && state.departureSandbox.batches) { for (let _sbi = 0; _sbi < state.departureSandbox.batches.length; _sbi++) { if (state.departureSandbox.batches[_sbi].batch_id === pending.batch_id) { sandboxBatch2 = state.departureSandbox.batches[_sbi]; break; } } }
+                    // PLC: FOR-loop (korvaa .find())
+                    let currentStageResult = null;
+                    const _sbStage = sandboxBatch2 ? sandboxBatch2.stage : undefined;
+                    for (let _ri = 0; _ri < results.length; _ri++) { if (results[_ri].stage === _sbStage) { currentStageResult = results[_ri]; break; } }
+                    if (sandboxBatch2 && currentStageResult) {
+                        sandboxBatch2.calc_time_s = currentStageResult.newCalc;
+                        sandboxBatch2.min_time_s = currentStageResult.minTime;
+                        sandboxBatch2.max_time_s = currentStageResult.maxTime;
                     }
                 }
             }
@@ -1747,9 +2445,9 @@ async function tick(context) {
     // subsequent conflict analysis operates on accurate task times.
     // ═══════════════════════════════════════════════════════════════════════════════
     else if (p === PHASE.CHECK_RECALC_SCHEDULE) {
-        log(`RECALC_SCHEDULE: Recalculating ALL schedules from updated sandbox programs`);
+        log('RECALC_SCHEDULE: Recalculating ALL schedules from updated sandbox programs');
         
-        const sandboxBatches = state.departureSandbox?.batches || [];
+        const sandboxBatches = (state.departureSandbox ? state.departureSandbox.batches : null) || [];
         const transporter = state.transporters[0];
         let recalcCount = 0;
         
@@ -1759,25 +2457,31 @@ async function tick(context) {
             if (batch.stage > 60 && batch.stage !== 90) continue;
             
             const batchIdStr = String(batch.batch_id);
-            const program = state.departureSandbox?.programsByBatchId[batchIdStr];
+            const program = (state.departureSandbox && state.departureSandbox.programsByBatchId) ? state.departureSandbox.programsByBatchId[batchIdStr] : null;
             if (!program) continue;
             
             // Only recalculate batches that have an existing schedule in sandbox
             // (other waiting batches are not part of this cycle)
-            const existingSchedule = state.departureSandbox?.schedulesByBatchId[batchIdStr];
+            const existingSchedule = (state.departureSandbox && state.departureSandbox.schedulesByBatchId) ? state.departureSandbox.schedulesByBatchId[batchIdStr] : null;
             if (!existingSchedule) continue;
             const baseTime = existingSchedule.calculated_at || (ctx.currentTimeSec || 0);
             
             // Other schedules for parallel station selection
-            const otherSchedules = Object.entries(state.departureSandbox?.schedulesByBatchId || {})
-                .filter(([id]) => id !== batchIdStr)
-                .map(([, sched]) => sched);
+            // PLC: FOR-loop (korvaa .filter().map())
+            const otherSchedules = [];
+            const _sbSchedMap = (state.departureSandbox ? state.departureSandbox.schedulesByBatchId : null) || {};
+            const _sbSchedKeys = Object.keys(_sbSchedMap);
+            for (let _ki = 0; _ki < _sbSchedKeys.length; _ki++) {
+                if (_sbSchedKeys[_ki] !== batchIdStr) otherSchedules.push(_sbSchedMap[_sbSchedKeys[_ki]]);
+            }
             
-            const occupiedStations = new Set(
-                (ctx.units || [])
-                    .filter(u => u.batch_id != null && u.batch_id !== batch.batch_id && u.location > 0)
-                    .map(u => u.location)
-            );
+            // PLC: FOR-loop (korvaa .filter().map() → Set)
+            const occupiedStations = new Set();
+            const _rcUnits = ctx.units || [];
+            for (let _ui = 0; _ui < _rcUnits.length; _ui++) {
+                const _u = _rcUnits[_ui];
+                if (_u.batch_id != null && _u.batch_id !== batch.batch_id && _u.location > 0) occupiedStations.add(_u.location);
+            }
             
             const newSchedule = scheduler.calculateBatchSchedule(
                 batch,
@@ -1799,9 +2503,17 @@ async function tick(context) {
             if (newSchedule && newSchedule.stages) {
                 // DEBUG: Trace stage 0 timing for waiting batches
                 if (batch.stage === 90) {
-                    const s0 = newSchedule.stages.find(s => s.stage === 0);
+                    // PLC: FOR-loop (korvaa .find())
+                    let s0 = null;
+                    for (let _si = 0; _si < newSchedule.stages.length; _si++) { if (newSchedule.stages[_si].stage === 0) { s0 = newSchedule.stages[_si]; break; } }
                     if (s0) {
-                        console.log(`[RECALC_SCHEDULE-DEBUG] B${batch.batch_id} stage=90: batch.calc_time_s=${batch.calc_time_s?.toFixed?.(1)}s → schedule stage0: entry=${s0.entry_time_s?.toFixed?.(1)}s, exit=${s0.exit_time_s?.toFixed?.(1)}s, treatment=${s0.treatment_time_s?.toFixed?.(1)}s, baseTime=${baseTime?.toFixed?.(1)}s`);
+                        // PLC: explicit null checks (korvaa ?.)
+                        var _bct = (batch.calc_time_s != null && typeof batch.calc_time_s.toFixed === 'function') ? batch.calc_time_s.toFixed(1) : '?';
+                        var _s0e = (s0.entry_time_s != null && typeof s0.entry_time_s.toFixed === 'function') ? s0.entry_time_s.toFixed(1) : '?';
+                        var _s0x = (s0.exit_time_s != null && typeof s0.exit_time_s.toFixed === 'function') ? s0.exit_time_s.toFixed(1) : '?';
+                        var _s0t = (s0.treatment_time_s != null && typeof s0.treatment_time_s.toFixed === 'function') ? s0.treatment_time_s.toFixed(1) : '?';
+                        var _bt = (baseTime != null && typeof baseTime.toFixed === 'function') ? baseTime.toFixed(1) : '?';
+                        log('RECALC_SCHEDULE-DEBUG B' + batch.batch_id + ' stage=90: batch.calc_time_s=' + _bct + 's, schedule stage0: entry=' + _s0e + 's, exit=' + _s0x + 's, treatment=' + _s0t + 's, baseTime=' + _bt + 's');
                     }
                 }
                 state.departureSandbox.schedulesByBatchId[batchIdStr] = newSchedule;
@@ -1814,27 +2526,34 @@ async function tick(context) {
                 const recalcBatchLoc = ctx.getBatchLocation(batch.batch_id);
                 if (recalcBatchLoc != null && recalcBatchLoc >= 100) {
                     const batchCurrentStage = batch.stage === 90 ? 0 : (Number(batch.stage) || 0);
-                    const currentStageInSchedule = newSchedule.stages.find(s => s.stage === batchCurrentStage);
+                    // PLC: FOR-loop (korvaa .find())
+                    let currentStageInSchedule = null;
+                    for (let _si = 0; _si < newSchedule.stages.length; _si++) { if (newSchedule.stages[_si].stage === batchCurrentStage) { currentStageInSchedule = newSchedule.stages[_si]; break; } }
                     if (currentStageInSchedule) {
                         const oldMin = batch.min_time_s;
                         const oldMax = batch.max_time_s;
                         batch.min_time_s = currentStageInSchedule.min_time_s;
                         batch.max_time_s = currentStageInSchedule.max_time_s;
                         if (oldMax !== batch.max_time_s) {
-                            console.log(`[RECALC_SCHEDULE] B${batch.batch_id}: Synced batch min/max from schedule stage ${batchCurrentStage}: min ${oldMin?.toFixed?.(1)}→${batch.min_time_s?.toFixed?.(1)}s, max ${oldMax?.toFixed?.(1)}→${batch.max_time_s?.toFixed?.(1)}s`);
+                            // PLC: explicit null checks (korvaa ?.)
+                            var _omStr = (oldMin != null && typeof oldMin.toFixed === 'function') ? oldMin.toFixed(1) : '?';
+                            var _nmStr = (batch.min_time_s != null && typeof batch.min_time_s.toFixed === 'function') ? batch.min_time_s.toFixed(1) : '?';
+                            var _oxStr = (oldMax != null && typeof oldMax.toFixed === 'function') ? oldMax.toFixed(1) : '?';
+                            var _nxStr = (batch.max_time_s != null && typeof batch.max_time_s.toFixed === 'function') ? batch.max_time_s.toFixed(1) : '?';
+                            log('RECALC_SCHEDULE B' + batch.batch_id + ': Synced batch min/max from schedule stage ' + batchCurrentStage + ': min ' + _omStr + '->' + _nmStr + 's, max ' + _oxStr + '->' + _nxStr + 's');
                         }
                     }
                 }
                 
-                // Update waitingSchedules for waiting batches
+                // Update waitingScheds for waiting batches
                 if (batch.stage === 90) {
-                    state.waitingSchedules[batchIdStr] = newSchedule;
+                    _setWaitingSched(Number(batchIdStr), newSchedule);
                 }
                 recalcCount++;
             }
         }
         
-        log(`RECALC_SCHEDULE: ${recalcCount} schedules recalculated`);
+        log('RECALC_SCHEDULE: ' + recalcCount + ' schedules recalculated');
         nextPhase = PHASE.CHECK_RECALC_TASKS;
     }
     
@@ -1848,14 +2567,16 @@ async function tick(context) {
     else if (p === PHASE.CHECK_RECALC_TASKS) {
         const batchIndex = state.waitingBatches[state.currentWaitingIndex];
         const waitingBatch = state.batches[batchIndex];
-        const waitingBatchId = waitingBatch?.batch_id;
+        // PLC: explicit null check (korvaa ?.)
+        const waitingBatchId = waitingBatch ? waitingBatch.batch_id : null;
         
-        log(`RECALC_TASKS: Rebuilding ALL tasks from sandbox schedules`);
+        log('RECALC_TASKS: Rebuilding ALL tasks from sandbox schedules');
         
         // 1. Build in-flight tasks (real-time transporter state, same logic as CHECK_CREATE_TASKS)
         const inFlightTasks = [];
         for (const t of (ctx.transporterStates || [])) {
-            const s = t?.state;
+            // PLC: explicit null check (korvaa ?.)
+            const s = (t != null) ? t.state : null;
             if (!s || s.phase === 0) continue;
             
             let pendingBatchId = s.pending_batch_id;
@@ -1864,19 +2585,26 @@ async function tick(context) {
             
             if (pendingBatchId == null && s.phase > 0) {
                 const unitOnT = ctx.getUnitAtLocation(t.id);
-                const batchOnTransporter = unitOnT ? state.batches.find(b => b.batch_id === unitOnT.batch_id) : null;
+                // PLC: FOR-loop (korvaa .find())
+                let batchOnTransporter = null;
+                if (unitOnT) { for (let _bi = 0; _bi < state.batches.length; _bi++) { if (state.batches[_bi].batch_id === unitOnT.batch_id) { batchOnTransporter = state.batches[_bi]; break; } } }
                 if (batchOnTransporter) pendingBatchId = batchOnTransporter.batch_id;
             }
             
             if (pendingBatchId != null && liftStation != null && sinkStation != null) {
-                const batchObj = state.batches.find(b => b.batch_id === pendingBatchId);
-                const inferredStage = batchObj?.stage || 0;
+                // PLC: FOR-loop (korvaa .find())
+                let batchObj = null;
+                for (let _bi = 0; _bi < state.batches.length; _bi++) { if (state.batches[_bi].batch_id === pendingBatchId) { batchObj = state.batches[_bi]; break; } }
+                const inferredStage = (batchObj ? batchObj.stage : 0) || 0;
                 
-                const batchSchedule = state.departureSandbox?.schedulesByBatchId?.[String(pendingBatchId)];
-                const sinkStageSchedule = batchSchedule?.stages?.find(st => st.station_id === sinkStation);
-                const taskFinishedTime = sinkStageSchedule?.entry_time || (ctx.currentTimeSec + 60);
-                const liftStageSchedule = batchSchedule?.stages?.find(st => st.station_id === liftStation);
-                const taskStartTime = liftStageSchedule?.exit_time || ctx.currentTimeSec;
+                const batchSchedule = (state.departureSandbox && state.departureSandbox.schedulesByBatchId) ? state.departureSandbox.schedulesByBatchId[String(pendingBatchId)] : null;
+                // PLC: FOR-loop (korvaa .find())
+                let sinkStageSchedule = null;
+                if (batchSchedule && batchSchedule.stages) { for (let _si = 0; _si < batchSchedule.stages.length; _si++) { if (batchSchedule.stages[_si].station_id === sinkStation) { sinkStageSchedule = batchSchedule.stages[_si]; break; } } }
+                const taskFinishedTime = (sinkStageSchedule ? sinkStageSchedule.entry_time : null) || (ctx.currentTimeSec + 60);
+                let liftStageSchedule = null;
+                if (batchSchedule && batchSchedule.stages) { for (let _si = 0; _si < batchSchedule.stages.length; _si++) { if (batchSchedule.stages[_si].station_id === liftStation) { liftStageSchedule = batchSchedule.stages[_si]; break; } } }
+                const taskStartTime = (liftStageSchedule ? liftStageSchedule.exit_time : null) || ctx.currentTimeSec;
                 
                 inFlightTasks.push({
                     batch_id: pendingBatchId,
@@ -1893,42 +2621,72 @@ async function tick(context) {
         
         // 2. Create tasks from ALL sandbox schedules
         let allTasks = [];
-        const sandboxBatches = state.departureSandbox?.batches || [];
+        const sandboxBatches = (state.departureSandbox ? state.departureSandbox.batches : null) || [];
         
-        for (const [batchIdStr, schedule] of Object.entries(state.departureSandbox?.schedulesByBatchId || {})) {
+        const _rtSchedMap = (state.departureSandbox ? state.departureSandbox.schedulesByBatchId : null) || {};
+        const _rtSchedKeys = Object.keys(_rtSchedMap);
+        for (let _ki = 0; _ki < _rtSchedKeys.length; _ki++) {
+            const batchIdStr = _rtSchedKeys[_ki];
+            const schedule = _rtSchedMap[batchIdStr];
             if (!schedule || !schedule.stages) continue;
-            const batch = sandboxBatches.find(b => b.batch_id === Number(batchIdStr)) ||
-                          state.batches.find(b => b.batch_id === Number(batchIdStr));
+            // PLC: FOR-loop (korvaa .find() × 2)
+            let batch = null;
+            const _bIdNum = Number(batchIdStr);
+            for (let _bi = 0; _bi < sandboxBatches.length; _bi++) { if (sandboxBatches[_bi].batch_id === _bIdNum) { batch = sandboxBatches[_bi]; break; } }
+            if (!batch) { for (let _bi = 0; _bi < state.batches.length; _bi++) { if (state.batches[_bi].batch_id === _bIdNum) { batch = state.batches[_bi]; break; } } }
             if (!batch) continue;
             
             const tasks = scheduler.createTaskListFromSchedule(schedule, batch, state.transporters);
-            allTasks.push(...tasks);
+            // PLC: FOR-loop (korvaa .push(...spread))
+            for (let _ti = 0; _ti < tasks.length; _ti++) allTasks.push(tasks[_ti]);
         }
         
         // 3. Filter out in-flight tasks (replaced by real-time transporter data)
+        // PLC: lineaarinen haku avaintaulukkoon (korvaa Set)
         if (inFlightTasks.length > 0) {
-            const inFlightKeys = new Set(inFlightTasks.map(t => `${t.batch_id}_${t.stage}`));
-            allTasks = allTasks.filter(t => !inFlightKeys.has(`${t.batch_id}_${t.stage}`));
+            const ifKeys = [];
+            for (let ifi = 0; ifi < inFlightTasks.length; ifi++) {
+                ifKeys[ifi] = inFlightTasks[ifi].batch_id + '_' + inFlightTasks[ifi].stage;
+            }
+            const filteredTasks = [];
+            for (let ti = 0; ti < allTasks.length; ti++) {
+                const key = allTasks[ti].batch_id + '_' + allTasks[ti].stage;
+                let isInFlight = false;
+                for (let ki = 0; ki < ifKeys.length; ki++) {
+                    if (ifKeys[ki] === key) { isInFlight = true; break; }
+                }
+                if (!isInFlight) filteredTasks.push(allTasks[ti]);
+            }
+            allTasks = filteredTasks;
         }
         
         // 4. Update sandbox.tasks (for potential subsequent waiting batch checks)
-        state.departureSandbox.tasks = allTasks.filter(t => t.batch_id !== waitingBatchId);
+        // PLC: FOR-loop (korvaa .filter())
+        const _sbFiltered1 = [];
+        for (let _fi = 0; _fi < allTasks.length; _fi++) { if (allTasks[_fi].batch_id !== waitingBatchId) _sbFiltered1.push(allTasks[_fi]); }
+        state.departureSandbox.tasks = _sbFiltered1;
         
         // 5. Store waiting batch tasks separately
         if (waitingBatchId) {
-            state.waitingBatchTasks[String(waitingBatchId)] = allTasks.filter(t => t.batch_id === waitingBatchId);
+            // PLC: FOR-loop (korvaa .filter())
+            const _wbFiltered = [];
+            for (let _fi = 0; _fi < allTasks.length; _fi++) { if (allTasks[_fi].batch_id === waitingBatchId) _wbFiltered.push(allTasks[_fi]); }
+            _setWaitingTaskSet(waitingBatchId, _wbFiltered);
         }
         
         // 6. Rebuild combinedTasks completely from scratch
-        state.combinedTasks = [...inFlightTasks, ...allTasks];
+        // PLC: FOR-loop concat (korvaa [...spread])
+        state.combinedTasks = [];
+        for (let _ci = 0; _ci < inFlightTasks.length; _ci++) state.combinedTasks.push(inFlightTasks[_ci]);
+        for (let _ci = 0; _ci < allTasks.length; _ci++) state.combinedTasks.push(allTasks[_ci]);
         
         state.pendingDelay = null;
         state.pendingDelays = [];
         
-        log(`RECALC_TASKS: ${inFlightTasks.length} in-flight + ${allTasks.length} from schedules = ${state.combinedTasks.length} total`);
+        log('RECALC_TASKS: ' + inFlightTasks.length + ' in-flight + ' + allTasks.length + ' from schedules = ' + state.combinedTasks.length + ' total');
         
         // Sovittelukierros: palaa CHECK_SORT → CHECK_ANALYZE uusilla tehtävillä
-        log(`RECALC_TASKS done → CHECK_SORT (sovittelukierros ${state.departureRound})`);
+        log('RECALC_TASKS done → CHECK_SORT (sovittelukierros ' + state.departureRound + ')');
         nextPhase = PHASE.CHECK_SORT;
     }
     
@@ -1938,14 +2696,13 @@ async function tick(context) {
     else if (p === PHASE.ACTIVATE) {
         const batchIndex = state.waitingBatches[state.currentWaitingIndex];
         const batch = state.batches[batchIndex];
-        const batchId = batch?.batch_id;
+        const batchId = batch ? batch.batch_id : null;
         
-        console.log(`\n[DEPARTURE-DIAG] ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★`);
-        console.log(`[DEPARTURE-DIAG] ★ ACTIVATE B${batchId} @ ${ctx.currentTimeSec?.toFixed(1)}s`);
-        console.log(`[DEPARTURE-DIAG] ★ Edellinen aktivointi: ${state.departureTimes?.length > 0 ? state.departureTimes[state.departureTimes.length-1].simTimeSec.toFixed(1) + 's' : 'N/A'}`);
-        console.log(`[DEPARTURE-DIAG] ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★\n`);
+        var _ctStr = (ctx.currentTimeSec != null && typeof ctx.currentTimeSec.toFixed === 'function') ? ctx.currentTimeSec.toFixed(1) : String(ctx.currentTimeSec);
+        var _prevStr = (state.departureTimes && state.departureTimes.length > 0) ? state.departureTimes[state.departureTimes.length-1].simTimeSec.toFixed(1) + 's' : 'N/A';
+        log('DIAG: ACTIVATE B' + batchId + ' @ ' + _ctStr + 's, prev=' + _prevStr);
         
-        log(`ACTIVATE B${batchId}`);
+        log('ACTIVATE B' + batchId);
         
         // ═══════════════════════════════════════════════════════════════
         // SNAPSHOT: Tallenna aktivointihetken aikataulut debug-analyysiin
@@ -1962,37 +2719,51 @@ async function tick(context) {
             if (sandbox.schedulesByBatchId) {
                 for (const [bid, sched] of Object.entries(sandbox.schedulesByBatchId)) {
                     if (sched && sched.stages && sched.stages.length > 0) {
-                        lineSchedules[`B${bid}`] = {
+                        lineSchedules['B' + bid] = {
                             batch_id: Number(bid),
                             batchStage: sched.batchStage,
-                            stages: sched.stages.map(s => ({
-                                stage: s.stage,
-                                station: s.station,
-                                entry_time_s: s.entry_time_s,
-                                exit_time_s: s.exit_time_s,
-                                treatment_time_s: s.treatment_time_s,
-                                min_time_s: s.min_time_s,
-                                max_time_s: s.max_time_s,
-                                transfer_time_s: s.transfer_time_s
-                            }))
+                            // PLC: FOR-loop (korvaa .map())
+                            stages: (function() {
+                                const _stgs = [];
+                                for (let _si = 0; _si < sched.stages.length; _si++) {
+                                    const s = sched.stages[_si];
+                                    _stgs.push({
+                                        stage: s.stage,
+                                        station: s.station,
+                                        entry_time_s: s.entry_time_s,
+                                        exit_time_s: s.exit_time_s,
+                                        treatment_time_s: s.treatment_time_s,
+                                        min_time_s: s.min_time_s,
+                                        max_time_s: s.max_time_s,
+                                        transfer_time_s: s.transfer_time_s
+                                    });
+                                }
+                                return _stgs;
+                            })()
                         };
                     }
                 }
             }
             
             // Kerää sandbox-taskit
-            const sandboxTasks = (sandbox.tasks || []).map(t => ({
-                batch_id: t.batch_id,
-                stage: t.stage,
-                transporter_id: t.transporter_id,
-                lift_station_id: t.lift_station_id,
-                sink_station_id: t.sink_station_id,
-                task_start_time: t.task_start_time,
-                task_finished_time: t.task_finished_time,
-                calc_time_s: t.calc_time_s,
-                min_time_s: t.min_time_s,
-                max_time_s: t.max_time_s
-            }));
+            // PLC: FOR-loop (korvaa .map())
+            const _sbSrc = sandbox.tasks || [];
+            const sandboxTasks = [];
+            for (let _ti = 0; _ti < _sbSrc.length; _ti++) {
+                const t = _sbSrc[_ti];
+                sandboxTasks.push({
+                    batch_id: t.batch_id,
+                    stage: t.stage,
+                    transporter_id: t.transporter_id,
+                    lift_station_id: t.lift_station_id,
+                    sink_station_id: t.sink_station_id,
+                    task_start_time: t.task_start_time,
+                    task_finished_time: t.task_finished_time,
+                    calc_time_s: t.calc_time_s,
+                    min_time_s: t.min_time_s,
+                    max_time_s: t.max_time_s
+                });
+            }
             
             // Kerää idle-slot tulokset
             const idleSlotInfo = state.idleSlotResult ? {
@@ -2002,14 +2773,22 @@ async function tick(context) {
             } : null;
             
             // Kerää erien nykytilat
-            const batchStates = (state.batches || []).filter(b => b).map(b => ({
-                batch_id: b.batch_id,
-                stage: b.stage,
-                location: ctx.getBatchLocation(b.batch_id) ?? b.location,
-                calc_time_s: b.calc_time_s,
-                min_time_s: b.min_time_s,
-                max_time_s: b.max_time_s
-            }));
+            // PLC: FOR-loop (korvaa .filter().map())
+            const batchStates = [];
+            const _bsSrc = state.batches || [];
+            for (let _bi = 0; _bi < _bsSrc.length; _bi++) {
+                const b = _bsSrc[_bi];
+                if (!b) continue;
+                const _bLoc = ctx.getBatchLocation(b.batch_id);
+                batchStates.push({
+                    batch_id: b.batch_id,
+                    stage: b.stage,
+                    location: _bLoc != null ? _bLoc : b.location,
+                    calc_time_s: b.calc_time_s,
+                    min_time_s: b.min_time_s,
+                    max_time_s: b.max_time_s
+                });
+            }
             
             const snapshot = {
                 event: 'ACTIVATE',
@@ -2023,11 +2802,11 @@ async function tick(context) {
                 timestamp: new Date().toISOString()
             };
             
-            const filename = `activate_B${batchId}_t${Math.round(currentTimeSec)}.json`;
+            const filename = 'activate_B' + batchId + '_t' + Math.round(currentTimeSec) + '.json';
             fs.writeFileSync(path.join(snapshotDir, filename), JSON.stringify(snapshot, null, 2));
-            console.log(`[SNAPSHOT] Saved activation snapshot: ${filename}`);
+            log('SNAPSHOT: Saved activation snapshot: ' + filename);
         } catch (snapshotErr) {
-            console.error(`[SNAPSHOT] Error saving snapshot:`, snapshotErr.message);
+            log('SNAPSHOT ERROR: ' + snapshotErr.message);
         }
         
         const currentSimTimeSec = ctx.currentTimeSec || 0;
@@ -2037,7 +2816,9 @@ async function tick(context) {
         
         // Laske keskimääräinen linjaanlähtöväli
         if (state.departureTimes.length >= 2) {
-            const times = state.departureTimes.map(d => d.simTimeSec);
+            // PLC: FOR-loop (korvaa .map())
+            const times = [];
+            for (let _ti = 0; _ti < state.departureTimes.length; _ti++) times[_ti] = state.departureTimes[_ti].simTimeSec;
             let totalInterval = 0;
             for (let i = 1; i < times.length; i++) {
                 totalInterval += times[i] - times[i - 1];
@@ -2054,26 +2835,29 @@ async function tick(context) {
             // Sandbox sisältää lopulliset arvot: kaikki viiveet (stage 0 + 1+)
             // on jo kirjattu RECALC-kierroksilla → lue suoraan sandboxista
             // ═══════════════════════════════════════════════════════════════
-            const sandboxBatch = state.departureSandbox?.batches?.find(b => b.batch_id === batchId);
+            // PLC: FOR-loop (korvaa .find())
+            let sandboxBatch = null;
+            if (state.departureSandbox && state.departureSandbox.batches) { for (let _sbi = 0; _sbi < state.departureSandbox.batches.length; _sbi++) { if (state.departureSandbox.batches[_sbi].batch_id === batchId) { sandboxBatch = state.departureSandbox.batches[_sbi]; break; } } }
             
             batch.start_time = Math.round(currentSimTimeSec * 1000);
-            batch.calc_time_s = sandboxBatch?.calc_time_s || 0;
-            batch.min_time_s = sandboxBatch?.min_time_s || 0;
-            batch.max_time_s = sandboxBatch?.max_time_s || 0;
+            batch.calc_time_s = (sandboxBatch ? sandboxBatch.calc_time_s : 0) || 0;
+            batch.min_time_s = (sandboxBatch ? sandboxBatch.min_time_s : 0) || 0;
+            batch.max_time_s = (sandboxBatch ? sandboxBatch.max_time_s : 0) || 0;
             
-            log(`ACTIVATE B${batchId}: stage 0 → start=${currentSimTimeSec.toFixed(1)}s, calc=${batch.calc_time_s.toFixed?.(1) ?? batch.calc_time_s}s`);
+            var _bctStr = (batch.calc_time_s != null && typeof batch.calc_time_s.toFixed === 'function') ? batch.calc_time_s.toFixed(1) : String(batch.calc_time_s);
+            log('ACTIVATE B' + batchId + ': stage 0 → start=' + currentSimTimeSec.toFixed(1) + 's, calc=' + _bctStr + 's');
             
             // ═══════════════════════════════════════════════════════════════
             // Viiveet on jo kirjattu sandboxiin RECALC-kierroksilla.
             // Logataan lopulliset sandbox-ohjelman arvot.
             // ═══════════════════════════════════════════════════════════════
-            const sandboxProgram = state.departureSandbox?.programsByBatchId?.[String(batchId)];
+            const sandboxProgram = (state.departureSandbox && state.departureSandbox.programsByBatchId) ? state.departureSandbox.programsByBatchId[String(batchId)] : null;
             if (sandboxProgram) {
                 for (let pi = 0; pi < sandboxProgram.length; pi++) {
                     const entry = sandboxProgram[pi];
                     if (!entry) continue;
                     const calcS = scheduler.parseTimeToSeconds(entry.calc_time) || 0;
-                    log(`ACTIVATE B${batchId}: program[${pi}] calc_time=${calcS.toFixed(0)}s`);
+                    log('ACTIVATE B' + batchId + ': program[' + pi + '] calc_time=' + calcS.toFixed(0) + 's');
                 }
             }
             
@@ -2088,7 +2872,7 @@ async function tick(context) {
                         justActivated: true
                     });
                 } catch (err) {
-                    log(`setBatchStage failed: ${err.message}`);
+                    log('setBatchStage failed: ' + err.message);
                 }
             }
             
@@ -2097,15 +2881,20 @@ async function tick(context) {
             // Tämä on DEPARTUREn laskema aikataulu, jota vasten voidaan
             // verrata TASKSin ja toteutuneen suorituksen ajoituksia.
             // ═══════════════════════════════════════════════════════════════
-            const activatedSchedule = state.departureSandbox?.schedulesByBatchId?.[String(batchId)];
+            const activatedSchedule = (state.departureSandbox && state.departureSandbox.schedulesByBatchId) ? state.departureSandbox.schedulesByBatchId[String(batchId)] : null;
             if (activatedSchedule && activatedSchedule.stages) {
-                console.log(`[DEPARTURE-SCHEDULE] B${batchId} aktivointihetken aikataulu:`);
+                log('SCHEDULE B' + batchId + ' aktivointihetken aikataulu:');
                 for (const s of activatedSchedule.stages) {
-                    console.log(`[DEPARTURE-SCHEDULE]   stage=${s.stage} station=${s.station} entry=${s.entry_time_s?.toFixed(1)}s exit=${s.exit_time_s?.toFixed(1)}s treatment=${s.treatment_time_s?.toFixed(1)}s min=${s.min_time_s?.toFixed(1)}s max=${s.max_time_s?.toFixed(1)}s`);
+                    var _sEntry = (s.entry_time_s != null && typeof s.entry_time_s.toFixed === 'function') ? s.entry_time_s.toFixed(1) : String(s.entry_time_s);
+                    var _sExit = (s.exit_time_s != null && typeof s.exit_time_s.toFixed === 'function') ? s.exit_time_s.toFixed(1) : String(s.exit_time_s);
+                    var _sTreat = (s.treatment_time_s != null && typeof s.treatment_time_s.toFixed === 'function') ? s.treatment_time_s.toFixed(1) : String(s.treatment_time_s);
+                    var _sMin = (s.min_time_s != null && typeof s.min_time_s.toFixed === 'function') ? s.min_time_s.toFixed(1) : String(s.min_time_s);
+                    var _sMax = (s.max_time_s != null && typeof s.max_time_s.toFixed === 'function') ? s.max_time_s.toFixed(1) : String(s.max_time_s);
+                    log('SCHEDULE   stage=' + s.stage + ' station=' + s.station + ' entry=' + _sEntry + 's exit=' + _sExit + 's treatment=' + _sTreat + 's min=' + _sMin + 's max=' + _sMax + 's');
                 }
                 // Tallenna stateen niin TASKS ja debug voivat verrata
                 state.activatedSchedules = state.activatedSchedules || {};
-                state.activatedSchedules[String(batchId)] = JSON.parse(JSON.stringify(activatedSchedule));
+                state.activatedSchedules[String(batchId)] = _copySchedule(activatedSchedule);
             }
         }
         
@@ -2115,8 +2904,12 @@ async function tick(context) {
         // DEPARTURE waits in WAIT_FOR_SAVE until TASKS has written.
         // ═══════════════════════════════════════════════════════════════════
         if (state.departureSandbox) {
-            state.schedulesByBatchId = JSON.parse(JSON.stringify(state.departureSandbox.schedulesByBatchId || {}));
-            state.programsByBatchId = JSON.parse(JSON.stringify(state.departureSandbox.programsByBatchId || {}));
+            // Copy schedules and programs from sandbox hash maps to indexed arrays
+            const sbSchedMap = state.departureSandbox.schedulesByBatchId || {};
+            const copiedSchedMap = {};
+            for (const k of Object.keys(sbSchedMap)) { copiedSchedMap[k] = _copySchedule(sbSchedMap[k]); }
+            _schedulesFromHashMap(copiedSchedMap);
+            _programsFromHashMap(_copyProgramsHashMap(state.departureSandbox.programsByBatchId || {}));
             
             // Collect batch calc_time updates for server
             const batchCalcUpdates = [];
@@ -2124,7 +2917,9 @@ async function tick(context) {
                 const targetBatchId = parseInt(batchIdStr, 10);
                 if (!Number.isFinite(targetBatchId) || targetBatchId === batchId) continue;
                 
-                const targetBatch = state.departureSandbox.batches?.find(b => b.batch_id === targetBatchId);
+                // PLC: FOR-loop (korvaa .find())
+                let targetBatch = null;
+                if (state.departureSandbox.batches) { for (let _bi = 0; _bi < state.departureSandbox.batches.length; _bi++) { if (state.departureSandbox.batches[_bi].batch_id === targetBatchId) { targetBatch = state.departureSandbox.batches[_bi]; break; } } }
                 if (!targetBatch || targetBatch.stage < 1 || targetBatch.stage >= 90) continue;
                 
                 const stageData = program[targetBatch.stage - 1];
@@ -2139,25 +2934,26 @@ async function tick(context) {
             // Store pending data for TASKS SAVE to write
             state.pendingWriteData = {
                 valid: true,
-                programsByBatchId: JSON.parse(JSON.stringify(state.programsByBatchId)),
-                schedulesByBatchId: JSON.parse(JSON.stringify(state.schedulesByBatchId)),
+                programsByBatchId: _copyProgramsHashMap(_programsToHashMap()),
+                schedulesByBatchId: (function() { const m = {}; const src = _schedulesToHashMap(); for (const k of Object.keys(src)) { m[k] = _copySchedule(src[k]); } return m; })(),
                 batchCalcUpdates,
                 currentTimeSec: ctx.currentTimeSec || 0
             };
             
-            log(`ACTIVATE B${batchId}: Pending write data stored, waiting for TASKS SAVE`);
+            log('ACTIVATE B' + batchId + ': Pending write data stored, waiting for TASKS SAVE');
         }
         
         // Siirrä väliaikaiset viivästykset pysyvään listaan
         if (state.departureCandidateStretches && state.departureCandidateStretches.length > 0) {
             state.candidateStretches = state.candidateStretches || [];
-            state.candidateStretches.push(...state.departureCandidateStretches);
+            // PLC: FOR-loop (korvaa .push(...spread))
+            for (let _si = 0; _si < state.departureCandidateStretches.length; _si++) state.candidateStretches.push(state.departureCandidateStretches[_si]);
             state.departureCandidateStretches = [];
         }
         
         // Siivoa
-        delete state.waitingBatchTasks[String(batchId)];
-        delete state.waitingSchedules[String(batchId)];
+        _removeWaitingTaskSet(batchId);
+        _removeWaitingSched(batchId);
         state.departureSandbox = null;
         state.sandboxSnapshot = null;
         state.finalDepartureConflict = null;
@@ -2168,7 +2964,7 @@ async function tick(context) {
         state.activatedThisCycle = true;
         
         const waitSec = batch.calc_time_s || 0;
-        log(`ACTIVATE B${batchId} DONE → WAIT_FOR_SAVE`);
+        log('ACTIVATE B' + batchId + ' DONE → WAIT_FOR_SAVE');
         nextPhase = PHASE.WAIT_FOR_SAVE;
     }
     
@@ -2192,7 +2988,7 @@ async function tick(context) {
             nextPhase = PHASE.END_DELAY_START;
         } else {
             // Keep waiting — pendingWriteData stays available for TASKS to read
-            console.log(`[DEPARTURE] WAIT_FOR_SAVE: Waiting for TASKS to save our data (tasksPhase=${state.tasksPhase})`);
+            log('WAIT_FOR_SAVE: Waiting for TASKS to save our data (tasksPhase=' + state.tasksPhase + ')');
         }
     }
     
@@ -2224,20 +3020,19 @@ async function tick(context) {
     // Palaa odottamaan TASKS-tilakonetta
     // ═══════════════════════════════════════════════════════════════════════════════
     else if (p === PHASE.RESTART) {
-        // Syklin ajoitustilastot
-        state.lastCycleTimeMs = Date.now() - state.cycleStartTime;
+        // Syklin ajoitustilastot — PLC: _getSystemTimeMs(), _isFinite(), _ringBufferWrite()
+        state.lastCycleTimeMs = _getSystemTimeMs() - state.cycleStartTime;
         state.totalCycles++;
         state.lastCycleTicks = state.cycleTickCount;
-        state.lastCycleSimTimeMs = Math.round(state.lastCycleTicks * (Number.isFinite(state.cycleTickPeriodMs) ? state.cycleTickPeriodMs : 0));
+        state.lastCycleSimTimeMs = Math.round(state.lastCycleTicks * (_isFinite(state.cycleTickPeriodMs) ? state.cycleTickPeriodMs : 0));
         if (state.lastCycleTimeMs > state.longestCycleTimeMs) state.longestCycleTimeMs = state.lastCycleTimeMs;
         if (state.lastCycleTicks > state.longestCycleTicks) state.longestCycleTicks = state.lastCycleTicks;
-        state.cycleHistory.push(state.lastCycleTimeMs);
-        if (state.cycleHistory.length > 1000) state.cycleHistory.shift();
-        state.cycleTickHistory.push(state.lastCycleTicks);
-        if (state.cycleTickHistory.length > 1000) state.cycleTickHistory.shift();
-        state.cycleSimTimeHistory.push(state.lastCycleSimTimeMs);
-        if (state.cycleSimTimeHistory.length > 1000) state.cycleSimTimeHistory.shift();
-        log(`Cycle complete: ${state.lastCycleTimeMs}ms wall, ${state.lastCycleTicks} ticks`);
+        
+        state.cycleHistoryCount = _ringBufferWrite(state.cycleHistory, state.cycleHistoryCount, MAX_CYCLE_HISTORY, state.lastCycleTimeMs);
+        state.cycleTickHistoryCount = _ringBufferWrite(state.cycleTickHistory, state.cycleTickHistoryCount, MAX_CYCLE_HISTORY, state.lastCycleTicks);
+        state.cycleSimTimeHistoryCount = _ringBufferWrite(state.cycleSimTimeHistory, state.cycleSimTimeHistoryCount, MAX_CYCLE_HISTORY, state.lastCycleSimTimeMs);
+        
+        log('Cycle complete: ' + state.lastCycleTimeMs + 'ms wall, ' + state.lastCycleTicks + ' ticks');
 
         log('RESTART → waiting for TASKS');
         state.finalDepartureConflict = state.lastDepartureConflict || null;
@@ -2258,8 +3053,8 @@ async function tick(context) {
         activated: state.activatedThisCycle,
         // Pending write data for TASKS SAVE to merge and write
         pendingWriteData: state.pendingWriteData,
-        schedulesByBatchId: state.schedulesByBatchId,
-        programsByBatchId: state.programsByBatchId,
+        schedulesByBatchId: _schedulesToHashMap(),
+        programsByBatchId: _programsToHashMap(),
         candidateStretches: state.candidateStretches,
         departureTimes: state.departureTimes,
         avgDepartureIntervalSec: state.avgDepartureIntervalSec,
@@ -2295,7 +3090,7 @@ function getPhaseName(p) {
     if (p === PHASE.END_DELAY_START) return 'END_DELAY_START';
     if (p > PHASE.END_DELAY_START && p <= PHASE.END_DELAY_END) return 'END_DELAY';
     if (p === PHASE.RESTART) return 'RESTART';
-    return `UNKNOWN(${p})`;
+    return 'UNKNOWN(' + p + ')';
 }
 
 function getState() {
@@ -2309,14 +3104,18 @@ function getPhase() {
 function reset() {
     state.phase = PHASE.WAITING_FOR_TASKS;
     state.batches = [];
+    state.batchCount = 0;
     state.stations = [];
+    state.stationCount = 0;
     state.transporters = [];
+    state.transporterCount = 0;
     state.transporterStates = [];
-    state.schedulesByBatchId = {};
-    state.programsByBatchId = {};
-    state.waitingSchedules = {};
-    state.waitingBatchAnalysis = {};
-    state.waitingBatchTasks = {};
+    state.transporterStateCount = 0;
+    state.schedules = []; state.scheduleCount = 0;
+    state.programs = []; state.programCount = 0;
+    state.waitingScheds = []; state.waitingSchedCount = 0;
+    state.waitingAnalyses = []; state.waitingAnalysisCount = 0;
+    state.waitingTaskSets = []; state.waitingTaskSetCount = 0;
     state.waitingBatches = [];
     state.waitingBatchCount = 0;
     state.currentWaitingIndex = 0;
@@ -2326,16 +3125,22 @@ function reset() {
     state.departureSandbox = null;
     state.sandboxSnapshot = null;
     state.combinedTasks = [];
+    state.combinedTaskCount = 0;
     state.departureAnalysis = null;
     state.departureCandidateStretches = [];
     state.candidateStretches = [];
+    state.candidateStretchCount = 0;
     state.pendingDelay = null;
     state.pendingDelays = [];
-    state.departureLockedStages = {};
+    state.pendingDelayCount = 0;
+    state.departureLockedStages = []; state.depLockedStageCount = 0;
+    state.inFlightTasks = [];
+    state.inFlightTaskCount = 0;
     state.departureIteration = 0;
     state.departureRound = 0;
     state._currentDepartureBatchId = null;
     state.departureTimes = [];
+    state.departureTimeCount = 0;
     state.avgDepartureIntervalSec = 0;
     state.lastDepartureConflict = null;
     state.finalDepartureConflict = null;
@@ -2343,6 +3148,7 @@ function reset() {
     state.endDelayCounter = 0;
     state.activatedThisCycle = false;
     state.phaseLog = [];
+    state.phaseLogCount = 0;
     log('RESET');
 }
 

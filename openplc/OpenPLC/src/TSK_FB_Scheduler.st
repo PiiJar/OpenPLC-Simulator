@@ -36,7 +36,6 @@ VAR_EXTERNAL
   g_programs : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
   g_tasks    : ARRAY[1..3] OF TSK_QUEUE_T;
   g_schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
-  g_cfg      : ARRAY[1..3] OF TRANSPORTER_CFG_T;
 END_VAR
 VAR_OUTPUT
   o_phase      : INT;     (* current phase *)
@@ -62,6 +61,7 @@ VAR
   fb_analyze : TSK_FB_Analyze;
   fb_resolve : TSK_FB_Resolve;
   fb_notrt   : TSK_FB_NoTreatment;
+  fb_find    : STC_FB_FindTransporter;  (* shared transporter finder *)
   (* Transporter assignment for schedule calculation *)
   sched_trans : INT;
   (* Temp *)
@@ -129,15 +129,9 @@ ELSIF phase >= 1001 AND phase <= 1010 THEN
     ui := batch_list[batch_idx];
 
     (* Find transporter for this unit — first one with matching task_area *)
-    sched_trans := 1; (* default *)
-    FOR ti := 1 TO 3 DO
-      FOR qi := 1 TO 4 DO
-        IF g_units[ui].location >= g_cfg[ti].task_area[qi].min_lift
-           AND g_units[ui].location <= g_cfg[ti].task_area[qi].max_lift THEN
-          sched_trans := ti;
-        END_IF;
-      END_FOR;
-    END_FOR;
+    fb_find(i_lift_stn := g_units[ui].location, i_sink_stn := 0);
+    sched_trans := fb_find.o_trans_id;
+    IF sched_trans = 0 THEN sched_trans := 1; END_IF;  (* fallback default *)
 
     fb_calc(i_unit := ui, i_trans := sched_trans, i_time_s := i_time_s);
 

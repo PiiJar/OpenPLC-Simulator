@@ -10,6 +10,7 @@
 ```
 openplc/
 ├── MATIEC_SYNTAX.md          ← syntaksisäännöt (vertailudokumentti)
+├── NAMING_CONVENTION.md      ← nimeämiskäytäntö (prefiksit, POU-tyypit, tiedostot)
 ├── PLC_KEHITYSOHJE.md        ← tämä ohje
 ├── OpenPLC/
 │   ├── src/                  ← LÄHDEKOODI (muokkaa vain näitä)

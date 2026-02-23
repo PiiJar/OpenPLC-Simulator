@@ -1,8 +1,8 @@
 (* ============================================================
-   fb_station_lookup.st — Find a station by its number
+   fb_station_lookup.st → STC_FB_FindStation — Find a station by its number
    ============================================================ *)
 
-FUNCTION_BLOCK FB_StationLookup
+FUNCTION_BLOCK STC_FB_FindStation
 VAR_INPUT
   station_number : INT;
 END_VAR

@@ -20,7 +20,6 @@ END_VAR
 VAR_EXTERNAL
   g_batches  : ARRAY[1..10] OF BATCH_T;
   g_schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
-  g_cfg      : ARRAY[1..3] OF TRANSPORTER_CFG_T;
   g_tasks    : ARRAY[1..3] OF TSK_QUEUE_T;
 END_VAR
 VAR
@@ -31,13 +30,9 @@ VAR
   cur_stage  : INT;     (* batch current stage *)
   skip_before : INT;    (* skip stages before this *)
   tid        : INT;     (* transporter id found *)
-  ti         : INT;     (* transporter loop *)
-  ai         : INT;     (* task area loop *)
-  area       : TASK_AREA_T; (* scratch *)
-  can_lift   : BOOL;
-  can_sink   : BOOL;
   qi         : INT;     (* queue write index *)
   stg_num    : INT;     (* stage number from schedule *)
+  fb_find    : STC_FB_FindTransporter;  (* shared transporter finder *)
 END_VAR
 
 IF i_unit < 1 OR i_unit > 10 THEN RETURN; END_IF;
@@ -64,24 +59,8 @@ FOR si := 1 TO sc - 1 DO
 
     IF lift_stn > 0 AND sink_stn > 0 THEN
       (* -- Find transporter via task_area matching -- *)
-      tid := 0;
-      FOR ti := 1 TO 3 DO
-        IF tid = 0 THEN
-          FOR ai := 1 TO 4 DO
-            IF tid = 0 THEN
-              area := g_cfg[ti].task_area[ai];
-              (* Skip unconfigured areas *)
-              IF area.min_lift > 0 OR area.max_lift > 0 THEN
-                can_lift := (lift_stn >= area.min_lift) AND (lift_stn <= area.max_lift);
-                can_sink := (sink_stn >= area.min_sink) AND (sink_stn <= area.max_sink);
-                IF can_lift AND can_sink THEN
-                  tid := ti;
-                END_IF;
-              END_IF;
-            END_IF;
-          END_FOR;
-        END_IF;
-      END_FOR;
+      fb_find(i_lift_stn := lift_stn, i_sink_stn := sink_stn);
+      tid := fb_find.o_trans_id;
 
       (* -- Append task to transporter queue -- *)
       IF tid >= 1 AND tid <= 3 THEN

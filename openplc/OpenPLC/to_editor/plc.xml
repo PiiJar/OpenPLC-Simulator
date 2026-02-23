@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-22T19:02:14"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-22T19:02:14">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-23T11:33:04"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-23T11:33:04">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -508,153 +508,6 @@ END_IF;]]></xhtml:p>
           </ST>
         </body>
       </pou>
-      <pou name="FB_TimeMoves" pouType="functionBlock">
-        <interface>
-          <inputVars>
-            <variable name="t_id">
-              <type><INT/></type>
-            </variable>
-            <variable name="phase">
-              <type><INT/></type>
-            </variable>
-            <variable name="delta_t">
-              <type><REAL/></type>
-            </variable>
-            <variable name="vel_x">
-              <type><REAL/></type>
-            </variable>
-            <variable name="z_stage">
-              <type><INT/></type>
-            </variable>
-            <variable name="lift_stn">
-              <type><INT/></type>
-            </variable>
-            <variable name="sink_stn">
-              <type><INT/></type>
-            </variable>
-            <variable name="from_stn">
-              <type><INT/></type>
-            </variable>
-          </inputVars>
-          <externalVars>
-            <variable name="g_move">
-              <type>
-                <array>
-                  <dimension lower="1" upper="3"/>
-                  <baseType><derived name="MOVE_TIMES_T"/></baseType>
-                </array>
-              </type>
-            </variable>
-          </externalVars>
-          <localVars>
-            <variable name="prev_phase">
-              <type><INT/></type>
-              <initialValue><simpleValue value="-1"/></initialValue>
-            </variable>
-            <variable name="timer">
-              <type><REAL/></type>
-              <initialValue><simpleValue value="0.0"/></initialValue>
-            </variable>
-            <variable name="travel_from">
-              <type><INT/></type>
-            </variable>
-            <variable name="travel_to">
-              <type><INT/></type>
-            </variable>
-            <variable name="lift_idx">
-              <type><INT/></type>
-            </variable>
-            <variable name="sink_idx">
-              <type><INT/></type>
-            </variable>
-          </localVars>
-        </interface>
-        <body>
-          <ST>
-            <xhtml:p><![CDATA[(* ---- Phase transition detection ---- *)
-IF phase <> prev_phase THEN
-
-  (* -- Save completed measurement and set up next -- *)
-
-  IF prev_phase = 1 AND phase = 2 THEN
-    (* Travel to lift complete → save travel time *)
-    IF travel_from >= 1 AND travel_from <= 25
-       AND travel_to >= 1 AND travel_to <= 25 THEN
-      g_move[t_id].travel[travel_from].to_s[travel_to] := timer;
-    END_IF;
-    (* Start timing lift — timer starts at 0, accumulates only in z_stage 2-4 *)
-    lift_idx := lift_stn - 100;
-    timer := 0.0;
-
-  ELSIF prev_phase = 2 AND phase = 3 THEN
-    (* Lift complete → save lift time (pure mechanical Z-motion only) *)
-    IF lift_idx >= 1 AND lift_idx <= 25 THEN
-      g_move[t_id].lift_s[lift_idx] := timer;
-    END_IF;
-    (* Start timing travel to sink *)
-    travel_from := lift_stn - 100;
-    travel_to := sink_stn - 100;
-    timer := 0.0;
-
-  ELSIF prev_phase = 3 AND phase = 4 THEN
-    (* Travel to sink complete → save travel time *)
-    IF travel_from >= 1 AND travel_from <= 25
-       AND travel_to >= 1 AND travel_to <= 25 THEN
-      g_move[t_id].travel[travel_from].to_s[travel_to] := timer;
-    END_IF;
-    (* Start timing sink — timer starts at 0, accumulates only in z_stage 7-8 *)
-    sink_idx := sink_stn - 100;
-    timer := 0.0;
-
-  ELSIF prev_phase = 4 AND phase = 0 THEN
-    (* Sink complete → save sink time (pure mechanical Z-motion only) *)
-    IF sink_idx >= 1 AND sink_idx <= 25 THEN
-      g_move[t_id].sink_s[sink_idx] := timer;
-    END_IF;
-    timer := 0.0;
-
-  ELSIF prev_phase = 0 AND phase = 1 THEN
-    (* New cycle starting → set up travel-to-lift *)
-    travel_from := from_stn - 100;
-    travel_to := lift_stn - 100;
-    timer := 0.0;
-
-  ELSE
-    (* Unexpected transition → just reset *)
-    timer := 0.0;
-  END_IF;
-
-  prev_phase := phase;
-
-ELSE
-  (* ---- No transition: accumulate timer ---- *)
-
-  IF phase = 1 OR phase = 3 THEN
-    (* Travel: only count time when actually moving *)
-    (* Filters out TWA collision avoidance stops    *)
-    IF ABS(vel_x) > 0.1 THEN
-      timer := timer + delta_t;
-    END_IF;
-
-  ELSIF phase = 2 THEN
-    (* Lift: only mechanical Z-motion stages 2-4 *)
-    (* Excludes: stage 1 (device_delay + dropping_time), stage 5 (drip_delay) *)
-    IF z_stage >= 2 AND z_stage <= 4 THEN
-      timer := timer + delta_t;
-    END_IF;
-
-  ELSIF phase = 4 THEN
-    (* Sink: only mechanical Z-motion stages 7-8 *)
-    (* Excludes: stage 6 (device_delay + drip_delay) *)
-    IF z_stage >= 7 AND z_stage <= 8 THEN
-      timer := timer + delta_t;
-    END_IF;
-  END_IF;
-
-END_IF;]]></xhtml:p>
-          </ST>
-        </body>
-      </pou>
       <pou name="SIM_FB_XMotion" pouType="functionBlock">
         <interface>
           <inputVars>
@@ -921,6 +774,411 @@ END_CASE;]]></xhtml:p>
           </ST>
         </body>
       </pou>
+      <pou name="STC_FB_CalcHorizontalTravel" pouType="functionBlock">
+        <interface>
+          <inputVars>
+            <variable name="i_from_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="i_to_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="i_trans">
+              <type><INT/></type>
+            </variable>
+          </inputVars>
+          <outputVars>
+            <variable name="o_travel_s">
+              <type><REAL/></type>
+            </variable>
+          </outputVars>
+          <externalVars>
+            <variable name="g_move">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="MOVE_TIMES_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="from_idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="to_idx">
+              <type><INT/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[o_travel_s := 0.0;
+IF i_from_stn > 0 AND i_to_stn > 0 AND i_from_stn <> i_to_stn THEN
+  from_idx := i_from_stn - 100;
+  to_idx   := i_to_stn - 100;
+  IF from_idx >= 1 AND from_idx <= 25 AND to_idx >= 1 AND to_idx <= 25
+     AND i_trans >= 1 AND i_trans <= 3 THEN
+    o_travel_s := g_move[i_trans].travel[from_idx].to_s[to_idx];
+  END_IF;
+END_IF;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
+      <pou name="STC_FB_CalcTransferTime" pouType="functionBlock">
+        <interface>
+          <inputVars>
+            <variable name="i_from_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="i_to_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="i_trans">
+              <type><INT/></type>
+            </variable>
+          </inputVars>
+          <outputVars>
+            <variable name="o_total_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="o_lift_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="o_travel_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="o_sink_s">
+              <type><REAL/></type>
+            </variable>
+          </outputVars>
+          <externalVars>
+            <variable name="g_move">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="MOVE_TIMES_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="from_idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="to_idx">
+              <type><INT/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[o_total_s  := 0.0;
+o_lift_s   := 0.0;
+o_travel_s := 0.0;
+o_sink_s   := 0.0;
+
+IF i_from_stn > 0 AND i_from_stn <> i_to_stn THEN
+  from_idx := i_from_stn - 100;
+  to_idx   := i_to_stn - 100;
+  IF from_idx >= 1 AND from_idx <= 25 AND to_idx >= 1 AND to_idx <= 25
+     AND i_trans >= 1 AND i_trans <= 3 THEN
+    o_lift_s   := g_move[i_trans].lift_s[from_idx];
+    o_travel_s := g_move[i_trans].travel[from_idx].to_s[to_idx];
+    o_sink_s   := g_move[i_trans].sink_s[to_idx];
+    o_total_s  := o_lift_s + o_travel_s + o_sink_s;
+  END_IF;
+END_IF;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
+      <pou name="STC_FB_FindStation" pouType="functionBlock">
+        <interface>
+          <inputVars>
+            <variable name="station_number">
+              <type><INT/></type>
+            </variable>
+          </inputVars>
+          <outputVars>
+            <variable name="found">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="x_mm">
+              <type><REAL/></type>
+            </variable>
+            <variable name="stype">
+              <type><INT/></type>
+            </variable>
+            <variable name="device_delay_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="dropping_time_s">
+              <type><REAL/></type>
+            </variable>
+          </outputVars>
+          <externalVars>
+            <variable name="g_stations">
+              <type>
+                <array>
+                  <dimension lower="101" upper="125"/>
+                  <baseType><derived name="STATION_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="st">
+              <type><derived name="STATION_T"/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[(* Direct lookup by station number — no loop needed *)
+IF (station_number >= 101) AND (station_number <= 125) THEN
+  st := g_stations[station_number];
+  IF st.tank_id <> 0 THEN
+    found := TRUE;
+    idx := station_number;
+    x_mm := st.x_position;
+    stype := st.stn_type;
+    device_delay_s := st.device_delay;
+    dropping_time_s := st.dropping_time;
+    RETURN;
+  END_IF;
+END_IF;
+
+found := FALSE;
+idx := 0;
+x_mm := 0.0;
+stype := 0;
+device_delay_s := 0.0;
+dropping_time_s := 0.0;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
+      <pou name="STC_FB_FindTransporter" pouType="functionBlock">
+        <interface>
+          <inputVars>
+            <variable name="i_lift_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="i_sink_stn">
+              <type><INT/></type>
+            </variable>
+          </inputVars>
+          <outputVars>
+            <variable name="o_trans_id">
+              <type><INT/></type>
+            </variable>
+          </outputVars>
+          <externalVars>
+            <variable name="g_cfg">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="TRANSPORTER_CFG_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="ti">
+              <type><INT/></type>
+            </variable>
+            <variable name="ai">
+              <type><INT/></type>
+            </variable>
+            <variable name="area">
+              <type><derived name="TASK_AREA_T"/></type>
+            </variable>
+            <variable name="can_lift">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="can_sink">
+              <type><BOOL/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[o_trans_id := 0;
+FOR ti := 1 TO 3 DO
+  IF o_trans_id = 0 THEN
+    FOR ai := 1 TO 4 DO
+      IF o_trans_id = 0 THEN
+        area := g_cfg[ti].task_area[ai];
+        IF area.min_lift > 0 OR area.max_lift > 0 THEN
+          can_lift := (i_lift_stn >= area.min_lift) AND (i_lift_stn <= area.max_lift);
+          IF i_sink_stn = 0 THEN
+            (* Lift-only coverage search *)
+            IF can_lift THEN
+              o_trans_id := ti;
+            END_IF;
+          ELSE
+            can_sink := (i_sink_stn >= area.min_sink) AND (i_sink_stn <= area.max_sink);
+            IF can_lift AND can_sink THEN
+              o_trans_id := ti;
+            END_IF;
+          END_IF;
+        END_IF;
+      END_IF;
+    END_FOR;
+  END_IF;
+END_FOR;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
+      <pou name="STC_FB_MeasureMoveTimes" pouType="functionBlock">
+        <interface>
+          <inputVars>
+            <variable name="t_id">
+              <type><INT/></type>
+            </variable>
+            <variable name="phase">
+              <type><INT/></type>
+            </variable>
+            <variable name="delta_t">
+              <type><REAL/></type>
+            </variable>
+            <variable name="vel_x">
+              <type><REAL/></type>
+            </variable>
+            <variable name="z_stage">
+              <type><INT/></type>
+            </variable>
+            <variable name="lift_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="sink_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="from_stn">
+              <type><INT/></type>
+            </variable>
+          </inputVars>
+          <externalVars>
+            <variable name="g_move">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="MOVE_TIMES_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="prev_phase">
+              <type><INT/></type>
+              <initialValue><simpleValue value="-1"/></initialValue>
+            </variable>
+            <variable name="timer">
+              <type><REAL/></type>
+              <initialValue><simpleValue value="0.0"/></initialValue>
+            </variable>
+            <variable name="travel_from">
+              <type><INT/></type>
+            </variable>
+            <variable name="travel_to">
+              <type><INT/></type>
+            </variable>
+            <variable name="lift_idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="sink_idx">
+              <type><INT/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[(* ---- Phase transition detection ---- *)
+IF phase <> prev_phase THEN
+
+  (* -- Save completed measurement and set up next -- *)
+
+  IF prev_phase = 1 AND phase = 2 THEN
+    (* Travel to lift complete → save travel time *)
+    IF travel_from >= 1 AND travel_from <= 25
+       AND travel_to >= 1 AND travel_to <= 25 THEN
+      g_move[t_id].travel[travel_from].to_s[travel_to] := timer;
+    END_IF;
+    (* Start timing lift — timer starts at 0, accumulates only in z_stage 2-4 *)
+    lift_idx := lift_stn - 100;
+    timer := 0.0;
+
+  ELSIF prev_phase = 2 AND phase = 3 THEN
+    (* Lift complete → save lift time (pure mechanical Z-motion only) *)
+    IF lift_idx >= 1 AND lift_idx <= 25 THEN
+      g_move[t_id].lift_s[lift_idx] := timer;
+    END_IF;
+    (* Start timing travel to sink *)
+    travel_from := lift_stn - 100;
+    travel_to := sink_stn - 100;
+    timer := 0.0;
+
+  ELSIF prev_phase = 3 AND phase = 4 THEN
+    (* Travel to sink complete → save travel time *)
+    IF travel_from >= 1 AND travel_from <= 25
+       AND travel_to >= 1 AND travel_to <= 25 THEN
+      g_move[t_id].travel[travel_from].to_s[travel_to] := timer;
+    END_IF;
+    (* Start timing sink — timer starts at 0, accumulates only in z_stage 7-8 *)
+    sink_idx := sink_stn - 100;
+    timer := 0.0;
+
+  ELSIF prev_phase = 4 AND phase = 0 THEN
+    (* Sink complete → save sink time (pure mechanical Z-motion only) *)
+    IF sink_idx >= 1 AND sink_idx <= 25 THEN
+      g_move[t_id].sink_s[sink_idx] := timer;
+    END_IF;
+    timer := 0.0;
+
+  ELSIF prev_phase = 0 AND phase = 1 THEN
+    (* New cycle starting → set up travel-to-lift *)
+    travel_from := from_stn - 100;
+    travel_to := lift_stn - 100;
+    timer := 0.0;
+
+  ELSE
+    (* Unexpected transition → just reset *)
+    timer := 0.0;
+  END_IF;
+
+  prev_phase := phase;
+
+ELSE
+  (* ---- No transition: accumulate timer ---- *)
+
+  IF phase = 1 OR phase = 3 THEN
+    (* Travel: only count time when actually moving *)
+    (* Filters out TWA collision avoidance stops    *)
+    IF ABS(vel_x) > 0.1 THEN
+      timer := timer + delta_t;
+    END_IF;
+
+  ELSIF phase = 2 THEN
+    (* Lift: only mechanical Z-motion stages 2-4 *)
+    (* Excludes: stage 1 (device_delay + dropping_time), stage 5 (drip_delay) *)
+    IF z_stage >= 2 AND z_stage <= 4 THEN
+      timer := timer + delta_t;
+    END_IF;
+
+  ELSIF phase = 4 THEN
+    (* Sink: only mechanical Z-motion stages 7-8 *)
+    (* Excludes: stage 6 (device_delay + drip_delay) *)
+    IF z_stage >= 7 AND z_stage <= 8 THEN
+      timer := timer + delta_t;
+    END_IF;
+  END_IF;
+
+END_IF;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
       <pou name="TSK_FB_Analyze" pouType="functionBlock">
         <interface>
           <outputVars>
@@ -958,14 +1216,6 @@ END_CASE;]]></xhtml:p>
                 <array>
                   <dimension lower="1" upper="3"/>
                   <baseType><derived name="TSK_QUEUE_T"/></baseType>
-                </array>
-              </type>
-            </variable>
-            <variable name="g_move">
-              <type>
-                <array>
-                  <dimension lower="1" upper="3"/>
-                  <baseType><derived name="MOVE_TIMES_T"/></baseType>
                 </array>
               </type>
             </variable>
@@ -1036,12 +1286,6 @@ END_CASE;]]></xhtml:p>
             <variable name="next_lift">
               <type><INT/></type>
             </variable>
-            <variable name="from_idx">
-              <type><INT/></type>
-            </variable>
-            <variable name="to_idx">
-              <type><INT/></type>
-            </variable>
             <variable name="travel_s">
               <type><REAL/></type>
             </variable>
@@ -1105,6 +1349,9 @@ END_CASE;]]></xhtml:p>
             <variable name="DEFICIT_TOL">
               <type><REAL/></type>
               <initialValue><simpleValue value="1.0"/></initialValue>
+            </variable>
+            <variable name="fb_travel">
+              <type><derived name="STC_FB_CalcHorizontalTravel"/></type>
             </variable>
           </localVars>
         </interface>
@@ -1203,13 +1450,9 @@ FOR si := 1 TO sorted_cnt DO
       (* Found previous task on same transporter *)
       prev_sink := sorted[ci].sink_station;
       next_lift := sorted[si].lift_station;
-      from_idx  := prev_sink - 100;
-      to_idx    := next_lift - 100;
 
-      travel_s := 0.0;
-      IF from_idx >= 1 AND from_idx <= 25 AND to_idx >= 1 AND to_idx <= 25 THEN
-        travel_s := g_move[sorted_trans[si]].travel[from_idx].to_s[to_idx];
-      END_IF;
+      fb_travel(i_from_stn := prev_sink, i_to_stn := next_lift, i_trans := sorted_trans[si]);
+      travel_s := fb_travel.o_travel_s;
 
       gap_s := sorted[si].start_time - sorted[ci].finish_time;
       deficit_s := travel_s - gap_s;
@@ -1327,14 +1570,6 @@ checked_count := chk_cnt;]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_move">
-              <type>
-                <array>
-                  <dimension lower="1" upper="3"/>
-                  <baseType><derived name="MOVE_TIMES_T"/></baseType>
-                </array>
-              </type>
-            </variable>
             <variable name="g_schedule">
               <type>
                 <array>
@@ -1352,12 +1587,6 @@ checked_count := chk_cnt;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="stn_num">
-              <type><INT/></type>
-            </variable>
-            <variable name="stn_idx">
-              <type><INT/></type>
-            </variable>
-            <variable name="prev_idx">
               <type><INT/></type>
             </variable>
             <variable name="prev_stn">
@@ -1379,15 +1608,6 @@ checked_count := chk_cnt;]]></xhtml:p>
               <type><REAL/></type>
             </variable>
             <variable name="xfer_t">
-              <type><REAL/></type>
-            </variable>
-            <variable name="lift_t">
-              <type><REAL/></type>
-            </variable>
-            <variable name="sink_t">
-              <type><REAL/></type>
-            </variable>
-            <variable name="travel_t">
               <type><REAL/></type>
             </variable>
             <variable name="calc_s">
@@ -1419,6 +1639,9 @@ checked_count := chk_cnt;]]></xhtml:p>
             </variable>
             <variable name="chosen_stn">
               <type><INT/></type>
+            </variable>
+            <variable name="fb_xfer">
+              <type><derived name="STC_FB_CalcTransferTime"/></type>
             </variable>
           </localVars>
         </interface>
@@ -1511,17 +1734,8 @@ FOR st := start_st TO 30 DO
   max_s  := INT_TO_REAL(g_programs[i_unit].stages[st].max_time);
 
   (* -- Calculate transfer time from prev_stn to stn_num -- *)
-  xfer_t := 0.0;
-  IF prev_stn > 0 AND prev_stn <> stn_num THEN
-    prev_idx := prev_stn - 100;
-    stn_idx  := stn_num - 100;
-    IF prev_idx >= 1 AND prev_idx <= 25 AND stn_idx >= 1 AND stn_idx <= 25 THEN
-      lift_t   := g_move[i_trans].lift_s[prev_idx];
-      travel_t := g_move[i_trans].travel[prev_idx].to_s[stn_idx];
-      sink_t   := g_move[i_trans].sink_s[stn_idx];
-      xfer_t   := lift_t + travel_t + sink_t;
-    END_IF;
-  END_IF;
+  fb_xfer(i_from_stn := prev_stn, i_to_stn := stn_num, i_trans := i_trans);
+  xfer_t := fb_xfer.o_total_s;
 
   (* -- Calculate entry and exit times -- *)
   IF is_first AND is_on_stn AND st = cur_stage THEN
@@ -1587,14 +1801,6 @@ g_schedule[i_unit].stage_count := out_count;]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_cfg">
-              <type>
-                <array>
-                  <dimension lower="1" upper="3"/>
-                  <baseType><derived name="TRANSPORTER_CFG_T"/></baseType>
-                </array>
-              </type>
-            </variable>
             <variable name="g_tasks">
               <type>
                 <array>
@@ -1626,26 +1832,14 @@ g_schedule[i_unit].stage_count := out_count;]]></xhtml:p>
             <variable name="tid">
               <type><INT/></type>
             </variable>
-            <variable name="ti">
-              <type><INT/></type>
-            </variable>
-            <variable name="ai">
-              <type><INT/></type>
-            </variable>
-            <variable name="area">
-              <type><derived name="TASK_AREA_T"/></type>
-            </variable>
-            <variable name="can_lift">
-              <type><BOOL/></type>
-            </variable>
-            <variable name="can_sink">
-              <type><BOOL/></type>
-            </variable>
             <variable name="qi">
               <type><INT/></type>
             </variable>
             <variable name="stg_num">
               <type><INT/></type>
+            </variable>
+            <variable name="fb_find">
+              <type><derived name="STC_FB_FindTransporter"/></type>
             </variable>
           </localVars>
         </interface>
@@ -1675,24 +1869,8 @@ FOR si := 1 TO sc - 1 DO
 
     IF lift_stn > 0 AND sink_stn > 0 THEN
       (* -- Find transporter via task_area matching -- *)
-      tid := 0;
-      FOR ti := 1 TO 3 DO
-        IF tid = 0 THEN
-          FOR ai := 1 TO 4 DO
-            IF tid = 0 THEN
-              area := g_cfg[ti].task_area[ai];
-              (* Skip unconfigured areas *)
-              IF area.min_lift > 0 OR area.max_lift > 0 THEN
-                can_lift := (lift_stn >= area.min_lift) AND (lift_stn <= area.max_lift);
-                can_sink := (sink_stn >= area.min_sink) AND (sink_stn <= area.max_sink);
-                IF can_lift AND can_sink THEN
-                  tid := ti;
-                END_IF;
-              END_IF;
-            END_IF;
-          END_FOR;
-        END_IF;
-      END_FOR;
+      fb_find(i_lift_stn := lift_stn, i_sink_stn := sink_stn);
+      tid := fb_find.o_trans_id;
 
       (* -- Append task to transporter queue -- *)
       IF tid >= 1 AND tid <= 3 THEN
@@ -1756,14 +1934,6 @@ END_FOR;]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_move">
-              <type>
-                <array>
-                  <dimension lower="1" upper="3"/>
-                  <baseType><derived name="MOVE_TIMES_T"/></baseType>
-                </array>
-              </type>
-            </variable>
             <variable name="g_stations">
               <type>
                 <array>
@@ -1778,9 +1948,6 @@ END_FOR;]]></xhtml:p>
           </externalVars>
           <localVars>
             <variable name="ui">
-              <type><INT/></type>
-            </variable>
-            <variable name="ti">
               <type><INT/></type>
             </variable>
             <variable name="ai">
@@ -1813,22 +1980,7 @@ END_FOR;]]></xhtml:p>
             <variable name="stn_ok">
               <type><BOOL/></type>
             </variable>
-            <variable name="from_idx">
-              <type><INT/></type>
-            </variable>
-            <variable name="to_idx">
-              <type><INT/></type>
-            </variable>
-            <variable name="travel_s">
-              <type><REAL/></type>
-            </variable>
             <variable name="xfer_s">
-              <type><REAL/></type>
-            </variable>
-            <variable name="lift_s">
-              <type><REAL/></type>
-            </variable>
-            <variable name="sink_s_v">
               <type><REAL/></type>
             </variable>
             <variable name="task_start">
@@ -1836,6 +1988,12 @@ END_FOR;]]></xhtml:p>
             </variable>
             <variable name="task_end">
               <type><REAL/></type>
+            </variable>
+            <variable name="fb_find">
+              <type><derived name="STC_FB_FindTransporter"/></type>
+            </variable>
+            <variable name="fb_xfer">
+              <type><derived name="STC_FB_CalcTransferTime"/></type>
             </variable>
           </localVars>
         </interface>
@@ -1848,21 +2006,8 @@ END_FOR;]]></xhtml:p>
   (* Skip: no target, target is process (handled by schedule), not on station *)
   IF tgt <> 0 AND tgt <> 3 AND loc >= 100 THEN
     (* Find covering transporter *)
-    cov_t := 0;
-    FOR ti := 1 TO 3 DO
-      IF cov_t = 0 THEN
-        FOR ai := 1 TO 4 DO
-          IF cov_t = 0 THEN
-            area := g_cfg[ti].task_area[ai];
-            IF area.min_lift > 0 OR area.max_lift > 0 THEN
-              IF loc >= area.min_lift AND loc <= area.max_lift THEN
-                cov_t := ti;
-              END_IF;
-            END_IF;
-          END_IF;
-        END_FOR;
-      END_IF;
-    END_FOR;
+    fb_find(i_lift_stn := loc, i_sink_stn := 0);
+    cov_t := fb_find.o_trans_id;
 
     IF cov_t >= 1 AND cov_t <= 3 THEN
       (* Check transporter is idle: phase=0, active *)
@@ -1894,17 +2039,8 @@ END_FOR;]]></xhtml:p>
 
         IF dest_stn > 0 THEN
           (* Calculate timing *)
-          from_idx := loc - 100;
-          to_idx   := dest_stn - 100;
-          travel_s := 0.0;
-          lift_s   := 0.0;
-          sink_s_v := 0.0;
-          IF from_idx >= 1 AND from_idx <= 25 AND to_idx >= 1 AND to_idx <= 25 THEN
-            lift_s   := g_move[cov_t].lift_s[from_idx];
-            travel_s := g_move[cov_t].travel[from_idx].to_s[to_idx];
-            sink_s_v := g_move[cov_t].sink_s[to_idx];
-          END_IF;
-          xfer_s := lift_s + travel_s + sink_s_v;
+          fb_xfer(i_from_stn := loc, i_to_stn := dest_stn, i_trans := cov_t);
+          xfer_s := fb_xfer.o_total_s;
 
           task_start := i_time_s;
           task_end   := task_start + xfer_s;
@@ -2359,14 +2495,6 @@ END_IF;
                 </array>
               </type>
             </variable>
-            <variable name="g_cfg">
-              <type>
-                <array>
-                  <dimension lower="1" upper="3"/>
-                  <baseType><derived name="TRANSPORTER_CFG_T"/></baseType>
-                </array>
-              </type>
-            </variable>
           </externalVars>
           <localVars>
             <variable name="phase">
@@ -2414,6 +2542,9 @@ END_IF;
             </variable>
             <variable name="fb_notrt">
               <type><derived name="TSK_FB_NoTreatment"/></type>
+            </variable>
+            <variable name="fb_find">
+              <type><derived name="STC_FB_FindTransporter"/></type>
             </variable>
             <variable name="sched_trans">
               <type><INT/></type>
@@ -2504,15 +2635,9 @@ ELSIF phase >= 1001 AND phase <= 1010 THEN
     ui := batch_list[batch_idx];
 
     (* Find transporter for this unit — first one with matching task_area *)
-    sched_trans := 1; (* default *)
-    FOR ti := 1 TO 3 DO
-      FOR qi := 1 TO 4 DO
-        IF g_units[ui].location >= g_cfg[ti].task_area[qi].min_lift
-           AND g_units[ui].location <= g_cfg[ti].task_area[qi].max_lift THEN
-          sched_trans := ti;
-        END_IF;
-      END_FOR;
-    END_FOR;
+    fb_find(i_lift_stn := g_units[ui].location, i_sink_stn := 0);
+    sched_trans := fb_find.o_trans_id;
+    IF sched_trans = 0 THEN sched_trans := 1; END_IF;  (* fallback default *)
 
     fb_calc(i_unit := ui, i_trans := sched_trans, i_time_s := i_time_s);
 
@@ -3465,74 +3590,6 @@ END_FOR;]]></xhtml:p>
           </ST>
         </body>
       </pou>
-      <pou name="FB_StationLookup" pouType="functionBlock">
-        <interface>
-          <inputVars>
-            <variable name="station_number">
-              <type><INT/></type>
-            </variable>
-          </inputVars>
-          <outputVars>
-            <variable name="found">
-              <type><BOOL/></type>
-            </variable>
-            <variable name="idx">
-              <type><INT/></type>
-            </variable>
-            <variable name="x_mm">
-              <type><REAL/></type>
-            </variable>
-            <variable name="stype">
-              <type><INT/></type>
-            </variable>
-            <variable name="device_delay_s">
-              <type><REAL/></type>
-            </variable>
-            <variable name="dropping_time_s">
-              <type><REAL/></type>
-            </variable>
-          </outputVars>
-          <externalVars>
-            <variable name="g_stations">
-              <type>
-                <array>
-                  <dimension lower="101" upper="125"/>
-                  <baseType><derived name="STATION_T"/></baseType>
-                </array>
-              </type>
-            </variable>
-          </externalVars>
-          <localVars>
-            <variable name="st">
-              <type><derived name="STATION_T"/></type>
-            </variable>
-          </localVars>
-        </interface>
-        <body>
-          <ST>
-            <xhtml:p><![CDATA[(* Direct lookup by station number — no loop needed *)
-IF (station_number >= 101) AND (station_number <= 125) THEN
-  st := g_stations[station_number];
-  IF st.tank_id <> 0 THEN
-    found := TRUE;
-    idx := station_number;
-    x_mm := st.x_position;
-    stype := st.stn_type;
-    device_delay_s := st.device_delay;
-    dropping_time_s := st.dropping_time;
-    RETURN;
-  END_IF;
-END_IF;
-
-found := FALSE;
-idx := 0;
-x_mm := 0.0;
-stype := 0;
-device_delay_s := 0.0;
-dropping_time_s := 0.0;]]></xhtml:p>
-          </ST>
-        </body>
-      </pou>
       <pou name="PLC_PRG" pouType="program">
         <interface>
           <externalVars>
@@ -4075,7 +4132,7 @@ dropping_time_s := 0.0;]]></xhtml:p>
               <type><derived name="TWA_FB_CalcLimits"/></type>
             </variable>
             <variable name="lookup">
-              <type><derived name="FB_StationLookup"/></type>
+              <type><derived name="STC_FB_FindStation"/></type>
             </variable>
             <variable name="clear_cfg">
               <type><derived name="FB_ClearConfig"/></type>

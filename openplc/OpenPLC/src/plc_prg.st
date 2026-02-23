@@ -177,7 +177,7 @@ VAR
   fb_z2        : SIM_FB_ZMotion;
   fb_z3        : SIM_FB_ZMotion;
   twa_calc     : TWA_FB_CalcLimits;
-  lookup       : FB_StationLookup;
+  lookup       : STC_FB_FindStation;
   clear_cfg    : FB_ClearConfig;
   cycle_count  : INT;
   tmp_z        : REAL;
