@@ -20,7 +20,8 @@ STRUCT
   x_position    : REAL;
   y_position    : REAL;
   z_position    : REAL;
-  stn_type      : INT;
+  stn_type      : INT;    (* 0=dry, 1=wet *)
+  stn_function  : INT;    (* original station type from JSON *)
   dropping_time : REAL;
   device_delay  : REAL;
 END_STRUCT;

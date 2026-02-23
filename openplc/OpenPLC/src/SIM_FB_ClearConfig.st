@@ -31,6 +31,7 @@ FOR i := 101 TO 125 DO
   g_stations[i].y_position    := 0.0;
   g_stations[i].z_position    := 0.0;
   g_stations[i].stn_type      := 0;
+  g_stations[i].stn_function  := 0;
   g_stations[i].dropping_time := 0.0;
   g_stations[i].device_delay  := 0.0;
 END_FOR;

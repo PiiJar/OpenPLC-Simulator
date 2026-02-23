@@ -45,6 +45,7 @@ VAR
   tmp_zs       : INT;
   tmp_zt       : REAL;
   arrived_x    : BOOL;
+  at_station   : BOOL;    (* TRUE only when actually at station, not just at drive limit *)
   arrived_z    : BOOL;
   station_type : INT;
   device_delay : REAL;
@@ -124,7 +125,10 @@ FOR i := 1 TO 3 DO
     g_transporter[i].x_mm  := tmp_x;
     g_transporter[i].vel_x := tmp_vx;
 
-    IF arrived_x THEN
+    (* Only transition when actually at station, not just at drive limit *)
+    at_station := arrived_x
+                  AND (ABS(g_transporter[i].x_mm - g_transporter[i].final_target_x) <= 6.0);
+    IF at_station THEN
       g_transporter[i].current_station := g_transporter[i].lift_station;
       lookup(station_number := g_transporter[i].lift_station);
       device_delay := lookup.device_delay_s;
@@ -133,6 +137,7 @@ FOR i := 1 TO 3 DO
       g_transporter[i].z_stage := 1;
       g_transporter[i].phase := 2;
     END_IF;
+    (* If arrived_x but not at_station → at drive limit, wait for clearance *)
   END_IF;
 
   (* ── Phase 2: Lift Z at lift station ────────────────────── *)
@@ -248,7 +253,10 @@ FOR i := 1 TO 3 DO
     g_transporter[i].x_mm  := tmp_x;
     g_transporter[i].vel_x := tmp_vx;
 
-    IF arrived_x THEN
+    (* Only transition when actually at station, not just at drive limit *)
+    at_station := arrived_x
+                  AND (ABS(g_transporter[i].x_mm - g_transporter[i].final_target_x) <= 6.0);
+    IF at_station THEN
       g_transporter[i].current_station := g_transporter[i].sink_station;
       lookup(station_number := g_transporter[i].sink_station);
       device_delay := lookup.device_delay_s;
@@ -256,6 +264,7 @@ FOR i := 1 TO 3 DO
       g_transporter[i].z_stage := 6;
       g_transporter[i].phase := 4;
     END_IF;
+    (* If arrived_x but not at_station → at drive limit, wait for clearance *)
   END_IF;
 
   (* ── Phase 4: Sink Z at sink station ───────────────────── *)
@@ -320,6 +329,52 @@ FOR i := 1 TO 3 DO
     IF arrived_z THEN
       g_transporter[i].phase := 0;
     END_IF;
+  END_IF;
+
+  (* ── Phase 0 idle: drive back inside limits if outside ────── *)
+  IF g_transporter[i].phase = 0 THEN
+    tmp_x  := g_transporter[i].x_mm;
+    tmp_vx := g_transporter[i].vel_x;
+    (* Use current position as target — XMotion will clamp to nearest limit if outside *)
+    IF i = 1 THEN
+      fb_x1(
+        delta_t  := 0.02,
+        x_target := tmp_x,
+        x_min    := g_transporter[i].x_min_limit,
+        x_max    := g_transporter[i].x_max_limit,
+        v_max    := g_cfg[i].phys2d.x_max_mm_s,
+        t_acc    := g_cfg[i].phys2d.x_accel_s,
+        t_dec    := g_cfg[i].phys2d.x_decel_s,
+        x_pos    := tmp_x,
+        v_x      := tmp_vx
+      );
+    ELSIF i = 2 THEN
+      fb_x2(
+        delta_t  := 0.02,
+        x_target := tmp_x,
+        x_min    := g_transporter[i].x_min_limit,
+        x_max    := g_transporter[i].x_max_limit,
+        v_max    := g_cfg[i].phys2d.x_max_mm_s,
+        t_acc    := g_cfg[i].phys2d.x_accel_s,
+        t_dec    := g_cfg[i].phys2d.x_decel_s,
+        x_pos    := tmp_x,
+        v_x      := tmp_vx
+      );
+    ELSIF i = 3 THEN
+      fb_x3(
+        delta_t  := 0.02,
+        x_target := tmp_x,
+        x_min    := g_transporter[i].x_min_limit,
+        x_max    := g_transporter[i].x_max_limit,
+        v_max    := g_cfg[i].phys2d.x_max_mm_s,
+        t_acc    := g_cfg[i].phys2d.x_accel_s,
+        t_dec    := g_cfg[i].phys2d.x_decel_s,
+        x_pos    := tmp_x,
+        v_x      := tmp_vx
+      );
+    END_IF;
+    g_transporter[i].x_mm  := tmp_x;
+    g_transporter[i].vel_x := tmp_vx;
   END_IF;
 
   (* ── Nearest station tracking ──────────────────────────── *)

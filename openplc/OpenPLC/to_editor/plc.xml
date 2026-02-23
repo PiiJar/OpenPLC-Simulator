@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-23T17:12:07"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-23T17:12:07">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-23T20:04:22"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-23T20:04:22">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -59,6 +59,9 @@
               <type><REAL/></type>
             </variable>
             <variable name="stn_type">
+              <type><INT/></type>
+            </variable>
+            <variable name="stn_function">
               <type><INT/></type>
             </variable>
             <variable name="dropping_time">
@@ -2163,6 +2166,7 @@ FOR i := 101 TO 125 DO
   g_stations[i].y_position    := 0.0;
   g_stations[i].z_position    := 0.0;
   g_stations[i].stn_type      := 0;
+  g_stations[i].stn_function  := 0;
   g_stations[i].dropping_time := 0.0;
   g_stations[i].device_delay  := 0.0;
 END_FOR;
@@ -2347,6 +2351,9 @@ END_FOR;]]></xhtml:p>
             <variable name="arrived_x">
               <type><BOOL/></type>
             </variable>
+            <variable name="at_station">
+              <type><BOOL/></type>
+            </variable>
             <variable name="arrived_z">
               <type><BOOL/></type>
             </variable>
@@ -2446,7 +2453,10 @@ FOR i := 1 TO 3 DO
     g_transporter[i].x_mm  := tmp_x;
     g_transporter[i].vel_x := tmp_vx;
 
-    IF arrived_x THEN
+    (* Only transition when actually at station, not just at drive limit *)
+    at_station := arrived_x
+                  AND (ABS(g_transporter[i].x_mm - g_transporter[i].final_target_x) <= 6.0);
+    IF at_station THEN
       g_transporter[i].current_station := g_transporter[i].lift_station;
       lookup(station_number := g_transporter[i].lift_station);
       device_delay := lookup.device_delay_s;
@@ -2455,6 +2465,7 @@ FOR i := 1 TO 3 DO
       g_transporter[i].z_stage := 1;
       g_transporter[i].phase := 2;
     END_IF;
+    (* If arrived_x but not at_station → at drive limit, wait for clearance *)
   END_IF;
 
   (* ── Phase 2: Lift Z at lift station ────────────────────── *)
@@ -2570,7 +2581,10 @@ FOR i := 1 TO 3 DO
     g_transporter[i].x_mm  := tmp_x;
     g_transporter[i].vel_x := tmp_vx;
 
-    IF arrived_x THEN
+    (* Only transition when actually at station, not just at drive limit *)
+    at_station := arrived_x
+                  AND (ABS(g_transporter[i].x_mm - g_transporter[i].final_target_x) <= 6.0);
+    IF at_station THEN
       g_transporter[i].current_station := g_transporter[i].sink_station;
       lookup(station_number := g_transporter[i].sink_station);
       device_delay := lookup.device_delay_s;
@@ -2578,6 +2592,7 @@ FOR i := 1 TO 3 DO
       g_transporter[i].z_stage := 6;
       g_transporter[i].phase := 4;
     END_IF;
+    (* If arrived_x but not at_station → at drive limit, wait for clearance *)
   END_IF;
 
   (* ── Phase 4: Sink Z at sink station ───────────────────── *)
@@ -2642,6 +2657,52 @@ FOR i := 1 TO 3 DO
     IF arrived_z THEN
       g_transporter[i].phase := 0;
     END_IF;
+  END_IF;
+
+  (* ── Phase 0 idle: drive back inside limits if outside ────── *)
+  IF g_transporter[i].phase = 0 THEN
+    tmp_x  := g_transporter[i].x_mm;
+    tmp_vx := g_transporter[i].vel_x;
+    (* Use current position as target — XMotion will clamp to nearest limit if outside *)
+    IF i = 1 THEN
+      fb_x1(
+        delta_t  := 0.02,
+        x_target := tmp_x,
+        x_min    := g_transporter[i].x_min_limit,
+        x_max    := g_transporter[i].x_max_limit,
+        v_max    := g_cfg[i].phys2d.x_max_mm_s,
+        t_acc    := g_cfg[i].phys2d.x_accel_s,
+        t_dec    := g_cfg[i].phys2d.x_decel_s,
+        x_pos    := tmp_x,
+        v_x      := tmp_vx
+      );
+    ELSIF i = 2 THEN
+      fb_x2(
+        delta_t  := 0.02,
+        x_target := tmp_x,
+        x_min    := g_transporter[i].x_min_limit,
+        x_max    := g_transporter[i].x_max_limit,
+        v_max    := g_cfg[i].phys2d.x_max_mm_s,
+        t_acc    := g_cfg[i].phys2d.x_accel_s,
+        t_dec    := g_cfg[i].phys2d.x_decel_s,
+        x_pos    := tmp_x,
+        v_x      := tmp_vx
+      );
+    ELSIF i = 3 THEN
+      fb_x3(
+        delta_t  := 0.02,
+        x_target := tmp_x,
+        x_min    := g_transporter[i].x_min_limit,
+        x_max    := g_transporter[i].x_max_limit,
+        v_max    := g_cfg[i].phys2d.x_max_mm_s,
+        t_acc    := g_cfg[i].phys2d.x_accel_s,
+        t_dec    := g_cfg[i].phys2d.x_decel_s,
+        x_pos    := tmp_x,
+        v_x      := tmp_vx
+      );
+    END_IF;
+    g_transporter[i].x_mm  := tmp_x;
+    g_transporter[i].vel_x := tmp_vx;
   END_IF;
 
   (* ── Nearest station tracking ──────────────────────────── *)
@@ -6895,7 +6956,12 @@ IF iw_cfg_seq <> last_cfg_seq THEN
       g_stations[iw_cfg_param].x_position    := INT_TO_REAL(iw_cfg_d1);
       g_stations[iw_cfg_param].y_position    := INT_TO_REAL(iw_cfg_d2);
       g_stations[iw_cfg_param].z_position    := INT_TO_REAL(iw_cfg_d3);
-      g_stations[iw_cfg_param].stn_type      := iw_cfg_d4;
+      g_stations[iw_cfg_param].stn_function  := iw_cfg_d4;
+      IF (iw_cfg_d4 = 1) OR (iw_cfg_d4 = 11) THEN
+        g_stations[iw_cfg_param].stn_type := 1;   (* wet *)
+      ELSE
+        g_stations[iw_cfg_param].stn_type := 0;   (* dry *)
+      END_IF;
       g_stations[iw_cfg_param].dropping_time := INT_TO_REAL(iw_cfg_d5) / 10.0;
       g_stations[iw_cfg_param].device_delay  := INT_TO_REAL(iw_cfg_d6) / 10.0;
     END_IF;

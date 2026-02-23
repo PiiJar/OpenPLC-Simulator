@@ -1037,6 +1037,23 @@ app.post('/api/calibrate/plan', async (req, res) => {
       const tid = plan.id;
       if (tid < 1 || tid > 3) continue;
 
+      // Validate stations are within transporter's drive limits
+      const tCfg = transporterConfig.transporters.find(t => t.id === tid);
+      const xMin = tCfg?.x_min_drive_limit || 0;
+      const xMax = tCfg?.x_max_drive_limit || 0;
+      if (xMin > 0 || xMax > 0) {
+        const allStations = stationsConfig.stations || [];
+        const wetStn = allStations.find(s => s.number === plan.wet_station);
+        const dryStn = allStations.find(s => s.number === plan.dry_station);
+        for (const [label, stn] of [['wet', wetStn], ['dry', dryStn]]) {
+          if (stn && (stn.x_position < xMin || stn.x_position > xMax)) {
+            return res.status(400).json({
+              error: `T${tid} ${label} station ${stn.number} (x=${stn.x_position}) is outside drive limits [${xMin}, ${xMax}]`
+            });
+          }
+        }
+      }
+
       // cfg_cmd=7: calibration plan (d0=wet_station, d1=dry_station)
       await client.writeRegisters(CFG_BASE + 3, [
         plan.wet_station || 0,

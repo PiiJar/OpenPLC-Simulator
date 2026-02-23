@@ -218,7 +218,12 @@ IF iw_cfg_seq <> last_cfg_seq THEN
       g_stations[iw_cfg_param].x_position    := INT_TO_REAL(iw_cfg_d1);
       g_stations[iw_cfg_param].y_position    := INT_TO_REAL(iw_cfg_d2);
       g_stations[iw_cfg_param].z_position    := INT_TO_REAL(iw_cfg_d3);
-      g_stations[iw_cfg_param].stn_type      := iw_cfg_d4;
+      g_stations[iw_cfg_param].stn_function  := iw_cfg_d4;
+      IF (iw_cfg_d4 = 1) OR (iw_cfg_d4 = 11) THEN
+        g_stations[iw_cfg_param].stn_type := 1;   (* wet *)
+      ELSE
+        g_stations[iw_cfg_param].stn_type := 0;   (* dry *)
+      END_IF;
       g_stations[iw_cfg_param].dropping_time := INT_TO_REAL(iw_cfg_d5) / 10.0;
       g_stations[iw_cfg_param].device_delay  := INT_TO_REAL(iw_cfg_d6) / 10.0;
     END_IF;
