@@ -19,7 +19,7 @@
 FUNCTION_BLOCK TWA_FB_CalcLimits
 VAR_EXTERNAL
   g_cfg            : ARRAY[1..3] OF TRANSPORTER_CFG_T;
-  g_state          : ARRAY[1..3] OF TRANSPORTER_STATE_T;
+  g_transporter          : ARRAY[1..3] OF STC_TRANSPORTER_T;
   g_stations       : ARRAY[101..125] OF STATION_T;
   g_station_count  : INT;
   g_avoid_status   : ARRAY[101..125] OF INT;
@@ -92,19 +92,19 @@ END_VAR
    and restrict x_min/x_max based on avoid_status 1 (pass) and 2 (block).
    ================================================================ *)
 FOR i := 1 TO MAX_TRANSPORTERS DO
-  IF NOT g_state[i].active THEN
+  IF NOT g_transporter[i].active THEN
     CONTINUE;
   END_IF;
 
   min_x := g_cfg[i].x_min_limit;
   max_x := g_cfg[i].x_max_limit;
-  current_x := g_state[i].x_mm;
+  current_x := g_transporter[i].x_mm;
   avoid_dist := g_cfg[i].x_avoid_mm;
 
   (* If no limits configured, lock to current position *)
   IF (min_x < 1.0) OR (max_x < 1.0) THEN
-    g_state[i].x_min_limit := current_x;
-    g_state[i].x_max_limit := current_x;
+    g_transporter[i].x_min_limit := current_x;
+    g_transporter[i].x_max_limit := current_x;
     CONTINUE;
   END_IF;
 
@@ -114,7 +114,7 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
   right_s2_x := 0.0;
 
   (* --- Search downward (smaller station numbers) from current_station --- *)
-  stn_num := g_state[i].current_station - 1;
+  stn_num := g_transporter[i].current_station - 1;
   WHILE stn_num >= 101 DO
     IF g_stations[stn_num].tank_id = 0 THEN
       stn_num := stn_num - 1;
@@ -130,8 +130,8 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
 
     (* AVOID_PASS: passable unless it is this transporter's target station *)
     IF avoid_st = AVOID_PASS THEN
-      is_target := (stn_num = g_state[i].lift_station_target)
-               OR  (stn_num = g_state[i].sink_station_target);
+      is_target := (stn_num = g_transporter[i].lift_station)
+               OR  (stn_num = g_transporter[i].sink_station);
       IF is_target THEN
         IF current_x < stn_x THEN
           new_val := stn_x - avoid_dist;
@@ -169,7 +169,7 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
   END_WHILE;
 
   (* --- Search upward (larger station numbers) from current_station --- *)
-  stn_num := g_state[i].current_station + 1;
+  stn_num := g_transporter[i].current_station + 1;
   WHILE stn_num <= 125 DO
     IF g_stations[stn_num].tank_id = 0 THEN
       stn_num := stn_num + 1;
@@ -184,8 +184,8 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
     avoid_st := g_avoid_status[stn_num];
 
     IF avoid_st = AVOID_PASS THEN
-      is_target := (stn_num = g_state[i].lift_station_target)
-               OR  (stn_num = g_state[i].sink_station_target);
+      is_target := (stn_num = g_transporter[i].lift_station)
+               OR  (stn_num = g_transporter[i].sink_station);
       IF is_target THEN
         IF current_x < stn_x THEN
           new_val := stn_x - avoid_dist;
@@ -227,8 +227,8 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
     max_x := midpoint + 5.0;
   END_IF;
 
-  g_state[i].x_min_limit := min_x;
-  g_state[i].x_max_limit := max_x;
+  g_transporter[i].x_min_limit := min_x;
+  g_transporter[i].x_max_limit := max_x;
 END_FOR;
 
 (* ================================================================
@@ -236,30 +236,30 @@ END_FOR;
    Every active transporter pushes neighbors away by x_avoid_mm.
    ================================================================ *)
 FOR i := 1 TO MAX_TRANSPORTERS DO
-  IF NOT g_state[i].active THEN
+  IF NOT g_transporter[i].active THEN
     CONTINUE;
   END_IF;
 
-  current_x := g_state[i].x_mm;
+  current_x := g_transporter[i].x_mm;
   avoid_dist := g_cfg[i].x_avoid_mm;
 
   FOR j := 1 TO MAX_TRANSPORTERS DO
     IF j = i THEN CONTINUE; END_IF;
-    IF NOT g_state[j].active THEN CONTINUE; END_IF;
+    IF NOT g_transporter[j].active THEN CONTINUE; END_IF;
 
-    other_x := g_state[j].x_mm;
+    other_x := g_transporter[j].x_mm;
 
     IF other_x > current_x THEN
       (* j is to the RIGHT of i — restrict j's x_min *)
       new_val := current_x + avoid_dist;
-      IF new_val > g_state[j].x_min_limit THEN
-        g_state[j].x_min_limit := new_val;
+      IF new_val > g_transporter[j].x_min_limit THEN
+        g_transporter[j].x_min_limit := new_val;
       END_IF;
     ELSIF other_x < current_x THEN
       (* j is to the LEFT of i — restrict j's x_max *)
       new_val := current_x - avoid_dist;
-      IF new_val < g_state[j].x_max_limit THEN
-        g_state[j].x_max_limit := new_val;
+      IF new_val < g_transporter[j].x_max_limit THEN
+        g_transporter[j].x_max_limit := new_val;
       END_IF;
     END_IF;
   END_FOR;
@@ -272,12 +272,12 @@ END_FOR;
 (* --- 2.2.1: Build sorted array of active transporters by x-position --- *)
 n_active := 0;
 FOR i := 1 TO MAX_TRANSPORTERS DO
-  IF g_state[i].active THEN
+  IF g_transporter[i].active THEN
     n_active := n_active + 1;
     w_idx[n_active] := i;
-    w_xpos[n_active] := g_state[i].x_mm;
-    w_phase[n_active] := g_state[i].phase;
-    w_target[n_active] := g_state[i].target_x;
+    w_xpos[n_active] := g_transporter[i].x_mm;
+    w_phase[n_active] := g_transporter[i].phase;
+    w_target[n_active] := g_transporter[i].final_target_x;
     w_avoid[n_active] := g_cfg[i].x_avoid_mm;
   END_IF;
 END_FOR;
@@ -310,7 +310,7 @@ FOR i := 1 TO n_active DO
   IF (w_phase[i] = 2) OR (w_phase[i] = 4) THEN
     w_can_evade[i] := FALSE;
   END_IF;
-  work_area := g_state[k].x_max_limit - g_state[k].x_min_limit;
+  work_area := g_transporter[k].x_max_limit - g_transporter[k].x_min_limit;
   IF work_area < MIN_WORK_AREA THEN
     w_can_evade[i] := FALSE;
   END_IF;
@@ -352,8 +352,8 @@ IF n_active >= 2 THEN
       END_IF;
 
       k := w_idx[j];
-      cur_min := g_state[k].x_min_limit;
-      cur_max := g_state[k].x_max_limit;
+      cur_min := g_transporter[k].x_min_limit;
+      cur_max := g_transporter[k].x_max_limit;
 
       IF w_xpos[i] < w_xpos[j] THEN
         (* i is LEFT, j is RIGHT — i sets j's x_min *)
@@ -363,11 +363,11 @@ IF n_active >= 2 THEN
 
         IF new_val > cur_min THEN
           IF new_val <= (cur_max - MIN_WORK_AREA) THEN
-            g_state[k].x_min_limit := new_val;
+            g_transporter[k].x_min_limit := new_val;
           ELSE
             adjusted := cur_max - MIN_WORK_AREA;
             IF adjusted > cur_min THEN
-              g_state[k].x_min_limit := adjusted;
+              g_transporter[k].x_min_limit := adjusted;
             END_IF;
           END_IF;
         END_IF;
@@ -380,11 +380,11 @@ IF n_active >= 2 THEN
 
         IF new_val < cur_max THEN
           IF new_val >= (cur_min + MIN_WORK_AREA) THEN
-            g_state[k].x_max_limit := new_val;
+            g_transporter[k].x_max_limit := new_val;
           ELSE
             adjusted := cur_min + MIN_WORK_AREA;
             IF adjusted < cur_max THEN
-              g_state[k].x_max_limit := adjusted;
+              g_transporter[k].x_max_limit := adjusted;
             END_IF;
           END_IF;
         END_IF;
@@ -406,8 +406,8 @@ IF n_active >= 2 THEN
       (* Both moving right — left chasing right *)
       safety_val := w_xpos[i] + w_avoid[i];
       k := w_idx[j];
-      IF safety_val > g_state[k].x_min_limit THEN
-        g_state[k].x_min_limit := safety_val;
+      IF safety_val > g_transporter[k].x_min_limit THEN
+        g_transporter[k].x_min_limit := safety_val;
       END_IF;
     END_IF;
 
@@ -415,8 +415,8 @@ IF n_active >= 2 THEN
       (* Both moving left — right chasing left *)
       safety_val := w_xpos[j] - w_avoid[j];
       k := w_idx[i];
-      IF safety_val < g_state[k].x_max_limit THEN
-        g_state[k].x_max_limit := safety_val;
+      IF safety_val < g_transporter[k].x_max_limit THEN
+        g_transporter[k].x_max_limit := safety_val;
       END_IF;
     END_IF;
   END_FOR;
@@ -424,10 +424,10 @@ IF n_active >= 2 THEN
   (* --- 2.2.5: Validate limits (trap detection) --- *)
   FOR i := 1 TO n_active DO
     k := w_idx[i];
-    IF g_state[k].x_min_limit > g_state[k].x_max_limit THEN
+    IF g_transporter[k].x_min_limit > g_transporter[k].x_max_limit THEN
       (* Trapped — lock in place *)
-      g_state[k].x_min_limit := g_state[k].x_mm;
-      g_state[k].x_max_limit := g_state[k].x_mm;
+      g_transporter[k].x_min_limit := g_transporter[k].x_mm;
+      g_transporter[k].x_max_limit := g_transporter[k].x_mm;
     END_IF;
   END_FOR;
 

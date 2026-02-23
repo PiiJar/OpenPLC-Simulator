@@ -564,7 +564,74 @@ app.post('/api/reset', async (req, res) => {
       seq++;
     }
 
-    // --- Step 3: Send init command (cmd=2, param=station_count) ---
+    // --- Step 3: Upload transporter configs (cmd=4,5,6) ---
+    const AREA_KEYS = ['line_100', 'line_200', 'line_300', 'line_400'];
+    for (const tr of transporters) {
+      const tid = tr.id;
+      if (tid < 1 || tid > 3) continue;
+      const p = tr.physics_2D || {};
+
+      // cmd=4: physics page 1
+      await client.writeRegisters(CFG_BASE + 3, [
+        Math.round(tr.x_min_drive_limit || 0),               // d0 = x_min_limit mm
+        Math.round(tr.x_max_drive_limit || 0),               // d1 = x_max_limit mm
+        Math.round((p.x_acceleration_time_s || 0) * 10),     // d2 = x_accel_s × 10
+        Math.round((p.x_deceleration_time_s || 0) * 10),     // d3 = x_decel_s × 10
+        Math.round(p.x_max_speed_mm_s || 0),                 // d4 = x_max_mm_s
+        Math.round(p.z_total_distance_mm || 0),              // d5 = z_total_mm
+        Math.round(p.avoid_distance_mm || 0)                 // d6 = avoid_mm
+      ]);
+      await client.writeRegisters(CFG_BASE + 2, [tid]);
+      await client.writeRegisters(CFG_BASE + 1, [4]);
+      await client.writeRegisters(CFG_BASE + 0, [seq]);
+      if (!await waitForCfgAck(seq, 2000)) {
+        return res.status(504).json({ success: false, error: `PLC ack timeout for transporter ${tid} phys1 (seq=${seq})` });
+      }
+      seq++;
+
+      // cmd=5: physics page 2
+      await client.writeRegisters(CFG_BASE + 3, [
+        Math.round(p.z_slow_distance_dry_mm || 0),           // d0 = z_slow_dry_mm
+        Math.round(p.z_slow_distance_wet_mm || 0),           // d1 = z_slow_wet_mm
+        Math.round(p.z_slow_end_distance_mm || 0),           // d2 = z_slow_end_mm
+        Math.round(p.z_slow_speed_mm_s || 0),                // d3 = z_slow_mm_s
+        Math.round(p.z_fast_speed_mm_s || 0),                // d4 = z_fast_mm_s
+        Math.round((p.drip_tray_delay_s || 0) * 10),         // d5 = drip_delay_s × 10
+        0                                                     // d6 = reserved
+      ]);
+      await client.writeRegisters(CFG_BASE + 2, [tid]);
+      await client.writeRegisters(CFG_BASE + 1, [5]);
+      await client.writeRegisters(CFG_BASE + 0, [seq]);
+      if (!await waitForCfgAck(seq, 2000)) {
+        return res.status(504).json({ success: false, error: `PLC ack timeout for transporter ${tid} phys2 (seq=${seq})` });
+      }
+      seq++;
+
+      // cmd=6: task areas (up to 4 per transporter)
+      const areas = tr.task_areas || {};
+      for (let ai = 0; ai < AREA_KEYS.length; ai++) {
+        const area = areas[AREA_KEYS[ai]];
+        if (!area || !area.min_lift_station) continue;
+        const areaIdx = ai + 1; // 1-based
+        await client.writeRegisters(CFG_BASE + 3, [
+          area.min_lift_station || 0,
+          area.max_lift_station || 0,
+          area.min_sink_station || 0,
+          area.max_sink_station || 0,
+          0, 0, 0
+        ]);
+        await client.writeRegisters(CFG_BASE + 2, [tid * 10 + areaIdx]);
+        await client.writeRegisters(CFG_BASE + 1, [6]);
+        await client.writeRegisters(CFG_BASE + 0, [seq]);
+        if (!await waitForCfgAck(seq, 2000)) {
+          return res.status(504).json({ success: false, error: `PLC ack timeout for transporter ${tid} area ${areaIdx} (seq=${seq})` });
+        }
+        seq++;
+      }
+      console.log(`[RESET] Uploaded transporter ${tid} config to PLC`);
+    }
+
+    // --- Step 4: Send init command (cmd=2, param=station_count) ---
     await client.writeRegisters(CFG_BASE + 2, [stations.length]); // QW112 = station_count
     await client.writeRegisters(CFG_BASE + 1, [2]);               // QW111 = cmd (2=init)
     await client.writeRegisters(CFG_BASE + 0, [seq]);             // QW110 = seq
@@ -574,7 +641,7 @@ app.post('/api/reset', async (req, res) => {
       return res.status(504).json({ success: false, error: 'PLC ack timeout for init command' });
     }
 
-    console.log(`[RESET] Uploaded ${stations.length} stations to PLC for ${customer}/${plant}`);
+    console.log(`[RESET] Uploaded ${stations.length} stations + ${transporters.length} transporters to PLC for ${customer}/${plant}`);
 
     // --- Step 4: Upload units from unit_setup.json (if exists) ---
     const unitSetupFile = path.join(plantPath, 'unit_setup.json');

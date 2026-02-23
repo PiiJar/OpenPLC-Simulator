@@ -46,10 +46,7 @@ VAR_GLOBAL
   g_station_count    : INT := 0;
   g_stations         : ARRAY[101..125] OF STATION_T;
   g_cfg              : ARRAY[1..3] OF TRANSPORTER_CFG_T;
-  g_state            : ARRAY[1..3] OF TRANSPORTER_STATE_T;
-  g_cmd_start        : ARRAY[1..3] OF BOOL;
-  g_cmd_lift_station : ARRAY[1..3] OF INT;
-  g_cmd_sink_station : ARRAY[1..3] OF INT;
+  g_transporter      : ARRAY[1..3] OF STC_TRANSPORTER_T;
   g_units            : ARRAY[1..10] OF UNIT_T;
   g_batches          : ARRAY[1..10] OF BATCH_T;
   g_programs         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;

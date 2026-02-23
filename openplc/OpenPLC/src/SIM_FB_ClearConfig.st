@@ -11,10 +11,7 @@ VAR_EXTERNAL
   g_station_count    : INT;
   g_stations         : ARRAY[101..125] OF STATION_T;
   g_cfg              : ARRAY[1..3] OF TRANSPORTER_CFG_T;
-  g_state            : ARRAY[1..3] OF TRANSPORTER_STATE_T;
-  g_cmd_start        : ARRAY[1..3] OF BOOL;
-  g_cmd_lift_station : ARRAY[1..3] OF INT;
-  g_cmd_sink_station : ARRAY[1..3] OF INT;
+  g_transporter      : ARRAY[1..3] OF STC_TRANSPORTER_T;
   g_units            : ARRAY[1..10] OF UNIT_T;
   g_batches          : ARRAY[1..10] OF BATCH_T;
   g_programs         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
@@ -73,23 +70,31 @@ END_FOR;
 
 (* --- Clear all transporter states --- *)
 FOR i := 1 TO 3 DO
-  g_state[i].active              := FALSE;
-  g_state[i].phase               := 0;
-  g_state[i].z_stage             := 0;
-  g_state[i].x_mm                := 0.0;
-  g_state[i].z_mm                := 0.0;
-  g_state[i].vel_x               := 0.0;
-  g_state[i].vel_z               := 0.0;
-  g_state[i].current_station     := 0;
-  g_state[i].lift_station_target := 0;
-  g_state[i].sink_station_target := 0;
-  g_state[i].target_x            := 0.0;
-  g_state[i].x_min_limit         := 0.0;
-  g_state[i].x_max_limit         := 0.0;
-  g_state[i].z_timer_s           := 0.0;
-  g_cmd_start[i]        := FALSE;
-  g_cmd_lift_station[i]  := 0;
-  g_cmd_sink_station[i]  := 0;
+  g_transporter[i].active          := FALSE;
+  g_transporter[i].status          := 0;
+  g_transporter[i].phase           := 0;
+  g_transporter[i].task_id         := 0.0;
+  g_transporter[i].running_task_id := 0.0;
+  g_transporter[i].lift_station    := 0;
+  g_transporter[i].sink_station    := 0;
+  g_transporter[i].treatment_time  := 0.0;
+  g_transporter[i].lift_device_delay := 0.0;
+  g_transporter[i].sink_device_delay := 0.0;
+  g_transporter[i].dropping_time   := 0.0;
+  g_transporter[i].remaining_time  := 0.0;
+  g_transporter[i].current_station := 0;
+  g_transporter[i].final_target_x  := 0.0;
+  g_transporter[i].drive_target_x  := 0.0;
+  g_transporter[i].final_target_y  := 0.0;
+  g_transporter[i].drive_target_y  := 0.0;
+  g_transporter[i].x_mm            := 0.0;
+  g_transporter[i].y_mm            := 0.0;
+  g_transporter[i].z_mm            := 0.0;
+  g_transporter[i].vel_x           := 0.0;
+  g_transporter[i].z_stage         := 0;
+  g_transporter[i].z_timer_s       := 0.0;
+  g_transporter[i].x_min_limit     := 0.0;
+  g_transporter[i].x_max_limit     := 0.0;
 END_FOR;
 
 (* --- Clear all units --- *)

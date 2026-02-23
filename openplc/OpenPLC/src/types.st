@@ -64,22 +64,40 @@ STRUCT
 END_STRUCT;
 END_TYPE
 
-TYPE TRANSPORTER_STATE_T :
+(* ── Transporter interface — production-compatible ──────────── *)
+(* Used by scheduler, TWA, simulation, and production alike.     *)
+(* g_transporter : ARRAY[1..3] OF STC_TRANSPORTER_T              *)
+TYPE STC_TRANSPORTER_T :
 STRUCT
-  active               : BOOL;
-  phase                : INT;
-  z_stage              : INT;
-  x_mm                 : REAL;
-  z_mm                 : REAL;
-  vel_x                : REAL;
-  vel_z                : REAL;
-  current_station      : INT;
-  lift_station_target  : INT;
-  sink_station_target  : INT;
-  target_x             : REAL;
-  x_min_limit          : REAL;
-  x_max_limit          : REAL;
-  z_timer_s            : REAL;
+  (* --- Command (scheduler → transporter) --- *)
+  task_id            : REAL;     (* g_time_s at assignment — sync key *)
+  lift_station       : INT;      (* pickup station number *)
+  sink_station       : INT;      (* putdown station number *)
+  treatment_time     : REAL;     (* treatment duration (s) *)
+  lift_device_delay  : REAL;     (* lift station device delay (s) *)
+  sink_device_delay  : REAL;     (* sink station device delay (s) *)
+  dropping_time      : REAL;     (* dripping/dropping time at lift (s) *)
+  (* --- Status (transporter → outside world) --- *)
+  status             : INT;      (* 0=not_used 1=manual 2=half_manual 3=auto_idle 4=auto_run *)
+  phase              : INT;      (* 0=idle 1=to_lift 2=lifting 3=to_sink 4=sinking *)
+  running_task_id    : REAL;     (* copied from task_id when accepted *)
+  current_station    : INT;      (* nearest station number *)
+  remaining_time     : REAL;     (* remaining treatment time (s) *)
+  (* --- Drive (runtime / TWA) --- *)
+  final_target_x     : REAL;     (* destination X (station position) *)
+  drive_target_x     : REAL;     (* TWA-clamped X drive target *)
+  final_target_y     : REAL;     (* destination Y (3D transporter) *)
+  drive_target_y     : REAL;     (* TWA-clamped Y drive target *)
+  x_mm               : REAL;     (* current X position *)
+  y_mm               : REAL;     (* current Y position (3D) *)
+  z_mm               : REAL;     (* current Z position *)
+  vel_x              : REAL;     (* X velocity *)
+  z_stage            : INT;      (* Z motion sub-phase *)
+  z_timer_s          : REAL;     (* Z motion timer *)
+  x_min_limit        : REAL;     (* TWA lower X limit *)
+  x_max_limit        : REAL;     (* TWA upper X limit *)
+  (* --- General --- *)
+  active             : BOOL;     (* transporter enabled *)
 END_STRUCT;
 END_TYPE
 

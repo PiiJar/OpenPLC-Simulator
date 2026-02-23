@@ -20,7 +20,7 @@ VAR_INPUT
 END_VAR
 VAR_EXTERNAL
   g_units    : ARRAY[1..10] OF UNIT_T;
-  g_state    : ARRAY[1..3] OF TRANSPORTER_STATE_T;
+  g_transporter : ARRAY[1..3] OF STC_TRANSPORTER_T;
   g_cfg      : ARRAY[1..3] OF TRANSPORTER_CFG_T;
   g_tasks    : ARRAY[1..3] OF TSK_QUEUE_T;
   g_stations : ARRAY[101..125] OF STATION_T;
@@ -60,7 +60,7 @@ FOR ui := 1 TO 10 DO
 
     IF cov_t >= 1 AND cov_t <= 3 THEN
       (* Check transporter is idle: phase=0, active *)
-      IF g_state[cov_t].phase = 0 AND g_state[cov_t].active THEN
+      IF g_transporter[cov_t].phase = 0 AND g_transporter[cov_t].active THEN
 
         (* Find destination station: first available in transporter area *)
         dest_stn := 0;

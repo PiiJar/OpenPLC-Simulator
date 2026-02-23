@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-23T13:29:30"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-23T13:29:30">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-23T14:25:00"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-23T14:25:00">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -162,19 +162,61 @@
           </struct>
         </baseType>
       </dataType>
-      <dataType name="TRANSPORTER_STATE_T">
+      <dataType name="STC_TRANSPORTER_T">
         <baseType>
           <struct>
-            <variable name="active">
-              <type><BOOL/></type>
+            <variable name="task_id">
+              <type><REAL/></type>
+            </variable>
+            <variable name="lift_station">
+              <type><INT/></type>
+            </variable>
+            <variable name="sink_station">
+              <type><INT/></type>
+            </variable>
+            <variable name="treatment_time">
+              <type><REAL/></type>
+            </variable>
+            <variable name="lift_device_delay">
+              <type><REAL/></type>
+            </variable>
+            <variable name="sink_device_delay">
+              <type><REAL/></type>
+            </variable>
+            <variable name="dropping_time">
+              <type><REAL/></type>
+            </variable>
+            <variable name="status">
+              <type><INT/></type>
             </variable>
             <variable name="phase">
               <type><INT/></type>
             </variable>
-            <variable name="z_stage">
+            <variable name="running_task_id">
+              <type><REAL/></type>
+            </variable>
+            <variable name="current_station">
               <type><INT/></type>
             </variable>
+            <variable name="remaining_time">
+              <type><REAL/></type>
+            </variable>
+            <variable name="final_target_x">
+              <type><REAL/></type>
+            </variable>
+            <variable name="drive_target_x">
+              <type><REAL/></type>
+            </variable>
+            <variable name="final_target_y">
+              <type><REAL/></type>
+            </variable>
+            <variable name="drive_target_y">
+              <type><REAL/></type>
+            </variable>
             <variable name="x_mm">
+              <type><REAL/></type>
+            </variable>
+            <variable name="y_mm">
               <type><REAL/></type>
             </variable>
             <variable name="z_mm">
@@ -183,19 +225,10 @@
             <variable name="vel_x">
               <type><REAL/></type>
             </variable>
-            <variable name="vel_z">
-              <type><REAL/></type>
-            </variable>
-            <variable name="current_station">
+            <variable name="z_stage">
               <type><INT/></type>
             </variable>
-            <variable name="lift_station_target">
-              <type><INT/></type>
-            </variable>
-            <variable name="sink_station_target">
-              <type><INT/></type>
-            </variable>
-            <variable name="target_x">
+            <variable name="z_timer_s">
               <type><REAL/></type>
             </variable>
             <variable name="x_min_limit">
@@ -204,8 +237,8 @@
             <variable name="x_max_limit">
               <type><REAL/></type>
             </variable>
-            <variable name="z_timer_s">
-              <type><REAL/></type>
+            <variable name="active">
+              <type><BOOL/></type>
             </variable>
           </struct>
         </baseType>
@@ -2034,35 +2067,11 @@ o_phase := phase;]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_state">
+            <variable name="g_transporter">
               <type>
                 <array>
                   <dimension lower="1" upper="3"/>
-                  <baseType><derived name="TRANSPORTER_STATE_T"/></baseType>
-                </array>
-              </type>
-            </variable>
-            <variable name="g_cmd_start">
-              <type>
-                <array>
-                  <dimension lower="1" upper="3"/>
-                  <baseType><BOOL/></baseType>
-                </array>
-              </type>
-            </variable>
-            <variable name="g_cmd_lift_station">
-              <type>
-                <array>
-                  <dimension lower="1" upper="3"/>
-                  <baseType><INT/></baseType>
-                </array>
-              </type>
-            </variable>
-            <variable name="g_cmd_sink_station">
-              <type>
-                <array>
-                  <dimension lower="1" upper="3"/>
-                  <baseType><INT/></baseType>
+                  <baseType><derived name="STC_TRANSPORTER_T"/></baseType>
                 </array>
               </type>
             </variable>
@@ -2160,23 +2169,31 @@ END_FOR;
 
 (* --- Clear all transporter states --- *)
 FOR i := 1 TO 3 DO
-  g_state[i].active              := FALSE;
-  g_state[i].phase               := 0;
-  g_state[i].z_stage             := 0;
-  g_state[i].x_mm                := 0.0;
-  g_state[i].z_mm                := 0.0;
-  g_state[i].vel_x               := 0.0;
-  g_state[i].vel_z               := 0.0;
-  g_state[i].current_station     := 0;
-  g_state[i].lift_station_target := 0;
-  g_state[i].sink_station_target := 0;
-  g_state[i].target_x            := 0.0;
-  g_state[i].x_min_limit         := 0.0;
-  g_state[i].x_max_limit         := 0.0;
-  g_state[i].z_timer_s           := 0.0;
-  g_cmd_start[i]        := FALSE;
-  g_cmd_lift_station[i]  := 0;
-  g_cmd_sink_station[i]  := 0;
+  g_transporter[i].active          := FALSE;
+  g_transporter[i].status          := 0;
+  g_transporter[i].phase           := 0;
+  g_transporter[i].task_id         := 0.0;
+  g_transporter[i].running_task_id := 0.0;
+  g_transporter[i].lift_station    := 0;
+  g_transporter[i].sink_station    := 0;
+  g_transporter[i].treatment_time  := 0.0;
+  g_transporter[i].lift_device_delay := 0.0;
+  g_transporter[i].sink_device_delay := 0.0;
+  g_transporter[i].dropping_time   := 0.0;
+  g_transporter[i].remaining_time  := 0.0;
+  g_transporter[i].current_station := 0;
+  g_transporter[i].final_target_x  := 0.0;
+  g_transporter[i].drive_target_x  := 0.0;
+  g_transporter[i].final_target_y  := 0.0;
+  g_transporter[i].drive_target_y  := 0.0;
+  g_transporter[i].x_mm            := 0.0;
+  g_transporter[i].y_mm            := 0.0;
+  g_transporter[i].z_mm            := 0.0;
+  g_transporter[i].vel_x           := 0.0;
+  g_transporter[i].z_stage         := 0;
+  g_transporter[i].z_timer_s       := 0.0;
+  g_transporter[i].x_min_limit     := 0.0;
+  g_transporter[i].x_max_limit     := 0.0;
 END_FOR;
 
 (* --- Clear all units --- *)
@@ -2206,6 +2223,392 @@ FOR i := 1 TO 10 DO
     g_programs[i].stages[j].max_time := 0;
     g_programs[i].stages[j].cal_time := 0;
   END_FOR;
+END_FOR;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
+      <pou name="SIM_FB_RunTasks" pouType="functionBlock">
+        <interface>
+          <inputVars>
+            <variable name="i_run">
+              <type><BOOL/></type>
+            </variable>
+          </inputVars>
+          <externalVars>
+            <variable name="g_transporter">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="STC_TRANSPORTER_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_stations">
+              <type>
+                <array>
+                  <dimension lower="101" upper="125"/>
+                  <baseType><derived name="STATION_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_cfg">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="TRANSPORTER_CFG_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="i">
+              <type><INT/></type>
+            </variable>
+            <variable name="idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="fb_x1">
+              <type><derived name="SIM_FB_XMotion"/></type>
+            </variable>
+            <variable name="fb_x2">
+              <type><derived name="SIM_FB_XMotion"/></type>
+            </variable>
+            <variable name="fb_x3">
+              <type><derived name="SIM_FB_XMotion"/></type>
+            </variable>
+            <variable name="fb_z1">
+              <type><derived name="SIM_FB_ZMotion"/></type>
+            </variable>
+            <variable name="fb_z2">
+              <type><derived name="SIM_FB_ZMotion"/></type>
+            </variable>
+            <variable name="fb_z3">
+              <type><derived name="SIM_FB_ZMotion"/></type>
+            </variable>
+            <variable name="lookup">
+              <type><derived name="STC_FB_FindStation"/></type>
+            </variable>
+            <variable name="tmp_x">
+              <type><REAL/></type>
+            </variable>
+            <variable name="tmp_vx">
+              <type><REAL/></type>
+            </variable>
+            <variable name="tmp_z">
+              <type><REAL/></type>
+            </variable>
+            <variable name="tmp_zs">
+              <type><INT/></type>
+            </variable>
+            <variable name="tmp_zt">
+              <type><REAL/></type>
+            </variable>
+            <variable name="arrived_x">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="arrived_z">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="station_type">
+              <type><INT/></type>
+            </variable>
+            <variable name="device_delay">
+              <type><REAL/></type>
+            </variable>
+            <variable name="drop_time">
+              <type><REAL/></type>
+            </variable>
+            <variable name="nearest_num">
+              <type><INT/></type>
+            </variable>
+            <variable name="min_dist">
+              <type><REAL/></type>
+            </variable>
+            <variable name="dx">
+              <type><REAL/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[IF NOT i_run THEN
+  RETURN;
+END_IF;
+
+FOR i := 1 TO 3 DO
+  IF g_transporter[i].active THEN
+
+  (* ── Phase 0 → 1: Accept new task ───────────────────────── *)
+  IF (g_transporter[i].phase = 0)
+     AND (g_transporter[i].task_id <> g_transporter[i].running_task_id) THEN
+    g_transporter[i].running_task_id := g_transporter[i].task_id;
+    lookup(station_number := g_transporter[i].lift_station);
+    g_transporter[i].final_target_x := lookup.x_mm;
+    g_transporter[i].phase := 1;
+    g_transporter[i].z_stage := 0;
+    g_transporter[i].z_timer_s := 0.0;
+  END_IF;
+
+  (* ── Phase 1: Drive X towards lift station ──────────────── *)
+  IF g_transporter[i].phase = 1 THEN
+    tmp_x  := g_transporter[i].x_mm;
+    tmp_vx := g_transporter[i].vel_x;
+    IF i = 1 THEN
+      fb_x1(
+        delta_t  := 0.02,
+        x_target := g_transporter[i].final_target_x,
+        x_min    := g_transporter[i].x_min_limit,
+        x_max    := g_transporter[i].x_max_limit,
+        v_max    := g_cfg[i].phys2d.x_max_mm_s,
+        t_acc    := g_cfg[i].phys2d.x_accel_s,
+        t_dec    := g_cfg[i].phys2d.x_decel_s,
+        x_pos    := tmp_x,
+        v_x      := tmp_vx
+      );
+      arrived_x := fb_x1.arrived;
+    ELSIF i = 2 THEN
+      fb_x2(
+        delta_t  := 0.02,
+        x_target := g_transporter[i].final_target_x,
+        x_min    := g_transporter[i].x_min_limit,
+        x_max    := g_transporter[i].x_max_limit,
+        v_max    := g_cfg[i].phys2d.x_max_mm_s,
+        t_acc    := g_cfg[i].phys2d.x_accel_s,
+        t_dec    := g_cfg[i].phys2d.x_decel_s,
+        x_pos    := tmp_x,
+        v_x      := tmp_vx
+      );
+      arrived_x := fb_x2.arrived;
+    ELSIF i = 3 THEN
+      fb_x3(
+        delta_t  := 0.02,
+        x_target := g_transporter[i].final_target_x,
+        x_min    := g_transporter[i].x_min_limit,
+        x_max    := g_transporter[i].x_max_limit,
+        v_max    := g_cfg[i].phys2d.x_max_mm_s,
+        t_acc    := g_cfg[i].phys2d.x_accel_s,
+        t_dec    := g_cfg[i].phys2d.x_decel_s,
+        x_pos    := tmp_x,
+        v_x      := tmp_vx
+      );
+      arrived_x := fb_x3.arrived;
+    END_IF;
+    g_transporter[i].x_mm  := tmp_x;
+    g_transporter[i].vel_x := tmp_vx;
+
+    IF arrived_x THEN
+      g_transporter[i].current_station := g_transporter[i].lift_station;
+      lookup(station_number := g_transporter[i].lift_station);
+      device_delay := lookup.device_delay_s;
+      drop_time    := lookup.dropping_time_s;
+      g_transporter[i].z_timer_s := device_delay + drop_time;
+      g_transporter[i].z_stage := 1;
+      g_transporter[i].phase := 2;
+    END_IF;
+  END_IF;
+
+  (* ── Phase 2: Lift Z at lift station ────────────────────── *)
+  IF g_transporter[i].phase = 2 THEN
+    lookup(station_number := g_transporter[i].lift_station);
+    station_type := lookup.stype;
+    tmp_z  := g_transporter[i].z_mm;
+    tmp_zs := g_transporter[i].z_stage;
+    tmp_zt := g_transporter[i].z_timer_s;
+    IF i = 1 THEN
+      fb_z1(
+        delta_t       := 0.02,
+        station_type  := station_type,
+        z_total_mm    := g_cfg[i].phys2d.z_total_mm,
+        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
+        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
+        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
+        z_slow_mm_s   := g_cfg[i].phys2d.z_slow_mm_s,
+        z_fast_mm_s   := g_cfg[i].phys2d.z_fast_mm_s,
+        drip_delay_s  := g_cfg[i].phys2d.drip_delay_s,
+        z_mm          := tmp_z,
+        z_stage       := tmp_zs,
+        z_timer_s     := tmp_zt
+      );
+      arrived_z := fb_z1.done;
+    ELSIF i = 2 THEN
+      fb_z2(
+        delta_t       := 0.02,
+        station_type  := station_type,
+        z_total_mm    := g_cfg[i].phys2d.z_total_mm,
+        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
+        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
+        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
+        z_slow_mm_s   := g_cfg[i].phys2d.z_slow_mm_s,
+        z_fast_mm_s   := g_cfg[i].phys2d.z_fast_mm_s,
+        drip_delay_s  := g_cfg[i].phys2d.drip_delay_s,
+        z_mm          := tmp_z,
+        z_stage       := tmp_zs,
+        z_timer_s     := tmp_zt
+      );
+      arrived_z := fb_z2.done;
+    ELSIF i = 3 THEN
+      fb_z3(
+        delta_t       := 0.02,
+        station_type  := station_type,
+        z_total_mm    := g_cfg[i].phys2d.z_total_mm,
+        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
+        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
+        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
+        z_slow_mm_s   := g_cfg[i].phys2d.z_slow_mm_s,
+        z_fast_mm_s   := g_cfg[i].phys2d.z_fast_mm_s,
+        drip_delay_s  := g_cfg[i].phys2d.drip_delay_s,
+        z_mm          := tmp_z,
+        z_stage       := tmp_zs,
+        z_timer_s     := tmp_zt
+      );
+      arrived_z := fb_z3.done;
+    END_IF;
+    g_transporter[i].z_mm      := tmp_z;
+    g_transporter[i].z_stage   := tmp_zs;
+    g_transporter[i].z_timer_s := tmp_zt;
+    IF arrived_z THEN
+      lookup(station_number := g_transporter[i].sink_station);
+      g_transporter[i].final_target_x := lookup.x_mm;
+      g_transporter[i].phase := 3;
+    END_IF;
+  END_IF;
+
+  (* ── Phase 3: Drive X towards sink station ─────────────── *)
+  IF g_transporter[i].phase = 3 THEN
+    tmp_x  := g_transporter[i].x_mm;
+    tmp_vx := g_transporter[i].vel_x;
+    IF i = 1 THEN
+      fb_x1(
+        delta_t  := 0.02,
+        x_target := g_transporter[i].final_target_x,
+        x_min    := g_transporter[i].x_min_limit,
+        x_max    := g_transporter[i].x_max_limit,
+        v_max    := g_cfg[i].phys2d.x_max_mm_s,
+        t_acc    := g_cfg[i].phys2d.x_accel_s,
+        t_dec    := g_cfg[i].phys2d.x_decel_s,
+        x_pos    := tmp_x,
+        v_x      := tmp_vx
+      );
+      arrived_x := fb_x1.arrived;
+    ELSIF i = 2 THEN
+      fb_x2(
+        delta_t  := 0.02,
+        x_target := g_transporter[i].final_target_x,
+        x_min    := g_transporter[i].x_min_limit,
+        x_max    := g_transporter[i].x_max_limit,
+        v_max    := g_cfg[i].phys2d.x_max_mm_s,
+        t_acc    := g_cfg[i].phys2d.x_accel_s,
+        t_dec    := g_cfg[i].phys2d.x_decel_s,
+        x_pos    := tmp_x,
+        v_x      := tmp_vx
+      );
+      arrived_x := fb_x2.arrived;
+    ELSIF i = 3 THEN
+      fb_x3(
+        delta_t  := 0.02,
+        x_target := g_transporter[i].final_target_x,
+        x_min    := g_transporter[i].x_min_limit,
+        x_max    := g_transporter[i].x_max_limit,
+        v_max    := g_cfg[i].phys2d.x_max_mm_s,
+        t_acc    := g_cfg[i].phys2d.x_accel_s,
+        t_dec    := g_cfg[i].phys2d.x_decel_s,
+        x_pos    := tmp_x,
+        v_x      := tmp_vx
+      );
+      arrived_x := fb_x3.arrived;
+    END_IF;
+    g_transporter[i].x_mm  := tmp_x;
+    g_transporter[i].vel_x := tmp_vx;
+
+    IF arrived_x THEN
+      g_transporter[i].current_station := g_transporter[i].sink_station;
+      lookup(station_number := g_transporter[i].sink_station);
+      device_delay := lookup.device_delay_s;
+      g_transporter[i].z_timer_s := device_delay + g_cfg[i].phys2d.drip_delay_s;
+      g_transporter[i].z_stage := 6;
+      g_transporter[i].phase := 4;
+    END_IF;
+  END_IF;
+
+  (* ── Phase 4: Sink Z at sink station ───────────────────── *)
+  IF g_transporter[i].phase = 4 THEN
+    lookup(station_number := g_transporter[i].sink_station);
+    station_type := lookup.stype;
+    tmp_z  := g_transporter[i].z_mm;
+    tmp_zs := g_transporter[i].z_stage;
+    tmp_zt := g_transporter[i].z_timer_s;
+    IF i = 1 THEN
+      fb_z1(
+        delta_t       := 0.02,
+        station_type  := station_type,
+        z_total_mm    := g_cfg[i].phys2d.z_total_mm,
+        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
+        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
+        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
+        z_slow_mm_s   := g_cfg[i].phys2d.z_slow_mm_s,
+        z_fast_mm_s   := g_cfg[i].phys2d.z_fast_mm_s,
+        drip_delay_s  := g_cfg[i].phys2d.drip_delay_s,
+        z_mm          := tmp_z,
+        z_stage       := tmp_zs,
+        z_timer_s     := tmp_zt
+      );
+      arrived_z := fb_z1.done;
+    ELSIF i = 2 THEN
+      fb_z2(
+        delta_t       := 0.02,
+        station_type  := station_type,
+        z_total_mm    := g_cfg[i].phys2d.z_total_mm,
+        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
+        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
+        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
+        z_slow_mm_s   := g_cfg[i].phys2d.z_slow_mm_s,
+        z_fast_mm_s   := g_cfg[i].phys2d.z_fast_mm_s,
+        drip_delay_s  := g_cfg[i].phys2d.drip_delay_s,
+        z_mm          := tmp_z,
+        z_stage       := tmp_zs,
+        z_timer_s     := tmp_zt
+      );
+      arrived_z := fb_z2.done;
+    ELSIF i = 3 THEN
+      fb_z3(
+        delta_t       := 0.02,
+        station_type  := station_type,
+        z_total_mm    := g_cfg[i].phys2d.z_total_mm,
+        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
+        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
+        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
+        z_slow_mm_s   := g_cfg[i].phys2d.z_slow_mm_s,
+        z_fast_mm_s   := g_cfg[i].phys2d.z_fast_mm_s,
+        drip_delay_s  := g_cfg[i].phys2d.drip_delay_s,
+        z_mm          := tmp_z,
+        z_stage       := tmp_zs,
+        z_timer_s     := tmp_zt
+      );
+      arrived_z := fb_z3.done;
+    END_IF;
+    g_transporter[i].z_mm      := tmp_z;
+    g_transporter[i].z_stage   := tmp_zs;
+    g_transporter[i].z_timer_s := tmp_zt;
+    IF arrived_z THEN
+      g_transporter[i].phase := 0;
+    END_IF;
+  END_IF;
+
+  (* ── Nearest station tracking ──────────────────────────── *)
+  min_dist := 1.0e9;
+  nearest_num := g_transporter[i].current_station;
+  FOR idx := 101 TO 125 DO
+    IF g_stations[idx].tank_id <> 0 THEN
+      dx := g_stations[idx].x_position - g_transporter[i].x_mm;
+      IF ABS(dx) < min_dist THEN
+        min_dist := ABS(dx);
+        nearest_num := idx;
+      END_IF;
+    END_IF;
+  END_FOR;
+  g_transporter[i].current_station := nearest_num;
+
+  END_IF;  (* active *)
 END_FOR;]]></xhtml:p>
           </ST>
         </body>
@@ -3986,11 +4389,11 @@ END_FOR;]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_state">
+            <variable name="g_transporter">
               <type>
                 <array>
                   <dimension lower="1" upper="3"/>
-                  <baseType><derived name="TRANSPORTER_STATE_T"/></baseType>
+                  <baseType><derived name="STC_TRANSPORTER_T"/></baseType>
                 </array>
               </type>
             </variable>
@@ -4087,7 +4490,7 @@ END_FOR;]]></xhtml:p>
 
     IF cov_t >= 1 AND cov_t <= 3 THEN
       (* Check transporter is idle: phase=0, active *)
-      IF g_state[cov_t].phase = 0 AND g_state[cov_t].active THEN
+      IF g_transporter[cov_t].phase = 0 AND g_transporter[cov_t].active THEN
 
         (* Find destination station: first available in transporter area *)
         dest_stn := 0;
@@ -5038,19 +5441,19 @@ END_FOR;]]></xhtml:p>
    and restrict x_min/x_max based on avoid_status 1 (pass) and 2 (block).
    ================================================================ *)
 FOR i := 1 TO MAX_TRANSPORTERS DO
-  IF NOT g_state[i].active THEN
+  IF NOT g_transporter[i].active THEN
     CONTINUE;
   END_IF;
 
   min_x := g_cfg[i].x_min_limit;
   max_x := g_cfg[i].x_max_limit;
-  current_x := g_state[i].x_mm;
+  current_x := g_transporter[i].x_mm;
   avoid_dist := g_cfg[i].x_avoid_mm;
 
   (* If no limits configured, lock to current position *)
   IF (min_x < 1.0) OR (max_x < 1.0) THEN
-    g_state[i].x_min_limit := current_x;
-    g_state[i].x_max_limit := current_x;
+    g_transporter[i].x_min_limit := current_x;
+    g_transporter[i].x_max_limit := current_x;
     CONTINUE;
   END_IF;
 
@@ -5060,7 +5463,7 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
   right_s2_x := 0.0;
 
   (* --- Search downward (smaller station numbers) from current_station --- *)
-  stn_num := g_state[i].current_station - 1;
+  stn_num := g_transporter[i].current_station - 1;
   WHILE stn_num >= 101 DO
     IF g_stations[stn_num].tank_id = 0 THEN
       stn_num := stn_num - 1;
@@ -5076,8 +5479,8 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
 
     (* AVOID_PASS: passable unless it is this transporter's target station *)
     IF avoid_st = AVOID_PASS THEN
-      is_target := (stn_num = g_state[i].lift_station_target)
-               OR  (stn_num = g_state[i].sink_station_target);
+      is_target := (stn_num = g_transporter[i].lift_station)
+               OR  (stn_num = g_transporter[i].sink_station);
       IF is_target THEN
         IF current_x < stn_x THEN
           new_val := stn_x - avoid_dist;
@@ -5115,7 +5518,7 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
   END_WHILE;
 
   (* --- Search upward (larger station numbers) from current_station --- *)
-  stn_num := g_state[i].current_station + 1;
+  stn_num := g_transporter[i].current_station + 1;
   WHILE stn_num <= 125 DO
     IF g_stations[stn_num].tank_id = 0 THEN
       stn_num := stn_num + 1;
@@ -5130,8 +5533,8 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
     avoid_st := g_avoid_status[stn_num];
 
     IF avoid_st = AVOID_PASS THEN
-      is_target := (stn_num = g_state[i].lift_station_target)
-               OR  (stn_num = g_state[i].sink_station_target);
+      is_target := (stn_num = g_transporter[i].lift_station)
+               OR  (stn_num = g_transporter[i].sink_station);
       IF is_target THEN
         IF current_x < stn_x THEN
           new_val := stn_x - avoid_dist;
@@ -5173,8 +5576,8 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
     max_x := midpoint + 5.0;
   END_IF;
 
-  g_state[i].x_min_limit := min_x;
-  g_state[i].x_max_limit := max_x;
+  g_transporter[i].x_min_limit := min_x;
+  g_transporter[i].x_max_limit := max_x;
 END_FOR;
 
 (* ================================================================
@@ -5182,30 +5585,30 @@ END_FOR;
    Every active transporter pushes neighbors away by x_avoid_mm.
    ================================================================ *)
 FOR i := 1 TO MAX_TRANSPORTERS DO
-  IF NOT g_state[i].active THEN
+  IF NOT g_transporter[i].active THEN
     CONTINUE;
   END_IF;
 
-  current_x := g_state[i].x_mm;
+  current_x := g_transporter[i].x_mm;
   avoid_dist := g_cfg[i].x_avoid_mm;
 
   FOR j := 1 TO MAX_TRANSPORTERS DO
     IF j = i THEN CONTINUE; END_IF;
-    IF NOT g_state[j].active THEN CONTINUE; END_IF;
+    IF NOT g_transporter[j].active THEN CONTINUE; END_IF;
 
-    other_x := g_state[j].x_mm;
+    other_x := g_transporter[j].x_mm;
 
     IF other_x > current_x THEN
       (* j is to the RIGHT of i — restrict j's x_min *)
       new_val := current_x + avoid_dist;
-      IF new_val > g_state[j].x_min_limit THEN
-        g_state[j].x_min_limit := new_val;
+      IF new_val > g_transporter[j].x_min_limit THEN
+        g_transporter[j].x_min_limit := new_val;
       END_IF;
     ELSIF other_x < current_x THEN
       (* j is to the LEFT of i — restrict j's x_max *)
       new_val := current_x - avoid_dist;
-      IF new_val < g_state[j].x_max_limit THEN
-        g_state[j].x_max_limit := new_val;
+      IF new_val < g_transporter[j].x_max_limit THEN
+        g_transporter[j].x_max_limit := new_val;
       END_IF;
     END_IF;
   END_FOR;
@@ -5218,12 +5621,12 @@ END_FOR;
 (* --- 2.2.1: Build sorted array of active transporters by x-position --- *)
 n_active := 0;
 FOR i := 1 TO MAX_TRANSPORTERS DO
-  IF g_state[i].active THEN
+  IF g_transporter[i].active THEN
     n_active := n_active + 1;
     w_idx[n_active] := i;
-    w_xpos[n_active] := g_state[i].x_mm;
-    w_phase[n_active] := g_state[i].phase;
-    w_target[n_active] := g_state[i].target_x;
+    w_xpos[n_active] := g_transporter[i].x_mm;
+    w_phase[n_active] := g_transporter[i].phase;
+    w_target[n_active] := g_transporter[i].final_target_x;
     w_avoid[n_active] := g_cfg[i].x_avoid_mm;
   END_IF;
 END_FOR;
@@ -5256,7 +5659,7 @@ FOR i := 1 TO n_active DO
   IF (w_phase[i] = 2) OR (w_phase[i] = 4) THEN
     w_can_evade[i] := FALSE;
   END_IF;
-  work_area := g_state[k].x_max_limit - g_state[k].x_min_limit;
+  work_area := g_transporter[k].x_max_limit - g_transporter[k].x_min_limit;
   IF work_area < MIN_WORK_AREA THEN
     w_can_evade[i] := FALSE;
   END_IF;
@@ -5298,8 +5701,8 @@ IF n_active >= 2 THEN
       END_IF;
 
       k := w_idx[j];
-      cur_min := g_state[k].x_min_limit;
-      cur_max := g_state[k].x_max_limit;
+      cur_min := g_transporter[k].x_min_limit;
+      cur_max := g_transporter[k].x_max_limit;
 
       IF w_xpos[i] < w_xpos[j] THEN
         (* i is LEFT, j is RIGHT — i sets j's x_min *)
@@ -5309,11 +5712,11 @@ IF n_active >= 2 THEN
 
         IF new_val > cur_min THEN
           IF new_val <= (cur_max - MIN_WORK_AREA) THEN
-            g_state[k].x_min_limit := new_val;
+            g_transporter[k].x_min_limit := new_val;
           ELSE
             adjusted := cur_max - MIN_WORK_AREA;
             IF adjusted > cur_min THEN
-              g_state[k].x_min_limit := adjusted;
+              g_transporter[k].x_min_limit := adjusted;
             END_IF;
           END_IF;
         END_IF;
@@ -5326,11 +5729,11 @@ IF n_active >= 2 THEN
 
         IF new_val < cur_max THEN
           IF new_val >= (cur_min + MIN_WORK_AREA) THEN
-            g_state[k].x_max_limit := new_val;
+            g_transporter[k].x_max_limit := new_val;
           ELSE
             adjusted := cur_min + MIN_WORK_AREA;
             IF adjusted < cur_max THEN
-              g_state[k].x_max_limit := adjusted;
+              g_transporter[k].x_max_limit := adjusted;
             END_IF;
           END_IF;
         END_IF;
@@ -5352,8 +5755,8 @@ IF n_active >= 2 THEN
       (* Both moving right — left chasing right *)
       safety_val := w_xpos[i] + w_avoid[i];
       k := w_idx[j];
-      IF safety_val > g_state[k].x_min_limit THEN
-        g_state[k].x_min_limit := safety_val;
+      IF safety_val > g_transporter[k].x_min_limit THEN
+        g_transporter[k].x_min_limit := safety_val;
       END_IF;
     END_IF;
 
@@ -5361,8 +5764,8 @@ IF n_active >= 2 THEN
       (* Both moving left — right chasing left *)
       safety_val := w_xpos[j] - w_avoid[j];
       k := w_idx[i];
-      IF safety_val < g_state[k].x_max_limit THEN
-        g_state[k].x_max_limit := safety_val;
+      IF safety_val < g_transporter[k].x_max_limit THEN
+        g_transporter[k].x_max_limit := safety_val;
       END_IF;
     END_IF;
   END_FOR;
@@ -5370,10 +5773,10 @@ IF n_active >= 2 THEN
   (* --- 2.2.5: Validate limits (trap detection) --- *)
   FOR i := 1 TO n_active DO
     k := w_idx[i];
-    IF g_state[k].x_min_limit > g_state[k].x_max_limit THEN
+    IF g_transporter[k].x_min_limit > g_transporter[k].x_max_limit THEN
       (* Trapped — lock in place *)
-      g_state[k].x_min_limit := g_state[k].x_mm;
-      g_state[k].x_max_limit := g_state[k].x_mm;
+      g_transporter[k].x_min_limit := g_transporter[k].x_mm;
+      g_transporter[k].x_max_limit := g_transporter[k].x_mm;
     END_IF;
   END_FOR;
 
@@ -5403,35 +5806,11 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_state">
+            <variable name="g_transporter">
               <type>
                 <array>
                   <dimension lower="1" upper="3"/>
-                  <baseType><derived name="TRANSPORTER_STATE_T"/></baseType>
-                </array>
-              </type>
-            </variable>
-            <variable name="g_cmd_start">
-              <type>
-                <array>
-                  <dimension lower="1" upper="3"/>
-                  <baseType><BOOL/></baseType>
-                </array>
-              </type>
-            </variable>
-            <variable name="g_cmd_lift_station">
-              <type>
-                <array>
-                  <dimension lower="1" upper="3"/>
-                  <baseType><INT/></baseType>
-                </array>
-              </type>
-            </variable>
-            <variable name="g_cmd_sink_station">
-              <type>
-                <array>
-                  <dimension lower="1" upper="3"/>
-                  <baseType><INT/></baseType>
+                  <baseType><derived name="STC_TRANSPORTER_T"/></baseType>
                 </array>
               </type>
             </variable>
@@ -5874,51 +6253,6 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
             <variable name="idx">
               <type><INT/></type>
             </variable>
-            <variable name="station_type">
-              <type><INT/></type>
-            </variable>
-            <variable name="device_delay">
-              <type><REAL/></type>
-            </variable>
-            <variable name="drop_time">
-              <type><REAL/></type>
-            </variable>
-            <variable name="arrived_x">
-              <type><BOOL/></type>
-            </variable>
-            <variable name="nearest_num">
-              <type><INT/></type>
-            </variable>
-            <variable name="min_dist">
-              <type><REAL/></type>
-            </variable>
-            <variable name="dx">
-              <type><REAL/></type>
-            </variable>
-            <variable name="tmp_x">
-              <type><REAL/></type>
-            </variable>
-            <variable name="tmp_vx">
-              <type><REAL/></type>
-            </variable>
-            <variable name="fb_x1">
-              <type><derived name="SIM_FB_XMotion"/></type>
-            </variable>
-            <variable name="fb_x2">
-              <type><derived name="SIM_FB_XMotion"/></type>
-            </variable>
-            <variable name="fb_x3">
-              <type><derived name="SIM_FB_XMotion"/></type>
-            </variable>
-            <variable name="fb_z1">
-              <type><derived name="SIM_FB_ZMotion"/></type>
-            </variable>
-            <variable name="fb_z2">
-              <type><derived name="SIM_FB_ZMotion"/></type>
-            </variable>
-            <variable name="fb_z3">
-              <type><derived name="SIM_FB_ZMotion"/></type>
-            </variable>
             <variable name="twa_calc">
               <type><derived name="TWA_FB_CalcLimits"/></type>
             </variable>
@@ -5931,20 +6265,11 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
             <variable name="cycle_count">
               <type><INT/></type>
             </variable>
-            <variable name="tmp_z">
-              <type><REAL/></type>
-            </variable>
-            <variable name="tmp_zs">
-              <type><INT/></type>
-            </variable>
-            <variable name="tmp_zt">
-              <type><REAL/></type>
-            </variable>
-            <variable name="arrived_z">
-              <type><BOOL/></type>
-            </variable>
             <variable name="main_sched">
               <type><derived name="STC_FB_MainScheduler"/></type>
+            </variable>
+            <variable name="run_tasks">
+              <type><derived name="SIM_FB_RunTasks"/></type>
             </variable>
           </localVars>
         </interface>
@@ -5980,64 +6305,77 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     END_IF;
     qw_cfg_ack := iw_cfg_seq;
 
+  ELSIF iw_cfg_cmd = 4 THEN
+    (* --- Write transporter physics page 1 --- *)
+    (* param = transporter_id (1..3)
+       d0 = x_min_limit mm      d1 = x_max_limit mm
+       d2 = x_accel_s × 10      d3 = x_decel_s × 10
+       d4 = x_max_mm_s           d5 = z_total_mm
+       d6 = avoid_mm *)
+    j := iw_cfg_param;
+    IF (j >= 1) AND (j <= 3) THEN
+      g_cfg[j].x_min_limit          := INT_TO_REAL(iw_cfg_d0);
+      g_cfg[j].x_max_limit          := INT_TO_REAL(iw_cfg_d1);
+      g_cfg[j].phys2d.x_accel_s     := INT_TO_REAL(iw_cfg_d2) / 10.0;
+      g_cfg[j].phys2d.x_decel_s     := INT_TO_REAL(iw_cfg_d3) / 10.0;
+      g_cfg[j].phys2d.x_max_mm_s    := INT_TO_REAL(iw_cfg_d4);
+      g_cfg[j].phys2d.z_total_mm    := INT_TO_REAL(iw_cfg_d5);
+      g_cfg[j].phys2d.avoid_mm      := INT_TO_REAL(iw_cfg_d6);
+      g_cfg[j].x_avoid_mm           := INT_TO_REAL(iw_cfg_d6);
+    END_IF;
+    qw_cfg_ack := iw_cfg_seq;
+
+  ELSIF iw_cfg_cmd = 5 THEN
+    (* --- Write transporter physics page 2 --- *)
+    (* param = transporter_id (1..3)
+       d0 = z_slow_dry_mm        d1 = z_slow_wet_mm
+       d2 = z_slow_end_mm        d3 = z_slow_mm_s
+       d4 = z_fast_mm_s          d5 = drip_delay_s × 10
+       d6 = (reserved) *)
+    j := iw_cfg_param;
+    IF (j >= 1) AND (j <= 3) THEN
+      g_cfg[j].phys2d.z_slow_dry_mm := INT_TO_REAL(iw_cfg_d0);
+      g_cfg[j].phys2d.z_slow_wet_mm := INT_TO_REAL(iw_cfg_d1);
+      g_cfg[j].phys2d.z_slow_end_mm := INT_TO_REAL(iw_cfg_d2);
+      g_cfg[j].phys2d.z_slow_mm_s   := INT_TO_REAL(iw_cfg_d3);
+      g_cfg[j].phys2d.z_fast_mm_s   := INT_TO_REAL(iw_cfg_d4);
+      g_cfg[j].phys2d.drip_delay_s  := INT_TO_REAL(iw_cfg_d5) / 10.0;
+    END_IF;
+    qw_cfg_ack := iw_cfg_seq;
+
+  ELSIF iw_cfg_cmd = 6 THEN
+    (* --- Write transporter task area --- *)
+    (* param = transporter_id × 10 + area_index
+       e.g. 11 = transporter 1 area 1, 23 = transporter 2 area 3
+       d0 = min_lift   d1 = max_lift
+       d2 = min_sink   d3 = max_sink *)
+    j := iw_cfg_param / 10;
+    k := iw_cfg_param MOD 10;
+    IF (j >= 1) AND (j <= 3) AND (k >= 1) AND (k <= 4) THEN
+      g_cfg[j].task_area[k].min_lift := iw_cfg_d0;
+      g_cfg[j].task_area[k].max_lift := iw_cfg_d1;
+      g_cfg[j].task_area[k].min_sink := iw_cfg_d2;
+      g_cfg[j].task_area[k].max_sink := iw_cfg_d3;
+    END_IF;
+    qw_cfg_ack := iw_cfg_seq;
+
   ELSIF iw_cfg_cmd = 2 THEN
-    (* --- Finish init: station data uploaded, now init transporters --- *)
+    (* --- Finish init: all config uploaded, init transporter states --- *)
     g_station_count := iw_cfg_param;
 
-    (* Transporter 1 config — hardcoded for now *)
-    g_cfg[1].x_min_limit := 100.0;
-    g_cfg[1].x_max_limit := 20600.0;
-    g_cfg[1].x_avoid_mm := 2000.0;
-    g_cfg[1].phys2d.x_accel_s := 1.5;
-    g_cfg[1].phys2d.x_decel_s := 1.5;
-    g_cfg[1].phys2d.x_max_mm_s := 500.0;
-    g_cfg[1].phys2d.z_total_mm := 2500.0;
-    g_cfg[1].phys2d.z_slow_dry_mm := 300.0;
-    g_cfg[1].phys2d.z_slow_wet_mm := 1000.0;
-    g_cfg[1].phys2d.z_slow_end_mm := 50.0;
-    g_cfg[1].phys2d.z_slow_mm_s := 100.0;
-    g_cfg[1].phys2d.z_fast_mm_s := 200.0;
-    g_cfg[1].phys2d.drip_delay_s := 5.0;
-    g_cfg[1].phys2d.avoid_mm := 2000.0;
-    g_cfg[1].task_area[1].min_lift := 101;
-    g_cfg[1].task_area[1].max_lift := 111;
-    g_cfg[1].task_area[1].min_sink := 101;
-    g_cfg[1].task_area[1].max_sink := 114;
-
-    (* Transporter 2 config *)
-    g_cfg[2].x_min_limit := 14300.0;
-    g_cfg[2].x_max_limit := 29100.0;
-    g_cfg[2].x_avoid_mm := 2000.0;
-    g_cfg[2].phys2d.x_accel_s := 1.5;
-    g_cfg[2].phys2d.x_decel_s := 1.5;
-    g_cfg[2].phys2d.x_max_mm_s := 500.0;
-    g_cfg[2].phys2d.z_total_mm := 2500.0;
-    g_cfg[2].phys2d.z_slow_dry_mm := 300.0;
-    g_cfg[2].phys2d.z_slow_wet_mm := 1000.0;
-    g_cfg[2].phys2d.z_slow_end_mm := 50.0;
-    g_cfg[2].phys2d.z_slow_mm_s := 100.0;
-    g_cfg[2].phys2d.z_fast_mm_s := 200.0;
-    g_cfg[2].phys2d.drip_delay_s := 5.0;
-    g_cfg[2].phys2d.avoid_mm := 2000.0;
-    g_cfg[2].task_area[1].min_lift := 112;
-    g_cfg[2].task_area[1].max_lift := 121;
-    g_cfg[2].task_area[1].min_sink := 111;
-    g_cfg[2].task_area[1].max_sink := 121;
-
-    (* Init transporter states *)
     FOR i := 1 TO 3 DO
-      IF i <= 2 THEN
-        g_state[i].active := TRUE;
+      (* Active if task_area[1] has non-zero stations *)
+      IF g_cfg[i].task_area[1].min_lift > 0 THEN
+        g_transporter[i].active := TRUE;
       ELSE
-        g_state[i].active := FALSE;
+        g_transporter[i].active := FALSE;
       END_IF;
-      g_state[i].phase := 0;
-      g_state[i].z_stage := 0;
-      g_state[i].vel_x := 0.0;
-      g_state[i].vel_z := 0.0;
-      g_state[i].z_timer_s := 0.0;
-      g_state[i].x_min_limit := g_cfg[i].x_min_limit;
-      g_state[i].x_max_limit := g_cfg[i].x_max_limit;
+      g_transporter[i].phase := 0;
+      g_transporter[i].z_stage := 0;
+      g_transporter[i].vel_x := 0.0;
+      g_transporter[i].z_timer_s := 0.0;
+      g_transporter[i].x_min_limit := g_cfg[i].x_min_limit;
+      g_transporter[i].x_max_limit := g_cfg[i].x_max_limit;
 
       (* Start position: use task_area[1].min_lift as start station *)
       IF g_cfg[i].task_area[1].min_lift > 0 THEN
@@ -6047,13 +6385,13 @@ IF iw_cfg_seq <> last_cfg_seq THEN
       END_IF;
       lookup(station_number := stn_num);
       IF lookup.found THEN
-        g_state[i].x_mm := lookup.x_mm;
-        g_state[i].current_station := stn_num;
+        g_transporter[i].x_mm := lookup.x_mm;
+        g_transporter[i].current_station := stn_num;
       ELSE
-        g_state[i].x_mm := 0.0;
-        g_state[i].current_station := 0;
+        g_transporter[i].x_mm := 0.0;
+        g_transporter[i].current_station := 0;
       END_IF;
-      g_state[i].z_mm := 0.0;
+      g_transporter[i].z_mm := 0.0;
     END_FOR;
 
     init_done := TRUE;
@@ -6078,275 +6416,8 @@ g_time_s  := (INT_TO_REAL(iw_time_hi) * 65536.0 + INT_TO_REAL(iw_time_lo)) / 10.
 (* ── Main Scheduler (TSK + DEP alternating cycles) ── *)
 main_sched(i_run := init_done, i_time_s := g_time_s);
 
-FOR i := 1 TO 3 DO
-  IF g_state[i].active THEN
-
-  IF (g_state[i].phase = 0) AND g_cmd_start[i] THEN
-    g_state[i].lift_station_target := g_cmd_lift_station[i];
-    g_state[i].sink_station_target := g_cmd_sink_station[i];
-    lookup(station_number := g_state[i].lift_station_target);
-    g_state[i].target_x := lookup.x_mm;
-    g_state[i].phase := 1;
-    g_state[i].z_stage := 0;
-    g_state[i].z_timer_s := 0.0;
-  END_IF;
-
-  IF g_state[i].phase = 1 THEN
-    tmp_x := g_state[i].x_mm;
-    tmp_vx := g_state[i].vel_x;
-    IF i = 1 THEN
-      fb_x1(
-        delta_t := 0.02,
-        x_target := g_state[i].target_x,
-        x_min := g_state[i].x_min_limit,
-        x_max := g_state[i].x_max_limit,
-        v_max := g_cfg[i].phys2d.x_max_mm_s,
-        t_acc := g_cfg[i].phys2d.x_accel_s,
-        t_dec := g_cfg[i].phys2d.x_decel_s,
-        x_pos := tmp_x,
-        v_x := tmp_vx
-      );
-      arrived_x := fb_x1.arrived;
-    ELSIF i = 2 THEN
-      fb_x2(
-        delta_t := 0.02,
-        x_target := g_state[i].target_x,
-        x_min := g_state[i].x_min_limit,
-        x_max := g_state[i].x_max_limit,
-        v_max := g_cfg[i].phys2d.x_max_mm_s,
-        t_acc := g_cfg[i].phys2d.x_accel_s,
-        t_dec := g_cfg[i].phys2d.x_decel_s,
-        x_pos := tmp_x,
-        v_x := tmp_vx
-      );
-      arrived_x := fb_x2.arrived;
-    ELSIF i = 3 THEN
-      fb_x3(
-        delta_t := 0.02,
-        x_target := g_state[i].target_x,
-        x_min := g_state[i].x_min_limit,
-        x_max := g_state[i].x_max_limit,
-        v_max := g_cfg[i].phys2d.x_max_mm_s,
-        t_acc := g_cfg[i].phys2d.x_accel_s,
-        t_dec := g_cfg[i].phys2d.x_decel_s,
-        x_pos := tmp_x,
-        v_x := tmp_vx
-      );
-      arrived_x := fb_x3.arrived;
-    END_IF;
-    g_state[i].x_mm := tmp_x;
-    g_state[i].vel_x := tmp_vx;
-
-    IF arrived_x THEN
-      g_state[i].current_station := g_state[i].lift_station_target;
-      lookup(station_number := g_state[i].lift_station_target);
-      device_delay := lookup.device_delay_s;
-      drop_time := lookup.dropping_time_s;
-      g_state[i].z_timer_s := device_delay + drop_time;
-      g_state[i].z_stage := 1;
-      g_state[i].phase := 2;
-    END_IF;
-  END_IF;
-
-  IF g_state[i].phase = 2 THEN
-    lookup(station_number := g_state[i].lift_station_target);
-    station_type := lookup.stype;
-    tmp_z := g_state[i].z_mm;
-    tmp_zs := g_state[i].z_stage;
-    tmp_zt := g_state[i].z_timer_s;
-    IF i = 1 THEN
-      fb_z1(
-        delta_t := 0.02,
-        station_type := station_type,
-        z_total_mm := g_cfg[i].phys2d.z_total_mm,
-        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
-        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
-        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
-        z_slow_mm_s := g_cfg[i].phys2d.z_slow_mm_s,
-        z_fast_mm_s := g_cfg[i].phys2d.z_fast_mm_s,
-        drip_delay_s := g_cfg[i].phys2d.drip_delay_s,
-        z_mm := tmp_z,
-        z_stage := tmp_zs,
-        z_timer_s := tmp_zt
-      );
-      arrived_z := fb_z1.done;
-    ELSIF i = 2 THEN
-      fb_z2(
-        delta_t := 0.02,
-        station_type := station_type,
-        z_total_mm := g_cfg[i].phys2d.z_total_mm,
-        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
-        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
-        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
-        z_slow_mm_s := g_cfg[i].phys2d.z_slow_mm_s,
-        z_fast_mm_s := g_cfg[i].phys2d.z_fast_mm_s,
-        drip_delay_s := g_cfg[i].phys2d.drip_delay_s,
-        z_mm := tmp_z,
-        z_stage := tmp_zs,
-        z_timer_s := tmp_zt
-      );
-      arrived_z := fb_z2.done;
-    ELSIF i = 3 THEN
-      fb_z3(
-        delta_t := 0.02,
-        station_type := station_type,
-        z_total_mm := g_cfg[i].phys2d.z_total_mm,
-        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
-        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
-        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
-        z_slow_mm_s := g_cfg[i].phys2d.z_slow_mm_s,
-        z_fast_mm_s := g_cfg[i].phys2d.z_fast_mm_s,
-        drip_delay_s := g_cfg[i].phys2d.drip_delay_s,
-        z_mm := tmp_z,
-        z_stage := tmp_zs,
-        z_timer_s := tmp_zt
-      );
-      arrived_z := fb_z3.done;
-    END_IF;
-    g_state[i].z_mm := tmp_z;
-    g_state[i].z_stage := tmp_zs;
-    g_state[i].z_timer_s := tmp_zt;
-    IF arrived_z THEN
-      lookup(station_number := g_state[i].sink_station_target);
-      g_state[i].target_x := lookup.x_mm;
-      g_state[i].phase := 3;
-    END_IF;
-  END_IF;
-
-  IF g_state[i].phase = 3 THEN
-    tmp_x := g_state[i].x_mm;
-    tmp_vx := g_state[i].vel_x;
-    IF i = 1 THEN
-      fb_x1(
-        delta_t := 0.02,
-        x_target := g_state[i].target_x,
-        x_min := g_state[i].x_min_limit,
-        x_max := g_state[i].x_max_limit,
-        v_max := g_cfg[i].phys2d.x_max_mm_s,
-        t_acc := g_cfg[i].phys2d.x_accel_s,
-        t_dec := g_cfg[i].phys2d.x_decel_s,
-        x_pos := tmp_x,
-        v_x := tmp_vx
-      );
-      arrived_x := fb_x1.arrived;
-    ELSIF i = 2 THEN
-      fb_x2(
-        delta_t := 0.02,
-        x_target := g_state[i].target_x,
-        x_min := g_state[i].x_min_limit,
-        x_max := g_state[i].x_max_limit,
-        v_max := g_cfg[i].phys2d.x_max_mm_s,
-        t_acc := g_cfg[i].phys2d.x_accel_s,
-        t_dec := g_cfg[i].phys2d.x_decel_s,
-        x_pos := tmp_x,
-        v_x := tmp_vx
-      );
-      arrived_x := fb_x2.arrived;
-    ELSIF i = 3 THEN
-      fb_x3(
-        delta_t := 0.02,
-        x_target := g_state[i].target_x,
-        x_min := g_state[i].x_min_limit,
-        x_max := g_state[i].x_max_limit,
-        v_max := g_cfg[i].phys2d.x_max_mm_s,
-        t_acc := g_cfg[i].phys2d.x_accel_s,
-        t_dec := g_cfg[i].phys2d.x_decel_s,
-        x_pos := tmp_x,
-        v_x := tmp_vx
-      );
-      arrived_x := fb_x3.arrived;
-    END_IF;
-    g_state[i].x_mm := tmp_x;
-    g_state[i].vel_x := tmp_vx;
-
-    IF arrived_x THEN
-      g_state[i].current_station := g_state[i].sink_station_target;
-      lookup(station_number := g_state[i].sink_station_target);
-      device_delay := lookup.device_delay_s;
-      g_state[i].z_timer_s := device_delay + g_cfg[i].phys2d.drip_delay_s;
-      g_state[i].z_stage := 6;
-      g_state[i].phase := 4;
-    END_IF;
-  END_IF;
-
-  IF g_state[i].phase = 4 THEN
-    lookup(station_number := g_state[i].sink_station_target);
-    station_type := lookup.stype;
-    tmp_z := g_state[i].z_mm;
-    tmp_zs := g_state[i].z_stage;
-    tmp_zt := g_state[i].z_timer_s;
-    IF i = 1 THEN
-      fb_z1(
-        delta_t := 0.02,
-        station_type := station_type,
-        z_total_mm := g_cfg[i].phys2d.z_total_mm,
-        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
-        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
-        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
-        z_slow_mm_s := g_cfg[i].phys2d.z_slow_mm_s,
-        z_fast_mm_s := g_cfg[i].phys2d.z_fast_mm_s,
-        drip_delay_s := g_cfg[i].phys2d.drip_delay_s,
-        z_mm := tmp_z,
-        z_stage := tmp_zs,
-        z_timer_s := tmp_zt
-      );
-      arrived_z := fb_z1.done;
-    ELSIF i = 2 THEN
-      fb_z2(
-        delta_t := 0.02,
-        station_type := station_type,
-        z_total_mm := g_cfg[i].phys2d.z_total_mm,
-        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
-        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
-        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
-        z_slow_mm_s := g_cfg[i].phys2d.z_slow_mm_s,
-        z_fast_mm_s := g_cfg[i].phys2d.z_fast_mm_s,
-        drip_delay_s := g_cfg[i].phys2d.drip_delay_s,
-        z_mm := tmp_z,
-        z_stage := tmp_zs,
-        z_timer_s := tmp_zt
-      );
-      arrived_z := fb_z2.done;
-    ELSIF i = 3 THEN
-      fb_z3(
-        delta_t := 0.02,
-        station_type := station_type,
-        z_total_mm := g_cfg[i].phys2d.z_total_mm,
-        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
-        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
-        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
-        z_slow_mm_s := g_cfg[i].phys2d.z_slow_mm_s,
-        z_fast_mm_s := g_cfg[i].phys2d.z_fast_mm_s,
-        drip_delay_s := g_cfg[i].phys2d.drip_delay_s,
-        z_mm := tmp_z,
-        z_stage := tmp_zs,
-        z_timer_s := tmp_zt
-      );
-      arrived_z := fb_z3.done;
-    END_IF;
-    g_state[i].z_mm := tmp_z;
-    g_state[i].z_stage := tmp_zs;
-    g_state[i].z_timer_s := tmp_zt;
-    IF arrived_z THEN
-      g_state[i].phase := 0;
-    END_IF;
-  END_IF;
-
-  min_dist := 1.0e9;
-  nearest_num := g_state[i].current_station;
-  FOR idx := 101 TO 125 DO
-    IF g_stations[idx].tank_id <> 0 THEN
-      dx := g_stations[idx].x_position - g_state[i].x_mm;
-      IF ABS(dx) < min_dist THEN
-        min_dist := ABS(dx);
-        nearest_num := idx;
-      END_IF;
-    END_IF;
-  END_FOR;
-  g_state[i].current_station := nearest_num;
-
-  END_IF;  (* active *)
-END_FOR;
+(* ── Execute transporter tasks (physics simulation) ── *)
+run_tasks(i_run := init_done);
 
 END_IF;  (* init_done *)
 
@@ -6408,35 +6479,41 @@ IF iw_prog_seq <> last_prog_seq THEN
   qw_prog_ack := iw_prog_seq;
 END_IF;
 
-(* === MODBUS INPUT: Read commands from input registers === *)
-g_cmd_start[1] := iw_cmd_start_1 <> 0;
-g_cmd_lift_station[1] := iw_cmd_lift_1;
-g_cmd_sink_station[1] := iw_cmd_sink_1;
-g_cmd_start[2] := iw_cmd_start_2 <> 0;
-g_cmd_lift_station[2] := iw_cmd_lift_2;
-g_cmd_sink_station[2] := iw_cmd_sink_2;
+(* === MODBUS INPUT: Read commands → g_transporter command fields === *)
+(* Note: task_id sync will be handled by SIM_FB_RunTasks later.
+   For now, keep the old Modbus command interface working via direct write. *)
+IF (iw_cmd_start_1 <> 0) AND (g_transporter[1].phase = 0) THEN
+  g_transporter[1].task_id := g_time_s;
+  g_transporter[1].lift_station := iw_cmd_lift_1;
+  g_transporter[1].sink_station := iw_cmd_sink_1;
+END_IF;
+IF (iw_cmd_start_2 <> 0) AND (g_transporter[2].phase = 0) THEN
+  g_transporter[2].task_id := g_time_s;
+  g_transporter[2].lift_station := iw_cmd_lift_2;
+  g_transporter[2].sink_station := iw_cmd_sink_2;
+END_IF;
 
 (* === MODBUS OUTPUT: Write transporter 1 state === *)
-qw_t1_x_mm := REAL_TO_INT(g_state[1].x_mm);
-qw_t1_z_mm := REAL_TO_INT(g_state[1].z_mm);
-qw_t1_vel_x10 := REAL_TO_INT(g_state[1].vel_x * 10.0);
-qw_t1_phase := g_state[1].phase;
-qw_t1_z_stage := g_state[1].z_stage;
-qw_t1_cur_st := g_state[1].current_station;
-qw_t1_lift_tgt := g_state[1].lift_station_target;
-qw_t1_sink_tgt := g_state[1].sink_station_target;
-IF g_state[1].active THEN qw_t1_active := 1; ELSE qw_t1_active := 0; END_IF;
+qw_t1_x_mm := REAL_TO_INT(g_transporter[1].x_mm);
+qw_t1_z_mm := REAL_TO_INT(g_transporter[1].z_mm);
+qw_t1_vel_x10 := REAL_TO_INT(g_transporter[1].vel_x * 10.0);
+qw_t1_phase := g_transporter[1].phase;
+qw_t1_z_stage := g_transporter[1].z_stage;
+qw_t1_cur_st := g_transporter[1].current_station;
+qw_t1_lift_tgt := g_transporter[1].lift_station;
+qw_t1_sink_tgt := g_transporter[1].sink_station;
+IF g_transporter[1].active THEN qw_t1_active := 1; ELSE qw_t1_active := 0; END_IF;
 
 (* === MODBUS OUTPUT: Write transporter 2 state === *)
-qw_t2_x_mm := REAL_TO_INT(g_state[2].x_mm);
-qw_t2_z_mm := REAL_TO_INT(g_state[2].z_mm);
-qw_t2_vel_x10 := REAL_TO_INT(g_state[2].vel_x * 10.0);
-qw_t2_phase := g_state[2].phase;
-qw_t2_z_stage := g_state[2].z_stage;
-qw_t2_cur_st := g_state[2].current_station;
-qw_t2_lift_tgt := g_state[2].lift_station_target;
-qw_t2_sink_tgt := g_state[2].sink_station_target;
-IF g_state[2].active THEN qw_t2_active := 1; ELSE qw_t2_active := 0; END_IF;
+qw_t2_x_mm := REAL_TO_INT(g_transporter[2].x_mm);
+qw_t2_z_mm := REAL_TO_INT(g_transporter[2].z_mm);
+qw_t2_vel_x10 := REAL_TO_INT(g_transporter[2].vel_x * 10.0);
+qw_t2_phase := g_transporter[2].phase;
+qw_t2_z_stage := g_transporter[2].z_stage;
+qw_t2_cur_st := g_transporter[2].current_station;
+qw_t2_lift_tgt := g_transporter[2].lift_station;
+qw_t2_sink_tgt := g_transporter[2].sink_station;
+IF g_transporter[2].active THEN qw_t2_active := 1; ELSE qw_t2_active := 0; END_IF;
 
 (* === MODBUS OUTPUT: Status registers === *)
 qw_station_cnt := g_station_count;
@@ -6644,35 +6721,11 @@ qw_b10_code := g_batches[10].batch_code; qw_b10_state := g_batches[10].state; qw
               </array>
             </type>
           </variable>
-          <variable name="g_state">
+          <variable name="g_transporter">
             <type>
               <array>
                 <dimension lower="1" upper="3"/>
-                <baseType><derived name="TRANSPORTER_STATE_T"/></baseType>
-              </array>
-            </type>
-          </variable>
-          <variable name="g_cmd_start">
-            <type>
-              <array>
-                <dimension lower="1" upper="3"/>
-                <baseType><BOOL/></baseType>
-              </array>
-            </type>
-          </variable>
-          <variable name="g_cmd_lift_station">
-            <type>
-              <array>
-                <dimension lower="1" upper="3"/>
-                <baseType><INT/></baseType>
-              </array>
-            </type>
-          </variable>
-          <variable name="g_cmd_sink_station">
-            <type>
-              <array>
-                <dimension lower="1" upper="3"/>
-                <baseType><INT/></baseType>
+                <baseType><derived name="STC_TRANSPORTER_T"/></baseType>
               </array>
             </type>
           </variable>
