@@ -557,6 +557,7 @@ TIME        → käytä: time_val
 IN          → käytä: input_val
 AT          → käytä: at_pos
 ON          → käytä: on_flag
+STEP        → käytä: cal_step, phase tms.  (SFC-avainsana)
 OR, AND, NOT, XOR
 TRUE, FALSE
 INT, REAL, BOOL, BYTE, WORD, DWORD, STRING
@@ -708,6 +709,7 @@ END_CONFIGURATION
 | 3 | `VAR_EXTERNAL` ei sallittu FUNCTIONissa | Välitä `VAR_INPUT`:ina tai käytä FB:tä |
 | 4 | Globaalit eivät näy ilman `VAR_EXTERNAL` | Lisää `VAR_EXTERNAL`-lohko jokaiseen POU:hun |
 | 5 | `dt` on varattu sana (DATE_AND_TIME) | Käytä `delta_t` |
+| 5b | `step` on varattu sana (SFC STEP/END_STEP) | Käytä `cal_step`, `phase` tms. |
 | 6 | `END_IF` jne. vaatii puolipisteen | iec2c-wrapper hoitaa automaattisesti |
 | 7 | Tyhjä `VAR_INPUT END_VAR` ei sallittu | Poista tyhjä lohko kokonaan |
 | 8 | `VAR_GLOBAL` erillään flat .st:ssä | Siirrä `CONFIGURATION`-osion sisään |

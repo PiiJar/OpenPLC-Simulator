@@ -20,7 +20,7 @@
      Step 10-12: Task 1 (dry→wet) + X velocity measurement
      Step 20-22: Task 2 (wet→dry)
      Step 30:    Read results from g_move → g_cal
-     Step 40:    Next transporter or step 100
+     Step 40:    Next transporter or cal_step 100
 
    Global control:
      Step   0: Idle (waiting for cmd=1)
@@ -33,7 +33,7 @@
      i_cmd  — one-shot command: 1=start, 2=calculate, 3=abort
 
    Outputs:
-     o_step   — current step number
+     o_step   — current cal_step number
      o_tid    — transporter being calibrated
      o_active — TRUE while calibration is running
    ============================================================ *)
@@ -44,7 +44,7 @@ VAR_INPUT
   i_cmd : INT;        (* one-shot: 1=start, 2=calculate, 3=abort *)
 END_VAR
 VAR_OUTPUT
-  o_step   : INT;     (* current calibration step *)
+  o_step   : INT;     (* current calibration cal_step *)
   o_tid    : INT;     (* transporter being calibrated *)
   o_active : BOOL;    (* calibration in progress *)
 END_VAR
@@ -57,7 +57,7 @@ VAR_EXTERNAL
   g_time_s      : REAL;
 END_VAR
 VAR
-  step       : INT := 0;
+  cal_step       : INT := 0;
   tid        : INT := 0;      (* current transporter 1..3 *)
   task_key   : REAL := 0.0;   (* task_id for issued task *)
   (* X velocity measurement during phase 3 of task 1 *)
@@ -90,7 +90,7 @@ IF NOT i_run THEN
 END_IF;
 
 (* ── Command handling ── *)
-IF i_cmd = 1 AND step = 0 THEN
+IF i_cmd = 1 AND cal_step = 0 THEN
   (* Start calibration — find first active transporter with plan *)
   tid := 0;
   FOR ci := 1 TO 3 DO
@@ -101,19 +101,19 @@ IF i_cmd = 1 AND step = 0 THEN
     END_IF;
   END_FOR;
   IF tid > 0 THEN
-    step := 10;
+    cal_step := 10;
     o_active := TRUE;
   END_IF;
 END_IF;
 
-IF i_cmd = 2 AND step = 100 THEN
+IF i_cmd = 2 AND cal_step = 100 THEN
   (* Calculate g_move from measured parameters *)
-  step := 200;
+  cal_step := 200;
 END_IF;
 
 IF i_cmd = 3 THEN
   (* Abort — reset to idle *)
-  step := 0;
+  cal_step := 0;
   tid := 0;
   o_active := FALSE;
 END_IF;
@@ -123,7 +123,7 @@ END_IF;
    MeasureMoveTimes records lift_s[dry], sink_s[wet], travel[dry→wet].
    X velocity profile measured during phase 3 (travel dry→wet).
    ================================================================ *)
-IF step = 10 THEN
+IF cal_step = 10 THEN
   (* Issue task 1: lift from dry, sink to wet *)
   task_key := g_time_s + 0.001;
   g_transporter[tid].task_id := task_key;
@@ -136,17 +136,17 @@ IF step = 10 THEN
   x_max_v   := 0.0;
   x_acc_t   := 0.0;
   x_dec_t   := 0.0;
-  step := 11;
+  cal_step := 11;
 END_IF;
 
-IF step = 11 THEN
+IF cal_step = 11 THEN
   (* Wait for task acceptance *)
   IF g_transporter[tid].running_task_id = task_key THEN
-    step := 12;
+    cal_step := 12;
   END_IF;
 END_IF;
 
-IF step = 12 THEN
+IF cal_step = 12 THEN
   cur_v := ABS(g_transporter[tid].vel_x);
 
   (* ── Track X velocity during phase 3 (travel dry→wet) ── *)
@@ -197,7 +197,7 @@ IF step = 12 THEN
 
   (* ── Wait for full task completion (phase returns to 0) ── *)
   IF g_transporter[tid].phase = 0 AND x_meas_ph >= 99 THEN
-    step := 20;
+    cal_step := 20;
   END_IF;
 END_IF;
 
@@ -205,25 +205,25 @@ END_IF;
    STEP 20-22: TASK 2 — lift=wet_station, sink=dry_station
    MeasureMoveTimes records lift_s[wet], sink_s[dry], travel[wet→dry].
    ================================================================ *)
-IF step = 20 THEN
+IF cal_step = 20 THEN
   (* Issue task 2: lift from wet, sink to dry *)
   task_key := g_time_s + 0.001;
   g_transporter[tid].task_id := task_key;
   g_transporter[tid].lift_station := g_cal[tid].wet_station;
   g_transporter[tid].sink_station := g_cal[tid].dry_station;
-  step := 21;
+  cal_step := 21;
 END_IF;
 
-IF step = 21 THEN
+IF cal_step = 21 THEN
   IF g_transporter[tid].running_task_id = task_key THEN
-    step := 22;
+    cal_step := 22;
   END_IF;
 END_IF;
 
-IF step = 22 THEN
+IF cal_step = 22 THEN
   (* Wait for task completion *)
   IF g_transporter[tid].phase = 0 THEN
-    step := 30;
+    cal_step := 30;
   END_IF;
 END_IF;
 
@@ -231,7 +231,7 @@ END_IF;
    STEP 30: READ RESULTS FROM g_move → g_cal
    MeasureMoveTimes has recorded all 4 lift/sink times into g_move.
    ================================================================ *)
-IF step = 30 THEN
+IF cal_step = 30 THEN
   wet_idx := g_cal[tid].wet_station - 100;
   dry_idx := g_cal[tid].dry_station - 100;
 
@@ -245,13 +245,13 @@ IF step = 30 THEN
     g_cal[tid].sink_dry_s := g_move[tid].sink_s[dry_idx];
   END_IF;
 
-  step := 40;
+  cal_step := 40;
 END_IF;
 
 (* ================================================================
    STEP 40: TRANSPORTER DONE — advance to next or finish
    ================================================================ *)
-IF step = 40 THEN
+IF cal_step = 40 THEN
   (* Find next active transporter after current tid with plan *)
   next_tid := 0;
   FOR ci := tid + 1 TO 3 DO
@@ -265,10 +265,10 @@ IF step = 40 THEN
   IF next_tid > 0 THEN
     (* Calibrate next transporter *)
     tid := next_tid;
-    step := 10;
+    cal_step := 10;
   ELSE
     (* All transporters done — measurement complete *)
-    step := 100;
+    cal_step := 100;
   END_IF;
 END_IF;
 
@@ -280,7 +280,7 @@ END_IF;
      - Calculate all station-to-station travel times using
        measured v_max, t_acc, t_dec and station distances
    ================================================================ *)
-IF step = 200 THEN
+IF cal_step = 200 THEN
   FOR ci := 1 TO 3 DO
     IF g_transporter[ci].active AND g_cal[ci].x_max_mm_s > 0.0 THEN
 
@@ -347,15 +347,15 @@ IF step = 200 THEN
     END_IF;
   END_FOR;
 
-  step := 999;
+  cal_step := 999;
 END_IF;
 
 (* ── Update outputs ── *)
-o_step := step;
+o_step := cal_step;
 o_tid  := tid;
-IF step > 0 AND step < 999 THEN
+IF cal_step > 0 AND cal_step < 999 THEN
   o_active := TRUE;
-ELSIF step = 999 THEN
+ELSIF cal_step = 999 THEN
   o_active := FALSE;
 ELSE
   o_active := FALSE;
