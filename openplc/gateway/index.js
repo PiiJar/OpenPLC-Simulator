@@ -118,6 +118,17 @@ let plcAlive = false;
 let simStartTime = Date.now();
 let simRunning = false;
 
+// --- Calibration state (updated from QW170..QW192) ---
+let calibrationState = {
+  step: 0,
+  tid: 0,
+  results: [
+    { id: 1, lift_wet: 0, sink_wet: 0, lift_dry: 0, sink_dry: 0, x_acc: 0, x_dec: 0, x_max: 0 },
+    { id: 2, lift_wet: 0, sink_wet: 0, lift_dry: 0, sink_dry: 0, x_acc: 0, x_dec: 0, x_max: 0 },
+    { id: 3, lift_wet: 0, sink_wet: 0, lift_dry: 0, sink_dry: 0, x_acc: 0, x_dec: 0, x_max: 0 }
+  ]
+};
+
 // --- PLC Runtime API state ---
 let plcJwtToken = null;
 let plcRuntimeStatus = 'unknown'; // 'running' | 'stopped' | 'unknown'
@@ -346,6 +357,26 @@ async function readPLCState() {
       timestamp: new Date().toISOString(),
       transporters
     };
+    
+    // Read calibration registers QW170..QW192 (23 registers)
+    try {
+      const calResult = await client.readHoldingRegisters(170, 23);
+      const c = calResult.data;
+      calibrationState.step = c[0];
+      calibrationState.tid = c[1];
+      for (let t = 0; t < 3; t++) {
+        const base = 2 + t * 7;
+        calibrationState.results[t].lift_wet = c[base]     / 10.0;
+        calibrationState.results[t].sink_wet = c[base + 1] / 10.0;
+        calibrationState.results[t].lift_dry = c[base + 2] / 10.0;
+        calibrationState.results[t].sink_dry = c[base + 3] / 10.0;
+        calibrationState.results[t].x_acc    = c[base + 4] / 10.0;
+        calibrationState.results[t].x_dec    = c[base + 5] / 10.0;
+        calibrationState.results[t].x_max    = c[base + 6];
+      }
+    } catch (calErr) {
+      // Calibration registers not critical — ignore read errors
+    }
     
     return plcState;
   } catch (err) {
@@ -932,6 +963,258 @@ app.post('/api/batch', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+    console.log(`[BATCH] Complete: unit=${unitIndex}, prog=${programId}, ${(stages || []).length} stages`);
+    res.json({ ok: true, stagesWritten: (stages || []).length });
+  } catch (err) {
+    console.error(`[BATCH] Error: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
+// CALIBRATION — Teaching mode for measuring transporter kinematics
+// ============================================================
+
+// GET /api/calibrate/status — current calibration state + results
+app.get('/api/calibrate/status', (req, res) => {
+  res.json(calibrationState);
+});
+
+// POST /api/calibrate/plan — send calibration plan for all transporters
+// Body: { transporters: [{ id:1, wet_station:103, dry_station:101 }, ...] }
+app.post('/api/calibrate/plan', async (req, res) => {
+  try {
+    if (!connected) return res.status(503).json({ error: 'PLC not connected' });
+    const { transporters: plans } = req.body;
+    if (!Array.isArray(plans) || plans.length === 0) {
+      return res.status(400).json({ error: 'transporters array required' });
+    }
+
+    const CFG_BASE = 110;
+    let seq = (await readCfgSeq()) + 1;
+
+    for (const plan of plans) {
+      const tid = plan.id;
+      if (tid < 1 || tid > 3) continue;
+
+      // cfg_cmd=7: calibration plan (d0=wet_station, d1=dry_station)
+      await client.writeRegisters(CFG_BASE + 3, [
+        plan.wet_station || 0,
+        plan.dry_station || 0,
+        0, 0, 0, 0, 0
+      ]);
+      await client.writeRegisters(CFG_BASE + 2, [tid]);
+      await client.writeRegisters(CFG_BASE + 1, [7]);
+      await client.writeRegisters(CFG_BASE + 0, [seq]);
+      if (!await waitForCfgAck(seq, 2000)) {
+        return res.status(504).json({ error: `PLC ack timeout for calibration plan T${tid}` });
+      }
+      console.log(`[CAL] Plan uploaded for T${tid}: wet=${plan.wet_station} dry=${plan.dry_station}`);
+      seq++;
+    }
+
+    res.json({ ok: true, plansWritten: plans.length });
+  } catch (err) {
+    console.error(`[CAL] Plan error: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/calibrate/start — start calibration sequence
+app.post('/api/calibrate/start', async (req, res) => {
+  try {
+    if (!connected) return res.status(503).json({ error: 'PLC not connected' });
+    const CFG_BASE = 110;
+    let seq = (await readCfgSeq()) + 1;
+
+    // cfg_cmd=8, param=1 (start)
+    await client.writeRegisters(CFG_BASE + 3, [0, 0, 0, 0, 0, 0, 0]);
+    await client.writeRegisters(CFG_BASE + 2, [1]);
+    await client.writeRegisters(CFG_BASE + 1, [8]);
+    await client.writeRegisters(CFG_BASE + 0, [seq]);
+    if (!await waitForCfgAck(seq, 2000)) {
+      return res.status(504).json({ error: 'PLC ack timeout for calibration start' });
+    }
+
+    console.log(`[CAL] Calibration started`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(`[CAL] Start error: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/calibrate/calculate — tell PLC to fill g_move from measurements
+app.post('/api/calibrate/calculate', async (req, res) => {
+  try {
+    if (!connected) return res.status(503).json({ error: 'PLC not connected' });
+    const CFG_BASE = 110;
+    let seq = (await readCfgSeq()) + 1;
+
+    // cfg_cmd=8, param=2 (calculate)
+    await client.writeRegisters(CFG_BASE + 3, [0, 0, 0, 0, 0, 0, 0]);
+    await client.writeRegisters(CFG_BASE + 2, [2]);
+    await client.writeRegisters(CFG_BASE + 1, [8]);
+    await client.writeRegisters(CFG_BASE + 0, [seq]);
+    if (!await waitForCfgAck(seq, 2000)) {
+      return res.status(504).json({ error: 'PLC ack timeout for calibration calculate' });
+    }
+
+    console.log(`[CAL] Calculate command sent`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(`[CAL] Calculate error: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/calibrate/abort — stop calibration, return to idle
+app.post('/api/calibrate/abort', async (req, res) => {
+  try {
+    if (!connected) return res.status(503).json({ error: 'PLC not connected' });
+    const CFG_BASE = 110;
+    let seq = (await readCfgSeq()) + 1;
+
+    // cfg_cmd=8, param=3 (abort)
+    await client.writeRegisters(CFG_BASE + 3, [0, 0, 0, 0, 0, 0, 0]);
+    await client.writeRegisters(CFG_BASE + 2, [3]);
+    await client.writeRegisters(CFG_BASE + 1, [8]);
+    await client.writeRegisters(CFG_BASE + 0, [seq]);
+    if (!await waitForCfgAck(seq, 2000)) {
+      return res.status(504).json({ error: 'PLC ack timeout for calibration abort' });
+    }
+
+    console.log(`[CAL] Calibration aborted`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(`[CAL] Abort error: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/calibrate/save — save calibration results to customer folder
+// Generates movement_times.json from measured kinematic parameters
+app.post('/api/calibrate/save', async (req, res) => {
+  try {
+    if (!currentCustomer || !currentPlant) {
+      return res.status(400).json({ error: 'No customer/plant selected' });
+    }
+
+    const plantPath = getCurrentCustomerPath();
+    const stations = stationsConfig.stations || [];
+    const transporters = transporterConfig.transporters || [];
+
+    // Build movement_times for each active transporter from calibration results
+    const movementTimes = {};
+
+    for (const cal of calibrationState.results) {
+      const tid = cal.id;
+      const tr = transporters.find(t => t.id === tid);
+      if (!tr || cal.x_max <= 0) continue;
+
+      const vm = cal.x_max;       // mm/s
+      const ta = cal.x_acc;       // s
+      const td = cal.x_dec;       // s
+      const dAcc = 0.5 * vm * ta; // mm
+      const dDec = 0.5 * vm * td; // mm
+
+      // Build lift_s, sink_s per station
+      const liftS = {};
+      const sinkS = {};
+      for (const st of stations) {
+        const idx = st.number - 100;
+        if (idx < 1 || idx > 25) continue;
+        if (st.type === 1) {
+          // Wet station
+          liftS[st.number] = Math.round(cal.lift_wet * 100) / 100;
+          sinkS[st.number] = Math.round(cal.sink_wet * 100) / 100;
+        } else {
+          // Dry station
+          liftS[st.number] = Math.round(cal.lift_dry * 100) / 100;
+          sinkS[st.number] = Math.round(cal.sink_dry * 100) / 100;
+        }
+      }
+
+      // Build travel time matrix
+      const travel = {};
+      for (const fromSt of stations) {
+        travel[fromSt.number] = {};
+        for (const toSt of stations) {
+          if (fromSt.number === toSt.number) {
+            travel[fromSt.number][toSt.number] = 0;
+            continue;
+          }
+          const dist = Math.abs(fromSt.x_position - toSt.x_position);
+          let travelTime;
+          if (dist < 1) {
+            travelTime = 0;
+          } else if (dist >= dAcc + dDec) {
+            travelTime = ta + (dist - dAcc - dDec) / vm + td;
+          } else {
+            // Triangle profile
+            if (ta + td > 0) {
+              const vPeak = Math.sqrt(2 * dist * vm / (ta + td));
+              travelTime = vPeak * (ta + td) / vm;
+            } else {
+              travelTime = 0;
+            }
+          }
+          travel[fromSt.number][toSt.number] = Math.round(travelTime * 100) / 100;
+        }
+      }
+
+      movementTimes[`transporter_${tid}`] = {
+        id: tid,
+        kinematic_params: {
+          x_max_mm_s: vm,
+          x_accel_s: ta,
+          x_decel_s: td,
+          lift_wet_s: cal.lift_wet,
+          sink_wet_s: cal.sink_wet,
+          lift_dry_s: cal.lift_dry,
+          sink_dry_s: cal.sink_dry
+        },
+        lift_s: liftS,
+        sink_s: sinkS,
+        travel
+      };
+    }
+
+    // Save to customer folder
+    const outPath = path.join(plantPath, 'movement_times.json');
+    fs.writeFileSync(outPath, JSON.stringify(movementTimes, null, 2));
+    console.log(`[CAL] Saved movement_times.json to ${outPath}`);
+
+    res.json({ ok: true, path: outPath, transporters: Object.keys(movementTimes).length });
+  } catch (err) {
+    console.error(`[CAL] Save error: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/calibrate/file — download existing movement_times.json
+app.get('/api/calibrate/file', (req, res) => {
+  if (!currentCustomer || !currentPlant) {
+    return res.status(400).json({ error: 'No customer/plant selected' });
+  }
+  const filePath = path.join(getCurrentCustomerPath(), 'movement_times.json');
+  if (fs.existsSync(filePath)) {
+    res.json(JSON.parse(fs.readFileSync(filePath, 'utf8')));
+  } else {
+    res.status(404).json({ error: 'No movement_times.json found' });
+  }
+});
+
+// Helper: read current cfg_ack to determine next seq
+async function readCfgSeq() {
+  try {
+    const result = await client.readHoldingRegisters(21, 1);
+    return result.data[0] || 0;
+  } catch (_) {
+    return 0;
+  }
+}
 
 // PLC info endpoint (combined Modbus + Runtime API state)
 app.get('/api/plc/status', (req, res) => {

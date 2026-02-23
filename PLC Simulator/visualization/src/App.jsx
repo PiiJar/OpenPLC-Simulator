@@ -5,6 +5,7 @@ import * as d3 from "d3";
 // Import modular StationLayout component
 import StationLayout from './components/StationLayout';
 import DraggablePanel from './components/StationLayout/helpers/DraggablePanel';
+import CalibrationPanel from './components/CalibrationPanel';
 
 // Load color palette at startup (runtime, no rebuild needed)
 import { loadPalette } from './hooks/useColorPalette';
@@ -79,6 +80,7 @@ export default function App() {
   const [plcToggling, setPlcToggling] = useState(false);
   // Layout config editor
   const [showConfig, setShowConfig] = useState(false);
+  const [showCalibration, setShowCalibration] = useState(false);
   const [configForm, setConfigForm] = useState(null);
   const [configSaving, setConfigSaving] = useState(false);
   const [configError, setConfigError] = useState('');
@@ -1578,6 +1580,27 @@ export default function App() {
             <span>Config</span>
           </button>
           <button
+            onClick={() => setShowCalibration((v) => !v)}
+            style={{
+              padding: '8px 12px',
+              fontSize: '12px',
+              fontWeight: 600,
+              borderRadius: '4px',
+              border: '1px solid #ccc',
+              background: showCalibration ? '#1976d2' : '#fff',
+              color: showCalibration ? '#fff' : '#333',
+              cursor: 'pointer',
+              width: 80,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 2
+            }}
+          >
+            <span style={{ fontSize: 18 }}>🎯</span>
+            <span>Calibrate</span>
+          </button>
+          <button
             onClick={() => setShowProduction((v) => !v)}
             style={{
               padding: '8px 12px',
@@ -1771,6 +1794,16 @@ export default function App() {
       )}
 
           {/* Config Layout Editor Panel */}
+
+          {/* Calibration Panel */}
+          {showCalibration && (
+            <CalibrationPanel
+              onClose={() => setShowCalibration(false)}
+              stations={stations}
+              transporterStates={transporterStates}
+            />
+          )}
+
           {showConfig && configForm && (
             <DraggablePanel title="Layout Configuration" onClose={() => { setShowConfig(false); setConfigError(''); }} width={480}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 400 }}>

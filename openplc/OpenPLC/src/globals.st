@@ -63,6 +63,9 @@ VAR_GLOBAL
   g_dep_pending       : DEP_PENDING_WRITE_T;              (* ACTIVATE → write buffer *)
   g_dep_activated     : BOOL;                             (* handshake TSK ← DEP *)
   g_dep_stable        : BOOL;                             (* handshake TSK → DEP: task list stable *)
+  (* --- Calibration state --- *)
+  g_cal              : ARRAY[1..3] OF CALIBRATION_T;      (* calibration plan + results per transporter *)
+  g_cal_active       : BOOL;                              (* TRUE during calibration — inhibits schedulers *)
   (* --- Epoch-offset time model --- *)
   (* g_epoch_h = Unix hours, g_time_s = seconds since epoch_h              *)
   (* Absolute time = g_epoch_h * 3600 + g_time_s                           *)
@@ -254,4 +257,35 @@ VAR_GLOBAL
   iw_epoch_h   AT %QW160 : INT;  (* Unix hours — epoch reference *)
   iw_time_hi   AT %QW161 : INT;  (* g_time_s upper: floor(time_s*10 / 65536) *)
   iw_time_lo   AT %QW162 : INT;  (* g_time_s lower: time_s*10 MOD 65536 *)
+
+  (* --- Modbus OUTPUT: Calibration status & results (QW170..QW192) --- *)
+  (*   Gateway polls these during/after calibration.
+       Times are × 10 for 0.1 s precision in INT Modbus registers.
+       x_max is integer mm/s. *)
+  qw_cal_step     AT %QW170 : INT;  (* calibration step: 0=idle, 10-40=measuring, 100=done, 200=calculating, 999=complete *)
+  qw_cal_tid      AT %QW171 : INT;  (* transporter being calibrated (1..3, 0=none) *)
+  (* T1 results: QW172..QW178 *)
+  qw_cal_t1_lift_wet AT %QW172 : INT;
+  qw_cal_t1_sink_wet AT %QW173 : INT;
+  qw_cal_t1_lift_dry AT %QW174 : INT;
+  qw_cal_t1_sink_dry AT %QW175 : INT;
+  qw_cal_t1_x_acc    AT %QW176 : INT;
+  qw_cal_t1_x_dec    AT %QW177 : INT;
+  qw_cal_t1_x_max    AT %QW178 : INT;
+  (* T2 results: QW179..QW185 *)
+  qw_cal_t2_lift_wet AT %QW179 : INT;
+  qw_cal_t2_sink_wet AT %QW180 : INT;
+  qw_cal_t2_lift_dry AT %QW181 : INT;
+  qw_cal_t2_sink_dry AT %QW182 : INT;
+  qw_cal_t2_x_acc    AT %QW183 : INT;
+  qw_cal_t2_x_dec    AT %QW184 : INT;
+  qw_cal_t2_x_max    AT %QW185 : INT;
+  (* T3 results: QW186..QW192 *)
+  qw_cal_t3_lift_wet AT %QW186 : INT;
+  qw_cal_t3_sink_wet AT %QW187 : INT;
+  qw_cal_t3_lift_dry AT %QW188 : INT;
+  qw_cal_t3_sink_dry AT %QW189 : INT;
+  qw_cal_t3_x_acc    AT %QW190 : INT;
+  qw_cal_t3_x_dec    AT %QW191 : INT;
+  qw_cal_t3_x_max    AT %QW192 : INT;
 END_VAR

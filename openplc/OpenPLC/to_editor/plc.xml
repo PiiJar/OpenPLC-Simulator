@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-23T14:25:00"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-23T14:25:00">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-23T15:22:29"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-23T15:22:29">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -657,6 +657,39 @@
               <type><INT/></type>
             </variable>
             <variable name="time_s">
+              <type><REAL/></type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
+      <dataType name="CALIBRATION_T">
+        <baseType>
+          <struct>
+            <variable name="wet_station">
+              <type><INT/></type>
+            </variable>
+            <variable name="dry_station">
+              <type><INT/></type>
+            </variable>
+            <variable name="lift_wet_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="sink_wet_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="lift_dry_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="sink_dry_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="x_accel_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="x_decel_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="x_max_mm_s">
               <type><REAL/></type>
             </variable>
           </struct>
@@ -2259,6 +2292,14 @@ END_FOR;]]></xhtml:p>
                 </array>
               </type>
             </variable>
+            <variable name="g_move">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="MOVE_TIMES_T"/></baseType>
+                </array>
+              </type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="i">
@@ -2326,6 +2367,15 @@ END_FOR;]]></xhtml:p>
             </variable>
             <variable name="dx">
               <type><REAL/></type>
+            </variable>
+            <variable name="tm1">
+              <type><derived name="STC_FB_MeasureMoveTimes"/></type>
+            </variable>
+            <variable name="tm2">
+              <type><derived name="STC_FB_MeasureMoveTimes"/></type>
+            </variable>
+            <variable name="tm3">
+              <type><derived name="STC_FB_MeasureMoveTimes"/></type>
             </variable>
           </localVars>
         </interface>
@@ -2607,6 +2657,27 @@ FOR i := 1 TO 3 DO
     END_IF;
   END_FOR;
   g_transporter[i].current_station := nearest_num;
+
+  (* ── Measure move times (one instance per transporter) ──── *)
+  IF i = 1 THEN
+    tm1(t_id := 1, phase := g_transporter[1].phase, delta_t := 0.02,
+        vel_x := g_transporter[1].vel_x, z_stage := g_transporter[1].z_stage,
+        lift_stn := g_transporter[1].lift_station,
+        sink_stn := g_transporter[1].sink_station,
+        from_stn := g_transporter[1].current_station);
+  ELSIF i = 2 THEN
+    tm2(t_id := 2, phase := g_transporter[2].phase, delta_t := 0.02,
+        vel_x := g_transporter[2].vel_x, z_stage := g_transporter[2].z_stage,
+        lift_stn := g_transporter[2].lift_station,
+        sink_stn := g_transporter[2].sink_station,
+        from_stn := g_transporter[2].current_station);
+  ELSIF i = 3 THEN
+    tm3(t_id := 3, phase := g_transporter[3].phase, delta_t := 0.02,
+        vel_x := g_transporter[3].vel_x, z_stage := g_transporter[3].z_stage,
+        lift_stn := g_transporter[3].lift_station,
+        sink_stn := g_transporter[3].sink_station,
+        from_stn := g_transporter[3].current_station);
+  END_IF;
 
   END_IF;  (* active *)
 END_FOR;]]></xhtml:p>
@@ -2997,6 +3068,433 @@ END_IF;]]></xhtml:p>
           </ST>
         </body>
       </pou>
+      <pou name="STC_FB_Calibrate" pouType="functionBlock">
+        <interface>
+          <inputVars>
+            <variable name="i_run">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="i_cmd">
+              <type><INT/></type>
+            </variable>
+          </inputVars>
+          <outputVars>
+            <variable name="o_step">
+              <type><INT/></type>
+            </variable>
+            <variable name="o_tid">
+              <type><INT/></type>
+            </variable>
+            <variable name="o_active">
+              <type><BOOL/></type>
+            </variable>
+          </outputVars>
+          <externalVars>
+            <variable name="g_transporter">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="STC_TRANSPORTER_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_stations">
+              <type>
+                <array>
+                  <dimension lower="101" upper="125"/>
+                  <baseType><derived name="STATION_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_cfg">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="TRANSPORTER_CFG_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_cal">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="CALIBRATION_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_move">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="MOVE_TIMES_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_time_s">
+              <type><REAL/></type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="step">
+              <type><INT/></type>
+              <initialValue><simpleValue value="0"/></initialValue>
+            </variable>
+            <variable name="tid">
+              <type><INT/></type>
+              <initialValue><simpleValue value="0"/></initialValue>
+            </variable>
+            <variable name="task_key">
+              <type><REAL/></type>
+              <initialValue><simpleValue value="0.0"/></initialValue>
+            </variable>
+            <variable name="x_meas_ph">
+              <type><INT/></type>
+              <initialValue><simpleValue value="0"/></initialValue>
+            </variable>
+            <variable name="x_timer">
+              <type><REAL/></type>
+              <initialValue><simpleValue value="0.0"/></initialValue>
+            </variable>
+            <variable name="x_prev_v">
+              <type><REAL/></type>
+              <initialValue><simpleValue value="0.0"/></initialValue>
+            </variable>
+            <variable name="x_max_v">
+              <type><REAL/></type>
+              <initialValue><simpleValue value="0.0"/></initialValue>
+            </variable>
+            <variable name="x_acc_t">
+              <type><REAL/></type>
+              <initialValue><simpleValue value="0.0"/></initialValue>
+            </variable>
+            <variable name="x_dec_t">
+              <type><REAL/></type>
+              <initialValue><simpleValue value="0.0"/></initialValue>
+            </variable>
+            <variable name="cur_v">
+              <type><REAL/></type>
+            </variable>
+            <variable name="ci">
+              <type><INT/></type>
+            </variable>
+            <variable name="cj">
+              <type><INT/></type>
+            </variable>
+            <variable name="dist">
+              <type><REAL/></type>
+            </variable>
+            <variable name="d_acc">
+              <type><REAL/></type>
+            </variable>
+            <variable name="d_dec">
+              <type><REAL/></type>
+            </variable>
+            <variable name="v_peak">
+              <type><REAL/></type>
+            </variable>
+            <variable name="travel_t">
+              <type><REAL/></type>
+            </variable>
+            <variable name="vm">
+              <type><REAL/></type>
+            </variable>
+            <variable name="ta">
+              <type><REAL/></type>
+            </variable>
+            <variable name="td">
+              <type><REAL/></type>
+            </variable>
+            <variable name="next_tid">
+              <type><INT/></type>
+            </variable>
+            <variable name="wet_idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="dry_idx">
+              <type><INT/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[IF NOT i_run THEN
+  RETURN;
+END_IF;
+
+(* ── Command handling ── *)
+IF i_cmd = 1 AND step = 0 THEN
+  (* Start calibration — find first active transporter with plan *)
+  tid := 0;
+  FOR ci := 1 TO 3 DO
+    IF g_transporter[ci].active AND tid = 0 THEN
+      IF g_cal[ci].wet_station > 0 AND g_cal[ci].dry_station > 0 THEN
+        tid := ci;
+      END_IF;
+    END_IF;
+  END_FOR;
+  IF tid > 0 THEN
+    step := 10;
+    o_active := TRUE;
+  END_IF;
+END_IF;
+
+IF i_cmd = 2 AND step = 100 THEN
+  (* Calculate g_move from measured parameters *)
+  step := 200;
+END_IF;
+
+IF i_cmd = 3 THEN
+  (* Abort — reset to idle *)
+  step := 0;
+  tid := 0;
+  o_active := FALSE;
+END_IF;
+
+(* ================================================================
+   STEP 10-12: TASK 1 — lift=dry_station, sink=wet_station
+   MeasureMoveTimes records lift_s[dry], sink_s[wet], travel[dry→wet].
+   X velocity profile measured during phase 3 (travel dry→wet).
+   ================================================================ *)
+IF step = 10 THEN
+  (* Issue task 1: lift from dry, sink to wet *)
+  task_key := g_time_s + 0.001;
+  g_transporter[tid].task_id := task_key;
+  g_transporter[tid].lift_station := g_cal[tid].dry_station;
+  g_transporter[tid].sink_station := g_cal[tid].wet_station;
+  (* Reset X velocity measurement *)
+  x_meas_ph := 0;
+  x_timer   := 0.0;
+  x_prev_v  := 0.0;
+  x_max_v   := 0.0;
+  x_acc_t   := 0.0;
+  x_dec_t   := 0.0;
+  step := 11;
+END_IF;
+
+IF step = 11 THEN
+  (* Wait for task acceptance *)
+  IF g_transporter[tid].running_task_id = task_key THEN
+    step := 12;
+  END_IF;
+END_IF;
+
+IF step = 12 THEN
+  cur_v := ABS(g_transporter[tid].vel_x);
+
+  (* ── Track X velocity during phase 3 (travel dry→wet) ── *)
+  IF g_transporter[tid].phase = 3 THEN
+    IF x_meas_ph = 0 AND cur_v > 0.5 THEN
+      (* Acceleration started *)
+      x_meas_ph := 1;
+      x_timer := 0.02;
+      x_prev_v := cur_v;
+      x_max_v := cur_v;
+
+    ELSIF x_meas_ph = 1 THEN
+      x_timer := x_timer + 0.02;
+      IF cur_v > x_max_v THEN
+        x_max_v := cur_v;
+      END_IF;
+      IF cur_v <= x_prev_v THEN
+        (* Velocity stopped increasing → reached v_max *)
+        x_acc_t := x_timer - 0.02;
+        x_meas_ph := 2;
+        x_timer := 0.0;
+      END_IF;
+      x_prev_v := cur_v;
+
+    ELSIF x_meas_ph = 2 THEN
+      (* Cruising — wait for deceleration *)
+      IF cur_v < x_max_v - 1.0 THEN
+        x_meas_ph := 3;
+        x_timer := 0.02;
+      END_IF;
+
+    ELSIF x_meas_ph = 3 THEN
+      x_timer := x_timer + 0.02;
+    END_IF;
+  END_IF;
+
+  (* ── Phase 3 ended or phase 4 reached: store X results ── *)
+  IF g_transporter[tid].phase >= 4 AND x_meas_ph >= 1 THEN
+    IF x_meas_ph = 3 THEN
+      x_dec_t := x_timer;
+    END_IF;
+    g_cal[tid].x_accel_s  := x_acc_t;
+    g_cal[tid].x_decel_s  := x_dec_t;
+    g_cal[tid].x_max_mm_s := x_max_v;
+    (* Don't re-enter — set meas_ph to done *)
+    x_meas_ph := 99;
+  END_IF;
+
+  (* ── Wait for full task completion (phase returns to 0) ── *)
+  IF g_transporter[tid].phase = 0 AND x_meas_ph >= 99 THEN
+    step := 20;
+  END_IF;
+END_IF;
+
+(* ================================================================
+   STEP 20-22: TASK 2 — lift=wet_station, sink=dry_station
+   MeasureMoveTimes records lift_s[wet], sink_s[dry], travel[wet→dry].
+   ================================================================ *)
+IF step = 20 THEN
+  (* Issue task 2: lift from wet, sink to dry *)
+  task_key := g_time_s + 0.001;
+  g_transporter[tid].task_id := task_key;
+  g_transporter[tid].lift_station := g_cal[tid].wet_station;
+  g_transporter[tid].sink_station := g_cal[tid].dry_station;
+  step := 21;
+END_IF;
+
+IF step = 21 THEN
+  IF g_transporter[tid].running_task_id = task_key THEN
+    step := 22;
+  END_IF;
+END_IF;
+
+IF step = 22 THEN
+  (* Wait for task completion *)
+  IF g_transporter[tid].phase = 0 THEN
+    step := 30;
+  END_IF;
+END_IF;
+
+(* ================================================================
+   STEP 30: READ RESULTS FROM g_move → g_cal
+   MeasureMoveTimes has recorded all 4 lift/sink times into g_move.
+   ================================================================ *)
+IF step = 30 THEN
+  wet_idx := g_cal[tid].wet_station - 100;
+  dry_idx := g_cal[tid].dry_station - 100;
+
+  IF wet_idx >= 1 AND wet_idx <= 25 THEN
+    g_cal[tid].lift_wet_s := g_move[tid].lift_s[wet_idx];
+    g_cal[tid].sink_wet_s := g_move[tid].sink_s[wet_idx];
+  END_IF;
+
+  IF dry_idx >= 1 AND dry_idx <= 25 THEN
+    g_cal[tid].lift_dry_s := g_move[tid].lift_s[dry_idx];
+    g_cal[tid].sink_dry_s := g_move[tid].sink_s[dry_idx];
+  END_IF;
+
+  step := 40;
+END_IF;
+
+(* ================================================================
+   STEP 40: TRANSPORTER DONE — advance to next or finish
+   ================================================================ *)
+IF step = 40 THEN
+  (* Find next active transporter after current tid with plan *)
+  next_tid := 0;
+  FOR ci := tid + 1 TO 3 DO
+    IF g_transporter[ci].active AND next_tid = 0 THEN
+      IF g_cal[ci].wet_station > 0 AND g_cal[ci].dry_station > 0 THEN
+        next_tid := ci;
+      END_IF;
+    END_IF;
+  END_FOR;
+
+  IF next_tid > 0 THEN
+    (* Calibrate next transporter *)
+    tid := next_tid;
+    step := 10;
+  ELSE
+    (* All transporters done — measurement complete *)
+    step := 100;
+  END_IF;
+END_IF;
+
+(* ================================================================
+   STEP 200: CALCULATE g_move FROM MEASURED PARAMETERS
+   For each active transporter with calibration data:
+     - Copy lift/sink wet times to all wet stations
+     - Copy lift/sink dry times to all dry stations
+     - Calculate all station-to-station travel times using
+       measured v_max, t_acc, t_dec and station distances
+   ================================================================ *)
+IF step = 200 THEN
+  FOR ci := 1 TO 3 DO
+    IF g_transporter[ci].active AND g_cal[ci].x_max_mm_s > 0.0 THEN
+
+      vm := g_cal[ci].x_max_mm_s;
+      ta := g_cal[ci].x_accel_s;
+      td := g_cal[ci].x_decel_s;
+
+      (* --- Fill lift_s and sink_s per station type --- *)
+      FOR cj := 1 TO 25 DO
+        IF g_stations[100 + cj].tank_id <> 0 THEN
+          IF g_stations[100 + cj].stn_type = 1 THEN
+            (* Wet station *)
+            g_move[ci].lift_s[cj] := g_cal[ci].lift_wet_s;
+            g_move[ci].sink_s[cj] := g_cal[ci].sink_wet_s;
+          ELSE
+            (* Dry station *)
+            g_move[ci].lift_s[cj] := g_cal[ci].lift_dry_s;
+            g_move[ci].sink_s[cj] := g_cal[ci].sink_dry_s;
+          END_IF;
+        END_IF;
+      END_FOR;
+
+      (* --- Calculate all travel times from kinematics --- *)
+      (* d_acc = 0.5 * v_max * t_acc (distance during acceleration)
+         d_dec = 0.5 * v_max * t_dec (distance during deceleration)
+         If dist >= d_acc + d_dec:
+           travel = t_acc + (dist - d_acc - d_dec) / v_max + t_dec
+         Else (triangle profile):
+           v_peak = SQRT(2 * dist * v_max / (t_acc + t_dec))
+           travel = v_peak * (t_acc + t_dec) / v_max *)
+      d_acc := 0.5 * vm * ta;
+      d_dec := 0.5 * vm * td;
+
+      FOR cj := 1 TO 25 DO
+        IF g_stations[100 + cj].tank_id <> 0 THEN
+          FOR wet_idx := 1 TO 25 DO
+            IF g_stations[100 + wet_idx].tank_id <> 0 THEN
+              IF cj = wet_idx THEN
+                g_move[ci].travel[cj].to_s[wet_idx] := 0.0;
+              ELSE
+                dist := ABS(g_stations[100 + cj].x_position - g_stations[100 + wet_idx].x_position);
+                IF dist < 1.0 THEN
+                  g_move[ci].travel[cj].to_s[wet_idx] := 0.0;
+                ELSIF dist >= (d_acc + d_dec) THEN
+                  (* Full trapezoidal profile *)
+                  travel_t := ta + (dist - d_acc - d_dec) / vm + td;
+                  g_move[ci].travel[cj].to_s[wet_idx] := travel_t;
+                ELSE
+                  (* Triangle profile — cannot reach full speed *)
+                  IF (ta + td) > 0.0 THEN
+                    v_peak := SQRT(2.0 * dist * vm / (ta + td));
+                    travel_t := v_peak * (ta + td) / vm;
+                    g_move[ci].travel[cj].to_s[wet_idx] := travel_t;
+                  ELSE
+                    g_move[ci].travel[cj].to_s[wet_idx] := 0.0;
+                  END_IF;
+                END_IF;
+              END_IF;
+            END_IF;
+          END_FOR;
+        END_IF;
+      END_FOR;
+
+    END_IF;
+  END_FOR;
+
+  step := 999;
+END_IF;
+
+(* ── Update outputs ── *)
+o_step := step;
+o_tid  := tid;
+IF step > 0 AND step < 999 THEN
+  o_active := TRUE;
+ELSIF step = 999 THEN
+  o_active := FALSE;
+ELSE
+  o_active := FALSE;
+END_IF;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
       <pou name="STC_FB_ClearTaskQueues" pouType="functionBlock">
         <interface>
           <externalVars>
@@ -3277,6 +3775,9 @@ END_FOR;]]></xhtml:p>
             <variable name="g_dep_pending">
               <type><derived name="DEP_PENDING_WRITE_T"/></type>
             </variable>
+            <variable name="g_cal_active">
+              <type><BOOL/></type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="tsk_sched">
@@ -3310,6 +3811,14 @@ END_FOR;]]></xhtml:p>
   o_tsk_phase := 0;
   o_dep_phase := 0;
   o_turn := 0;
+  RETURN;
+END_IF;
+
+(* ── Inhibit during calibration ── *)
+IF g_cal_active THEN
+  tsk_sched(i_run := FALSE, i_time_s := 0.0);
+  dep_sched(i_run := FALSE, i_time_s := 0.0, i_tsk_phase := 0);
+  turn := 0;
   RETURN;
 END_IF;
 
@@ -6216,6 +6725,86 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
                 </array>
               </type>
             </variable>
+            <variable name="g_cal">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="CALIBRATION_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_cal_active">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="qw_cal_step">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_tid">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_t1_lift_wet">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_t1_sink_wet">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_t1_lift_dry">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_t1_sink_dry">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_t1_x_acc">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_t1_x_dec">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_t1_x_max">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_t2_lift_wet">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_t2_sink_wet">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_t2_lift_dry">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_t2_sink_dry">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_t2_x_acc">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_t2_x_dec">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_t2_x_max">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_t3_lift_wet">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_t3_sink_wet">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_t3_lift_dry">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_t3_sink_dry">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_t3_x_acc">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_t3_x_dec">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_cal_t3_x_max">
+              <type><INT/></type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="init_done">
@@ -6270,6 +6859,13 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
             </variable>
             <variable name="run_tasks">
               <type><derived name="SIM_FB_RunTasks"/></type>
+            </variable>
+            <variable name="calibrate">
+              <type><derived name="STC_FB_Calibrate"/></type>
+            </variable>
+            <variable name="cal_cmd">
+              <type><INT/></type>
+              <initialValue><simpleValue value="0"/></initialValue>
             </variable>
           </localVars>
         </interface>
@@ -6359,6 +6955,23 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     END_IF;
     qw_cfg_ack := iw_cfg_seq;
 
+  ELSIF iw_cfg_cmd = 7 THEN
+    (* --- Calibration plan for one transporter --- *)
+    (* param = transporter_id (1..3)
+       d0 = wet_station   d1 = dry_station *)
+    j := iw_cfg_param;
+    IF (j >= 1) AND (j <= 3) THEN
+      g_cal[j].wet_station := iw_cfg_d0;
+      g_cal[j].dry_station := iw_cfg_d1;
+    END_IF;
+    qw_cfg_ack := iw_cfg_seq;
+
+  ELSIF iw_cfg_cmd = 8 THEN
+    (* --- Calibration control --- *)
+    (* param: 1=start, 2=calculate, 3=abort *)
+    cal_cmd := iw_cfg_param;
+    qw_cfg_ack := iw_cfg_seq;
+
   ELSIF iw_cfg_cmd = 2 THEN
     (* --- Finish init: all config uploaded, init transporter states --- *)
     g_station_count := iw_cfg_param;
@@ -6418,6 +7031,11 @@ main_sched(i_run := init_done, i_time_s := g_time_s);
 
 (* ── Execute transporter tasks (physics simulation) ── *)
 run_tasks(i_run := init_done);
+
+(* ── Calibration FB — issues test tasks, measures parameters ── *)
+calibrate(i_run := init_done, i_cmd := cal_cmd);
+cal_cmd := 0;   (* consumed after one cycle *)
+g_cal_active := calibrate.o_active;
 
 END_IF;  (* init_done *)
 
@@ -6574,7 +7192,35 @@ qw_b6_code  := g_batches[6].batch_code;  qw_b6_state  := g_batches[6].state;  qw
 qw_b7_code  := g_batches[7].batch_code;  qw_b7_state  := g_batches[7].state;  qw_b7_prog  := g_batches[7].prog_id;  qw_b7_stage  := g_batches[7].cur_stage;
 qw_b8_code  := g_batches[8].batch_code;  qw_b8_state  := g_batches[8].state;  qw_b8_prog  := g_batches[8].prog_id;  qw_b8_stage  := g_batches[8].cur_stage;
 qw_b9_code  := g_batches[9].batch_code;  qw_b9_state  := g_batches[9].state;  qw_b9_prog  := g_batches[9].prog_id;  qw_b9_stage  := g_batches[9].cur_stage;
-qw_b10_code := g_batches[10].batch_code; qw_b10_state := g_batches[10].state; qw_b10_prog := g_batches[10].prog_id; qw_b10_stage := g_batches[10].cur_stage;]]></xhtml:p>
+qw_b10_code := g_batches[10].batch_code; qw_b10_state := g_batches[10].state; qw_b10_prog := g_batches[10].prog_id; qw_b10_stage := g_batches[10].cur_stage;
+
+(* Write calibration status & results to Modbus QW170..QW192 *)
+qw_cal_step := calibrate.o_step;
+qw_cal_tid  := calibrate.o_tid;
+(* T1 *)
+qw_cal_t1_lift_wet := REAL_TO_INT(g_cal[1].lift_wet_s * 10.0);
+qw_cal_t1_sink_wet := REAL_TO_INT(g_cal[1].sink_wet_s * 10.0);
+qw_cal_t1_lift_dry := REAL_TO_INT(g_cal[1].lift_dry_s * 10.0);
+qw_cal_t1_sink_dry := REAL_TO_INT(g_cal[1].sink_dry_s * 10.0);
+qw_cal_t1_x_acc    := REAL_TO_INT(g_cal[1].x_accel_s * 10.0);
+qw_cal_t1_x_dec    := REAL_TO_INT(g_cal[1].x_decel_s * 10.0);
+qw_cal_t1_x_max    := REAL_TO_INT(g_cal[1].x_max_mm_s);
+(* T2 *)
+qw_cal_t2_lift_wet := REAL_TO_INT(g_cal[2].lift_wet_s * 10.0);
+qw_cal_t2_sink_wet := REAL_TO_INT(g_cal[2].sink_wet_s * 10.0);
+qw_cal_t2_lift_dry := REAL_TO_INT(g_cal[2].lift_dry_s * 10.0);
+qw_cal_t2_sink_dry := REAL_TO_INT(g_cal[2].sink_dry_s * 10.0);
+qw_cal_t2_x_acc    := REAL_TO_INT(g_cal[2].x_accel_s * 10.0);
+qw_cal_t2_x_dec    := REAL_TO_INT(g_cal[2].x_decel_s * 10.0);
+qw_cal_t2_x_max    := REAL_TO_INT(g_cal[2].x_max_mm_s);
+(* T3 *)
+qw_cal_t3_lift_wet := REAL_TO_INT(g_cal[3].lift_wet_s * 10.0);
+qw_cal_t3_sink_wet := REAL_TO_INT(g_cal[3].sink_wet_s * 10.0);
+qw_cal_t3_lift_dry := REAL_TO_INT(g_cal[3].lift_dry_s * 10.0);
+qw_cal_t3_sink_dry := REAL_TO_INT(g_cal[3].sink_dry_s * 10.0);
+qw_cal_t3_x_acc    := REAL_TO_INT(g_cal[3].x_accel_s * 10.0);
+qw_cal_t3_x_dec    := REAL_TO_INT(g_cal[3].x_decel_s * 10.0);
+qw_cal_t3_x_max    := REAL_TO_INT(g_cal[3].x_max_mm_s);]]></xhtml:p>
           </ST>
         </body>
       </pou>
@@ -6817,6 +7463,17 @@ qw_b10_code := g_batches[10].batch_code; qw_b10_state := g_batches[10].state; qw
             <type><BOOL/></type>
           </variable>
           <variable name="g_dep_stable">
+            <type><BOOL/></type>
+          </variable>
+          <variable name="g_cal">
+            <type>
+              <array>
+                <dimension lower="1" upper="3"/>
+                <baseType><derived name="CALIBRATION_T"/></baseType>
+              </array>
+            </type>
+          </variable>
+          <variable name="g_cal_active">
             <type><BOOL/></type>
           </variable>
           <variable name="g_epoch_h">
@@ -7261,6 +7918,75 @@ qw_b10_code := g_batches[10].batch_code; qw_b10_state := g_batches[10].state; qw
             <type><INT/></type>
           </variable>
           <variable name="iw_time_lo" address="%QW162">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_step" address="%QW170">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_tid" address="%QW171">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_t1_lift_wet" address="%QW172">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_t1_sink_wet" address="%QW173">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_t1_lift_dry" address="%QW174">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_t1_sink_dry" address="%QW175">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_t1_x_acc" address="%QW176">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_t1_x_dec" address="%QW177">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_t1_x_max" address="%QW178">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_t2_lift_wet" address="%QW179">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_t2_sink_wet" address="%QW180">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_t2_lift_dry" address="%QW181">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_t2_sink_dry" address="%QW182">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_t2_x_acc" address="%QW183">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_t2_x_dec" address="%QW184">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_t2_x_max" address="%QW185">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_t3_lift_wet" address="%QW186">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_t3_sink_wet" address="%QW187">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_t3_lift_dry" address="%QW188">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_t3_sink_dry" address="%QW189">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_t3_x_acc" address="%QW190">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_t3_x_dec" address="%QW191">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_cal_t3_x_max" address="%QW192">
             <type><INT/></type>
           </variable>
         </globalVars>

@@ -296,3 +296,25 @@ STRUCT
   time_s     : REAL;    (* activation time (s) *)
 END_STRUCT;
 END_TYPE
+
+(* ── Calibration teaching type ─────────────────────────────────── *)
+(* One per transporter. Gateway writes plan, PLC fills results.      *)
+(* Only wet_station + dry_station needed: 2 normal tasks per         *)
+(* transporter give all lift/sink/travel measurements.               *)
+(*   Task 1: lift=dry, sink=wet → lift_dry, sink_wet, travel dry→wet *)
+(*   Task 2: lift=wet, sink=dry → lift_wet, sink_dry, travel wet→dry *)
+TYPE CALIBRATION_T :
+STRUCT
+  (* Plan — set by gateway via cfg_cmd=7 *)
+  wet_station   : INT;    (* wet station number *)
+  dry_station   : INT;    (* dry station number *)
+  (* Results — read from g_move after MeasureMoveTimes records them *)
+  lift_wet_s    : REAL;   (* lift time at wet station (s) *)
+  sink_wet_s    : REAL;   (* sink time at wet station (s) *)
+  lift_dry_s    : REAL;   (* lift time at dry station (s) *)
+  sink_dry_s    : REAL;   (* sink time at dry station (s) *)
+  x_accel_s     : REAL;   (* measured acceleration time (s) *)
+  x_decel_s     : REAL;   (* measured deceleration time (s) *)
+  x_max_mm_s    : REAL;   (* measured max X speed (mm/s) *)
+END_STRUCT;
+END_TYPE

@@ -24,6 +24,7 @@ VAR_EXTERNAL
   g_transporter  : ARRAY[1..3] OF STC_TRANSPORTER_T;
   g_stations     : ARRAY[101..125] OF STATION_T;
   g_cfg          : ARRAY[1..3] OF TRANSPORTER_CFG_T;
+  g_move         : ARRAY[1..3] OF MOVE_TIMES_T;
 END_VAR
 VAR
   i            : INT;
@@ -52,6 +53,10 @@ VAR
   nearest_num  : INT;
   min_dist     : REAL;
   dx           : REAL;
+  (* Time measurement instances *)
+  tm1          : STC_FB_MeasureMoveTimes;
+  tm2          : STC_FB_MeasureMoveTimes;
+  tm3          : STC_FB_MeasureMoveTimes;
 END_VAR
 
 IF NOT i_run THEN
@@ -330,6 +335,27 @@ FOR i := 1 TO 3 DO
     END_IF;
   END_FOR;
   g_transporter[i].current_station := nearest_num;
+
+  (* ── Measure move times (one instance per transporter) ──── *)
+  IF i = 1 THEN
+    tm1(t_id := 1, phase := g_transporter[1].phase, delta_t := 0.02,
+        vel_x := g_transporter[1].vel_x, z_stage := g_transporter[1].z_stage,
+        lift_stn := g_transporter[1].lift_station,
+        sink_stn := g_transporter[1].sink_station,
+        from_stn := g_transporter[1].current_station);
+  ELSIF i = 2 THEN
+    tm2(t_id := 2, phase := g_transporter[2].phase, delta_t := 0.02,
+        vel_x := g_transporter[2].vel_x, z_stage := g_transporter[2].z_stage,
+        lift_stn := g_transporter[2].lift_station,
+        sink_stn := g_transporter[2].sink_station,
+        from_stn := g_transporter[2].current_station);
+  ELSIF i = 3 THEN
+    tm3(t_id := 3, phase := g_transporter[3].phase, delta_t := 0.02,
+        vel_x := g_transporter[3].vel_x, z_stage := g_transporter[3].z_stage,
+        lift_stn := g_transporter[3].lift_station,
+        sink_stn := g_transporter[3].sink_station,
+        from_stn := g_transporter[3].current_station);
+  END_IF;
 
   END_IF;  (* active *)
 END_FOR;

@@ -146,6 +146,33 @@ VAR_EXTERNAL
   (* Task scheduler globals *)
   g_schedule  : ARRAY[1..10] OF TSK_SCHEDULE_T;
   g_tasks     : ARRAY[1..3] OF TSK_QUEUE_T;
+  (* Calibration *)
+  g_cal       : ARRAY[1..3] OF CALIBRATION_T;
+  g_cal_active : BOOL;
+  (* Calibration output registers *)
+  qw_cal_step     : INT;
+  qw_cal_tid      : INT;
+  qw_cal_t1_lift_wet : INT;
+  qw_cal_t1_sink_wet : INT;
+  qw_cal_t1_lift_dry : INT;
+  qw_cal_t1_sink_dry : INT;
+  qw_cal_t1_x_acc    : INT;
+  qw_cal_t1_x_dec    : INT;
+  qw_cal_t1_x_max    : INT;
+  qw_cal_t2_lift_wet : INT;
+  qw_cal_t2_sink_wet : INT;
+  qw_cal_t2_lift_dry : INT;
+  qw_cal_t2_sink_dry : INT;
+  qw_cal_t2_x_acc    : INT;
+  qw_cal_t2_x_dec    : INT;
+  qw_cal_t2_x_max    : INT;
+  qw_cal_t3_lift_wet : INT;
+  qw_cal_t3_sink_wet : INT;
+  qw_cal_t3_lift_dry : INT;
+  qw_cal_t3_sink_dry : INT;
+  qw_cal_t3_x_acc    : INT;
+  qw_cal_t3_x_dec    : INT;
+  qw_cal_t3_x_max    : INT;
 END_VAR
 VAR
   init_done      : BOOL := FALSE;
@@ -164,6 +191,8 @@ VAR
   cycle_count  : INT;
   main_sched   : STC_FB_MainScheduler;
   run_tasks    : SIM_FB_RunTasks;
+  calibrate    : STC_FB_Calibrate;
+  cal_cmd      : INT := 0;
 END_VAR
 (* ============================================================
    CONFIG UPLOAD HANDLER
@@ -249,6 +278,23 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     END_IF;
     qw_cfg_ack := iw_cfg_seq;
 
+  ELSIF iw_cfg_cmd = 7 THEN
+    (* --- Calibration plan for one transporter --- *)
+    (* param = transporter_id (1..3)
+       d0 = wet_station   d1 = dry_station *)
+    j := iw_cfg_param;
+    IF (j >= 1) AND (j <= 3) THEN
+      g_cal[j].wet_station := iw_cfg_d0;
+      g_cal[j].dry_station := iw_cfg_d1;
+    END_IF;
+    qw_cfg_ack := iw_cfg_seq;
+
+  ELSIF iw_cfg_cmd = 8 THEN
+    (* --- Calibration control --- *)
+    (* param: 1=start, 2=calculate, 3=abort *)
+    cal_cmd := iw_cfg_param;
+    qw_cfg_ack := iw_cfg_seq;
+
   ELSIF iw_cfg_cmd = 2 THEN
     (* --- Finish init: all config uploaded, init transporter states --- *)
     g_station_count := iw_cfg_param;
@@ -308,6 +354,11 @@ main_sched(i_run := init_done, i_time_s := g_time_s);
 
 (* ── Execute transporter tasks (physics simulation) ── *)
 run_tasks(i_run := init_done);
+
+(* ── Calibration FB — issues test tasks, measures parameters ── *)
+calibrate(i_run := init_done, i_cmd := cal_cmd);
+cal_cmd := 0;   (* consumed after one cycle *)
+g_cal_active := calibrate.o_active;
 
 END_IF;  (* init_done *)
 
@@ -465,4 +516,32 @@ qw_b7_code  := g_batches[7].batch_code;  qw_b7_state  := g_batches[7].state;  qw
 qw_b8_code  := g_batches[8].batch_code;  qw_b8_state  := g_batches[8].state;  qw_b8_prog  := g_batches[8].prog_id;  qw_b8_stage  := g_batches[8].cur_stage;
 qw_b9_code  := g_batches[9].batch_code;  qw_b9_state  := g_batches[9].state;  qw_b9_prog  := g_batches[9].prog_id;  qw_b9_stage  := g_batches[9].cur_stage;
 qw_b10_code := g_batches[10].batch_code; qw_b10_state := g_batches[10].state; qw_b10_prog := g_batches[10].prog_id; qw_b10_stage := g_batches[10].cur_stage;
+
+(* Write calibration status & results to Modbus QW170..QW192 *)
+qw_cal_step := calibrate.o_step;
+qw_cal_tid  := calibrate.o_tid;
+(* T1 *)
+qw_cal_t1_lift_wet := REAL_TO_INT(g_cal[1].lift_wet_s * 10.0);
+qw_cal_t1_sink_wet := REAL_TO_INT(g_cal[1].sink_wet_s * 10.0);
+qw_cal_t1_lift_dry := REAL_TO_INT(g_cal[1].lift_dry_s * 10.0);
+qw_cal_t1_sink_dry := REAL_TO_INT(g_cal[1].sink_dry_s * 10.0);
+qw_cal_t1_x_acc    := REAL_TO_INT(g_cal[1].x_accel_s * 10.0);
+qw_cal_t1_x_dec    := REAL_TO_INT(g_cal[1].x_decel_s * 10.0);
+qw_cal_t1_x_max    := REAL_TO_INT(g_cal[1].x_max_mm_s);
+(* T2 *)
+qw_cal_t2_lift_wet := REAL_TO_INT(g_cal[2].lift_wet_s * 10.0);
+qw_cal_t2_sink_wet := REAL_TO_INT(g_cal[2].sink_wet_s * 10.0);
+qw_cal_t2_lift_dry := REAL_TO_INT(g_cal[2].lift_dry_s * 10.0);
+qw_cal_t2_sink_dry := REAL_TO_INT(g_cal[2].sink_dry_s * 10.0);
+qw_cal_t2_x_acc    := REAL_TO_INT(g_cal[2].x_accel_s * 10.0);
+qw_cal_t2_x_dec    := REAL_TO_INT(g_cal[2].x_decel_s * 10.0);
+qw_cal_t2_x_max    := REAL_TO_INT(g_cal[2].x_max_mm_s);
+(* T3 *)
+qw_cal_t3_lift_wet := REAL_TO_INT(g_cal[3].lift_wet_s * 10.0);
+qw_cal_t3_sink_wet := REAL_TO_INT(g_cal[3].sink_wet_s * 10.0);
+qw_cal_t3_lift_dry := REAL_TO_INT(g_cal[3].lift_dry_s * 10.0);
+qw_cal_t3_sink_dry := REAL_TO_INT(g_cal[3].sink_dry_s * 10.0);
+qw_cal_t3_x_acc    := REAL_TO_INT(g_cal[3].x_accel_s * 10.0);
+qw_cal_t3_x_dec    := REAL_TO_INT(g_cal[3].x_decel_s * 10.0);
+qw_cal_t3_x_max    := REAL_TO_INT(g_cal[3].x_max_mm_s);
 END_PROGRAM
