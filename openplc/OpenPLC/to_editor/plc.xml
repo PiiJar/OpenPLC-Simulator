@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-23T12:09:45"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-23T12:09:45">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-23T13:29:30"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-23T13:29:30">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -1547,6 +1547,18 @@ END_IF;]]></xhtml:p>
             <variable name="fb_xfer">
               <type><derived name="STC_FB_CalcTransferTime"/></type>
             </variable>
+            <variable name="fb_clear">
+              <type><derived name="STC_FB_ClearTaskQueues"/></type>
+            </variable>
+            <variable name="fb_sort">
+              <type><derived name="STC_FB_SortTaskQueue"/></type>
+            </variable>
+            <variable name="fb_collect_all">
+              <type><derived name="STC_FB_CollectActiveBatches"/></type>
+            </variable>
+            <variable name="fb_collect_wait">
+              <type><derived name="STC_FB_CollectActiveBatches"/></type>
+            </variable>
             <variable name="ti">
               <type><INT/></type>
             </variable>
@@ -1586,18 +1598,6 @@ END_IF;]]></xhtml:p>
             <variable name="max_cal">
               <type><INT/></type>
             </variable>
-            <variable name="ins_i">
-              <type><INT/></type>
-            </variable>
-            <variable name="ins_j">
-              <type><INT/></type>
-            </variable>
-            <variable name="ins_cnt">
-              <type><INT/></type>
-            </variable>
-            <variable name="tmp_task">
-              <type><derived name="TSK_TASK_T"/></type>
-            </variable>
           </localVars>
         </interface>
         <body>
@@ -1635,15 +1635,10 @@ ELSIF phase = 100 THEN
   fb_sandbox(i_cmd := 1);
 
   (* Find waiting batches (cur_stage = 90) *)
-  waiting_cnt := 0;
-  FOR ui := 1 TO 10 DO
-    IF g_batches[ui].state = 1 AND g_batches[ui].cur_stage = 90 THEN
-      (* Check unit target is 'none' (TO_NONE = 0) *)
-      IF g_units[ui].target = 0 THEN
-        waiting_cnt := waiting_cnt + 1;
-        waiting_list[waiting_cnt] := ui;
-      END_IF;
-    END_IF;
+  fb_collect_wait(i_mode := 1);
+  waiting_cnt := fb_collect_wait.o_count;
+  FOR ui := 1 TO waiting_cnt DO
+    waiting_list[ui] := fb_collect_wait.o_list[ui];
   END_FOR;
 
   o_wait_cnt := waiting_cnt;
@@ -1653,12 +1648,10 @@ ELSIF phase = 100 THEN
   END_FOR;
 
   (* Build active batch list for rebuild phases *)
-  batch_count := 0;
-  FOR ui := 1 TO 10 DO
-    IF g_batches[ui].state = 1 THEN
-      batch_count := batch_count + 1;
-      batch_list[batch_count] := ui;
-    END_IF;
+  fb_collect_all(i_mode := 0);
+  batch_count := fb_collect_all.o_count;
+  FOR ui := 1 TO batch_count DO
+    batch_list[ui] := fb_collect_all.o_list[ui];
   END_FOR;
 
   IF waiting_cnt = 0 THEN
@@ -1717,41 +1710,15 @@ ELSIF phase = 1010 THEN
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 1020 THEN
   (* Clear all task queues *)
-  FOR ti := 1 TO 3 DO
-    g_tasks[ti].count := 0;
-    FOR qi := 1 TO 10 DO
-      g_tasks[ti].queue[qi].unit := 0;
-      g_tasks[ti].queue[qi].stage := 0;
-      g_tasks[ti].queue[qi].lift_station := 0;
-      g_tasks[ti].queue[qi].sink_station := 0;
-      g_tasks[ti].queue[qi].start_time := 0.0;
-      g_tasks[ti].queue[qi].finish_time := 0.0;
-      g_tasks[ti].queue[qi].calc_time := 0.0;
-      g_tasks[ti].queue[qi].min_time := 0.0;
-      g_tasks[ti].queue[qi].max_time := 0.0;
-    END_FOR;
-  END_FOR;
+  fb_clear();
 
   (* Create tasks for ALL active batches *)
   FOR bi := 1 TO batch_count DO
     fb_create_tasks(i_unit := batch_list[bi]);
   END_FOR;
 
-  (* Insertion sort each queue by start_time *)
-  FOR ti := 1 TO 3 DO
-    ins_cnt := g_tasks[ti].count;
-    IF ins_cnt >= 2 THEN
-      FOR ins_i := 2 TO ins_cnt DO
-        tmp_task := g_tasks[ti].queue[ins_i];
-        ins_j := ins_i - 1;
-        WHILE ins_j >= 1 AND g_tasks[ti].queue[ins_j].start_time > tmp_task.start_time DO
-          g_tasks[ti].queue[ins_j + 1] := g_tasks[ti].queue[ins_j];
-          ins_j := ins_j - 1;
-        END_WHILE;
-        g_tasks[ti].queue[ins_j + 1] := tmp_task;
-      END_FOR;
-    END_IF;
-  END_FOR;
+  (* Sort each queue by start_time *)
+  fb_sort(i_trans := 0);
 
   (* Swap same-station pairs *)
   fb_swap_tasks();
@@ -2042,6 +2009,204 @@ END_IF;
 (* ── Phase assignment ── *)
 phase := next_phase;
 o_phase := phase;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
+      <pou name="SIM_FB_ClearConfig" pouType="functionBlock">
+        <interface>
+          <externalVars>
+            <variable name="g_station_count">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_stations">
+              <type>
+                <array>
+                  <dimension lower="101" upper="125"/>
+                  <baseType><derived name="STATION_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_cfg">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="TRANSPORTER_CFG_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_state">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="TRANSPORTER_STATE_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_cmd_start">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><BOOL/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_cmd_lift_station">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><INT/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_cmd_sink_station">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><INT/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_units">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="UNIT_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_batches">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="BATCH_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_programs">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="TREATMENT_PROGRAM_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_avoid_status">
+              <type>
+                <array>
+                  <dimension lower="101" upper="125"/>
+                  <baseType><INT/></baseType>
+                </array>
+              </type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="i">
+              <type><INT/></type>
+            </variable>
+            <variable name="j">
+              <type><INT/></type>
+            </variable>
+            <variable name="k">
+              <type><INT/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[(* --- Clear all stations --- *)
+FOR i := 101 TO 125 DO
+  g_stations[i].tank_id       := 0;
+  g_stations[i].status        := 0;
+  g_stations[i].x_position    := 0.0;
+  g_stations[i].y_position    := 0.0;
+  g_stations[i].z_position    := 0.0;
+  g_stations[i].stn_type      := 0;
+  g_stations[i].dropping_time := 0.0;
+  g_stations[i].device_delay  := 0.0;
+END_FOR;
+g_station_count := 0;
+
+(* --- Clear all transporter configs --- *)
+FOR i := 1 TO 3 DO
+  g_cfg[i].x_min_limit   := 0.0;
+  g_cfg[i].x_max_limit   := 0.0;
+  g_cfg[i].y_min_limit   := 0.0;
+  g_cfg[i].y_max_limit   := 0.0;
+  g_cfg[i].x_avoid_mm    := 0.0;
+  g_cfg[i].y_avoid_mm    := 0.0;
+  g_cfg[i].phys2d.x_accel_s     := 0.0;
+  g_cfg[i].phys2d.x_decel_s     := 0.0;
+  g_cfg[i].phys2d.x_max_mm_s    := 0.0;
+  g_cfg[i].phys2d.z_total_mm    := 0.0;
+  g_cfg[i].phys2d.z_slow_dry_mm := 0.0;
+  g_cfg[i].phys2d.z_slow_wet_mm := 0.0;
+  g_cfg[i].phys2d.z_slow_end_mm := 0.0;
+  g_cfg[i].phys2d.z_slow_mm_s   := 0.0;
+  g_cfg[i].phys2d.z_fast_mm_s   := 0.0;
+  g_cfg[i].phys2d.drip_delay_s  := 0.0;
+  g_cfg[i].phys2d.avoid_mm      := 0.0;
+  FOR j := 1 TO 4 DO
+    g_cfg[i].task_area[j].min_lift := 0;
+    g_cfg[i].task_area[j].max_lift := 0;
+    g_cfg[i].task_area[j].min_sink := 0;
+    g_cfg[i].task_area[j].max_sink := 0;
+  END_FOR;
+END_FOR;
+
+(* --- Clear avoid status --- *)
+FOR i := 101 TO 125 DO
+  g_avoid_status[i] := 0;
+END_FOR;
+
+(* --- Clear all transporter states --- *)
+FOR i := 1 TO 3 DO
+  g_state[i].active              := FALSE;
+  g_state[i].phase               := 0;
+  g_state[i].z_stage             := 0;
+  g_state[i].x_mm                := 0.0;
+  g_state[i].z_mm                := 0.0;
+  g_state[i].vel_x               := 0.0;
+  g_state[i].vel_z               := 0.0;
+  g_state[i].current_station     := 0;
+  g_state[i].lift_station_target := 0;
+  g_state[i].sink_station_target := 0;
+  g_state[i].target_x            := 0.0;
+  g_state[i].x_min_limit         := 0.0;
+  g_state[i].x_max_limit         := 0.0;
+  g_state[i].z_timer_s           := 0.0;
+  g_cmd_start[i]        := FALSE;
+  g_cmd_lift_station[i]  := 0;
+  g_cmd_sink_station[i]  := 0;
+END_FOR;
+
+(* --- Clear all units --- *)
+FOR i := 1 TO 10 DO
+  g_units[i].location := 0;
+  g_units[i].status   := 0;
+  g_units[i].state    := 0;
+  g_units[i].target   := 0;
+END_FOR;
+
+(* --- Clear all batches --- *)
+FOR i := 1 TO 10 DO
+  g_batches[i].batch_code := 0;
+  g_batches[i].state      := 0;
+  g_batches[i].prog_id    := 0;
+  g_batches[i].cur_stage      := 0;
+END_FOR;
+
+(* --- Clear all treatment programs --- *)
+FOR i := 1 TO 10 DO
+  g_programs[i].program_id := 0;
+  FOR j := 1 TO 30 DO
+    FOR k := 1 TO 5 DO
+      g_programs[i].stages[j].stations[k] := 0;
+    END_FOR;
+    g_programs[i].stages[j].min_time := 0;
+    g_programs[i].stages[j].max_time := 0;
+    g_programs[i].stages[j].cal_time := 0;
+  END_FOR;
+END_FOR;]]></xhtml:p>
           </ST>
         </body>
       </pou>
@@ -2429,6 +2594,115 @@ END_IF;]]></xhtml:p>
           </ST>
         </body>
       </pou>
+      <pou name="STC_FB_ClearTaskQueues" pouType="functionBlock">
+        <interface>
+          <externalVars>
+            <variable name="g_tasks">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="TSK_QUEUE_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="ti">
+              <type><INT/></type>
+            </variable>
+            <variable name="qi">
+              <type><INT/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[FOR ti := 1 TO 3 DO
+  g_tasks[ti].count := 0;
+  FOR qi := 1 TO 10 DO
+    g_tasks[ti].queue[qi].unit         := 0;
+    g_tasks[ti].queue[qi].stage        := 0;
+    g_tasks[ti].queue[qi].lift_station := 0;
+    g_tasks[ti].queue[qi].sink_station := 0;
+    g_tasks[ti].queue[qi].start_time   := 0.0;
+    g_tasks[ti].queue[qi].finish_time  := 0.0;
+    g_tasks[ti].queue[qi].calc_time    := 0.0;
+    g_tasks[ti].queue[qi].min_time     := 0.0;
+    g_tasks[ti].queue[qi].max_time     := 0.0;
+  END_FOR;
+END_FOR;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
+      <pou name="STC_FB_CollectActiveBatches" pouType="functionBlock">
+        <interface>
+          <inputVars>
+            <variable name="i_mode">
+              <type><INT/></type>
+            </variable>
+          </inputVars>
+          <outputVars>
+            <variable name="o_list">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><INT/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="o_count">
+              <type><INT/></type>
+            </variable>
+          </outputVars>
+          <externalVars>
+            <variable name="g_batches">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="BATCH_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_units">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="UNIT_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="ui">
+              <type><INT/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[o_count := 0;
+FOR ui := 1 TO 10 DO
+  o_list[ui] := 0;
+END_FOR;
+
+FOR ui := 1 TO 10 DO
+  IF g_batches[ui].state = 1 THEN
+    IF i_mode = 0 THEN
+      (* All active batches *)
+      o_count := o_count + 1;
+      o_list[o_count] := ui;
+    ELSIF i_mode = 1 THEN
+      (* Waiting batches: stage=90 AND unit target = TO_NONE (0) *)
+      IF g_batches[ui].cur_stage = 90 AND g_units[ui].target = 0 THEN
+        o_count := o_count + 1;
+        o_list[o_count] := ui;
+      END_IF;
+    END_IF;
+  END_IF;
+END_FOR;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
       <pou name="STC_FB_FindStation" pouType="functionBlock">
         <interface>
           <inputVars>
@@ -2566,6 +2840,126 @@ FOR ti := 1 TO 3 DO
     END_FOR;
   END_IF;
 END_FOR;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
+      <pou name="STC_FB_MainScheduler" pouType="functionBlock">
+        <interface>
+          <inputVars>
+            <variable name="i_run">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="i_time_s">
+              <type><REAL/></type>
+            </variable>
+          </inputVars>
+          <outputVars>
+            <variable name="o_tsk_phase">
+              <type><INT/></type>
+            </variable>
+            <variable name="o_dep_phase">
+              <type><INT/></type>
+            </variable>
+            <variable name="o_turn">
+              <type><INT/></type>
+            </variable>
+            <variable name="o_skip_cnt">
+              <type><INT/></type>
+            </variable>
+          </outputVars>
+          <externalVars>
+            <variable name="g_dep_stable">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="g_dep_pending">
+              <type><derived name="DEP_PENDING_WRITE_T"/></type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="tsk_sched">
+              <type><derived name="TSK_FB_Scheduler"/></type>
+            </variable>
+            <variable name="dep_sched">
+              <type><derived name="DEP_FB_Scheduler"/></type>
+            </variable>
+            <variable name="turn">
+              <type><INT/></type>
+              <initialValue><simpleValue value="0"/></initialValue>
+            </variable>
+            <variable name="skip_cnt">
+              <type><INT/></type>
+              <initialValue><simpleValue value="0"/></initialValue>
+            </variable>
+            <variable name="tsk_phase">
+              <type><INT/></type>
+              <initialValue><simpleValue value="0"/></initialValue>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[IF NOT i_run THEN
+  (* Stop both schedulers *)
+  tsk_sched(i_run := FALSE, i_time_s := 0.0);
+  dep_sched(i_run := FALSE, i_time_s := 0.0, i_tsk_phase := 0);
+  turn := 0;
+  tsk_phase := 0;
+  o_tsk_phase := 0;
+  o_dep_phase := 0;
+  o_turn := 0;
+  RETURN;
+END_IF;
+
+(* ── Determine this cycle's turn ── *)
+IF turn = 0 THEN
+  (* First scan: always start with TSK *)
+  turn := 1;
+
+ELSIF turn = 1 THEN
+  (* Last cycle was TSK → normally DEP's turn *)
+  (* But skip DEP if: *)
+  (*   a) TSK has not reached READY yet (phase < 10000) *)
+  (*   b) pending data waiting for TSK to process *)
+  IF tsk_phase < 10000 THEN
+    (* TSK still computing — DEP would be blocked at WAIT_STABLE *)
+    turn := 1;
+    skip_cnt := skip_cnt + 1;
+  ELSIF g_dep_pending.valid THEN
+    (* TSK must process pending before DEP continues *)
+    turn := 1;
+    skip_cnt := skip_cnt + 1;
+  ELSE
+    turn := 2;
+  END_IF;
+
+ELSIF turn = 2 THEN
+  (* Last cycle was DEP → TSK's turn *)
+  turn := 1;
+END_IF;
+
+(* ── Execute the selected scheduler ── *)
+IF turn = 1 THEN
+  (* TSK turn *)
+  tsk_sched(i_run := TRUE, i_time_s := i_time_s);
+  tsk_phase := tsk_sched.o_phase;
+
+  (* Compute stability flag after TSK call *)
+  g_dep_stable := (tsk_phase >= 10000);
+
+ELSIF turn = 2 THEN
+  (* DEP turn *)
+  dep_sched(
+    i_run       := TRUE,
+    i_time_s    := i_time_s,
+    i_tsk_phase := tsk_phase
+  );
+END_IF;
+
+(* ── Update outputs ── *)
+o_tsk_phase := tsk_sched.o_phase;
+o_dep_phase := dep_sched.o_phase;
+o_turn      := turn;
+o_skip_cnt  := skip_cnt;]]></xhtml:p>
           </ST>
         </body>
       </pou>
@@ -2713,6 +3107,151 @@ ELSE
   END_IF;
 
 END_IF;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
+      <pou name="STC_FB_ShiftSchedule" pouType="functionBlock">
+        <interface>
+          <inputVars>
+            <variable name="i_unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="i_from_stage">
+              <type><INT/></type>
+            </variable>
+            <variable name="i_amount">
+              <type><REAL/></type>
+            </variable>
+          </inputVars>
+          <externalVars>
+            <variable name="g_schedule">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="g_tasks">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="TSK_QUEUE_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="sc">
+              <type><INT/></type>
+            </variable>
+            <variable name="si">
+              <type><INT/></type>
+            </variable>
+            <variable name="qi">
+              <type><INT/></type>
+            </variable>
+            <variable name="ti">
+              <type><INT/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[IF i_unit < 1 OR i_unit > 10 THEN RETURN; END_IF;
+IF ABS(i_amount) < 0.001 THEN RETURN; END_IF;
+
+(* ── Shift schedule stages entry/exit times ── *)
+sc := g_schedule[i_unit].stage_count;
+FOR si := i_from_stage TO sc DO
+  IF si >= 1 AND si <= 30 THEN
+    g_schedule[i_unit].stages[si].entry_time :=
+      g_schedule[i_unit].stages[si].entry_time + i_amount;
+    g_schedule[i_unit].stages[si].exit_time :=
+      g_schedule[i_unit].stages[si].exit_time + i_amount;
+  END_IF;
+END_FOR;
+
+(* ── Shift matching tasks in all transporter queues ── *)
+FOR ti := 1 TO 3 DO
+  FOR qi := 1 TO g_tasks[ti].count DO
+    IF g_tasks[ti].queue[qi].unit = i_unit
+       AND g_tasks[ti].queue[qi].stage >= i_from_stage THEN
+      g_tasks[ti].queue[qi].start_time :=
+        g_tasks[ti].queue[qi].start_time + i_amount;
+      g_tasks[ti].queue[qi].finish_time :=
+        g_tasks[ti].queue[qi].finish_time + i_amount;
+    END_IF;
+  END_FOR;
+END_FOR;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
+      <pou name="STC_FB_SortTaskQueue" pouType="functionBlock">
+        <interface>
+          <inputVars>
+            <variable name="i_trans">
+              <type><INT/></type>
+            </variable>
+          </inputVars>
+          <externalVars>
+            <variable name="g_tasks">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="TSK_QUEUE_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="ti">
+              <type><INT/></type>
+            </variable>
+            <variable name="t_start">
+              <type><INT/></type>
+            </variable>
+            <variable name="t_end">
+              <type><INT/></type>
+            </variable>
+            <variable name="ins_i">
+              <type><INT/></type>
+            </variable>
+            <variable name="ins_j">
+              <type><INT/></type>
+            </variable>
+            <variable name="ins_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="tmp_task">
+              <type><derived name="TSK_TASK_T"/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[IF i_trans >= 1 AND i_trans <= 3 THEN
+  t_start := i_trans;
+  t_end   := i_trans;
+ELSE
+  t_start := 1;
+  t_end   := 3;
+END_IF;
+
+FOR ti := t_start TO t_end DO
+  ins_cnt := g_tasks[ti].count;
+  IF ins_cnt >= 2 THEN
+    FOR ins_i := 2 TO ins_cnt DO
+      tmp_task := g_tasks[ti].queue[ins_i];
+      ins_j := ins_i - 1;
+      WHILE ins_j >= 1 AND g_tasks[ti].queue[ins_j].start_time > tmp_task.start_time DO
+        g_tasks[ti].queue[ins_j + 1] := g_tasks[ti].queue[ins_j];
+        ins_j := ins_j - 1;
+      END_WHILE;
+      g_tasks[ti].queue[ins_j + 1] := tmp_task;
+    END_FOR;
+  END_IF;
+END_FOR;]]></xhtml:p>
           </ST>
         </body>
       </pou>
@@ -3677,13 +4216,7 @@ END_FOR;]]></xhtml:p>
             <variable name="amount">
               <type><REAL/></type>
             </variable>
-            <variable name="qi">
-              <type><INT/></type>
-            </variable>
             <variable name="si">
-              <type><INT/></type>
-            </variable>
-            <variable name="cnt">
               <type><INT/></type>
             </variable>
             <variable name="sc">
@@ -3726,6 +4259,9 @@ END_FOR;]]></xhtml:p>
             <variable name="prev_stage_flex">
               <type><REAL/></type>
             </variable>
+            <variable name="fb_shift">
+              <type><derived name="STC_FB_ShiftSchedule"/></type>
+            </variable>
           </localVars>
         </interface>
         <body>
@@ -3766,34 +4302,14 @@ IF prev_flex > 0.1 THEN
   amount := prev_flex * cap;
   IF amount > remain THEN amount := remain; END_IF;
 
-  (* Apply: shift blocked batch's stage exit earlier *)
+  (* Apply: shift blocked batch's stage exit earlier + propagate *)
   IF i_blocked_stage >= 1 AND i_blocked_stage <= 30 THEN
     g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time :=
       g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time - amount;
     g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time :=
       g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time - amount;
-    (* Propagate: shift all later stages earlier *)
-    sc := g_schedule[i_blocked_unit].stage_count;
-    FOR si := i_blocked_stage + 1 TO sc DO
-      g_schedule[i_blocked_unit].stages[si].entry_time :=
-        g_schedule[i_blocked_unit].stages[si].entry_time - amount;
-      g_schedule[i_blocked_unit].stages[si].exit_time :=
-        g_schedule[i_blocked_unit].stages[si].exit_time - amount;
-    END_FOR;
+    fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := -amount);
   END_IF;
-
-  (* Update tasks for blocked unit in all transporter queues *)
-  FOR qi := 1 TO 3 DO
-    FOR si := 1 TO g_tasks[qi].count DO
-      IF g_tasks[qi].queue[si].unit = i_blocked_unit
-         AND g_tasks[qi].queue[si].stage >= i_blocked_stage THEN
-        g_tasks[qi].queue[si].start_time :=
-          g_tasks[qi].queue[si].start_time - amount;
-        g_tasks[qi].queue[si].finish_time :=
-          g_tasks[qi].queue[si].finish_time - amount;
-      END_IF;
-    END_FOR;
-  END_FOR;
 
   remain := remain - amount;
   o_total_adv := o_total_adv + amount;
@@ -3822,31 +4338,12 @@ IF next_flex > 0.1 THEN
   amount := next_flex * cap;
   IF amount > remain THEN amount := remain; END_IF;
 
-  (* Apply: extend conflict stage, shift later stages forward *)
+  (* Apply: extend conflict stage + shift later stages forward *)
   g_schedule[i_conf_unit].stages[i_conf_stage].calc_time :=
     g_schedule[i_conf_unit].stages[i_conf_stage].calc_time + amount;
   g_schedule[i_conf_unit].stages[i_conf_stage].exit_time :=
     g_schedule[i_conf_unit].stages[i_conf_stage].exit_time + amount;
-  sc := g_schedule[i_conf_unit].stage_count;
-  FOR si := i_conf_stage + 1 TO sc DO
-    g_schedule[i_conf_unit].stages[si].entry_time :=
-      g_schedule[i_conf_unit].stages[si].entry_time + amount;
-    g_schedule[i_conf_unit].stages[si].exit_time :=
-      g_schedule[i_conf_unit].stages[si].exit_time + amount;
-  END_FOR;
-
-  (* Update tasks *)
-  FOR qi := 1 TO 3 DO
-    FOR si := 1 TO g_tasks[qi].count DO
-      IF g_tasks[qi].queue[si].unit = i_conf_unit
-         AND g_tasks[qi].queue[si].stage >= i_conf_stage THEN
-        g_tasks[qi].queue[si].start_time :=
-          g_tasks[qi].queue[si].start_time + amount;
-        g_tasks[qi].queue[si].finish_time :=
-          g_tasks[qi].queue[si].finish_time + amount;
-      END_IF;
-    END_FOR;
-  END_FOR;
+  fb_shift(i_unit := i_conf_unit, i_from_stage := i_conf_stage + 1, i_amount := amount);
 
   remain := remain - amount;
   o_total_delay := o_total_delay + amount;
@@ -3875,30 +4372,12 @@ IF i_conf_stage > 1 THEN
     amount := prev_stage_flex * cap;
     IF amount > remain THEN amount := remain; END_IF;
 
-    (* Apply: extend previous stage, propagate from conf_stage onward *)
+    (* Apply: extend previous stage + propagate from conf_stage onward *)
     g_schedule[i_conf_unit].stages[i_conf_stage - 1].calc_time :=
       g_schedule[i_conf_unit].stages[i_conf_stage - 1].calc_time + amount;
     g_schedule[i_conf_unit].stages[i_conf_stage - 1].exit_time :=
       g_schedule[i_conf_unit].stages[i_conf_stage - 1].exit_time + amount;
-    sc := g_schedule[i_conf_unit].stage_count;
-    FOR si := i_conf_stage TO sc DO
-      g_schedule[i_conf_unit].stages[si].entry_time :=
-        g_schedule[i_conf_unit].stages[si].entry_time + amount;
-      g_schedule[i_conf_unit].stages[si].exit_time :=
-        g_schedule[i_conf_unit].stages[si].exit_time + amount;
-    END_FOR;
-
-    FOR qi := 1 TO 3 DO
-      FOR si := 1 TO g_tasks[qi].count DO
-        IF g_tasks[qi].queue[si].unit = i_conf_unit
-           AND g_tasks[qi].queue[si].stage >= (i_conf_stage - 1) THEN
-          g_tasks[qi].queue[si].start_time :=
-            g_tasks[qi].queue[si].start_time + amount;
-          g_tasks[qi].queue[si].finish_time :=
-            g_tasks[qi].queue[si].finish_time + amount;
-        END_IF;
-      END_FOR;
-    END_FOR;
+    fb_shift(i_unit := i_conf_unit, i_from_stage := i_conf_stage, i_amount := amount);
 
     remain := remain - amount;
     o_total_delay := o_total_delay + amount;
@@ -3932,25 +4411,7 @@ IF prev_flex > 0.1 THEN
     g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time + amount;
   g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time :=
     g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time + amount;
-  sc := g_schedule[i_blocked_unit].stage_count;
-  FOR si := i_blocked_stage + 1 TO sc DO
-    g_schedule[i_blocked_unit].stages[si].entry_time :=
-      g_schedule[i_blocked_unit].stages[si].entry_time + amount;
-    g_schedule[i_blocked_unit].stages[si].exit_time :=
-      g_schedule[i_blocked_unit].stages[si].exit_time + amount;
-  END_FOR;
-
-  FOR qi := 1 TO 3 DO
-    FOR si := 1 TO g_tasks[qi].count DO
-      IF g_tasks[qi].queue[si].unit = i_blocked_unit
-         AND g_tasks[qi].queue[si].stage >= i_blocked_stage THEN
-        g_tasks[qi].queue[si].start_time :=
-          g_tasks[qi].queue[si].start_time + amount;
-        g_tasks[qi].queue[si].finish_time :=
-          g_tasks[qi].queue[si].finish_time + amount;
-      END_IF;
-    END_FOR;
-  END_FOR;
+  fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := amount);
 
   remain := remain - amount;
   o_total_delay := o_total_delay + amount;
@@ -4086,6 +4547,15 @@ END_IF;
             <variable name="fb_find">
               <type><derived name="STC_FB_FindTransporter"/></type>
             </variable>
+            <variable name="fb_clear">
+              <type><derived name="STC_FB_ClearTaskQueues"/></type>
+            </variable>
+            <variable name="fb_sort">
+              <type><derived name="STC_FB_SortTaskQueue"/></type>
+            </variable>
+            <variable name="fb_collect">
+              <type><derived name="STC_FB_CollectActiveBatches"/></type>
+            </variable>
             <variable name="sched_trans">
               <type><INT/></type>
             </variable>
@@ -4103,18 +4573,6 @@ END_IF;
             </variable>
             <variable name="total_tasks">
               <type><INT/></type>
-            </variable>
-            <variable name="ins_i">
-              <type><INT/></type>
-            </variable>
-            <variable name="ins_j">
-              <type><INT/></type>
-            </variable>
-            <variable name="ins_cnt">
-              <type><INT/></type>
-            </variable>
-            <variable name="tmp_task">
-              <type><derived name="TSK_TASK_T"/></type>
             </variable>
             <variable name="cycle_count">
               <type><INT/></type>
@@ -4142,13 +4600,10 @@ IF phase = 0 THEN
 (* PHASE 1: INIT — collect active batches                       *)
 (* ══════════════════════════════════════════════════════════════ *)
 ELSIF phase = 1 THEN
-  batch_count := 0;
-  FOR bi := 1 TO 10 DO
-    (* Active batch: state = IN_PROCESS (1) or has valid program *)
-    IF g_batches[bi].state = 1 THEN
-      batch_count := batch_count + 1;
-      batch_list[batch_count] := bi;
-    END_IF;
+  fb_collect(i_mode := 0);
+  batch_count := fb_collect.o_count;
+  FOR bi := 1 TO batch_count DO
+    batch_list[bi] := fb_collect.o_list[bi];
   END_FOR;
   o_batch_cnt := batch_count;
   conflict_iter := 0;
@@ -4201,20 +4656,7 @@ ELSIF phase = 1900 THEN
 (* PHASE 2000: TASKS_START — clear all task queues              *)
 (* ══════════════════════════════════════════════════════════════ *)
 ELSIF phase = 2000 THEN
-  FOR ti := 1 TO 3 DO
-    g_tasks[ti].count := 0;
-    FOR qi := 1 TO 10 DO
-      g_tasks[ti].queue[qi].unit := 0;
-      g_tasks[ti].queue[qi].stage := 0;
-      g_tasks[ti].queue[qi].lift_station := 0;
-      g_tasks[ti].queue[qi].sink_station := 0;
-      g_tasks[ti].queue[qi].start_time := 0.0;
-      g_tasks[ti].queue[qi].finish_time := 0.0;
-      g_tasks[ti].queue[qi].calc_time := 0.0;
-      g_tasks[ti].queue[qi].min_time := 0.0;
-      g_tasks[ti].queue[qi].max_time := 0.0;
-    END_FOR;
-  END_FOR;
+  fb_clear();
   batch_idx := 1;
   next_phase := 2001;
 
@@ -4239,20 +4681,7 @@ ELSIF phase >= 2001 AND phase <= 2010 THEN
 (* PHASE 2200: TASKS_SORT — insertion sort each queue by time   *)
 (* ══════════════════════════════════════════════════════════════ *)
 ELSIF phase = 2200 THEN
-  FOR ti := 1 TO 3 DO
-    ins_cnt := g_tasks[ti].count;
-    IF ins_cnt >= 2 THEN
-      FOR ins_i := 2 TO ins_cnt DO
-        tmp_task := g_tasks[ti].queue[ins_i];
-        ins_j := ins_i - 1;
-        WHILE ins_j >= 1 AND g_tasks[ti].queue[ins_j].start_time > tmp_task.start_time DO
-          g_tasks[ti].queue[ins_j + 1] := g_tasks[ti].queue[ins_j];
-          ins_j := ins_j - 1;
-        END_WHILE;
-        g_tasks[ti].queue[ins_j + 1] := tmp_task;
-      END_FOR;
-    END_IF;
-  END_FOR;
+  fb_sort(i_trans := 0);
   next_phase := 2201;
 
 (* ══════════════════════════════════════════════════════════════ *)
@@ -4952,204 +5381,6 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
           </ST>
         </body>
       </pou>
-      <pou name="FB_ClearConfig" pouType="functionBlock">
-        <interface>
-          <externalVars>
-            <variable name="g_station_count">
-              <type><INT/></type>
-            </variable>
-            <variable name="g_stations">
-              <type>
-                <array>
-                  <dimension lower="101" upper="125"/>
-                  <baseType><derived name="STATION_T"/></baseType>
-                </array>
-              </type>
-            </variable>
-            <variable name="g_cfg">
-              <type>
-                <array>
-                  <dimension lower="1" upper="3"/>
-                  <baseType><derived name="TRANSPORTER_CFG_T"/></baseType>
-                </array>
-              </type>
-            </variable>
-            <variable name="g_state">
-              <type>
-                <array>
-                  <dimension lower="1" upper="3"/>
-                  <baseType><derived name="TRANSPORTER_STATE_T"/></baseType>
-                </array>
-              </type>
-            </variable>
-            <variable name="g_cmd_start">
-              <type>
-                <array>
-                  <dimension lower="1" upper="3"/>
-                  <baseType><BOOL/></baseType>
-                </array>
-              </type>
-            </variable>
-            <variable name="g_cmd_lift_station">
-              <type>
-                <array>
-                  <dimension lower="1" upper="3"/>
-                  <baseType><INT/></baseType>
-                </array>
-              </type>
-            </variable>
-            <variable name="g_cmd_sink_station">
-              <type>
-                <array>
-                  <dimension lower="1" upper="3"/>
-                  <baseType><INT/></baseType>
-                </array>
-              </type>
-            </variable>
-            <variable name="g_units">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="UNIT_T"/></baseType>
-                </array>
-              </type>
-            </variable>
-            <variable name="g_batches">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="BATCH_T"/></baseType>
-                </array>
-              </type>
-            </variable>
-            <variable name="g_programs">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="TREATMENT_PROGRAM_T"/></baseType>
-                </array>
-              </type>
-            </variable>
-            <variable name="g_avoid_status">
-              <type>
-                <array>
-                  <dimension lower="101" upper="125"/>
-                  <baseType><INT/></baseType>
-                </array>
-              </type>
-            </variable>
-          </externalVars>
-          <localVars>
-            <variable name="i">
-              <type><INT/></type>
-            </variable>
-            <variable name="j">
-              <type><INT/></type>
-            </variable>
-            <variable name="k">
-              <type><INT/></type>
-            </variable>
-          </localVars>
-        </interface>
-        <body>
-          <ST>
-            <xhtml:p><![CDATA[(* --- Clear all stations --- *)
-FOR i := 101 TO 125 DO
-  g_stations[i].tank_id       := 0;
-  g_stations[i].status        := 0;
-  g_stations[i].x_position    := 0.0;
-  g_stations[i].y_position    := 0.0;
-  g_stations[i].z_position    := 0.0;
-  g_stations[i].stn_type      := 0;
-  g_stations[i].dropping_time := 0.0;
-  g_stations[i].device_delay  := 0.0;
-END_FOR;
-g_station_count := 0;
-
-(* --- Clear all transporter configs --- *)
-FOR i := 1 TO 3 DO
-  g_cfg[i].x_min_limit   := 0.0;
-  g_cfg[i].x_max_limit   := 0.0;
-  g_cfg[i].y_min_limit   := 0.0;
-  g_cfg[i].y_max_limit   := 0.0;
-  g_cfg[i].x_avoid_mm    := 0.0;
-  g_cfg[i].y_avoid_mm    := 0.0;
-  g_cfg[i].phys2d.x_accel_s     := 0.0;
-  g_cfg[i].phys2d.x_decel_s     := 0.0;
-  g_cfg[i].phys2d.x_max_mm_s    := 0.0;
-  g_cfg[i].phys2d.z_total_mm    := 0.0;
-  g_cfg[i].phys2d.z_slow_dry_mm := 0.0;
-  g_cfg[i].phys2d.z_slow_wet_mm := 0.0;
-  g_cfg[i].phys2d.z_slow_end_mm := 0.0;
-  g_cfg[i].phys2d.z_slow_mm_s   := 0.0;
-  g_cfg[i].phys2d.z_fast_mm_s   := 0.0;
-  g_cfg[i].phys2d.drip_delay_s  := 0.0;
-  g_cfg[i].phys2d.avoid_mm      := 0.0;
-  FOR j := 1 TO 4 DO
-    g_cfg[i].task_area[j].min_lift := 0;
-    g_cfg[i].task_area[j].max_lift := 0;
-    g_cfg[i].task_area[j].min_sink := 0;
-    g_cfg[i].task_area[j].max_sink := 0;
-  END_FOR;
-END_FOR;
-
-(* --- Clear avoid status --- *)
-FOR i := 101 TO 125 DO
-  g_avoid_status[i] := 0;
-END_FOR;
-
-(* --- Clear all transporter states --- *)
-FOR i := 1 TO 3 DO
-  g_state[i].active              := FALSE;
-  g_state[i].phase               := 0;
-  g_state[i].z_stage             := 0;
-  g_state[i].x_mm                := 0.0;
-  g_state[i].z_mm                := 0.0;
-  g_state[i].vel_x               := 0.0;
-  g_state[i].vel_z               := 0.0;
-  g_state[i].current_station     := 0;
-  g_state[i].lift_station_target := 0;
-  g_state[i].sink_station_target := 0;
-  g_state[i].target_x            := 0.0;
-  g_state[i].x_min_limit         := 0.0;
-  g_state[i].x_max_limit         := 0.0;
-  g_state[i].z_timer_s           := 0.0;
-  g_cmd_start[i]        := FALSE;
-  g_cmd_lift_station[i]  := 0;
-  g_cmd_sink_station[i]  := 0;
-END_FOR;
-
-(* --- Clear all units --- *)
-FOR i := 1 TO 10 DO
-  g_units[i].location := 0;
-  g_units[i].status   := 0;
-  g_units[i].state    := 0;
-  g_units[i].target   := 0;
-END_FOR;
-
-(* --- Clear all batches --- *)
-FOR i := 1 TO 10 DO
-  g_batches[i].batch_code := 0;
-  g_batches[i].state      := 0;
-  g_batches[i].prog_id    := 0;
-  g_batches[i].cur_stage      := 0;
-END_FOR;
-
-(* --- Clear all treatment programs --- *)
-FOR i := 1 TO 10 DO
-  g_programs[i].program_id := 0;
-  FOR j := 1 TO 30 DO
-    FOR k := 1 TO 5 DO
-      g_programs[i].stages[j].stations[k] := 0;
-    END_FOR;
-    g_programs[i].stages[j].min_time := 0;
-    g_programs[i].stages[j].max_time := 0;
-    g_programs[i].stages[j].cal_time := 0;
-  END_FOR;
-END_FOR;]]></xhtml:p>
-          </ST>
-        </body>
-      </pou>
       <pou name="PLC_PRG" pouType="program">
         <interface>
           <externalVars>
@@ -5606,9 +5837,6 @@ END_FOR;]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_dep_stable">
-              <type><BOOL/></type>
-            </variable>
           </externalVars>
           <localVars>
             <variable name="init_done">
@@ -5698,7 +5926,7 @@ END_FOR;]]></xhtml:p>
               <type><derived name="STC_FB_FindStation"/></type>
             </variable>
             <variable name="clear_cfg">
-              <type><derived name="FB_ClearConfig"/></type>
+              <type><derived name="SIM_FB_ClearConfig"/></type>
             </variable>
             <variable name="cycle_count">
               <type><INT/></type>
@@ -5715,11 +5943,8 @@ END_FOR;]]></xhtml:p>
             <variable name="arrived_z">
               <type><BOOL/></type>
             </variable>
-            <variable name="tsk_sched">
-              <type><derived name="TSK_FB_Scheduler"/></type>
-            </variable>
-            <variable name="dep_sched">
-              <type><derived name="DEP_FB_Scheduler"/></type>
+            <variable name="main_sched">
+              <type><derived name="STC_FB_MainScheduler"/></type>
             </variable>
           </localVars>
         </interface>
@@ -5850,13 +6075,8 @@ twa_calc();
 g_epoch_h := iw_epoch_h;
 g_time_s  := (INT_TO_REAL(iw_time_hi) * 65536.0 + INT_TO_REAL(iw_time_lo)) / 10.0;
 
-(* ── Task Scheduler ── *)
-tsk_sched(i_run := init_done, i_time_s := g_time_s);
-
-(* ── Departure Scheduler ── *)
-(* Stable signal: TSK is at READY (10000) or RESTART (10110) *)
-g_dep_stable := (tsk_sched.o_phase >= 10000);
-dep_sched(i_run := init_done, i_time_s := g_time_s, i_tsk_phase := tsk_sched.o_phase);
+(* ── Main Scheduler (TSK + DEP alternating cycles) ── *)
+main_sched(i_run := init_done, i_time_s := g_time_s);
 
 FOR i := 1 TO 3 DO
   IF g_state[i].active THEN

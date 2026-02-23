@@ -149,8 +149,6 @@ VAR_EXTERNAL
   (* Task scheduler globals *)
   g_schedule  : ARRAY[1..10] OF TSK_SCHEDULE_T;
   g_tasks     : ARRAY[1..3] OF TSK_QUEUE_T;
-  (* Departure scheduler handshake *)
-  g_dep_stable : BOOL;
 END_VAR
 VAR
   init_done      : BOOL := FALSE;
@@ -180,14 +178,13 @@ VAR
   fb_z3        : SIM_FB_ZMotion;
   twa_calc     : TWA_FB_CalcLimits;
   lookup       : STC_FB_FindStation;
-  clear_cfg    : FB_ClearConfig;
+  clear_cfg    : SIM_FB_ClearConfig;
   cycle_count  : INT;
   tmp_z        : REAL;
   tmp_zs       : INT;
   tmp_zt       : REAL;
   arrived_z    : BOOL;
-  tsk_sched    : TSK_FB_Scheduler;
-  dep_sched    : DEP_FB_Scheduler;
+  main_sched   : STC_FB_MainScheduler;
 END_VAR
 (* ============================================================
    CONFIG UPLOAD HANDLER
@@ -314,13 +311,8 @@ twa_calc();
 g_epoch_h := iw_epoch_h;
 g_time_s  := (INT_TO_REAL(iw_time_hi) * 65536.0 + INT_TO_REAL(iw_time_lo)) / 10.0;
 
-(* ── Task Scheduler ── *)
-tsk_sched(i_run := init_done, i_time_s := g_time_s);
-
-(* ── Departure Scheduler ── *)
-(* Stable signal: TSK is at READY (10000) or RESTART (10110) *)
-g_dep_stable := (tsk_sched.o_phase >= 10000);
-dep_sched(i_run := init_done, i_time_s := g_time_s, i_tsk_phase := tsk_sched.o_phase);
+(* ── Main Scheduler (TSK + DEP alternating cycles) ── *)
+main_sched(i_run := init_done, i_time_s := g_time_s);
 
 FOR i := 1 TO 3 DO
   IF g_state[i].active THEN

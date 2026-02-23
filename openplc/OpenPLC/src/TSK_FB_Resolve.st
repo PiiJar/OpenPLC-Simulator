@@ -43,9 +43,7 @@ VAR
   cap      : REAL;       (* cap factor 0.5 or 0.9 *)
   flex     : REAL;       (* available flex *)
   amount   : REAL;       (* amount to apply *)
-  qi       : INT;        (* queue loop *)
   si       : INT;        (* schedule stage loop *)
-  cnt      : INT;        (* queue count *)
   sc       : INT;        (* schedule stage count *)
   (* Lock arrays: packed as unit*100+stage, 0=none, 1=ADVANCE, 2=DELAY *)
   locks      : ARRAY[1..50] OF INT;   (* lock keys (packed) *)
@@ -59,6 +57,8 @@ VAR
   (* Next batch flex_up *)
   next_flex  : REAL;
   prev_stage_flex : REAL;
+  (* Shared shift FB *)
+  fb_shift : STC_FB_ShiftSchedule;
 END_VAR
 
 o_solved      := FALSE;
@@ -97,34 +97,14 @@ IF prev_flex > 0.1 THEN
   amount := prev_flex * cap;
   IF amount > remain THEN amount := remain; END_IF;
 
-  (* Apply: shift blocked batch's stage exit earlier *)
+  (* Apply: shift blocked batch's stage exit earlier + propagate *)
   IF i_blocked_stage >= 1 AND i_blocked_stage <= 30 THEN
     g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time :=
       g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time - amount;
     g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time :=
       g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time - amount;
-    (* Propagate: shift all later stages earlier *)
-    sc := g_schedule[i_blocked_unit].stage_count;
-    FOR si := i_blocked_stage + 1 TO sc DO
-      g_schedule[i_blocked_unit].stages[si].entry_time :=
-        g_schedule[i_blocked_unit].stages[si].entry_time - amount;
-      g_schedule[i_blocked_unit].stages[si].exit_time :=
-        g_schedule[i_blocked_unit].stages[si].exit_time - amount;
-    END_FOR;
+    fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := -amount);
   END_IF;
-
-  (* Update tasks for blocked unit in all transporter queues *)
-  FOR qi := 1 TO 3 DO
-    FOR si := 1 TO g_tasks[qi].count DO
-      IF g_tasks[qi].queue[si].unit = i_blocked_unit
-         AND g_tasks[qi].queue[si].stage >= i_blocked_stage THEN
-        g_tasks[qi].queue[si].start_time :=
-          g_tasks[qi].queue[si].start_time - amount;
-        g_tasks[qi].queue[si].finish_time :=
-          g_tasks[qi].queue[si].finish_time - amount;
-      END_IF;
-    END_FOR;
-  END_FOR;
 
   remain := remain - amount;
   o_total_adv := o_total_adv + amount;
@@ -153,31 +133,12 @@ IF next_flex > 0.1 THEN
   amount := next_flex * cap;
   IF amount > remain THEN amount := remain; END_IF;
 
-  (* Apply: extend conflict stage, shift later stages forward *)
+  (* Apply: extend conflict stage + shift later stages forward *)
   g_schedule[i_conf_unit].stages[i_conf_stage].calc_time :=
     g_schedule[i_conf_unit].stages[i_conf_stage].calc_time + amount;
   g_schedule[i_conf_unit].stages[i_conf_stage].exit_time :=
     g_schedule[i_conf_unit].stages[i_conf_stage].exit_time + amount;
-  sc := g_schedule[i_conf_unit].stage_count;
-  FOR si := i_conf_stage + 1 TO sc DO
-    g_schedule[i_conf_unit].stages[si].entry_time :=
-      g_schedule[i_conf_unit].stages[si].entry_time + amount;
-    g_schedule[i_conf_unit].stages[si].exit_time :=
-      g_schedule[i_conf_unit].stages[si].exit_time + amount;
-  END_FOR;
-
-  (* Update tasks *)
-  FOR qi := 1 TO 3 DO
-    FOR si := 1 TO g_tasks[qi].count DO
-      IF g_tasks[qi].queue[si].unit = i_conf_unit
-         AND g_tasks[qi].queue[si].stage >= i_conf_stage THEN
-        g_tasks[qi].queue[si].start_time :=
-          g_tasks[qi].queue[si].start_time + amount;
-        g_tasks[qi].queue[si].finish_time :=
-          g_tasks[qi].queue[si].finish_time + amount;
-      END_IF;
-    END_FOR;
-  END_FOR;
+  fb_shift(i_unit := i_conf_unit, i_from_stage := i_conf_stage + 1, i_amount := amount);
 
   remain := remain - amount;
   o_total_delay := o_total_delay + amount;
@@ -206,30 +167,12 @@ IF i_conf_stage > 1 THEN
     amount := prev_stage_flex * cap;
     IF amount > remain THEN amount := remain; END_IF;
 
-    (* Apply: extend previous stage, propagate from conf_stage onward *)
+    (* Apply: extend previous stage + propagate from conf_stage onward *)
     g_schedule[i_conf_unit].stages[i_conf_stage - 1].calc_time :=
       g_schedule[i_conf_unit].stages[i_conf_stage - 1].calc_time + amount;
     g_schedule[i_conf_unit].stages[i_conf_stage - 1].exit_time :=
       g_schedule[i_conf_unit].stages[i_conf_stage - 1].exit_time + amount;
-    sc := g_schedule[i_conf_unit].stage_count;
-    FOR si := i_conf_stage TO sc DO
-      g_schedule[i_conf_unit].stages[si].entry_time :=
-        g_schedule[i_conf_unit].stages[si].entry_time + amount;
-      g_schedule[i_conf_unit].stages[si].exit_time :=
-        g_schedule[i_conf_unit].stages[si].exit_time + amount;
-    END_FOR;
-
-    FOR qi := 1 TO 3 DO
-      FOR si := 1 TO g_tasks[qi].count DO
-        IF g_tasks[qi].queue[si].unit = i_conf_unit
-           AND g_tasks[qi].queue[si].stage >= (i_conf_stage - 1) THEN
-          g_tasks[qi].queue[si].start_time :=
-            g_tasks[qi].queue[si].start_time + amount;
-          g_tasks[qi].queue[si].finish_time :=
-            g_tasks[qi].queue[si].finish_time + amount;
-        END_IF;
-      END_FOR;
-    END_FOR;
+    fb_shift(i_unit := i_conf_unit, i_from_stage := i_conf_stage, i_amount := amount);
 
     remain := remain - amount;
     o_total_delay := o_total_delay + amount;
@@ -263,25 +206,7 @@ IF prev_flex > 0.1 THEN
     g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time + amount;
   g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time :=
     g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time + amount;
-  sc := g_schedule[i_blocked_unit].stage_count;
-  FOR si := i_blocked_stage + 1 TO sc DO
-    g_schedule[i_blocked_unit].stages[si].entry_time :=
-      g_schedule[i_blocked_unit].stages[si].entry_time + amount;
-    g_schedule[i_blocked_unit].stages[si].exit_time :=
-      g_schedule[i_blocked_unit].stages[si].exit_time + amount;
-  END_FOR;
-
-  FOR qi := 1 TO 3 DO
-    FOR si := 1 TO g_tasks[qi].count DO
-      IF g_tasks[qi].queue[si].unit = i_blocked_unit
-         AND g_tasks[qi].queue[si].stage >= i_blocked_stage THEN
-        g_tasks[qi].queue[si].start_time :=
-          g_tasks[qi].queue[si].start_time + amount;
-        g_tasks[qi].queue[si].finish_time :=
-          g_tasks[qi].queue[si].finish_time + amount;
-      END_IF;
-    END_FOR;
-  END_FOR;
+  fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := amount);
 
   remain := remain - amount;
   o_total_delay := o_total_delay + amount;

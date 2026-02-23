@@ -1,12 +1,12 @@
 (* ============================================================
-   clear_config.st — Clear all PLC configuration data
+   SIM_FB_ClearConfig.st — Clear all PLC configuration data
    
    Called by PLC_PRG when Gateway sends cmd=3 (clear_all).
    Zeroes out all stations, transporter configs, transporter
    states and units so the PLC is ready for fresh config upload.
    ============================================================ *)
 
-FUNCTION_BLOCK FB_ClearConfig
+FUNCTION_BLOCK SIM_FB_ClearConfig
 VAR_EXTERNAL
   g_station_count    : INT;
   g_stations         : ARRAY[101..125] OF STATION_T;

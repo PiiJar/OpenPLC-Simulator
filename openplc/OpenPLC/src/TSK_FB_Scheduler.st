@@ -64,6 +64,9 @@ VAR
   fb_resolve : TSK_FB_Resolve;
   fb_notrt   : TSK_FB_NoTreatment;
   fb_find    : STC_FB_FindTransporter;  (* shared transporter finder *)
+  fb_clear   : STC_FB_ClearTaskQueues;  (* shared queue clear *)
+  fb_sort    : STC_FB_SortTaskQueue;    (* shared queue sort *)
+  fb_collect : STC_FB_CollectActiveBatches; (* shared batch collector *)
   (* Transporter assignment for schedule calculation *)
   sched_trans : INT;
   (* Temp *)
@@ -72,11 +75,6 @@ VAR
   qi         : INT;
   ui         : INT;
   total_tasks : INT;
-  (* Insertion sort vars *)
-  ins_i      : INT;
-  ins_j      : INT;
-  ins_cnt    : INT;
-  tmp_task   : TSK_TASK_T;
   cycle_count : INT := 0;
 END_VAR
 
@@ -98,13 +96,10 @@ IF phase = 0 THEN
 (* PHASE 1: INIT — collect active batches                       *)
 (* ══════════════════════════════════════════════════════════════ *)
 ELSIF phase = 1 THEN
-  batch_count := 0;
-  FOR bi := 1 TO 10 DO
-    (* Active batch: state = IN_PROCESS (1) or has valid program *)
-    IF g_batches[bi].state = 1 THEN
-      batch_count := batch_count + 1;
-      batch_list[batch_count] := bi;
-    END_IF;
+  fb_collect(i_mode := 0);
+  batch_count := fb_collect.o_count;
+  FOR bi := 1 TO batch_count DO
+    batch_list[bi] := fb_collect.o_list[bi];
   END_FOR;
   o_batch_cnt := batch_count;
   conflict_iter := 0;
@@ -157,20 +152,7 @@ ELSIF phase = 1900 THEN
 (* PHASE 2000: TASKS_START — clear all task queues              *)
 (* ══════════════════════════════════════════════════════════════ *)
 ELSIF phase = 2000 THEN
-  FOR ti := 1 TO 3 DO
-    g_tasks[ti].count := 0;
-    FOR qi := 1 TO 10 DO
-      g_tasks[ti].queue[qi].unit := 0;
-      g_tasks[ti].queue[qi].stage := 0;
-      g_tasks[ti].queue[qi].lift_station := 0;
-      g_tasks[ti].queue[qi].sink_station := 0;
-      g_tasks[ti].queue[qi].start_time := 0.0;
-      g_tasks[ti].queue[qi].finish_time := 0.0;
-      g_tasks[ti].queue[qi].calc_time := 0.0;
-      g_tasks[ti].queue[qi].min_time := 0.0;
-      g_tasks[ti].queue[qi].max_time := 0.0;
-    END_FOR;
-  END_FOR;
+  fb_clear();
   batch_idx := 1;
   next_phase := 2001;
 
@@ -195,20 +177,7 @@ ELSIF phase >= 2001 AND phase <= 2010 THEN
 (* PHASE 2200: TASKS_SORT — insertion sort each queue by time   *)
 (* ══════════════════════════════════════════════════════════════ *)
 ELSIF phase = 2200 THEN
-  FOR ti := 1 TO 3 DO
-    ins_cnt := g_tasks[ti].count;
-    IF ins_cnt >= 2 THEN
-      FOR ins_i := 2 TO ins_cnt DO
-        tmp_task := g_tasks[ti].queue[ins_i];
-        ins_j := ins_i - 1;
-        WHILE ins_j >= 1 AND g_tasks[ti].queue[ins_j].start_time > tmp_task.start_time DO
-          g_tasks[ti].queue[ins_j + 1] := g_tasks[ti].queue[ins_j];
-          ins_j := ins_j - 1;
-        END_WHILE;
-        g_tasks[ti].queue[ins_j + 1] := tmp_task;
-      END_FOR;
-    END_IF;
-  END_FOR;
+  fb_sort(i_trans := 0);
   next_phase := 2201;
 
 (* ══════════════════════════════════════════════════════════════ *)
