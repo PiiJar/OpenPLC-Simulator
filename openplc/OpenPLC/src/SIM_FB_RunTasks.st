@@ -76,10 +76,9 @@ FOR i := 1 TO 3 DO
     g_transporter[i].phase := 1;
     g_transporter[i].z_stage := 0;
     g_transporter[i].z_timer_s := 0.0;
-  END_IF;
 
   (* ── Phase 1: Drive X towards lift station ──────────────── *)
-  IF g_transporter[i].phase = 1 THEN
+  ELSIF g_transporter[i].phase = 1 THEN
     tmp_x  := g_transporter[i].x_mm;
     tmp_vx := g_transporter[i].vel_x;
     IF i = 1 THEN
@@ -138,10 +137,9 @@ FOR i := 1 TO 3 DO
       g_transporter[i].phase := 2;
     END_IF;
     (* If arrived_x but not at_station → at drive limit, wait for clearance *)
-  END_IF;
 
   (* ── Phase 2: Lift Z at lift station ────────────────────── *)
-  IF g_transporter[i].phase = 2 THEN
+  ELSIF g_transporter[i].phase = 2 THEN
     lookup(station_number := g_transporter[i].lift_station);
     station_type := lookup.stype;
     tmp_z  := g_transporter[i].z_mm;
@@ -204,10 +202,9 @@ FOR i := 1 TO 3 DO
       g_transporter[i].final_target_x := lookup.x_mm;
       g_transporter[i].phase := 3;
     END_IF;
-  END_IF;
 
   (* ── Phase 3: Drive X towards sink station ─────────────── *)
-  IF g_transporter[i].phase = 3 THEN
+  ELSIF g_transporter[i].phase = 3 THEN
     tmp_x  := g_transporter[i].x_mm;
     tmp_vx := g_transporter[i].vel_x;
     IF i = 1 THEN
@@ -265,10 +262,9 @@ FOR i := 1 TO 3 DO
       g_transporter[i].phase := 4;
     END_IF;
     (* If arrived_x but not at_station → at drive limit, wait for clearance *)
-  END_IF;
 
   (* ── Phase 4: Sink Z at sink station ───────────────────── *)
-  IF g_transporter[i].phase = 4 THEN
+  ELSIF g_transporter[i].phase = 4 THEN
     lookup(station_number := g_transporter[i].sink_station);
     station_type := lookup.stype;
     tmp_z  := g_transporter[i].z_mm;
@@ -329,7 +325,7 @@ FOR i := 1 TO 3 DO
     IF arrived_z THEN
       g_transporter[i].phase := 0;
     END_IF;
-  END_IF;
+  END_IF;  (* ELSIF chain: phases 0→1→2→3→4 *)
 
   (* ── Phase 0 idle: drive back inside limits if outside ────── *)
   IF g_transporter[i].phase = 0 THEN
