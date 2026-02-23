@@ -35,9 +35,9 @@ sc := g_schedule[i_unit].stage_count;
 FOR si := i_from_stage TO sc DO
   IF si >= 1 AND si <= 30 THEN
     g_schedule[i_unit].stages[si].entry_time :=
-      g_schedule[i_unit].stages[si].entry_time + i_amount;
+      g_schedule[i_unit].stages[si].entry_time + REAL_TO_LINT(i_amount);
     g_schedule[i_unit].stages[si].exit_time :=
-      g_schedule[i_unit].stages[si].exit_time + i_amount;
+      g_schedule[i_unit].stages[si].exit_time + REAL_TO_LINT(i_amount);
   END_IF;
 END_FOR;
 
@@ -47,9 +47,9 @@ FOR ti := 1 TO 3 DO
     IF g_tasks[ti].queue[qi].unit = i_unit
        AND g_tasks[ti].queue[qi].stage >= i_from_stage THEN
       g_tasks[ti].queue[qi].start_time :=
-        g_tasks[ti].queue[qi].start_time + i_amount;
+        g_tasks[ti].queue[qi].start_time + REAL_TO_LINT(i_amount);
       g_tasks[ti].queue[qi].finish_time :=
-        g_tasks[ti].queue[qi].finish_time + i_amount;
+        g_tasks[ti].queue[qi].finish_time + REAL_TO_LINT(i_amount);
     END_IF;
   END_FOR;
 END_FOR;

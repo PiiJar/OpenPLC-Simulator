@@ -102,7 +102,7 @@ IF prev_flex > 0.1 THEN
     g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time :=
       g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time - amount;
     g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time :=
-      g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time - amount;
+      g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time - REAL_TO_LINT(amount);
     fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := -amount);
   END_IF;
 
@@ -137,7 +137,7 @@ IF next_flex > 0.1 THEN
   g_schedule[i_conf_unit].stages[i_conf_stage].calc_time :=
     g_schedule[i_conf_unit].stages[i_conf_stage].calc_time + amount;
   g_schedule[i_conf_unit].stages[i_conf_stage].exit_time :=
-    g_schedule[i_conf_unit].stages[i_conf_stage].exit_time + amount;
+    g_schedule[i_conf_unit].stages[i_conf_stage].exit_time + REAL_TO_LINT(amount);
   fb_shift(i_unit := i_conf_unit, i_from_stage := i_conf_stage + 1, i_amount := amount);
 
   remain := remain - amount;
@@ -171,7 +171,7 @@ IF i_conf_stage > 1 THEN
     g_schedule[i_conf_unit].stages[i_conf_stage - 1].calc_time :=
       g_schedule[i_conf_unit].stages[i_conf_stage - 1].calc_time + amount;
     g_schedule[i_conf_unit].stages[i_conf_stage - 1].exit_time :=
-      g_schedule[i_conf_unit].stages[i_conf_stage - 1].exit_time + amount;
+      g_schedule[i_conf_unit].stages[i_conf_stage - 1].exit_time + REAL_TO_LINT(amount);
     fb_shift(i_unit := i_conf_unit, i_from_stage := i_conf_stage, i_amount := amount);
 
     remain := remain - amount;
@@ -205,7 +205,7 @@ IF prev_flex > 0.1 THEN
   g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time :=
     g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time + amount;
   g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time :=
-    g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time + amount;
+    g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time + REAL_TO_LINT(amount);
   fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := amount);
 
   remain := remain - amount;

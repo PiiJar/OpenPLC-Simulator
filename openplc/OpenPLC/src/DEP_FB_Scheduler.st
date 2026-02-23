@@ -34,7 +34,7 @@
 FUNCTION_BLOCK DEP_FB_Scheduler
 VAR_INPUT
   i_run       : BOOL;     (* TRUE = run *)
-  i_time_s    : REAL;     (* current absolute time (s) *)
+  i_time_s    : LINT;     (* current absolute time (s), unix seconds *)
   i_tsk_phase : INT;      (* TSK_FB_Scheduler.o_phase *)
 END_VAR
 VAR_EXTERNAL
@@ -81,7 +81,7 @@ VAR
   (* ── Fit state ── *)
   fit_round      : INT;
   MAX_FIT_ROUNDS : INT := 50;
-  sched_base_time : REAL;        (* adjusted base time for waiting batch *)
+  sched_base_time : LINT;        (* adjusted base time for waiting batch *)
 
   (* ── Delay recording ── *)
   delay_stage  : INT;
@@ -330,7 +330,7 @@ ELSIF phase = 2000 THEN
       i_sink_stn     := first_stn,
       i_trans_id     := sched_trans,
       i_task_start   := sched_base_time,
-      i_task_end     := sched_base_time + xfer_dur,
+      i_task_end     := sched_base_time + REAL_TO_LINT(xfer_dur),
       i_shift_s      := 0.0,
       i_calc_time_s  := 0.0,
       i_max_time_s   := 2.0 * MAX_INIT_WAIT_S,
@@ -343,7 +343,7 @@ ELSIF phase = 2000 THEN
 
       IF stage0_delay > MARGIN_S THEN
         (* Stage 0 needs delay — shift base time and recalculate *)
-        sched_base_time := sched_base_time + stage0_delay;
+        sched_base_time := sched_base_time + REAL_TO_LINT(stage0_delay);
         fit_round := fit_round + 1;
         IF fit_round > MAX_FIT_ROUNDS THEN
           next_phase := 9000;
@@ -433,7 +433,7 @@ ELSIF phase = 3000 THEN
   ELSE
     IF delay_target = 0 THEN
       (* Stage 0 delay: shift base time (handled in FIT_STAGE0, shouldn't reach here) *)
-      sched_base_time := sched_base_time + delay_amount;
+      sched_base_time := sched_base_time + REAL_TO_LINT(delay_amount);
     ELSIF delay_target = 1 THEN
       (* Program stage delay: increase cal_time *)
       prog_idx := delay_stage;

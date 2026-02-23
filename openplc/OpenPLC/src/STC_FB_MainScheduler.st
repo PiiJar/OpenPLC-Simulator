@@ -32,7 +32,7 @@
 FUNCTION_BLOCK STC_FB_MainScheduler
 VAR_INPUT
   i_run    : BOOL;     (* TRUE = run *)
-  i_time_s : REAL;     (* current absolute time (s) *)
+  i_time_s : LINT;     (* current absolute time (s), unix seconds *)
 END_VAR
 VAR_EXTERNAL
   g_dep_stable  : BOOL;
@@ -55,8 +55,8 @@ END_VAR
 
 IF NOT i_run THEN
   (* Stop both schedulers *)
-  tsk_sched(i_run := FALSE, i_time_s := 0.0);
-  dep_sched(i_run := FALSE, i_time_s := 0.0, i_tsk_phase := 0);
+  tsk_sched(i_run := FALSE, i_time_s := 0);
+  dep_sched(i_run := FALSE, i_time_s := 0, i_tsk_phase := 0);
   turn := 0;
   tsk_phase := 0;
   o_tsk_phase := 0;
@@ -67,8 +67,8 @@ END_IF;
 
 (* ── Inhibit during calibration ── *)
 IF g_cal_active THEN
-  tsk_sched(i_run := FALSE, i_time_s := 0.0);
-  dep_sched(i_run := FALSE, i_time_s := 0.0, i_tsk_phase := 0);
+  tsk_sched(i_run := FALSE, i_time_s := 0);
+  dep_sched(i_run := FALSE, i_time_s := 0, i_tsk_phase := 0);
   turn := 0;
   RETURN;
 END_IF;

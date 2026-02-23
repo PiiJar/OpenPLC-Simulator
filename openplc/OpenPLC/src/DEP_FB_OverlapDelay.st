@@ -18,8 +18,8 @@ VAR_INPUT
   i_lift_stn   : INT;     (* task lift station *)
   i_sink_stn   : INT;     (* task sink station *)
   i_trans_id   : INT;     (* task transporter id *)
-  i_task_start : REAL;    (* task start time (s), already shifted *)
-  i_task_end   : REAL;    (* task end time (s), already shifted *)
+  i_task_start : LINT;    (* task start time (s), already shifted *)
+  i_task_end   : LINT;    (* task end time (s), already shifted *)
   i_margin_s   : REAL;    (* conflict margin (s), default 1.0 *)
 END_VAR
 VAR_OUTPUT
@@ -36,10 +36,10 @@ VAR
   ti       : INT;    (* transporter index *)
   qi       : INT;    (* queue index *)
   max_conf : REAL;   (* maximum conflict in this round *)
-  t_start  : REAL;   (* shifted task start *)
-  t_end    : REAL;   (* shifted task end *)
-  e_start  : REAL;   (* existing task start *)
-  e_end    : REAL;   (* existing task end *)
+  t_start  : LINT;   (* shifted task start *)
+  t_end    : LINT;   (* shifted task end *)
+  e_start  : LINT;   (* existing task start *)
+  e_end    : LINT;   (* existing task end *)
   e_lift   : INT;
   e_sink   : INT;
   has_ovlp : BOOL;
@@ -68,8 +68,8 @@ END_IF;
 (* Iterative conflict resolution — max 20 rounds *)
 FOR round := 1 TO 20 DO
   max_conf := 0.0;
-  t_start  := i_task_start + o_delay_s;
-  t_end    := i_task_end + o_delay_s;
+  t_start  := i_task_start + REAL_TO_LINT(o_delay_s);
+  t_end    := i_task_end + REAL_TO_LINT(o_delay_s);
 
   (* Check all tasks on OTHER transporters *)
   FOR ti := 1 TO 3 DO
@@ -95,8 +95,8 @@ FOR round := 1 TO 20 DO
 
         IF has_ovlp THEN
           (* Time overlap check: task overlaps with existing? *)
-          IF t_start < (e_end + i_margin_s) AND t_end > (e_start - i_margin_s) THEN
-            needed := (e_end + i_margin_s) - t_start;
+          IF t_start < (e_end + REAL_TO_LINT(i_margin_s)) AND t_end > (e_start - REAL_TO_LINT(i_margin_s)) THEN
+            needed := LINT_TO_REAL(e_end - t_start) + i_margin_s;
             IF needed > max_conf THEN
               max_conf := needed;
             END_IF;

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-23T21:20:10"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-23T21:20:10">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-23T21:41:01"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-23T21:41:01">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -169,7 +169,7 @@
         <baseType>
           <struct>
             <variable name="task_id">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="lift_station">
               <type><INT/></type>
@@ -196,7 +196,7 @@
               <type><INT/></type>
             </variable>
             <variable name="running_task_id">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="current_station">
               <type><INT/></type>
@@ -329,10 +329,10 @@
               <type><INT/></type>
             </variable>
             <variable name="entry_time">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="exit_time">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="min_time">
               <type><REAL/></type>
@@ -382,10 +382,10 @@
               <type><INT/></type>
             </variable>
             <variable name="start_time">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="finish_time">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="calc_time">
               <type><REAL/></type>
@@ -429,10 +429,10 @@
               <type><INT/></type>
             </variable>
             <variable name="start_time">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="end_time">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="flex_down">
               <type><REAL/></type>
@@ -500,10 +500,10 @@
         <baseType>
           <struct>
             <variable name="start_time">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="end_time">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="lift_station">
               <type><INT/></type>
@@ -544,7 +544,7 @@
               <type><REAL/></type>
             </variable>
             <variable name="task_end_s">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="slot_idx">
               <type><INT/></type>
@@ -660,7 +660,7 @@
               <type><INT/></type>
             </variable>
             <variable name="time_s">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
           </struct>
         </baseType>
@@ -753,7 +753,7 @@ END_IF;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="i_time_s">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
           </inputVars>
           <externalVars>
@@ -785,20 +785,20 @@ END_IF;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="prev_end">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="prev_sink">
               <type><INT/></type>
             </variable>
             <variable name="gap_start">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="gap_end">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="HORIZON">
-              <type><REAL/></type>
-              <initialValue><simpleValue value="1.0E9"/></initialValue>
+              <type><LINT/></type>
+              <initialValue><simpleValue value="1000000000"/></initialValue>
             </variable>
           </localVars>
         </interface>
@@ -826,7 +826,7 @@ FOR qi := 1 TO 10 DO
   gap_end   := g_tasks[i_trans].queue[qi].start_time;
 
   (* Only create slot if there is a meaningful gap *)
-  IF gap_end > gap_start + 0.1 THEN
+  IF gap_end > gap_start + LINT#1 THEN
     si := si + 1;
     IF si <= 20 THEN
       g_dep_idle_slots[i_trans].slots[si].start_time   := gap_start;
@@ -936,10 +936,10 @@ END_FOR;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="i_task_start">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="i_task_end">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="i_shift_s">
               <type><REAL/></type>
@@ -986,10 +986,10 @@ END_FOR;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="slot_start">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="slot_end">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="from_stn">
               <type><INT/></type>
@@ -1004,13 +1004,13 @@ END_FOR;]]></xhtml:p>
               <type><REAL/></type>
             </variable>
             <variable name="earliest">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="latest">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="task_dur">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="delay">
               <type><REAL/></type>
@@ -1038,7 +1038,7 @@ END_FOR;]]></xhtml:p>
 o_result.fits         := FALSE;
 o_result.delay_s      := 0.0;
 o_result.need_extra_s := 0.0;
-o_result.task_end_s   := 0.0;
+o_result.task_end_s   := 0;
 o_result.slot_idx     := 0;
 o_result.trans_id     := i_trans_id;
 
@@ -1081,23 +1081,23 @@ FOR si := 1 TO 20 DO
   END_IF;
 
   (* Earliest start = max(slot_start, task_start + shift) + travel_to + margin *)
-  IF slot_start > (i_task_start + i_shift_s) THEN
-    earliest := slot_start + travel_to + i_margin_s;
+  IF slot_start > (i_task_start + REAL_TO_LINT(i_shift_s)) THEN
+    earliest := slot_start + REAL_TO_LINT(travel_to + i_margin_s);
   ELSE
-    earliest := i_task_start + i_shift_s + travel_to + i_margin_s;
+    earliest := i_task_start + REAL_TO_LINT(i_shift_s + travel_to + i_margin_s);
   END_IF;
 
   (* Latest end = slot_end - travel_from - margin *)
-  IF slot_end > 1.0E8 THEN
+  IF slot_end > LINT#100000000 THEN
     (* Open-ended slot *)
-    latest := 1.0E8;
+    latest := LINT#100000000;
   ELSE
-    latest := slot_end - travel_from - i_margin_s;
+    latest := slot_end - REAL_TO_LINT(travel_from + i_margin_s);
   END_IF;
 
   (* Check if task fits *)
   IF earliest + task_dur <= latest THEN
-    delay := earliest - i_task_start - i_shift_s;
+    delay := LINT_TO_REAL(earliest - i_task_start) - i_shift_s;
     IF delay < 0.0 THEN delay := 0.0; END_IF;
 
     (* Flex constraint: delay must not exceed capped flex *)
@@ -1115,7 +1115,7 @@ IF found THEN
   o_result.fits      := TRUE;
   o_result.delay_s   := best_delay;
   o_result.slot_idx  := best_slot;
-  o_result.task_end_s := i_task_start + i_shift_s + best_delay + task_dur;
+  o_result.task_end_s := i_task_start + REAL_TO_LINT(i_shift_s + best_delay) + task_dur;
   o_result.need_extra_s := 0.0;
 ELSE
   (* Report how much extra is needed for backward chaining *)
@@ -1146,10 +1146,10 @@ END_IF;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="i_task_start">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="i_task_end">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="i_margin_s">
               <type><REAL/></type>
@@ -1193,16 +1193,16 @@ END_IF;]]></xhtml:p>
               <type><REAL/></type>
             </variable>
             <variable name="t_start">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="t_end">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="e_start">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="e_end">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="e_lift">
               <type><INT/></type>
@@ -1242,8 +1242,8 @@ END_IF;
 (* Iterative conflict resolution — max 20 rounds *)
 FOR round := 1 TO 20 DO
   max_conf := 0.0;
-  t_start  := i_task_start + o_delay_s;
-  t_end    := i_task_end + o_delay_s;
+  t_start  := i_task_start + REAL_TO_LINT(o_delay_s);
+  t_end    := i_task_end + REAL_TO_LINT(o_delay_s);
 
   (* Check all tasks on OTHER transporters *)
   FOR ti := 1 TO 3 DO
@@ -1269,8 +1269,8 @@ FOR round := 1 TO 20 DO
 
         IF has_ovlp THEN
           (* Time overlap check: task overlaps with existing? *)
-          IF t_start < (e_end + i_margin_s) AND t_end > (e_start - i_margin_s) THEN
-            needed := (e_end + i_margin_s) - t_start;
+          IF t_start < (e_end + REAL_TO_LINT(i_margin_s)) AND t_end > (e_start - REAL_TO_LINT(i_margin_s)) THEN
+            needed := LINT_TO_REAL(e_end - t_start) + i_margin_s;
             IF needed > max_conf THEN
               max_conf := needed;
             END_IF;
@@ -1385,7 +1385,7 @@ END_IF;]]></xhtml:p>
               <type><BOOL/></type>
             </variable>
             <variable name="i_time_s">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="i_tsk_phase">
               <type><INT/></type>
@@ -1552,7 +1552,7 @@ END_IF;]]></xhtml:p>
               <initialValue><simpleValue value="50"/></initialValue>
             </variable>
             <variable name="sched_base_time">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="delay_stage">
               <type><INT/></type>
@@ -1871,7 +1871,7 @@ ELSIF phase = 2000 THEN
       i_sink_stn     := first_stn,
       i_trans_id     := sched_trans,
       i_task_start   := sched_base_time,
-      i_task_end     := sched_base_time + xfer_dur,
+      i_task_end     := sched_base_time + REAL_TO_LINT(xfer_dur),
       i_shift_s      := 0.0,
       i_calc_time_s  := 0.0,
       i_max_time_s   := 2.0 * MAX_INIT_WAIT_S,
@@ -1884,7 +1884,7 @@ ELSIF phase = 2000 THEN
 
       IF stage0_delay > MARGIN_S THEN
         (* Stage 0 needs delay — shift base time and recalculate *)
-        sched_base_time := sched_base_time + stage0_delay;
+        sched_base_time := sched_base_time + REAL_TO_LINT(stage0_delay);
         fit_round := fit_round + 1;
         IF fit_round > MAX_FIT_ROUNDS THEN
           next_phase := 9000;
@@ -1974,7 +1974,7 @@ ELSIF phase = 3000 THEN
   ELSE
     IF delay_target = 0 THEN
       (* Stage 0 delay: shift base time (handled in FIT_STAGE0, shouldn't reach here) *)
-      sched_base_time := sched_base_time + delay_amount;
+      sched_base_time := sched_base_time + REAL_TO_LINT(delay_amount);
     ELSIF delay_target = 1 THEN
       (* Program stage delay: increase cal_time *)
       prog_idx := delay_stage;
@@ -2209,8 +2209,8 @@ FOR i := 1 TO 3 DO
   g_transporter[i].active          := FALSE;
   g_transporter[i].status          := 0;
   g_transporter[i].phase           := 0;
-  g_transporter[i].task_id         := 0.0;
-  g_transporter[i].running_task_id := 0.0;
+  g_transporter[i].task_id         := 0;
+  g_transporter[i].running_task_id := 0;
   g_transporter[i].lift_station    := 0;
   g_transporter[i].sink_station    := 0;
   g_transporter[i].treatment_time  := 0.0;
@@ -3188,7 +3188,7 @@ END_IF;]]></xhtml:p>
               </type>
             </variable>
             <variable name="g_time_s">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -3201,8 +3201,8 @@ END_IF;]]></xhtml:p>
               <initialValue><simpleValue value="0"/></initialValue>
             </variable>
             <variable name="task_key">
-              <type><REAL/></type>
-              <initialValue><simpleValue value="0.0"/></initialValue>
+              <type><LINT/></type>
+              <initialValue><simpleValue value="0"/></initialValue>
             </variable>
             <variable name="x_meas_ph">
               <type><INT/></type>
@@ -3314,7 +3314,7 @@ END_IF;
    ================================================================ *)
 IF cal_step = 10 THEN
   (* Issue task 1: lift from dry, sink to wet *)
-  task_key := INT_TO_REAL(REAL_TO_INT(g_time_s));
+  task_key := g_time_s;
   g_transporter[tid].task_id := task_key;
   g_transporter[tid].lift_station := g_cal[tid].dry_station;
   g_transporter[tid].sink_station := g_cal[tid].wet_station;
@@ -3396,7 +3396,7 @@ END_IF;
    ================================================================ *)
 IF cal_step = 20 THEN
   (* Issue task 2: lift from wet, sink to dry *)
-  task_key := INT_TO_REAL(REAL_TO_INT(g_time_s));
+  task_key := g_time_s + LINT#1;
   g_transporter[tid].task_id := task_key;
   g_transporter[tid].lift_station := g_cal[tid].wet_station;
   g_transporter[tid].sink_station := g_cal[tid].dry_station;
@@ -3582,8 +3582,8 @@ END_IF;]]></xhtml:p>
     g_tasks[ti].queue[qi].stage        := 0;
     g_tasks[ti].queue[qi].lift_station := 0;
     g_tasks[ti].queue[qi].sink_station := 0;
-    g_tasks[ti].queue[qi].start_time   := 0.0;
-    g_tasks[ti].queue[qi].finish_time  := 0.0;
+    g_tasks[ti].queue[qi].start_time   := 0;
+    g_tasks[ti].queue[qi].finish_time  := 0;
     g_tasks[ti].queue[qi].calc_time    := 0.0;
     g_tasks[ti].queue[qi].min_time     := 0.0;
     g_tasks[ti].queue[qi].max_time     := 0.0;
@@ -3808,7 +3808,7 @@ END_FOR;]]></xhtml:p>
               <type><BOOL/></type>
             </variable>
             <variable name="i_time_s">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
           </inputVars>
           <outputVars>
@@ -3861,8 +3861,8 @@ END_FOR;]]></xhtml:p>
           <ST>
             <xhtml:p><![CDATA[IF NOT i_run THEN
   (* Stop both schedulers *)
-  tsk_sched(i_run := FALSE, i_time_s := 0.0);
-  dep_sched(i_run := FALSE, i_time_s := 0.0, i_tsk_phase := 0);
+  tsk_sched(i_run := FALSE, i_time_s := 0);
+  dep_sched(i_run := FALSE, i_time_s := 0, i_tsk_phase := 0);
   turn := 0;
   tsk_phase := 0;
   o_tsk_phase := 0;
@@ -3873,8 +3873,8 @@ END_IF;
 
 (* ── Inhibit during calibration ── *)
 IF g_cal_active THEN
-  tsk_sched(i_run := FALSE, i_time_s := 0.0);
-  dep_sched(i_run := FALSE, i_time_s := 0.0, i_tsk_phase := 0);
+  tsk_sched(i_run := FALSE, i_time_s := 0);
+  dep_sched(i_run := FALSE, i_time_s := 0, i_tsk_phase := 0);
   turn := 0;
   RETURN;
 END_IF;
@@ -4135,9 +4135,9 @@ sc := g_schedule[i_unit].stage_count;
 FOR si := i_from_stage TO sc DO
   IF si >= 1 AND si <= 30 THEN
     g_schedule[i_unit].stages[si].entry_time :=
-      g_schedule[i_unit].stages[si].entry_time + i_amount;
+      g_schedule[i_unit].stages[si].entry_time + REAL_TO_LINT(i_amount);
     g_schedule[i_unit].stages[si].exit_time :=
-      g_schedule[i_unit].stages[si].exit_time + i_amount;
+      g_schedule[i_unit].stages[si].exit_time + REAL_TO_LINT(i_amount);
   END_IF;
 END_FOR;
 
@@ -4147,9 +4147,9 @@ FOR ti := 1 TO 3 DO
     IF g_tasks[ti].queue[qi].unit = i_unit
        AND g_tasks[ti].queue[qi].stage >= i_from_stage THEN
       g_tasks[ti].queue[qi].start_time :=
-        g_tasks[ti].queue[qi].start_time + i_amount;
+        g_tasks[ti].queue[qi].start_time + REAL_TO_LINT(i_amount);
       g_tasks[ti].queue[qi].finish_time :=
-        g_tasks[ti].queue[qi].finish_time + i_amount;
+        g_tasks[ti].queue[qi].finish_time + REAL_TO_LINT(i_amount);
     END_IF;
   END_FOR;
 END_FOR;]]></xhtml:p>
@@ -4374,10 +4374,10 @@ END_FOR;]]></xhtml:p>
               <type><REAL/></type>
             </variable>
             <variable name="to_start">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="to_end">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="lift_x">
               <type><REAL/></type>
@@ -4499,7 +4499,7 @@ FOR si := 1 TO sorted_cnt DO
       fb_travel(i_from_stn := prev_sink, i_to_stn := next_lift, i_trans := sorted_trans[si]);
       travel_s := fb_travel.o_travel_s;
 
-      gap_s := sorted[si].start_time - sorted[ci].finish_time;
+      gap_s := LINT_TO_REAL(sorted[si].start_time - sorted[ci].finish_time);
       deficit_s := travel_s - gap_s;
 
       IF deficit_s > DEFICIT_TOL THEN
@@ -4543,7 +4543,7 @@ FOR si := 1 TO sorted_cnt DO
 
         IF to_start < to_end THEN
           (* TRANSPORTER_COLLISION conflict! *)
-          deficit_s := (to_end - to_start) + 2.0; (* +2s margin *)
+          deficit_s := LINT_TO_REAL(to_end - to_start) + 2.0; (* +2s margin *)
           o_has_conflict  := TRUE;
           o_conf_type     := 2;
           o_conf_unit     := sorted[si].unit;
@@ -4579,7 +4579,7 @@ checked_count := chk_cnt;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="i_time_s">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
           </inputVars>
           <externalVars>
@@ -4647,10 +4647,10 @@ checked_count := chk_cnt;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="entry_t">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="exit_t">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="xfer_t">
               <type><REAL/></type>
@@ -4705,8 +4705,8 @@ out_count := 0;
 (* -- Clear old schedule -- *)
 FOR st := 1 TO 30 DO
   g_schedule[i_unit].stages[st].station := 0;
-  g_schedule[i_unit].stages[st].entry_time := 0.0;
-  g_schedule[i_unit].stages[st].exit_time := 0.0;
+  g_schedule[i_unit].stages[st].entry_time := 0;
+  g_schedule[i_unit].stages[st].exit_time := 0;
   g_schedule[i_unit].stages[st].min_time := 0.0;
   g_schedule[i_unit].stages[st].calc_time := 0.0;
   g_schedule[i_unit].stages[st].max_time := 0.0;
@@ -4789,15 +4789,15 @@ FOR st := start_st TO 30 DO
     (* Remaining time: calc_time - elapsed *)
     remain_s := calc_s;
     IF remain_s < 1.0 THEN remain_s := 1.0; END_IF;
-    exit_t := i_time_s + remain_s;
+    exit_t := i_time_s + REAL_TO_LINT(remain_s);
   ELSIF is_first AND NOT is_on_stn THEN
     (* Batch is on transporter: entry = now (transfer in progress) *)
     entry_t := exit_t;
-    exit_t  := entry_t + calc_s;
+    exit_t  := entry_t + REAL_TO_LINT(calc_s);
   ELSE
     (* Normal stage: entry = prev exit + transfer *)
-    entry_t := exit_t + xfer_t;
-    exit_t  := entry_t + calc_s;
+    entry_t := exit_t + REAL_TO_LINT(xfer_t);
+    exit_t  := entry_t + REAL_TO_LINT(calc_s);
   END_IF;
 
   (* -- Write to schedule -- *)
@@ -4943,7 +4943,7 @@ END_FOR;]]></xhtml:p>
         <interface>
           <inputVars>
             <variable name="i_time_s">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
           </inputVars>
           <externalVars>
@@ -5029,10 +5029,10 @@ END_FOR;]]></xhtml:p>
               <type><REAL/></type>
             </variable>
             <variable name="task_start">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="task_end">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="fb_find">
               <type><derived name="STC_FB_FindTransporter"/></type>
@@ -5088,7 +5088,7 @@ END_FOR;]]></xhtml:p>
           xfer_s := fb_xfer.o_total_s;
 
           task_start := i_time_s;
-          task_end   := task_start + xfer_s;
+          task_end   := task_start + REAL_TO_LINT(xfer_s);
 
           (* Append to queue *)
           qi := g_tasks[cov_t].count + 1;
@@ -5276,7 +5276,7 @@ IF prev_flex > 0.1 THEN
     g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time :=
       g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time - amount;
     g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time :=
-      g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time - amount;
+      g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time - REAL_TO_LINT(amount);
     fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := -amount);
   END_IF;
 
@@ -5311,7 +5311,7 @@ IF next_flex > 0.1 THEN
   g_schedule[i_conf_unit].stages[i_conf_stage].calc_time :=
     g_schedule[i_conf_unit].stages[i_conf_stage].calc_time + amount;
   g_schedule[i_conf_unit].stages[i_conf_stage].exit_time :=
-    g_schedule[i_conf_unit].stages[i_conf_stage].exit_time + amount;
+    g_schedule[i_conf_unit].stages[i_conf_stage].exit_time + REAL_TO_LINT(amount);
   fb_shift(i_unit := i_conf_unit, i_from_stage := i_conf_stage + 1, i_amount := amount);
 
   remain := remain - amount;
@@ -5345,7 +5345,7 @@ IF i_conf_stage > 1 THEN
     g_schedule[i_conf_unit].stages[i_conf_stage - 1].calc_time :=
       g_schedule[i_conf_unit].stages[i_conf_stage - 1].calc_time + amount;
     g_schedule[i_conf_unit].stages[i_conf_stage - 1].exit_time :=
-      g_schedule[i_conf_unit].stages[i_conf_stage - 1].exit_time + amount;
+      g_schedule[i_conf_unit].stages[i_conf_stage - 1].exit_time + REAL_TO_LINT(amount);
     fb_shift(i_unit := i_conf_unit, i_from_stage := i_conf_stage, i_amount := amount);
 
     remain := remain - amount;
@@ -5379,7 +5379,7 @@ IF prev_flex > 0.1 THEN
   g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time :=
     g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time + amount;
   g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time :=
-    g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time + amount;
+    g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time + REAL_TO_LINT(amount);
   fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := amount);
 
   remain := remain - amount;
@@ -5401,7 +5401,7 @@ END_IF;
               <type><BOOL/></type>
             </variable>
             <variable name="i_time_s">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
           </inputVars>
           <outputVars>
@@ -6755,7 +6755,7 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="g_time_s">
-              <type><REAL/></type>
+              <type><LINT/></type>
             </variable>
             <variable name="iw_epoch_h">
               <type><INT/></type>
@@ -7084,9 +7084,9 @@ twa_calc();
 
 (* ── Epoch-offset time decode ── *)
 (* Server writes iw_epoch_h, iw_time_hi, iw_time_lo via Modbus.
-   g_time_s = (iw_time_hi * 65536 + iw_time_lo) / 10.0 *)
+   g_time_s = (iw_time_hi * 65536 + iw_time_lo) / 10  (integer seconds) *)
 g_epoch_h := iw_epoch_h;
-g_time_s  := (INT_TO_REAL(iw_time_hi) * 65536.0 + INT_TO_REAL(iw_time_lo)) / 10.0;
+g_time_s  := REAL_TO_LINT((INT_TO_REAL(iw_time_hi) * 65536.0 + INT_TO_REAL(iw_time_lo)) / 10.0);
 
 (* ── Main Scheduler (TSK + DEP alternating cycles) ── *)
 main_sched(i_run := init_done, i_time_s := g_time_s);
@@ -7542,7 +7542,7 @@ qw_cal_t3_x_max    := REAL_TO_INT(g_cal[3].x_max_mm_s);]]></xhtml:p>
             <type><INT/></type>
           </variable>
           <variable name="g_time_s">
-            <type><REAL/></type>
+            <type><LINT/></type>
           </variable>
           <variable name="qw_t1_x_mm" address="%QW0">
             <type><INT/></type>

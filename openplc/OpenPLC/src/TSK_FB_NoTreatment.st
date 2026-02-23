@@ -16,7 +16,7 @@
 
 FUNCTION_BLOCK TSK_FB_NoTreatment
 VAR_INPUT
-  i_time_s : REAL;   (* current absolute time (s) *)
+  i_time_s : LINT;   (* current absolute time (s), unix seconds *)
 END_VAR
 VAR_EXTERNAL
   g_units    : ARRAY[1..10] OF UNIT_T;
@@ -41,8 +41,8 @@ VAR
   stn_ok   : BOOL;
   (* Timing *)
   xfer_s   : REAL;  (* total transfer time *)
-  task_start : REAL;
-  task_end   : REAL;
+  task_start : LINT;
+  task_end   : LINT;
   (* Shared FB instances *)
   fb_find  : STC_FB_FindTransporter;
   fb_xfer  : STC_FB_CalcTransferTime;
@@ -92,7 +92,7 @@ FOR ui := 1 TO 10 DO
           xfer_s := fb_xfer.o_total_s;
 
           task_start := i_time_s;
-          task_end   := task_start + xfer_s;
+          task_end   := task_start + REAL_TO_LINT(xfer_s);
 
           (* Append to queue *)
           qi := g_tasks[cov_t].count + 1;

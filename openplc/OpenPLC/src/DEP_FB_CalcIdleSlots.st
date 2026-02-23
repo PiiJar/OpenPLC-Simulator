@@ -16,7 +16,7 @@
 FUNCTION_BLOCK DEP_FB_CalcIdleSlots
 VAR_INPUT
   i_trans  : INT;      (* transporter index 1..3 *)
-  i_time_s : REAL;     (* current simulation time (s) *)
+  i_time_s : LINT;     (* current simulation time (s), unix seconds *)
 END_VAR
 VAR_EXTERNAL
   g_tasks          : ARRAY[1..3] OF TSK_QUEUE_T;
@@ -26,11 +26,11 @@ VAR
   qi       : INT;      (* queue index *)
   si       : INT;      (* slot index *)
   cnt      : INT;      (* task count for this transporter *)
-  prev_end : REAL;     (* end time of previous task *)
+  prev_end : LINT;     (* end time of previous task *)
   prev_sink : INT;     (* sink station of previous task *)
-  gap_start : REAL;
-  gap_end   : REAL;
-  HORIZON  : REAL := 1.0E9;   (* open-ended future *)
+  gap_start : LINT;
+  gap_end   : LINT;
+  HORIZON  : LINT := 1000000000;   (* open-ended future *)
 END_VAR
 
 (* Guard *)
@@ -55,7 +55,7 @@ FOR qi := 1 TO 10 DO
   gap_end   := g_tasks[i_trans].queue[qi].start_time;
 
   (* Only create slot if there is a meaningful gap *)
-  IF gap_end > gap_start + 0.1 THEN
+  IF gap_end > gap_start + LINT#1 THEN
     si := si + 1;
     IF si <= 20 THEN
       g_dep_idle_slots[i_trans].slots[si].start_time   := gap_start;

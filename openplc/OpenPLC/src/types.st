@@ -71,7 +71,7 @@ END_TYPE
 TYPE STC_TRANSPORTER_T :
 STRUCT
   (* --- Command (scheduler → transporter) --- *)
-  task_id            : REAL;     (* g_time_s at assignment — sync key *)
+  task_id            : LINT;     (* g_time_s at assignment — sync key *)
   lift_station       : INT;      (* pickup station number *)
   sink_station       : INT;      (* putdown station number *)
   treatment_time     : REAL;     (* treatment duration (s) *)
@@ -81,7 +81,7 @@ STRUCT
   (* --- Status (transporter → outside world) --- *)
   status             : INT;      (* 0=not_used 1=manual 2=half_manual 3=auto_idle 4=auto_run *)
   phase              : INT;      (* 0=idle 1=to_lift 2=lifting 3=to_sink 4=sinking *)
-  running_task_id    : REAL;     (* copied from task_id when accepted *)
+  running_task_id    : LINT;     (* copied from task_id when accepted *)
   current_station    : INT;      (* nearest station number *)
   remaining_time     : REAL;     (* remaining treatment time (s) *)
   (* --- Drive (runtime / TWA) --- *)
@@ -144,8 +144,8 @@ END_TYPE
 TYPE TSK_STAGE_T :
 STRUCT
   station       : INT;     (* station number, 0 = unused stage *)
-  entry_time    : REAL;    (* absolute arrival time (s) *)
-  exit_time     : REAL;    (* absolute departure time (s) *)
+  entry_time    : LINT;    (* absolute arrival time (s), unix seconds *)
+  exit_time     : LINT;    (* absolute departure time (s), unix seconds *)
   min_time      : REAL;    (* minimum treatment time (s) *)
   calc_time     : REAL;    (* calculated target treatment time (s) *)
   max_time      : REAL;    (* maximum treatment time (s) *)
@@ -170,8 +170,8 @@ STRUCT
   stage        : INT;     (* program stage that created this task *)
   lift_station : INT;     (* station to pick up from *)
   sink_station : INT;     (* station to put down to *)
-  start_time   : REAL;    (* absolute time task begins (s) *)
-  finish_time  : REAL;    (* absolute time task completes (s) *)
+  start_time   : LINT;    (* absolute time task begins (s), unix seconds *)
+  finish_time  : LINT;    (* absolute time task completes (s), unix seconds *)
   calc_time    : REAL;    (* treatment calc_time for flex (s) *)
   min_time     : REAL;    (* treatment min_time for flex_down (s) *)
   max_time     : REAL;    (* treatment max_time for flex_up (s) *)
@@ -192,8 +192,8 @@ STRUCT
   unit         : INT;     (* batch unit index *)
   stage        : INT;     (* program stage *)
   transporter  : INT;     (* assigned transporter *)
-  start_time   : REAL;    (* task start (s) *)
-  end_time     : REAL;    (* task end (s) *)
+  start_time   : LINT;    (* task start (s), unix seconds *)
+  end_time     : LINT;    (* task end (s), unix seconds *)
   flex_down    : REAL;    (* available advance margin (s) *)
   flex_up      : REAL;    (* available delay margin (s) *)
   x_min        : REAL;    (* X-area minimum (mm) *)
@@ -226,8 +226,8 @@ END_TYPE
 
 TYPE DEP_IDLE_SLOT_T :
 STRUCT
-  start_time   : REAL;    (* idle window start (s) *)
-  end_time     : REAL;    (* idle window end (s), 0.0 = open-ended *)
+  start_time   : LINT;    (* idle window start (s), unix seconds *)
+  end_time     : LINT;    (* idle window end (s), 0 = open-ended *)
   lift_station : INT;     (* transporter at this station at idle start *)
   sink_station : INT;     (* transporter at this station at idle end *)
 END_STRUCT;
@@ -247,7 +247,7 @@ STRUCT
   fits         : BOOL;    (* TRUE = task fits in a slot *)
   delay_s      : REAL;    (* delay needed to make it fit (s) *)
   need_extra_s : REAL;    (* extra time that does not fit (s) *)
-  task_end_s   : REAL;    (* calculated task end time (s) *)
+  task_end_s   : LINT;    (* calculated task end time (s), unix seconds *)
   slot_idx     : INT;     (* index of the used idle slot *)
   trans_id     : INT;     (* transporter id that can handle it *)
 END_STRUCT;
@@ -294,7 +294,7 @@ STRUCT
   schedule   : ARRAY[1..10] OF TSK_SCHEDULE_T;
   batch_unit : INT;     (* activated batch: unit index *)
   batch_stage : INT;    (* activated batch: new stage *)
-  time_s     : REAL;    (* activation time (s) *)
+  time_s     : LINT;    (* activation time (s), unix seconds *)
 END_STRUCT;
 END_TYPE
 

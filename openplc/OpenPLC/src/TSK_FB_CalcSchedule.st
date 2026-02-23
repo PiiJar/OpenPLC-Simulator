@@ -18,7 +18,7 @@ FUNCTION_BLOCK TSK_FB_CalcSchedule
 VAR_INPUT
   i_unit     : INT;     (* unit index 1..10 *)
   i_trans    : INT;     (* transporter index 1..3 for move times *)
-  i_time_s   : REAL;    (* current absolute time (s) *)
+  i_time_s   : LINT;    (* current absolute time (s), unix seconds *)
 END_VAR
 VAR_EXTERNAL
   g_batches  : ARRAY[1..10] OF BATCH_T;
@@ -35,8 +35,8 @@ VAR
   cur_stage  : INT;      (* batch current stage *)
   location   : INT;      (* unit location *)
   start_st   : INT;      (* first stage to calculate *)
-  entry_t    : REAL;     (* entry time for stage *)
-  exit_t     : REAL;     (* exit time for stage *)
+  entry_t    : LINT;     (* entry time for stage, absolute *)
+  exit_t     : LINT;     (* exit time for stage, absolute *)
   xfer_t     : REAL;     (* transfer time *)
   calc_s     : REAL;     (* calc_time in seconds *)
   min_s      : REAL;     (* min_time in seconds *)
@@ -64,8 +64,8 @@ out_count := 0;
 (* -- Clear old schedule -- *)
 FOR st := 1 TO 30 DO
   g_schedule[i_unit].stages[st].station := 0;
-  g_schedule[i_unit].stages[st].entry_time := 0.0;
-  g_schedule[i_unit].stages[st].exit_time := 0.0;
+  g_schedule[i_unit].stages[st].entry_time := 0;
+  g_schedule[i_unit].stages[st].exit_time := 0;
   g_schedule[i_unit].stages[st].min_time := 0.0;
   g_schedule[i_unit].stages[st].calc_time := 0.0;
   g_schedule[i_unit].stages[st].max_time := 0.0;
@@ -148,15 +148,15 @@ FOR st := start_st TO 30 DO
     (* Remaining time: calc_time - elapsed *)
     remain_s := calc_s;
     IF remain_s < 1.0 THEN remain_s := 1.0; END_IF;
-    exit_t := i_time_s + remain_s;
+    exit_t := i_time_s + REAL_TO_LINT(remain_s);
   ELSIF is_first AND NOT is_on_stn THEN
     (* Batch is on transporter: entry = now (transfer in progress) *)
     entry_t := exit_t;
-    exit_t  := entry_t + calc_s;
+    exit_t  := entry_t + REAL_TO_LINT(calc_s);
   ELSE
     (* Normal stage: entry = prev exit + transfer *)
-    entry_t := exit_t + xfer_t;
-    exit_t  := entry_t + calc_s;
+    entry_t := exit_t + REAL_TO_LINT(xfer_t);
+    exit_t  := entry_t + REAL_TO_LINT(calc_s);
   END_IF;
 
   (* -- Write to schedule -- *)

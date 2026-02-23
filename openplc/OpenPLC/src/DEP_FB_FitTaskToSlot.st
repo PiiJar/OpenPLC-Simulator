@@ -20,8 +20,8 @@ VAR_INPUT
   i_lift_stn     : INT;     (* task lift station *)
   i_sink_stn     : INT;     (* task sink station *)
   i_trans_id     : INT;     (* transporter for this task *)
-  i_task_start   : REAL;    (* scheduled task start time (s) *)
-  i_task_end     : REAL;    (* scheduled task end time (s) *)
+  i_task_start   : LINT;    (* scheduled task start time (s), unix seconds *)
+  i_task_end     : LINT;    (* scheduled task end time (s), unix seconds *)
   i_shift_s      : REAL;    (* pre-applied shift (overlap delay) *)
   i_calc_time_s  : REAL;    (* treatment calc_time (s) *)
   i_max_time_s   : REAL;    (* treatment max_time (s) *)
@@ -39,15 +39,15 @@ VAR
   fb_travel_from : STC_FB_CalcHorizontalTravel;
   si          : INT;
   slot_cnt    : INT;
-  slot_start  : REAL;
-  slot_end    : REAL;
+  slot_start  : LINT;
+  slot_end    : LINT;
   from_stn    : INT;    (* previous task's sink or transporter home *)
   to_stn      : INT;    (* next task's lift *)
   travel_to   : REAL;   (* travel time: prev_sink → this lift *)
   travel_from : REAL;   (* travel time: this sink → next_lift *)
-  earliest    : REAL;
-  latest      : REAL;
-  task_dur    : REAL;
+  earliest    : LINT;
+  latest      : LINT;
+  task_dur    : LINT;
   delay       : REAL;
   flex_up     : REAL;
   capped_flex : REAL;
@@ -60,7 +60,7 @@ END_VAR
 o_result.fits         := FALSE;
 o_result.delay_s      := 0.0;
 o_result.need_extra_s := 0.0;
-o_result.task_end_s   := 0.0;
+o_result.task_end_s   := 0;
 o_result.slot_idx     := 0;
 o_result.trans_id     := i_trans_id;
 
@@ -103,23 +103,23 @@ FOR si := 1 TO 20 DO
   END_IF;
 
   (* Earliest start = max(slot_start, task_start + shift) + travel_to + margin *)
-  IF slot_start > (i_task_start + i_shift_s) THEN
-    earliest := slot_start + travel_to + i_margin_s;
+  IF slot_start > (i_task_start + REAL_TO_LINT(i_shift_s)) THEN
+    earliest := slot_start + REAL_TO_LINT(travel_to + i_margin_s);
   ELSE
-    earliest := i_task_start + i_shift_s + travel_to + i_margin_s;
+    earliest := i_task_start + REAL_TO_LINT(i_shift_s + travel_to + i_margin_s);
   END_IF;
 
   (* Latest end = slot_end - travel_from - margin *)
-  IF slot_end > 1.0E8 THEN
+  IF slot_end > LINT#100000000 THEN
     (* Open-ended slot *)
-    latest := 1.0E8;
+    latest := LINT#100000000;
   ELSE
-    latest := slot_end - travel_from - i_margin_s;
+    latest := slot_end - REAL_TO_LINT(travel_from + i_margin_s);
   END_IF;
 
   (* Check if task fits *)
   IF earliest + task_dur <= latest THEN
-    delay := earliest - i_task_start - i_shift_s;
+    delay := LINT_TO_REAL(earliest - i_task_start) - i_shift_s;
     IF delay < 0.0 THEN delay := 0.0; END_IF;
 
     (* Flex constraint: delay must not exceed capped flex *)
@@ -137,7 +137,7 @@ IF found THEN
   o_result.fits      := TRUE;
   o_result.delay_s   := best_delay;
   o_result.slot_idx  := best_slot;
-  o_result.task_end_s := i_task_start + i_shift_s + best_delay + task_dur;
+  o_result.task_end_s := i_task_start + REAL_TO_LINT(i_shift_s + best_delay) + task_dur;
   o_result.need_extra_s := 0.0;
 ELSE
   (* Report how much extra is needed for backward chaining *)

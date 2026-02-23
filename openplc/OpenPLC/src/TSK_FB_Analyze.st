@@ -75,8 +75,8 @@ VAR
   x2_max   : REAL;
   xo_start : REAL;
   xo_end   : REAL;
-  to_start : REAL;
-  to_end   : REAL;
+  to_start : LINT;
+  to_end   : LINT;
   lift_x   : REAL;
   sink_x   : REAL;
   l_idx    : INT;
@@ -182,7 +182,7 @@ FOR si := 1 TO sorted_cnt DO
       fb_travel(i_from_stn := prev_sink, i_to_stn := next_lift, i_trans := sorted_trans[si]);
       travel_s := fb_travel.o_travel_s;
 
-      gap_s := sorted[si].start_time - sorted[ci].finish_time;
+      gap_s := LINT_TO_REAL(sorted[si].start_time - sorted[ci].finish_time);
       deficit_s := travel_s - gap_s;
 
       IF deficit_s > DEFICIT_TOL THEN
@@ -226,7 +226,7 @@ FOR si := 1 TO sorted_cnt DO
 
         IF to_start < to_end THEN
           (* TRANSPORTER_COLLISION conflict! *)
-          deficit_s := (to_end - to_start) + 2.0; (* +2s margin *)
+          deficit_s := LINT_TO_REAL(to_end - to_start) + 2.0; (* +2s margin *)
           o_has_conflict  := TRUE;
           o_conf_type     := 2;
           o_conf_unit     := sorted[si].unit;

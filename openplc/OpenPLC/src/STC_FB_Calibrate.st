@@ -54,12 +54,12 @@ VAR_EXTERNAL
   g_cfg         : ARRAY[1..3] OF TRANSPORTER_CFG_T;
   g_cal         : ARRAY[1..3] OF CALIBRATION_T;
   g_move        : ARRAY[1..3] OF MOVE_TIMES_T;
-  g_time_s      : REAL;
+  g_time_s      : LINT;
 END_VAR
 VAR
   cal_step       : INT := 0;
   tid        : INT := 0;      (* current transporter 1..3 *)
-  task_key   : REAL := 0.0;   (* task_id for issued task *)
+  task_key   : LINT := 0;   (* task_id for issued task *)
   (* X velocity measurement during phase 3 of task 1 *)
   x_meas_ph  : INT := 0;      (* 0=wait 1=accel 2=cruise 3=decel *)
   x_timer    : REAL := 0.0;
@@ -125,7 +125,7 @@ END_IF;
    ================================================================ *)
 IF cal_step = 10 THEN
   (* Issue task 1: lift from dry, sink to wet *)
-  task_key := INT_TO_REAL(REAL_TO_INT(g_time_s));
+  task_key := g_time_s;
   g_transporter[tid].task_id := task_key;
   g_transporter[tid].lift_station := g_cal[tid].dry_station;
   g_transporter[tid].sink_station := g_cal[tid].wet_station;
@@ -207,7 +207,7 @@ END_IF;
    ================================================================ *)
 IF cal_step = 20 THEN
   (* Issue task 2: lift from wet, sink to dry *)
-  task_key := INT_TO_REAL(REAL_TO_INT(g_time_s));
+  task_key := g_time_s + LINT#1;
   g_transporter[tid].task_id := task_key;
   g_transporter[tid].lift_station := g_cal[tid].wet_station;
   g_transporter[tid].sink_station := g_cal[tid].dry_station;

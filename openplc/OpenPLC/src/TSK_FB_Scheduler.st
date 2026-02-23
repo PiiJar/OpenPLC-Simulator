@@ -28,7 +28,7 @@
 FUNCTION_BLOCK TSK_FB_Scheduler
 VAR_INPUT
   i_run    : BOOL;    (* TRUE = run, FALSE = stop *)
-  i_time_s : REAL;    (* current absolute time (s) *)
+  i_time_s : LINT;    (* current absolute time (s), unix seconds *)
 END_VAR
 VAR_EXTERNAL
   g_batches  : ARRAY[1..10] OF BATCH_T;

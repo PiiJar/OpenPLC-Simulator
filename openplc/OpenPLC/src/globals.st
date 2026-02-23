@@ -71,7 +71,7 @@ VAR_GLOBAL
   (* Absolute time = g_epoch_h * 3600 + g_time_s                           *)
   (* All schedule/task times use g_time_s reference frame                  *)
   g_epoch_h          : INT;           (* epoch reference: Unix hours *)
-  g_time_s           : REAL;          (* seconds since epoch_h (server updates) *)
+  g_time_s           : LINT;          (* absolute time in unix seconds *)
   (* --- Modbus OUTPUT: Transporter 1 (QW0..QW8) --- *)
   qw_t1_x_mm    AT %QW0  : INT;
   qw_t1_z_mm    AT %QW1  : INT;

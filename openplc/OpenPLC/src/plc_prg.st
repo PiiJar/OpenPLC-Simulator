@@ -139,7 +139,7 @@ VAR_EXTERNAL
   qw_prog_ack      : INT;
   (* Epoch-offset time model *)
   g_epoch_h   : INT;
-  g_time_s    : REAL;
+  g_time_s    : LINT;
   iw_epoch_h  : INT;
   iw_time_hi  : INT;
   iw_time_lo  : INT;
@@ -350,9 +350,9 @@ twa_calc();
 
 (* ── Epoch-offset time decode ── *)
 (* Server writes iw_epoch_h, iw_time_hi, iw_time_lo via Modbus.
-   g_time_s = (iw_time_hi * 65536 + iw_time_lo) / 10.0 *)
+   g_time_s = (iw_time_hi * 65536 + iw_time_lo) / 10  (integer seconds) *)
 g_epoch_h := iw_epoch_h;
-g_time_s  := (INT_TO_REAL(iw_time_hi) * 65536.0 + INT_TO_REAL(iw_time_lo)) / 10.0;
+g_time_s  := REAL_TO_LINT((INT_TO_REAL(iw_time_hi) * 65536.0 + INT_TO_REAL(iw_time_lo)) / 10.0);
 
 (* ── Main Scheduler (TSK + DEP alternating cycles) ── *)
 main_sched(i_run := init_done, i_time_s := g_time_s);
