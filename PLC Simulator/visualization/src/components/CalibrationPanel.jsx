@@ -41,6 +41,9 @@ function getStepColor(step) {
   return '#333';
 }
 
+// Wet station = type 1 (wet) or 11 (wet variant). Everything else = dry.
+const isWetStation = (s) => s.type === 1 || s.type === 11;
+
 export default function CalibrationPanel({ onClose, stations, transporterStates }) {
   const activeTransporters = (transporterStates || []).filter(t => t?.state?.status >= 3);
   
@@ -60,24 +63,29 @@ export default function CalibrationPanel({ onClose, stations, transporterStates 
     return (stations || []).filter(s => s.x_position >= xMin && s.x_position <= xMax);
   };
 
+  // Stable key that changes when transporters' drive limits change
+  const transporterLimitsKey = activeTransporters.map(t => {
+    const s = t?.state;
+    return `${t.id}:${s?.x_min_drive_limit||0}-${s?.x_max_drive_limit||0}`;
+  }).join('|');
+
   // Initialize default plans for active transporters
   useEffect(() => {
+    if (!stations?.length || !activeTransporters.length) return;
     const defaults = {};
     activeTransporters.forEach(t => {
-      if (!plans[t.id]) {
-        const reachable = stationsForTransporter(t);
-        const wet = reachable.filter(s => s.type === 1);
-        const dry = reachable.filter(s => s.type === 0);
-        defaults[t.id] = {
-          wet_station: wet[0]?.number || 0,
-          dry_station: dry[0]?.number || 0
-        };
-      }
+      const reachable = stationsForTransporter(t);
+      const wet = reachable.filter(isWetStation);
+      const dry = reachable.filter(s => !isWetStation(s));
+      defaults[t.id] = {
+        wet_station: wet[0]?.number || 0,
+        dry_station: dry[0]?.number || 0
+      };
     });
     if (Object.keys(defaults).length > 0) {
-      setPlans(prev => ({ ...prev, ...defaults }));
+      setPlans(defaults);
     }
-  }, [activeTransporters.length]);
+  }, [transporterLimitsKey, stations]);
 
   // Check for existing calibration file
   useEffect(() => {
@@ -296,7 +304,7 @@ export default function CalibrationPanel({ onClose, stations, transporterStates 
                   <select style={selectStyle} value={plan.wet_station || ''}
                     disabled={!isIdle} onChange={e => updatePlan(t.id, 'wet_station', e.target.value)}>
                     <option value="">--</option>
-                    {stationsForTransporter(t).filter(s => s.type === 1).map(s => <option key={s.number} value={s.number}>{s.number}</option>)}
+                    {stationsForTransporter(t).filter(isWetStation).map(s => <option key={s.number} value={s.number}>{s.number}</option>)}
                   </select>
                 </label>
                 <label style={{ fontSize: '11px', color: '#666' }}>
@@ -304,7 +312,7 @@ export default function CalibrationPanel({ onClose, stations, transporterStates 
                   <select style={selectStyle} value={plan.dry_station || ''}
                     disabled={!isIdle} onChange={e => updatePlan(t.id, 'dry_station', e.target.value)}>
                     <option value="">--</option>
-                    {stationsForTransporter(t).filter(s => s.type === 0).map(s => <option key={s.number} value={s.number}>{s.number}</option>)}
+                    {stationsForTransporter(t).filter(s => !isWetStation(s)).map(s => <option key={s.number} value={s.number}>{s.number}</option>)}
                   </select>
                 </label>
               </div>
