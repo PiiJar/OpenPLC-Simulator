@@ -916,8 +916,10 @@ IF iw_cfg_seq <> last_cfg_seq THEN
       (* Active if task_area[1] has non-zero stations *)
       IF g_cfg[i].task_area[1].min_lift > 0 THEN
         g_transporter[i].active := TRUE;
+        g_transporter[i].status := 3;  (* auto_idle *)
       ELSE
         g_transporter[i].active := FALSE;
+        g_transporter[i].status := 0;  (* not_used *)
       END_IF;
       g_transporter[i].phase := 0;
       g_transporter[i].z_stage := 0;
@@ -1063,12 +1065,12 @@ END_IF;
 (* === MODBUS INPUT: Read commands → g_transporter command fields === *)
 (* Note: task_id sync will be handled by SIM_FB_RunTasks later.
    For now, keep the old Modbus command interface working via direct write. *)
-IF (iw_cmd_t1_start <> 0) AND (g_transporter[1].phase = 0) THEN
+IF (iw_cmd_t1_start <> 0) AND (g_transporter[1].status = 3) THEN
   g_transporter[1].task_id := g_time_s;
   g_transporter[1].lift_station := iw_cmd_t1_lift;
   g_transporter[1].sink_station := iw_cmd_t1_sink;
 END_IF;
-IF (iw_cmd_t2_start <> 0) AND (g_transporter[2].phase = 0) THEN
+IF (iw_cmd_t2_start <> 0) AND (g_transporter[2].status = 3) THEN
   g_transporter[2].task_id := g_time_s;
   g_transporter[2].lift_station := iw_cmd_t2_lift;
   g_transporter[2].sink_station := iw_cmd_t2_sink;

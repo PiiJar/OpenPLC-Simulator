@@ -80,6 +80,7 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
     lookup(station_number := g_transporter[i].lift_station);
     g_transporter[i].final_target_x := lookup.x_mm;
     g_transporter[i].phase := 1;
+    g_transporter[i].status := 4;  (* auto_run *)
     g_transporter[i].z_stage := 0;
     g_transporter[i].z_timer_s := 0.0;
 
@@ -330,6 +331,7 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
     g_transporter[i].z_timer_s := tmp_zt;
     IF arrived_z THEN
       g_transporter[i].phase := 0;
+      g_transporter[i].status := 3;  (* auto_idle *)
     END_IF;
   END_IF;  (* ELSIF chain: phases 0→1→2→3→4 *)
 

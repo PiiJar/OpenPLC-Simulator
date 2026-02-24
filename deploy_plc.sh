@@ -5,7 +5,12 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC_DIR="$SCRIPT_DIR/openplc/OpenPLC"
 BUILD_ST="$SRC_DIR/to_editor/build/plc.st"
-CONTAINER="openplc_v3"
+CONTAINER=$(docker ps --format '{{.Names}}' | grep 'openplc_v3' | head -1)
+if [ -z "$CONTAINER" ]; then
+  echo "ERROR: No running openplc_v3 container found"
+  exit 1
+fi
+echo "Using container: $CONTAINER"
 PLC_HOME="/home/openplc/OpenPLC_v3/webserver"
 
 # Active program filename (read from container)

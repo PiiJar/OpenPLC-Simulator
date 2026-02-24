@@ -380,6 +380,8 @@ async function readPLCState() {
 function buildTransporterState(id, cfg, regs) {
   const phase = regs.phase;
   const z_total = cfg.physics_2D ? cfg.physics_2D.z_total_distance_mm : 2500;
+  // Derive status: 0=not_used, 3=auto_idle, 4=auto_run
+  const status = !regs.active ? 0 : (phase > 0 ? 4 : 3);
   
   return {
     id: id,
@@ -393,7 +395,7 @@ function buildTransporterState(id, cfg, regs) {
       load: null,
       velocity_x: regs.vel_x10 / 10.0,
       velocity_y: 0,
-      status: regs.active ? 4 : 3,
+      status: status,
       phase: phase,
       target_x: 0,
       target_y: 0,
