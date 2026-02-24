@@ -1,0 +1,16 @@
+{
+  "_comment": "Plant-specific PLC limits. Used by apply_plant_config.py to patch globals.st + types.st before build.",
+  "plant_name": "Galvatek 1-Line 2-Transporter",
+
+  "MAX_LINES": 1,
+  "MAX_STATIONS_PER_LINE": 30,
+  "MAX_TRANSPORTERS_PER_LINE": 3,
+  "MAX_TRANSPORTERS": 3,
+  "MAX_UNITS": 10,
+  "MAX_PARALLELS": 5,
+  "MAX_STAGES": 30,
+
+  "DEP_MAX_IDLE_SLOTS": 20,
+  "DEP_MAX_DELAY_ACTS": 20,
+  "DEP_MAX_WAITING": 5
+}

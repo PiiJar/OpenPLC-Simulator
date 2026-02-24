@@ -16,6 +16,12 @@ if [ -z "$ACTIVE_PROG" ]; then
 fi
 echo "Active program in runtime: $ACTIVE_PROG"
 
+# ─── Step 0: Apply plant_config.json → globals.st + types.st ───
+echo ""
+echo "═══ Step 0: apply_plant_config.py ═══"
+cd "$SRC_DIR"
+python3 "$SRC_DIR/apply_plant_config.py"
+
 # ─── Step 1: Convert src/*.st → plc.xml + build/plc.st ───
 echo ""
 echo "═══ Step 1: build_plcxml.py ═══"

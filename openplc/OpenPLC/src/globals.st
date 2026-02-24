@@ -10,22 +10,22 @@ VAR_GLOBAL CONSTANT
        Line 1: 101..150,  Line 2: 201..250,  Line 3: 301..350,  Line 4: 401..450
      Station number IS the array index → g_station[station_number] direct access.
      Array spans [101..STATION_ARRAY_END] with gaps between lines (wasted but clear). *)
-  MAX_LINES              : INT := 4;     (* max production lines in a plant *)
-  MAX_STATIONS_PER_LINE  : INT := 50;    (* max stations per line *)
-  MAX_TRANSPORTERS_PER_LINE : INT := 4;  (* max transporters per line *)
+  MAX_LINES              : INT := 1;     (* max production lines in a plant *)
+  MAX_STATIONS_PER_LINE  : INT := 30;    (* max stations per line *)
+  MAX_TRANSPORTERS_PER_LINE : INT := 3;  (* max transporters per line *)
   STATION_ARRAY_START    : INT := 101;   (* first valid station index *)
-  STATION_ARRAY_END      : INT := 450;   (* MAX_LINES*100 + MAX_STATIONS_PER_LINE *)
+  STATION_ARRAY_END      : INT := 130;   (* MAX_LINES*100 + MAX_STATIONS_PER_LINE *)
 
   (* ── Derived absolute limits ── *)
-  MAX_TRANSPORTERS   : INT := 10;    (* absolute max transporters in a plant *)
-  MAX_UNITS          : INT := 50;    (* max units (lifting frames / hooks) *)
-  MAX_PARALLELS      : INT := 8;     (* max parallel stations per program stage *)
-  MAX_STAGES         : INT := 70;    (* max stages in a treatment program *)
+  MAX_TRANSPORTERS   : INT := 3;    (* absolute max transporters in a plant *)
+  MAX_UNITS          : INT := 10;    (* max units (lifting frames / hooks) *)
+  MAX_PARALLELS      : INT := 5;     (* max parallel stations per program stage *)
+  MAX_STAGES         : INT := 30;    (* max stages in a treatment program *)
 
   (* ── Algorithm / scheduler limits ── *)
-  DEP_MAX_IDLE_SLOTS : INT := 100;    (* max idle slots per transporter *)
-  DEP_MAX_DELAY_ACTS : INT := 100;    (* max delay actions per cycle *)
-  DEP_MAX_WAITING    : INT := 10;    (* max waiting batches *)
+  DEP_MAX_IDLE_SLOTS : INT := 20;    (* max idle slots per transporter *)
+  DEP_MAX_DELAY_ACTS : INT := 20;    (* max delay actions per cycle *)
+  DEP_MAX_WAITING    : INT := 5;    (* max waiting batches *)
   MIN_WORK_AREA      : REAL := 20.0; (* mm — TWA minimum working area *)
 
   (* ── Enumerated constants ── *)

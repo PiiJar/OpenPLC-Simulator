@@ -61,7 +61,7 @@ STRUCT
   x_avoid_mm  : REAL;
   y_avoid_mm  : REAL;
   phys2d      : PHYSICS_2D_T;
-  task_area   : ARRAY[1..4] OF TASK_AREA_T;
+  task_area   : ARRAY[1..3] OF TASK_AREA_T;  (* MAX_TRANSPORTERS_PER_LINE — literal required in TYPE *)
 END_STRUCT;
 END_TYPE
 
@@ -181,7 +181,7 @@ END_TYPE
 TYPE TSK_QUEUE_T :
 STRUCT
   count : INT;                                    (* number of active tasks *)
-  queue : ARRAY[1..50] OF TSK_TASK_T;             (* task slots, MAX_UNITS — literal required in TYPE *)
+  queue : ARRAY[1..10] OF TSK_TASK_T;             (* task slots, MAX_UNITS — literal required in TYPE *)
 END_STRUCT;
 END_TYPE
 
@@ -208,15 +208,15 @@ END_TYPE
 
 TYPE TRAVEL_FROM_T :
 STRUCT
-  to_s : ARRAY[1..25] OF REAL;   (* travel time to each station (seconds) *)
+  to_s : ARRAY[1..30] OF REAL;   (* travel time to each station (seconds), MAX_STATIONS_PER_LINE *)
 END_STRUCT;
 END_TYPE
 
 TYPE MOVE_TIMES_T :
 STRUCT
-  lift_s  : ARRAY[1..25] OF REAL;           (* lift time per station (seconds) *)
-  sink_s  : ARRAY[1..25] OF REAL;           (* sink time per station (seconds) *)
-  travel  : ARRAY[1..25] OF TRAVEL_FROM_T;  (* travel[from].to_s[to] (seconds) *)
+  lift_s  : ARRAY[1..30] OF REAL;           (* lift time per station (seconds), MAX_STATIONS_PER_LINE *)
+  sink_s  : ARRAY[1..30] OF REAL;           (* sink time per station (seconds), MAX_STATIONS_PER_LINE *)
+  travel  : ARRAY[1..30] OF TRAVEL_FROM_T;  (* travel[from].to_s[to] (seconds), MAX_STATIONS_PER_LINE *)
 END_STRUCT;
 END_TYPE
 
@@ -235,7 +235,7 @@ END_TYPE
 
 TYPE DEP_IDLE_SLOT_SET_T :
 STRUCT
-  slots : ARRAY[1..100] OF DEP_IDLE_SLOT_T;  (* DEP_MAX_IDLE_SLOTS — literal required in TYPE *)
+  slots : ARRAY[1..20] OF DEP_IDLE_SLOT_T;  (* DEP_MAX_IDLE_SLOTS — literal required in TYPE *)
   count : INT;
 END_STRUCT;
 END_TYPE
@@ -268,7 +268,7 @@ END_TYPE
 
 TYPE DEP_OVERLAP_T :
 STRUCT
-  flags : ARRAY[101..450] OF BOOL;  (* TRUE = station is in overlap zone — literal required in TYPE *)
+  flags : ARRAY[101..130] OF BOOL;  (* TRUE = station is in overlap zone — STATION_ARRAY_START..END literal required in TYPE *)
   count : INT;
 END_STRUCT;
 END_TYPE
@@ -277,10 +277,10 @@ END_TYPE
 
 TYPE DEP_SANDBOX_T :
 STRUCT
-  schedule : ARRAY[1..50] OF TSK_SCHEDULE_T;
-  batches  : ARRAY[1..50] OF BATCH_T;
-  programs : ARRAY[1..50] OF TREATMENT_PROGRAM_T;
-  tasks    : ARRAY[1..3] OF TSK_QUEUE_T;   (* literal — TYPE cannot use constants *)
+  schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;           (* MAX_UNITS *)
+  batches  : ARRAY[1..10] OF BATCH_T;                   (* MAX_UNITS *)
+  programs : ARRAY[1..10] OF TREATMENT_PROGRAM_T;       (* MAX_UNITS *)
+  tasks    : ARRAY[1..3] OF TSK_QUEUE_T;                (* MAX_TRANSPORTERS — literal required in TYPE *)
   valid    : BOOL;
 END_STRUCT;
 END_TYPE
@@ -290,8 +290,8 @@ END_TYPE
 TYPE DEP_PENDING_WRITE_T :
 STRUCT
   valid      : BOOL;
-  programs   : ARRAY[1..50] OF TREATMENT_PROGRAM_T;
-  schedule   : ARRAY[1..50] OF TSK_SCHEDULE_T;
+  programs   : ARRAY[1..10] OF TREATMENT_PROGRAM_T;    (* MAX_UNITS *)
+  schedule   : ARRAY[1..10] OF TSK_SCHEDULE_T;          (* MAX_UNITS *)
   batch_unit : INT;     (* activated batch: unit index *)
   batch_stage : INT;    (* activated batch: new stage *)
   time_s     : LINT;    (* activation time (s), unix seconds *)

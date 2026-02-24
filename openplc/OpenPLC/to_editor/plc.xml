@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-24T12:52:18"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-24T12:52:18">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-24T13:20:23"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-24T13:20:23">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -157,7 +157,7 @@
             <variable name="task_area">
               <type>
                 <array>
-                  <dimension lower="1" upper="4"/>
+                  <dimension lower="1" upper="3"/>
                   <baseType><derived name="TASK_AREA_T"/></baseType>
                 </array>
               </type>
@@ -408,7 +408,7 @@
             <variable name="queue">
               <type>
                 <array>
-                  <dimension lower="1" upper="50"/>
+                  <dimension lower="1" upper="10"/>
                   <baseType><derived name="TSK_TASK_T"/></baseType>
                 </array>
               </type>
@@ -458,7 +458,7 @@
             <variable name="to_s">
               <type>
                 <array>
-                  <dimension lower="1" upper="25"/>
+                  <dimension lower="1" upper="30"/>
                   <baseType><REAL/></baseType>
                 </array>
               </type>
@@ -472,7 +472,7 @@
             <variable name="lift_s">
               <type>
                 <array>
-                  <dimension lower="1" upper="25"/>
+                  <dimension lower="1" upper="30"/>
                   <baseType><REAL/></baseType>
                 </array>
               </type>
@@ -480,7 +480,7 @@
             <variable name="sink_s">
               <type>
                 <array>
-                  <dimension lower="1" upper="25"/>
+                  <dimension lower="1" upper="30"/>
                   <baseType><REAL/></baseType>
                 </array>
               </type>
@@ -488,7 +488,7 @@
             <variable name="travel">
               <type>
                 <array>
-                  <dimension lower="1" upper="25"/>
+                  <dimension lower="1" upper="30"/>
                   <baseType><derived name="TRAVEL_FROM_T"/></baseType>
                 </array>
               </type>
@@ -520,7 +520,7 @@
             <variable name="slots">
               <type>
                 <array>
-                  <dimension lower="1" upper="100"/>
+                  <dimension lower="1" upper="20"/>
                   <baseType><derived name="DEP_IDLE_SLOT_T"/></baseType>
                 </array>
               </type>
@@ -579,7 +579,7 @@
             <variable name="flags">
               <type>
                 <array>
-                  <dimension lower="101" upper="450"/>
+                  <dimension lower="101" upper="130"/>
                   <baseType><BOOL/></baseType>
                 </array>
               </type>
@@ -596,7 +596,7 @@
             <variable name="schedule">
               <type>
                 <array>
-                  <dimension lower="1" upper="50"/>
+                  <dimension lower="1" upper="10"/>
                   <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
                 </array>
               </type>
@@ -604,7 +604,7 @@
             <variable name="batches">
               <type>
                 <array>
-                  <dimension lower="1" upper="50"/>
+                  <dimension lower="1" upper="10"/>
                   <baseType><derived name="BATCH_T"/></baseType>
                 </array>
               </type>
@@ -612,7 +612,7 @@
             <variable name="programs">
               <type>
                 <array>
-                  <dimension lower="1" upper="50"/>
+                  <dimension lower="1" upper="10"/>
                   <baseType><derived name="TREATMENT_PROGRAM_T"/></baseType>
                 </array>
               </type>
@@ -640,7 +640,7 @@
             <variable name="programs">
               <type>
                 <array>
-                  <dimension lower="1" upper="50"/>
+                  <dimension lower="1" upper="10"/>
                   <baseType><derived name="TREATMENT_PROGRAM_T"/></baseType>
                 </array>
               </type>
@@ -648,7 +648,7 @@
             <variable name="schedule">
               <type>
                 <array>
-                  <dimension lower="1" upper="50"/>
+                  <dimension lower="1" upper="10"/>
                   <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
                 </array>
               </type>
@@ -6928,15 +6928,15 @@ qw_cal_t3_x_max    := REAL_TO_INT(g_cal[3].x_max_mm_s);]]></xhtml:p>
         <globalVars>
           <variable name="MAX_LINES">
             <type><INT/></type>
-            <initialValue><simpleValue value="4"/></initialValue>
+            <initialValue><simpleValue value="1"/></initialValue>
           </variable>
           <variable name="MAX_STATIONS_PER_LINE">
             <type><INT/></type>
-            <initialValue><simpleValue value="50"/></initialValue>
+            <initialValue><simpleValue value="30"/></initialValue>
           </variable>
           <variable name="MAX_TRANSPORTERS_PER_LINE">
             <type><INT/></type>
-            <initialValue><simpleValue value="4"/></initialValue>
+            <initialValue><simpleValue value="3"/></initialValue>
           </variable>
           <variable name="STATION_ARRAY_START">
             <type><INT/></type>
@@ -6944,35 +6944,35 @@ qw_cal_t3_x_max    := REAL_TO_INT(g_cal[3].x_max_mm_s);]]></xhtml:p>
           </variable>
           <variable name="STATION_ARRAY_END">
             <type><INT/></type>
-            <initialValue><simpleValue value="450"/></initialValue>
+            <initialValue><simpleValue value="130"/></initialValue>
           </variable>
           <variable name="MAX_TRANSPORTERS">
             <type><INT/></type>
-            <initialValue><simpleValue value="10"/></initialValue>
+            <initialValue><simpleValue value="3"/></initialValue>
           </variable>
           <variable name="MAX_UNITS">
             <type><INT/></type>
-            <initialValue><simpleValue value="50"/></initialValue>
+            <initialValue><simpleValue value="10"/></initialValue>
           </variable>
           <variable name="MAX_PARALLELS">
             <type><INT/></type>
-            <initialValue><simpleValue value="8"/></initialValue>
+            <initialValue><simpleValue value="5"/></initialValue>
           </variable>
           <variable name="MAX_STAGES">
             <type><INT/></type>
-            <initialValue><simpleValue value="70"/></initialValue>
+            <initialValue><simpleValue value="30"/></initialValue>
           </variable>
           <variable name="DEP_MAX_IDLE_SLOTS">
             <type><INT/></type>
-            <initialValue><simpleValue value="100"/></initialValue>
+            <initialValue><simpleValue value="20"/></initialValue>
           </variable>
           <variable name="DEP_MAX_DELAY_ACTS">
             <type><INT/></type>
-            <initialValue><simpleValue value="100"/></initialValue>
+            <initialValue><simpleValue value="20"/></initialValue>
           </variable>
           <variable name="DEP_MAX_WAITING">
             <type><INT/></type>
-            <initialValue><simpleValue value="10"/></initialValue>
+            <initialValue><simpleValue value="5"/></initialValue>
           </variable>
           <variable name="MIN_WORK_AREA">
             <type><REAL/></type>
