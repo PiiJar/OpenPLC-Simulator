@@ -17,10 +17,14 @@ FUNCTION_BLOCK TSK_FB_CreateTasks
 VAR_INPUT
   i_unit : INT;   (* unit index 1..10 *)
 END_VAR
+VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+END_VAR
+
 VAR_EXTERNAL
   g_batches  : ARRAY[1..10] OF BATCH_T;
   g_schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
-  g_tasks    : ARRAY[1..3] OF TSK_QUEUE_T;
+  g_tasks    : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
 END_VAR
 VAR
   si         : INT;     (* schedule stage index *)

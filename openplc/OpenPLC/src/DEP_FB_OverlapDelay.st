@@ -25,8 +25,12 @@ END_VAR
 VAR_OUTPUT
   o_delay_s : REAL;       (* total delay needed (s), 0 = no conflict *)
 END_VAR
+VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+END_VAR
+
 VAR_EXTERNAL
-  g_tasks       : ARRAY[1..3] OF TSK_QUEUE_T;
+  g_tasks       : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
   g_dep_overlap : DEP_OVERLAP_T;
 END_VAR
 VAR
@@ -72,7 +76,7 @@ FOR round := 1 TO 20 DO
   t_end    := i_task_end + REAL_TO_LINT(o_delay_s);
 
   (* Check all tasks on OTHER transporters *)
-  FOR ti := 1 TO 3 DO
+  FOR ti := 1 TO TRANSPORTERS DO
     IF ti <> i_trans_id THEN
       FOR qi := 1 TO 10 DO
         IF qi > g_tasks[ti].count THEN

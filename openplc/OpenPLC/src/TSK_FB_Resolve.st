@@ -28,8 +28,12 @@ VAR_INPUT
   i_blocked_stage : INT;     (* blocking task: stage *)
   i_deficit       : REAL;    (* seconds short *)
 END_VAR
+VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+END_VAR
+
 VAR_EXTERNAL
-  g_tasks    : ARRAY[1..3] OF TSK_QUEUE_T;
+  g_tasks    : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
   g_schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
   g_batches  : ARRAY[1..10] OF BATCH_T;
 END_VAR

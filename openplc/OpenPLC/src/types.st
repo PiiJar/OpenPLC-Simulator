@@ -67,7 +67,7 @@ END_TYPE
 
 (* ── Transporter interface — production-compatible ──────────── *)
 (* Used by scheduler, TWA, simulation, and production alike.     *)
-(* g_transporter : ARRAY[1..3] OF STC_TRANSPORTER_T              *)
+(* g_transporter : ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T              *)
 TYPE STC_TRANSPORTER_T :
 STRUCT
   (* --- Command (scheduler → transporter) --- *)
@@ -280,7 +280,7 @@ STRUCT
   schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
   batches  : ARRAY[1..10] OF BATCH_T;
   programs : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
-  tasks    : ARRAY[1..3] OF TSK_QUEUE_T;
+  tasks    : ARRAY[1..3] OF TSK_QUEUE_T;   (* literal — TYPE cannot use constants *)
   valid    : BOOL;
 END_STRUCT;
 END_TYPE

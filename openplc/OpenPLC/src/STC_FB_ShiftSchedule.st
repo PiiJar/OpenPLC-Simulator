@@ -16,9 +16,13 @@ VAR_INPUT
   i_from_stage : INT;     (* propagate from this stage onward *)
   i_amount     : REAL;    (* seconds to shift (+ = later, - = earlier) *)
 END_VAR
+VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+END_VAR
+
 VAR_EXTERNAL
   g_schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
-  g_tasks    : ARRAY[1..3] OF TSK_QUEUE_T;
+  g_tasks    : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
 END_VAR
 VAR
   sc : INT;
@@ -42,7 +46,7 @@ FOR si := i_from_stage TO sc DO
 END_FOR;
 
 (* ── Shift matching tasks in all transporter queues ── *)
-FOR ti := 1 TO 3 DO
+FOR ti := 1 TO TRANSPORTERS DO
   FOR qi := 1 TO g_tasks[ti].count DO
     IF g_tasks[ti].queue[qi].unit = i_unit
        AND g_tasks[ti].queue[qi].stage >= i_from_stage THEN

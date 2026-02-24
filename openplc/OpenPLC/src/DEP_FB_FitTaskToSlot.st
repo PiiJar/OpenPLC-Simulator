@@ -31,8 +31,12 @@ END_VAR
 VAR_OUTPUT
   o_result : DEP_FIT_RESULT_T;
 END_VAR
+VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+END_VAR
+
 VAR_EXTERNAL
-  g_dep_idle_slots : ARRAY[1..3] OF DEP_IDLE_SLOT_SET_T;
+  g_dep_idle_slots : ARRAY[1..TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T;
 END_VAR
 VAR
   fb_travel_to   : STC_FB_CalcHorizontalTravel;

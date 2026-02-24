@@ -7,11 +7,15 @@
    ============================================================ *)
 
 FUNCTION_BLOCK SIM_FB_ClearConfig
+VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+END_VAR
+
 VAR_EXTERNAL
   g_station_count    : INT;
   g_stations         : ARRAY[101..125] OF STATION_T;
-  g_cfg              : ARRAY[1..3] OF TRANSPORTER_CFG_T;
-  g_transporter      : ARRAY[1..3] OF STC_TRANSPORTER_T;
+  g_cfg              : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
+  g_transporter      : ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T;
   g_units            : ARRAY[1..10] OF UNIT_T;
   g_batches          : ARRAY[1..10] OF BATCH_T;
   g_programs         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
@@ -38,7 +42,7 @@ END_FOR;
 g_station_count := 0;
 
 (* --- Clear all transporter configs --- *)
-FOR i := 1 TO 3 DO
+FOR i := 1 TO TRANSPORTERS DO
   g_cfg[i].x_min_limit   := 0.0;
   g_cfg[i].x_max_limit   := 0.0;
   g_cfg[i].y_min_limit   := 0.0;
@@ -70,7 +74,7 @@ FOR i := 101 TO 125 DO
 END_FOR;
 
 (* --- Clear all transporter states --- *)
-FOR i := 1 TO 3 DO
+FOR i := 1 TO TRANSPORTERS DO
   g_transporter[i].active          := FALSE;
   g_transporter[i].status          := 0;
   g_transporter[i].phase           := 0;

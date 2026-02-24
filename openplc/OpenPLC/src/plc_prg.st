@@ -3,11 +3,15 @@
    ============================================================ *)
 
 PROGRAM PLC_PRG
+VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+END_VAR
+
 VAR_EXTERNAL
   g_station_count    : INT;
   g_stations         : ARRAY[101..125] OF STATION_T;
-  g_cfg              : ARRAY[1..3] OF TRANSPORTER_CFG_T;
-  g_transporter      : ARRAY[1..3] OF STC_TRANSPORTER_T;
+  g_cfg              : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
+  g_transporter      : ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T;
   (* Modbus output: transporter 1 *)
   qw_t1_x_mm    : INT;
   qw_t1_z_mm    : INT;
@@ -143,9 +147,9 @@ VAR_EXTERNAL
   iw_time_lo  : INT;
   (* Task scheduler globals *)
   g_schedule  : ARRAY[1..10] OF TSK_SCHEDULE_T;
-  g_tasks     : ARRAY[1..3] OF TSK_QUEUE_T;
+  g_tasks     : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
   (* Calibration *)
-  g_cal       : ARRAY[1..3] OF CALIBRATION_T;
+  g_cal       : ARRAY[1..TRANSPORTERS] OF CALIBRATION_T;
   g_cal_active : BOOL;
   (* Calibration output registers *)
   qw_cal_step     : INT;
@@ -308,7 +312,7 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     (* --- Finish init: all config uploaded, init transporter states --- *)
     g_station_count := iw_cfg_param;
 
-    FOR i := 1 TO 3 DO
+    FOR i := 1 TO TRANSPORTERS DO
       (* Active if task_area[1] has non-zero stations *)
       IF g_cfg[i].task_area[1].min_lift > 0 THEN
         g_transporter[i].active := TRUE;

@@ -24,8 +24,12 @@
    ============================================================ *)
 
 FUNCTION_BLOCK TSK_FB_Analyze
+VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+END_VAR
+
 VAR_EXTERNAL
-  g_tasks    : ARRAY[1..3] OF TSK_QUEUE_T;
+  g_tasks    : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
   g_stations : ARRAY[101..125] OF STATION_T;
 END_VAR
 VAR_OUTPUT
@@ -93,7 +97,7 @@ chk_cnt        := 0;
 
 (* ══════ Step 1: Merge all queues into sorted[] by start_time (insertion sort) ══════ *)
 sorted_cnt := 0;
-FOR ti := 1 TO 3 DO
+FOR ti := 1 TO TRANSPORTERS DO
   FOR qi := 1 TO g_tasks[ti].count DO
     IF g_tasks[ti].queue[qi].unit > 0 THEN
       (* Insert into sorted position *)

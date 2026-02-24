@@ -9,15 +9,19 @@
    ============================================================ *)
 
 FUNCTION_BLOCK STC_FB_ClearTaskQueues
+VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+END_VAR
+
 VAR_EXTERNAL
-  g_tasks : ARRAY[1..3] OF TSK_QUEUE_T;
+  g_tasks : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
 END_VAR
 VAR
   ti : INT;
   qi : INT;
 END_VAR
 
-FOR ti := 1 TO 3 DO
+FOR ti := 1 TO TRANSPORTERS DO
   g_tasks[ti].count := 0;
   FOR qi := 1 TO 10 DO
     g_tasks[ti].queue[qi].unit         := 0;

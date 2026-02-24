@@ -30,11 +30,15 @@ VAR_INPUT
   i_run    : BOOL;    (* TRUE = run, FALSE = stop *)
   i_time_s : LINT;    (* current absolute time (s), unix seconds *)
 END_VAR
+VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+END_VAR
+
 VAR_EXTERNAL
   g_batches  : ARRAY[1..10] OF BATCH_T;
   g_units    : ARRAY[1..10] OF UNIT_T;
   g_programs : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
-  g_tasks    : ARRAY[1..3] OF TSK_QUEUE_T;
+  g_tasks    : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
   g_schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
   (* DEP handshake *)
   g_dep_pending : DEP_PENDING_WRITE_T;
@@ -238,7 +242,7 @@ ELSIF phase = 2204 THEN
 ELSIF phase = 10000 THEN
   (* Count total tasks *)
   total_tasks := 0;
-  FOR ti := 1 TO 3 DO
+  FOR ti := 1 TO TRANSPORTERS DO
     total_tasks := total_tasks + g_tasks[ti].count;
   END_FOR;
   o_task_cnt := total_tasks;

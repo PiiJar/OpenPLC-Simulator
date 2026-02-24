@@ -37,15 +37,19 @@ VAR_INPUT
   i_time_s    : LINT;     (* current absolute time (s), unix seconds *)
   i_tsk_phase : INT;      (* TSK_FB_Scheduler.o_phase *)
 END_VAR
+VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+END_VAR
+
 VAR_EXTERNAL
   g_batches          : ARRAY[1..10] OF BATCH_T;
   g_units            : ARRAY[1..10] OF UNIT_T;
   g_programs         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
   g_schedule         : ARRAY[1..10] OF TSK_SCHEDULE_T;
-  g_tasks            : ARRAY[1..3] OF TSK_QUEUE_T;
-  g_cfg              : ARRAY[1..3] OF TRANSPORTER_CFG_T;
+  g_tasks            : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
+  g_cfg              : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
   g_dep_sandbox      : DEP_SANDBOX_T;
-  g_dep_idle_slots   : ARRAY[1..3] OF DEP_IDLE_SLOT_SET_T;
+  g_dep_idle_slots   : ARRAY[1..TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T;
   g_dep_overlap      : DEP_OVERLAP_T;
   g_dep_pending      : DEP_PENDING_WRITE_T;
   g_dep_activated    : BOOL;
@@ -260,7 +264,7 @@ ELSIF phase = 1020 THEN
 ELSIF phase = 1030 THEN
   w_task_cnt := 0;
 
-  FOR ti := 1 TO 3 DO
+  FOR ti := 1 TO TRANSPORTERS DO
     write_idx := 0;
     FOR qi := 1 TO g_tasks[ti].count DO
       IF g_tasks[ti].queue[qi].unit = cur_wait_unit THEN
@@ -291,7 +295,7 @@ ELSIF phase = 1030 THEN
 (* PHASE 1040: CALC_IDLE — calc idle slots for all transporters*)
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 1040 THEN
-  FOR ti := 1 TO 3 DO
+  FOR ti := 1 TO TRANSPORTERS DO
     fb_idle_slots(i_trans := ti, i_time_s := i_time_s);
   END_FOR;
   cur_task_idx := 1;

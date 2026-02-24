@@ -18,9 +18,13 @@ VAR_INPUT
   i_trans  : INT;      (* transporter index 1..3 *)
   i_time_s : LINT;     (* current simulation time (s), unix seconds *)
 END_VAR
+VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+END_VAR
+
 VAR_EXTERNAL
-  g_tasks          : ARRAY[1..3] OF TSK_QUEUE_T;
-  g_dep_idle_slots : ARRAY[1..3] OF DEP_IDLE_SLOT_SET_T;
+  g_tasks          : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
+  g_dep_idle_slots : ARRAY[1..TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T;
 END_VAR
 VAR
   qi       : INT;      (* queue index *)

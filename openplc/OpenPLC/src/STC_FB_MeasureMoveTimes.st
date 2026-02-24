@@ -54,8 +54,12 @@ VAR
   lift_idx     : INT;         (* index 1..25 for lift station *)
   sink_idx     : INT;         (* index 1..25 for sink station *)
 END_VAR
+VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+END_VAR
+
 VAR_EXTERNAL
-  g_move : ARRAY[1..3] OF MOVE_TIMES_T;
+  g_move : ARRAY[1..TRANSPORTERS] OF MOVE_TIMES_T;
 END_VAR
 
 (* ---- Phase transition detection ---- *)

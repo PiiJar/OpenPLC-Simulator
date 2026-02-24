@@ -18,11 +18,15 @@ FUNCTION_BLOCK DEP_FB_Sandbox
 VAR_INPUT
   i_cmd : INT;     (* 1=SNAPSHOT, 2=RESTORE, 3=CLEAR *)
 END_VAR
+VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+END_VAR
+
 VAR_EXTERNAL
   g_schedule    : ARRAY[1..10] OF TSK_SCHEDULE_T;
   g_batches     : ARRAY[1..10] OF BATCH_T;
   g_programs    : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
-  g_tasks       : ARRAY[1..3] OF TSK_QUEUE_T;
+  g_tasks       : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
   g_dep_sandbox : DEP_SANDBOX_T;
 END_VAR
 VAR
@@ -37,7 +41,7 @@ IF i_cmd = 1 THEN
     g_dep_sandbox.batches[ui]  := g_batches[ui];
     g_dep_sandbox.programs[ui] := g_programs[ui];
   END_FOR;
-  FOR ti := 1 TO 3 DO
+  FOR ti := 1 TO TRANSPORTERS DO
     g_dep_sandbox.tasks[ti] := g_tasks[ti];
   END_FOR;
   g_dep_sandbox.valid := TRUE;
@@ -50,7 +54,7 @@ ELSIF i_cmd = 2 THEN
       g_batches[ui]  := g_dep_sandbox.batches[ui];
       g_programs[ui] := g_dep_sandbox.programs[ui];
     END_FOR;
-    FOR ti := 1 TO 3 DO
+    FOR ti := 1 TO TRANSPORTERS DO
       g_tasks[ti] := g_dep_sandbox.tasks[ti];
     END_FOR;
   END_IF;

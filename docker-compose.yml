@@ -22,7 +22,7 @@ services:
       - API_PORT=3001
       - POLL_MS=100
     volumes:
-      - ./customers:/data/customers:ro
+      - ./customers:/data/customers
     depends_on:
       - openplc
     restart: unless-stopped

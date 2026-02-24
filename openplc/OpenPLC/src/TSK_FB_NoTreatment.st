@@ -18,11 +18,15 @@ FUNCTION_BLOCK TSK_FB_NoTreatment
 VAR_INPUT
   i_time_s : LINT;   (* current absolute time (s), unix seconds *)
 END_VAR
+VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+END_VAR
+
 VAR_EXTERNAL
   g_units    : ARRAY[1..10] OF UNIT_T;
-  g_transporter : ARRAY[1..3] OF STC_TRANSPORTER_T;
-  g_cfg      : ARRAY[1..3] OF TRANSPORTER_CFG_T;
-  g_tasks    : ARRAY[1..3] OF TSK_QUEUE_T;
+  g_transporter : ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T;
+  g_cfg      : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
+  g_tasks    : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
   g_stations : ARRAY[101..125] OF STATION_T;
   g_station_count : INT;
 END_VAR

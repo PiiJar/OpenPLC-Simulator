@@ -20,11 +20,15 @@ FUNCTION_BLOCK SIM_FB_RunTasks
 VAR_INPUT
   i_run : BOOL;       (* enable — typically init_done *)
 END_VAR
+VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+END_VAR
+
 VAR_EXTERNAL
-  g_transporter  : ARRAY[1..3] OF STC_TRANSPORTER_T;
+  g_transporter  : ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T;
   g_stations     : ARRAY[101..125] OF STATION_T;
-  g_cfg          : ARRAY[1..3] OF TRANSPORTER_CFG_T;
-  g_move         : ARRAY[1..3] OF MOVE_TIMES_T;
+  g_cfg          : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
+  g_move         : ARRAY[1..TRANSPORTERS] OF MOVE_TIMES_T;
 END_VAR
 VAR
   i            : INT;
@@ -64,7 +68,7 @@ IF NOT i_run THEN
   RETURN;
 END_IF;
 
-FOR i := 1 TO 3 DO
+FOR i := 1 TO TRANSPORTERS DO
   IF g_transporter[i].active THEN
 
   (* ── Phase 0 → 1: Accept new task ───────────────────────── *)

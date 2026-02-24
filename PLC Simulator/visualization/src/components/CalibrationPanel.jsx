@@ -191,7 +191,7 @@ export default function CalibrationPanel({ onClose, stations, transporterStates 
         throw new Error(err.error || 'Failed to save');
       }
       const data = await res.json();
-      alert(`Saved movement_times.json (${data.transporters} transporters)`);
+      // Success — no popup needed, status already visible in panel
     } catch (err) {
       setError(err.message);
     } finally {

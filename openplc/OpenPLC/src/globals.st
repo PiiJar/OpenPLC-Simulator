@@ -3,9 +3,19 @@
    ============================================================ *)
 
 VAR_GLOBAL CONSTANT
-  MAX_STATIONS     : INT := 25;    (* stations 101..125 *)
-  MAX_TRANSPORTERS : INT := 3;     (* transporters 1..3 *)
-  MAX_UNITS        : INT := 10;    (* units 1..10 *)
+  (* ── Array size limits (used in ARRAY declarations with -a flag) ── *)
+  MAX_STATIONS       : INT := 25;    (* stations 101..100+MAX_STATIONS *)
+  TRANSPORTERS   : INT := 3;     (* number of transporters in this plant *)
+  MAX_UNITS          : INT := 10;    (* units 1..MAX_UNITS *)
+  MAX_PARALLELS      : INT := 5;     (* max parallel stations per program stage *)
+  MAX_STAGES         : INT := 30;    (* max stages in a treatment program *)
+  MAX_LINES          : INT := 4;     (* max production lines per transporter *)
+  DEP_MAX_IDLE_SLOTS : INT := 20;    (* max idle slots per transporter *)
+  DEP_MAX_DELAY_ACTS : INT := 10;    (* max delay actions per cycle *)
+  DEP_MAX_WAITING    : INT := 10;    (* max waiting batches *)
+  MIN_WORK_AREA      : REAL := 20.0; (* mm — TWA minimum working area *)
+
+  (* ── Enumerated constants ── *)
   (* Unit status *)
   USED             : INT := 1;
   NOT_USED         : INT := 0;
@@ -26,37 +36,28 @@ VAR_GLOBAL CONSTANT
   NOT_PROCESSED    : INT := 0;
   IN_PROCESS       : INT := 1;
   PROCESSED        : INT := 2;
-  MAX_PARALLELS    : INT := 5;     (* max parallel stations per program stage *)
-  MAX_STAGES       : INT := 30;    (* max stages in a treatment program *)
-  MAX_LINES        : INT := 4;     (* max production lines per transporter *)
   (* Avoid status for stations (TWA) *)
   AVOID_NONE       : INT := 0;     (* station not avoided *)
   AVOID_PASS       : INT := 1;     (* pass through allowed, no stop *)
   AVOID_BLOCK      : INT := 2;     (* hard block, cannot pass *)
-  (* TWA minimum working area *)
-  MIN_WORK_AREA    : REAL := 1000.0;  (* mm — minimum working area *)
-  (* Departure Scheduler constants *)
-  DEP_MAX_IDLE_SLOTS : INT := 20;   (* max idle slots per transporter *)
-  DEP_MAX_DELAY_ACTS : INT := 10;   (* max delay actions per cycle *)
-  DEP_MAX_WAITING    : INT := 10;   (* max waiting batches *)
 END_VAR
 
 VAR_GLOBAL
   (* --- Shared data arrays --- *)
   g_station_count    : INT := 0;
   g_stations         : ARRAY[101..125] OF STATION_T;
-  g_cfg              : ARRAY[1..3] OF TRANSPORTER_CFG_T;
-  g_transporter      : ARRAY[1..3] OF STC_TRANSPORTER_T;
+  g_cfg              : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
+  g_transporter      : ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T;
   g_units            : ARRAY[1..10] OF UNIT_T;
   g_batches          : ARRAY[1..10] OF BATCH_T;
   g_programs         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
   g_avoid_status     : ARRAY[101..125] OF INT;  (* AVOID_NONE/PASS/BLOCK per station *)
-  g_move             : ARRAY[1..3] OF MOVE_TIMES_T;  (* precomputed movement times per transporter *)
+  g_move             : ARRAY[1..TRANSPORTERS] OF MOVE_TIMES_T;  (* precomputed movement times per transporter *)
   g_schedule         : ARRAY[1..10] OF TSK_SCHEDULE_T;  (* calculated schedule per unit *)
-  g_tasks            : ARRAY[1..3] OF TSK_QUEUE_T;       (* task queue per transporter *)
+  g_tasks            : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;       (* task queue per transporter *)
   (* --- Departure Scheduler state --- *)
   g_dep_sandbox       : DEP_SANDBOX_T;                    (* sandbox: isolated copy for planning *)
-  g_dep_idle_slots    : ARRAY[1..3] OF DEP_IDLE_SLOT_SET_T;  (* idle slots per transporter *)
+  g_dep_idle_slots    : ARRAY[1..TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T;  (* idle slots per transporter *)
   g_dep_waiting       : ARRAY[1..10] OF INT;              (* waiting batch unit indices *)
   g_dep_waiting_count : INT;
   g_dep_overlap       : DEP_OVERLAP_T;                    (* overlap station flags *)
@@ -64,7 +65,7 @@ VAR_GLOBAL
   g_dep_activated     : BOOL;                             (* handshake TSK ← DEP *)
   g_dep_stable        : BOOL;                             (* handshake TSK → DEP: task list stable *)
   (* --- Calibration state --- *)
-  g_cal              : ARRAY[1..3] OF CALIBRATION_T;      (* calibration plan + results per transporter *)
+  g_cal              : ARRAY[1..TRANSPORTERS] OF CALIBRATION_T;      (* calibration plan + results per transporter *)
   g_cal_active       : BOOL;                              (* TRUE during calibration — inhibits schedulers *)
   (* --- Unix time --- *)
   (* g_time_s = absolute unix time in seconds (LINT)                       *)

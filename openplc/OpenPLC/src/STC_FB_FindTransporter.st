@@ -22,8 +22,12 @@ END_VAR
 VAR_OUTPUT
   o_trans_id : INT;     (* found transporter 1..3, 0 = not found *)
 END_VAR
+VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+END_VAR
+
 VAR_EXTERNAL
-  g_cfg : ARRAY[1..3] OF TRANSPORTER_CFG_T;
+  g_cfg : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
 END_VAR
 VAR
   ti   : INT;
@@ -34,7 +38,7 @@ VAR
 END_VAR
 
 o_trans_id := 0;
-FOR ti := 1 TO 3 DO
+FOR ti := 1 TO TRANSPORTERS DO
   IF o_trans_id = 0 THEN
     FOR ai := 1 TO 4 DO
       IF o_trans_id = 0 THEN

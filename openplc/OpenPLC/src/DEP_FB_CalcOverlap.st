@@ -12,8 +12,12 @@
    ============================================================ *)
 
 FUNCTION_BLOCK DEP_FB_CalcOverlap
+VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+END_VAR
+
 VAR_EXTERNAL
-  g_cfg         : ARRAY[1..3] OF TRANSPORTER_CFG_T;
+  g_cfg         : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
   g_dep_overlap : DEP_OVERLAP_T;
 END_VAR
 VAR
@@ -30,7 +34,7 @@ g_dep_overlap.count := 0;
 FOR stn := 101 TO 125 DO
   cover_count := 0;
 
-  FOR ti := 1 TO 3 DO
+  FOR ti := 1 TO TRANSPORTERS DO
     covered := FALSE;
     FOR ai := 1 TO 4 DO
       IF NOT covered THEN

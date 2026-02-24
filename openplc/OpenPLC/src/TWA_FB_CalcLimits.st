@@ -17,18 +17,20 @@
    ============================================================ *)
 
 FUNCTION_BLOCK TWA_FB_CalcLimits
+VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+    MAX_STATIONS     : INT;
+    AVOID_PASS       : INT;
+    AVOID_BLOCK      : INT;
+    MIN_WORK_AREA    : REAL;
+END_VAR
+
 VAR_EXTERNAL
-  g_cfg            : ARRAY[1..3] OF TRANSPORTER_CFG_T;
-  g_transporter          : ARRAY[1..3] OF STC_TRANSPORTER_T;
+  g_cfg            : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
+  g_transporter          : ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T;
   g_stations       : ARRAY[101..125] OF STATION_T;
   g_station_count  : INT;
   g_avoid_status   : ARRAY[101..125] OF INT;
-END_VAR
-VAR_EXTERNAL CONSTANT
-  MAX_TRANSPORTERS : INT;
-  AVOID_PASS       : INT;
-  AVOID_BLOCK      : INT;
-  MIN_WORK_AREA    : REAL;
 END_VAR
 VAR
   i            : INT;
@@ -51,13 +53,15 @@ VAR
 
   (* Working arrays for sort + priority (max 3 transporters) *)
   n_active     : INT;
-  w_idx        : ARRAY[1..3] OF INT;
-  w_xpos       : ARRAY[1..3] OF REAL;
-  w_phase      : ARRAY[1..3] OF INT;
-  w_target     : ARRAY[1..3] OF REAL;
-  w_avoid      : ARRAY[1..3] OF REAL;
-  w_can_evade  : ARRAY[1..3] OF BOOL;
-  w_priority   : ARRAY[1..3] OF REAL;
+  w_idx        : ARRAY[1..TRANSPORTERS] OF INT;
+  w_xpos       : ARRAY[1..TRANSPORTERS] OF REAL;
+  w_phase      : ARRAY[1..TRANSPORTERS] OF INT;
+  w_target     : ARRAY[1..TRANSPORTERS] OF REAL;
+  w_avoid      : ARRAY[1..TRANSPORTERS] OF REAL;
+  w_can_evade  : ARRAY[1..TRANSPORTERS] OF BOOL;
+  w_priority   : ARRAY[1..TRANSPORTERS] OF REAL;
+  w_status     : ARRAY[1..TRANSPORTERS] OF INT;
+  w_ypos       : ARRAY[1..TRANSPORTERS] OF REAL;
 
   (* Sort temp vars *)
   min_idx      : INT;
@@ -84,6 +88,8 @@ VAR
   work_area    : REAL;
   other_x      : REAL;
   other_avoid  : REAL;
+  current_y    : REAL;
+  other_y      : REAL;
 END_VAR
 
 (* ================================================================
@@ -91,7 +97,7 @@ END_VAR
    For each active transporter, search stations near current_station
    and restrict x_min/x_max based on avoid_status 1 (pass) and 2 (block).
    ================================================================ *)
-FOR i := 1 TO MAX_TRANSPORTERS DO
+FOR i := 1 TO TRANSPORTERS DO
   IF NOT g_transporter[i].active THEN
     CONTINUE;
   END_IF;
@@ -170,7 +176,7 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
 
   (* --- Search upward (larger station numbers) from current_station --- *)
   stn_num := g_transporter[i].current_station + 1;
-  WHILE stn_num <= 125 DO
+  WHILE stn_num <= (100 + MAX_STATIONS) DO
     IF g_stations[stn_num].tank_id = 0 THEN
       stn_num := stn_num + 1;
       CONTINUE;
@@ -235,19 +241,24 @@ END_FOR;
    STEP 2.0: Basic safety distance — current positions
    Every active transporter pushes neighbors away by x_avoid_mm.
    ================================================================ *)
-FOR i := 1 TO MAX_TRANSPORTERS DO
+FOR i := 1 TO TRANSPORTERS DO
   IF NOT g_transporter[i].active THEN
     CONTINUE;
   END_IF;
 
-  current_x := g_transporter[i].x_mm;
+  current_x := INT_TO_REAL(REAL_TO_INT(g_transporter[i].x_mm + 0.5));
+  current_y := g_transporter[i].y_mm;
   avoid_dist := g_cfg[i].x_avoid_mm;
 
-  FOR j := 1 TO MAX_TRANSPORTERS DO
+  FOR j := 1 TO TRANSPORTERS DO
     IF j = i THEN CONTINUE; END_IF;
     IF NOT g_transporter[j].active THEN CONTINUE; END_IF;
 
-    other_x := g_transporter[j].x_mm;
+    (* Skip transporters on different line (y-position check, matches JS Step 2.0) *)
+    other_y := g_transporter[j].y_mm;
+    IF ABS(other_y - current_y) >= 1.0 THEN CONTINUE; END_IF;
+
+    other_x := INT_TO_REAL(REAL_TO_INT(g_transporter[j].x_mm + 0.5));
 
     IF other_x > current_x THEN
       (* j is to the RIGHT of i — restrict j's x_min *)
@@ -271,12 +282,14 @@ END_FOR;
 
 (* --- 2.2.1: Build sorted array of active transporters by x-position --- *)
 n_active := 0;
-FOR i := 1 TO MAX_TRANSPORTERS DO
+FOR i := 1 TO TRANSPORTERS DO
   IF g_transporter[i].active THEN
     n_active := n_active + 1;
     w_idx[n_active] := i;
-    w_xpos[n_active] := g_transporter[i].x_mm;
+    w_xpos[n_active] := INT_TO_REAL(REAL_TO_INT(g_transporter[i].x_mm + 0.5));
     w_phase[n_active] := g_transporter[i].phase;
+    w_status[n_active] := g_transporter[i].status;
+    w_ypos[n_active] := g_transporter[i].y_mm;
     w_target[n_active] := g_transporter[i].final_target_x;
     w_avoid[n_active] := g_cfg[i].x_avoid_mm;
   END_IF;
@@ -294,6 +307,8 @@ FOR i := 1 TO n_active - 1 DO
     tmp_int := w_idx[i];    w_idx[i] := w_idx[min_idx];    w_idx[min_idx] := tmp_int;
     tmp_real := w_xpos[i];  w_xpos[i] := w_xpos[min_idx];  w_xpos[min_idx] := tmp_real;
     tmp_int := w_phase[i];  w_phase[i] := w_phase[min_idx]; w_phase[min_idx] := tmp_int;
+    tmp_int := w_status[i]; w_status[i] := w_status[min_idx]; w_status[min_idx] := tmp_int;
+    tmp_real := w_ypos[i];  w_ypos[i] := w_ypos[min_idx];  w_ypos[min_idx] := tmp_real;
     tmp_real := w_target[i]; w_target[i] := w_target[min_idx]; w_target[min_idx] := tmp_real;
     tmp_real := w_avoid[i];  w_avoid[i] := w_avoid[min_idx];  w_avoid[min_idx] := tmp_real;
   END_IF;
@@ -303,11 +318,15 @@ END_FOR;
 FOR i := 1 TO n_active DO
   k := w_idx[i];
 
-  (* canEvade rules:
-     - phase 2 or 4 (Z-movement): cannot evade
-     - working area too small: cannot evade *)
+  (* canEvade rules (from JS specification):
+     RULE 1: status < 3 → not in automatic mode, cannot evade
+     RULE 2: status = 4 AND phase ∈ {2,4} → Z-movement, cannot evade
+     RULE 3: working area too small → cannot evade *)
   w_can_evade[i] := TRUE;
-  IF (w_phase[i] = 2) OR (w_phase[i] = 4) THEN
+  IF w_status[i] < 3 THEN
+    w_can_evade[i] := FALSE;
+  END_IF;
+  IF (w_status[i] = 4) AND ((w_phase[i] = 2) OR (w_phase[i] = 4)) THEN
     w_can_evade[i] := FALSE;
   END_IF;
   work_area := g_transporter[k].x_max_limit - g_transporter[k].x_min_limit;
@@ -333,6 +352,8 @@ IF n_active >= 2 THEN
 
     FOR j := 1 TO n_active DO
       IF i = j THEN CONTINUE; END_IF;
+      (* Skip transporters on different line *)
+      IF ABS(w_ypos[i] - w_ypos[j]) >= 1.0 THEN CONTINUE; END_IF;
 
       (* Determine if i has higher priority than j *)
       a_wins := FALSE;
@@ -357,7 +378,11 @@ IF n_active >= 2 THEN
 
       IF w_xpos[i] < w_xpos[j] THEN
         (* i is LEFT, j is RIGHT — i sets j's x_min *)
-        between := j - i - 1;
+        (* Count same-line transporters between i and j *)
+        between := 0;
+        FOR stn_num := i + 1 TO j - 1 DO
+          IF ABS(w_ypos[stn_num] - w_ypos[i]) < 1.0 THEN between := between + 1; END_IF;
+        END_FOR;
         chain_ofs := w_avoid[i] + INT_TO_REAL(between) * (MIN_WORK_AREA + w_avoid[i]);
         new_val := restrict_x + chain_ofs;
 
@@ -374,7 +399,11 @@ IF n_active >= 2 THEN
 
       ELSIF w_xpos[i] > w_xpos[j] THEN
         (* i is RIGHT, j is LEFT — i sets j's x_max *)
-        between := i - j - 1;
+        (* Count same-line transporters between j and i *)
+        between := 0;
+        FOR stn_num := j + 1 TO i - 1 DO
+          IF ABS(w_ypos[stn_num] - w_ypos[i]) < 1.0 THEN between := between + 1; END_IF;
+        END_FOR;
         chain_ofs := w_avoid[i] + INT_TO_REAL(between) * (MIN_WORK_AREA + w_avoid[i]);
         new_val := restrict_x - chain_ofs;
 
@@ -396,6 +425,9 @@ IF n_active >= 2 THEN
   FOR i := 1 TO n_active - 1 DO
     j := i + 1;
     (* i = left (smaller x), j = right (larger x) — sorted array *)
+
+    (* Skip if not on same line *)
+    IF ABS(w_ypos[i] - w_ypos[j]) >= 1.0 THEN CONTINUE; END_IF;
 
     left_right := ((w_phase[i] = 1) OR (w_phase[i] = 3)) AND (w_target[i] > w_xpos[i]);
     right_right := ((w_phase[j] = 1) OR (w_phase[j] = 3)) AND (w_target[j] > w_xpos[j]);
