@@ -29,8 +29,8 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_tasks    : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
-  g_stations : ARRAY[101..125] OF STATION_T;
+  g_task    : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
+  g_station : ARRAY[101..125] OF STATION_T;
 END_VAR
 VAR_OUTPUT
   o_has_conflict  : BOOL;
@@ -98,12 +98,12 @@ chk_cnt        := 0;
 (* ══════ Step 1: Merge all queues into sorted[] by start_time (insertion sort) ══════ *)
 sorted_cnt := 0;
 FOR ti := 1 TO TRANSPORTERS DO
-  FOR qi := 1 TO g_tasks[ti].count DO
-    IF g_tasks[ti].queue[qi].unit > 0 THEN
+  FOR qi := 1 TO g_task[ti].count DO
+    IF g_task[ti].queue[qi].unit > 0 THEN
       (* Insert into sorted position *)
       sorted_cnt := sorted_cnt + 1;
       IF sorted_cnt <= 30 THEN
-        sorted[sorted_cnt] := g_tasks[ti].queue[qi];
+        sorted[sorted_cnt] := g_task[ti].queue[qi];
         sorted_trans[sorted_cnt] := ti;
         (* Insertion sort: bubble up *)
         ins := sorted_cnt;
@@ -143,12 +143,12 @@ FOR si := 1 TO sorted_cnt DO
   l_idx := sorted[si].lift_station - 100;
   s_idx := sorted[si].sink_station - 100;
   IF l_idx >= 1 AND l_idx <= 25 THEN
-    lift_x := g_stations[sorted[si].lift_station].x_position;
+    lift_x := g_station[sorted[si].lift_station].x_position;
   ELSE
     lift_x := 0.0;
   END_IF;
   IF s_idx >= 1 AND s_idx <= 25 THEN
-    sink_x := g_stations[sorted[si].sink_station].x_position;
+    sink_x := g_station[sorted[si].sink_station].x_position;
   ELSE
     sink_x := 0.0;
   END_IF;

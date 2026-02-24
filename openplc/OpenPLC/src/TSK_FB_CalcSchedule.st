@@ -21,10 +21,10 @@ VAR_INPUT
   i_time_s   : LINT;    (* current absolute time (s), unix seconds *)
 END_VAR
 VAR_EXTERNAL
-  g_batches  : ARRAY[1..10] OF BATCH_T;
-  g_programs : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
-  g_units    : ARRAY[1..10] OF UNIT_T;
-  g_stations : ARRAY[101..125] OF STATION_T;
+  g_batch  : ARRAY[1..10] OF BATCH_T;
+  g_program : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
+  g_unit    : ARRAY[1..10] OF UNIT_T;
+  g_station : ARRAY[101..125] OF STATION_T;
   g_schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
   g_station_count : INT;
 END_VAR
@@ -56,8 +56,8 @@ IF i_unit < 1 OR i_unit > 10 THEN RETURN; END_IF;
 IF i_trans < 1 OR i_trans > 3 THEN RETURN; END_IF;
 
 (* -- Read batch and unit data -- *)
-cur_stage := g_batches[i_unit].cur_stage;
-location  := g_units[i_unit].location;
+cur_stage := g_batch[i_unit].cur_stage;
+location  := g_unit[i_unit].location;
 is_on_stn := location >= 100;
 out_count := 0;
 
@@ -95,7 +95,7 @@ IF is_on_stn THEN
   prev_stn := location;
 ELSIF cur_stage >= 1 AND cur_stage <= 30 THEN
   (* On transporter: use previous stage station *)
-  prev_stn := g_programs[i_unit].stages[cur_stage].stations[1];
+  prev_stn := g_program[i_unit].stages[cur_stage].stations[1];
 ELSE
   prev_stn := 0;
 END_IF;
@@ -103,7 +103,7 @@ END_IF;
 (* -- prevExitTime: when next stage can begin -- *)
 IF is_on_stn THEN
   (* Unit is on station: calculate remaining time *)
-  calc_s := INT_TO_REAL(g_batches[i_unit].cur_stage);
+  calc_s := INT_TO_REAL(g_batch[i_unit].cur_stage);
   (* For first stage, remaining time based on calc_time *)
   exit_t := i_time_s;
 ELSE
@@ -120,8 +120,8 @@ FOR st := start_st TO 30 DO
   (* Check if stage has a valid station *)
   chosen_stn := 0;
   FOR p := 1 TO 5 DO
-    IF g_programs[i_unit].stages[st].stations[p] > 0 AND chosen_stn = 0 THEN
-      chosen_stn := g_programs[i_unit].stages[st].stations[p];
+    IF g_program[i_unit].stages[st].stations[p] > 0 AND chosen_stn = 0 THEN
+      chosen_stn := g_program[i_unit].stages[st].stations[p];
     END_IF;
   END_FOR;
 
@@ -133,9 +133,9 @@ FOR st := start_st TO 30 DO
   stn_num := chosen_stn;
 
   (* Read treatment times from program *)
-  calc_s := INT_TO_REAL(g_programs[i_unit].stages[st].cal_time);
-  min_s  := INT_TO_REAL(g_programs[i_unit].stages[st].min_time);
-  max_s  := INT_TO_REAL(g_programs[i_unit].stages[st].max_time);
+  calc_s := INT_TO_REAL(g_program[i_unit].stages[st].cal_time);
+  min_s  := INT_TO_REAL(g_program[i_unit].stages[st].min_time);
+  max_s  := INT_TO_REAL(g_program[i_unit].stages[st].max_time);
 
   (* -- Calculate transfer time from prev_stn to stn_num -- *)
   fb_xfer(i_from_stn := prev_stn, i_to_stn := stn_num, i_trans := i_trans);

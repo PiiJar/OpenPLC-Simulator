@@ -54,7 +54,7 @@ END_VAR
 
 VAR_EXTERNAL
   g_transporter : ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T;
-  g_stations    : ARRAY[101..125] OF STATION_T;
+  g_station    : ARRAY[101..125] OF STATION_T;
   g_cfg         : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
   g_cal         : ARRAY[1..TRANSPORTERS] OF CALIBRATION_T;
   g_move        : ARRAY[1..TRANSPORTERS] OF MOVE_TIMES_T;
@@ -294,8 +294,8 @@ IF cal_step = 200 THEN
 
       (* --- Fill lift_s and sink_s per station type --- *)
       FOR cj := 1 TO 25 DO
-        IF g_stations[100 + cj].tank_id <> 0 THEN
-          IF g_stations[100 + cj].stn_type = 1 THEN
+        IF g_station[100 + cj].tank_id <> 0 THEN
+          IF g_station[100 + cj].stn_type = 1 THEN
             (* Wet station *)
             g_move[ci].lift_s[cj] := g_cal[ci].lift_wet_s;
             g_move[ci].sink_s[cj] := g_cal[ci].sink_wet_s;
@@ -319,13 +319,13 @@ IF cal_step = 200 THEN
       d_dec := 0.5 * vm * td;
 
       FOR cj := 1 TO 25 DO
-        IF g_stations[100 + cj].tank_id <> 0 THEN
+        IF g_station[100 + cj].tank_id <> 0 THEN
           FOR wet_idx := 1 TO 25 DO
-            IF g_stations[100 + wet_idx].tank_id <> 0 THEN
+            IF g_station[100 + wet_idx].tank_id <> 0 THEN
               IF cj = wet_idx THEN
                 g_move[ci].travel[cj].to_s[wet_idx] := 0.0;
               ELSE
-                dist := ABS(g_stations[100 + cj].x_position - g_stations[100 + wet_idx].x_position);
+                dist := ABS(g_station[100 + cj].x_position - g_station[100 + wet_idx].x_position);
                 IF dist < 1.0 THEN
                   g_move[ci].travel[cj].to_s[wet_idx] := 0.0;
                 ELSIF dist >= (d_acc + d_dec) THEN

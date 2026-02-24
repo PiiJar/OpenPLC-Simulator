@@ -8,7 +8,7 @@
      - Sink station = next stage station
      - Assigns transporter from task_area match in g_cfg
      - Skips already completed stages (stage < batch.cur_stage)
-   Appends tasks to g_tasks[transporter].queue.
+   Appends tasks to g_task[transporter].queue.
 
    Called once per batch per scheduler cycle.
    ============================================================ *)
@@ -22,9 +22,9 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_batches  : ARRAY[1..10] OF BATCH_T;
+  g_batch  : ARRAY[1..10] OF BATCH_T;
   g_schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
-  g_tasks    : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
+  g_task    : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
 END_VAR
 VAR
   si         : INT;     (* schedule stage index *)
@@ -44,7 +44,7 @@ IF i_unit < 1 OR i_unit > 10 THEN RETURN; END_IF;
 sc := g_schedule[i_unit].stage_count;
 IF sc < 2 THEN RETURN; END_IF;
 
-cur_stage := g_batches[i_unit].cur_stage;
+cur_stage := g_batch[i_unit].cur_stage;
 IF cur_stage = 90 THEN
   skip_before := 0;
 ELSE
@@ -68,18 +68,18 @@ FOR si := 1 TO sc - 1 DO
 
       (* -- Append task to transporter queue -- *)
       IF tid >= 1 AND tid <= 3 THEN
-        qi := g_tasks[tid].count + 1;
+        qi := g_task[tid].count + 1;
         IF qi <= 10 THEN
-          g_tasks[tid].queue[qi].unit         := i_unit;
-          g_tasks[tid].queue[qi].stage        := stg_num;
-          g_tasks[tid].queue[qi].lift_station := lift_stn;
-          g_tasks[tid].queue[qi].sink_station := sink_stn;
-          g_tasks[tid].queue[qi].start_time   := g_schedule[i_unit].stages[si].exit_time;
-          g_tasks[tid].queue[qi].finish_time  := g_schedule[i_unit].stages[si + 1].entry_time;
-          g_tasks[tid].queue[qi].calc_time    := g_schedule[i_unit].stages[si].calc_time;
-          g_tasks[tid].queue[qi].min_time     := g_schedule[i_unit].stages[si].min_time;
-          g_tasks[tid].queue[qi].max_time     := g_schedule[i_unit].stages[si].max_time;
-          g_tasks[tid].count := qi;
+          g_task[tid].queue[qi].unit         := i_unit;
+          g_task[tid].queue[qi].stage        := stg_num;
+          g_task[tid].queue[qi].lift_station := lift_stn;
+          g_task[tid].queue[qi].sink_station := sink_stn;
+          g_task[tid].queue[qi].start_time   := g_schedule[i_unit].stages[si].exit_time;
+          g_task[tid].queue[qi].finish_time  := g_schedule[i_unit].stages[si + 1].entry_time;
+          g_task[tid].queue[qi].calc_time    := g_schedule[i_unit].stages[si].calc_time;
+          g_task[tid].queue[qi].min_time     := g_schedule[i_unit].stages[si].min_time;
+          g_task[tid].queue[qi].max_time     := g_schedule[i_unit].stages[si].max_time;
+          g_task[tid].count := qi;
         END_IF;
       END_IF;
     END_IF;

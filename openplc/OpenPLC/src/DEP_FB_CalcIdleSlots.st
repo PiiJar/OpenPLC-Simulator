@@ -7,7 +7,7 @@
 
    Source: transporterTaskScheduler.js calculateTransporterIdleSlots()
 
-   Expects g_tasks[i_trans].queue to be already sorted by start_time
+   Expects g_task[i_trans].queue to be already sorted by start_time
    (TSK_FB_Scheduler TASKS_SORT phase ensures this).
 
    Used by: DEP_FB_Scheduler (CHECK_ANALYZE phase)
@@ -23,8 +23,8 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_tasks          : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
-  g_dep_idle_slots : ARRAY[1..TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T;
+  g_task          : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
+  g_dep_idle_slot : ARRAY[1..TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T;
 END_VAR
 VAR
   qi       : INT;      (* queue index *)
@@ -43,9 +43,9 @@ IF i_trans < 1 OR i_trans > 3 THEN
 END_IF;
 
 (* Reset output *)
-g_dep_idle_slots[i_trans].count := 0;
+g_dep_idle_slot[i_trans].count := 0;
 si := 0;
-cnt := g_tasks[i_trans].count;
+cnt := g_task[i_trans].count;
 
 prev_end  := i_time_s;
 prev_sink := 0;
@@ -56,32 +56,32 @@ FOR qi := 1 TO 10 DO
   END_IF;
 
   gap_start := prev_end;
-  gap_end   := g_tasks[i_trans].queue[qi].start_time;
+  gap_end   := g_task[i_trans].queue[qi].start_time;
 
   (* Only create slot if there is a meaningful gap *)
   IF gap_end > gap_start + LINT#1 THEN
     si := si + 1;
     IF si <= 20 THEN
-      g_dep_idle_slots[i_trans].slots[si].start_time   := gap_start;
-      g_dep_idle_slots[i_trans].slots[si].end_time     := gap_end;
-      g_dep_idle_slots[i_trans].slots[si].lift_station := prev_sink;
-      g_dep_idle_slots[i_trans].slots[si].sink_station := g_tasks[i_trans].queue[qi].lift_station;
+      g_dep_idle_slot[i_trans].slots[si].start_time   := gap_start;
+      g_dep_idle_slot[i_trans].slots[si].end_time     := gap_end;
+      g_dep_idle_slot[i_trans].slots[si].lift_station := prev_sink;
+      g_dep_idle_slot[i_trans].slots[si].sink_station := g_task[i_trans].queue[qi].lift_station;
     END_IF;
   END_IF;
 
-  prev_end  := g_tasks[i_trans].queue[qi].finish_time;
-  prev_sink := g_tasks[i_trans].queue[qi].sink_station;
+  prev_end  := g_task[i_trans].queue[qi].finish_time;
+  prev_sink := g_task[i_trans].queue[qi].sink_station;
 END_FOR;
 
 (* Final slot: after last task → open-ended *)
 si := si + 1;
 IF si <= 20 THEN
-  g_dep_idle_slots[i_trans].slots[si].start_time   := prev_end;
-  g_dep_idle_slots[i_trans].slots[si].end_time     := HORIZON;
-  g_dep_idle_slots[i_trans].slots[si].lift_station := prev_sink;
-  g_dep_idle_slots[i_trans].slots[si].sink_station := 0;
+  g_dep_idle_slot[i_trans].slots[si].start_time   := prev_end;
+  g_dep_idle_slot[i_trans].slots[si].end_time     := HORIZON;
+  g_dep_idle_slot[i_trans].slots[si].lift_station := prev_sink;
+  g_dep_idle_slot[i_trans].slots[si].sink_station := 0;
 END_IF;
 
-g_dep_idle_slots[i_trans].count := si;
+g_dep_idle_slot[i_trans].count := si;
 
 END_FUNCTION_BLOCK

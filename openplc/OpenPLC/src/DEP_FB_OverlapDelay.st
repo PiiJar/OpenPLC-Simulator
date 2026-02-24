@@ -30,7 +30,7 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_tasks       : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
+  g_task       : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
   g_dep_overlap : DEP_OVERLAP_T;
 END_VAR
 VAR
@@ -79,14 +79,14 @@ FOR round := 1 TO 20 DO
   FOR ti := 1 TO TRANSPORTERS DO
     IF ti <> i_trans_id THEN
       FOR qi := 1 TO 10 DO
-        IF qi > g_tasks[ti].count THEN
+        IF qi > g_task[ti].count THEN
           EXIT;
         END_IF;
 
-        e_lift  := g_tasks[ti].queue[qi].lift_station;
-        e_sink  := g_tasks[ti].queue[qi].sink_station;
-        e_start := g_tasks[ti].queue[qi].start_time;
-        e_end   := g_tasks[ti].queue[qi].finish_time;
+        e_lift  := g_task[ti].queue[qi].lift_station;
+        e_sink  := g_task[ti].queue[qi].sink_station;
+        e_start := g_task[ti].queue[qi].start_time;
+        e_end   := g_task[ti].queue[qi].finish_time;
 
         (* Does existing task share an overlap station? *)
         has_ovlp := FALSE;

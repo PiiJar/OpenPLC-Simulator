@@ -35,10 +35,10 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_batches  : ARRAY[1..10] OF BATCH_T;
-  g_units    : ARRAY[1..10] OF UNIT_T;
-  g_programs : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
-  g_tasks    : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
+  g_batch  : ARRAY[1..10] OF BATCH_T;
+  g_unit    : ARRAY[1..10] OF UNIT_T;
+  g_program : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
+  g_task    : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
   g_schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
   (* DEP handshake *)
   g_dep_pending : DEP_PENDING_WRITE_T;
@@ -130,7 +130,7 @@ ELSIF phase >= 1001 AND phase <= 1010 THEN
     ui := batch_list[batch_idx];
 
     (* Find transporter for this unit — first one with matching task_area *)
-    fb_find(i_lift_stn := g_units[ui].location, i_sink_stn := 0);
+    fb_find(i_lift_stn := g_unit[ui].location, i_sink_stn := 0);
     sched_trans := fb_find.o_trans_id;
     IF sched_trans = 0 THEN sched_trans := 1; END_IF;  (* fallback default *)
 
@@ -243,7 +243,7 @@ ELSIF phase = 10000 THEN
   (* Count total tasks *)
   total_tasks := 0;
   FOR ti := 1 TO TRANSPORTERS DO
-    total_tasks := total_tasks + g_tasks[ti].count;
+    total_tasks := total_tasks + g_task[ti].count;
   END_FOR;
   o_task_cnt := total_tasks;
   next_phase := 10100;
@@ -256,10 +256,10 @@ ELSIF phase = 10100 THEN
   IF g_dep_pending.valid THEN
     (* Apply DEP’s pending data: programs + stage change *)
     FOR ui := 1 TO 10 DO
-      g_programs[ui] := g_dep_pending.programs[ui];
+      g_program[ui] := g_dep_pending.programs[ui];
     END_FOR;
     IF g_dep_pending.batch_unit >= 1 AND g_dep_pending.batch_unit <= 10 THEN
-      g_batches[g_dep_pending.batch_unit].cur_stage := g_dep_pending.batch_stage;
+      g_batch[g_dep_pending.batch_unit].cur_stage := g_dep_pending.batch_stage;
     END_IF;
     g_dep_pending.valid := FALSE;
     (* Full recalculation with new data *)

@@ -42,14 +42,14 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_batches          : ARRAY[1..10] OF BATCH_T;
-  g_units            : ARRAY[1..10] OF UNIT_T;
-  g_programs         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
+  g_batch          : ARRAY[1..10] OF BATCH_T;
+  g_unit            : ARRAY[1..10] OF UNIT_T;
+  g_program         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
   g_schedule         : ARRAY[1..10] OF TSK_SCHEDULE_T;
-  g_tasks            : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
+  g_task            : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
   g_cfg              : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
   g_dep_sandbox      : DEP_SANDBOX_T;
-  g_dep_idle_slots   : ARRAY[1..TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T;
+  g_dep_idle_slot   : ARRAY[1..TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T;
   g_dep_overlap      : DEP_OVERLAP_T;
   g_dep_pending      : DEP_PENDING_WRITE_T;
   g_dep_activated    : BOOL;
@@ -223,7 +223,7 @@ ELSIF phase = 1000 THEN
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 1010 THEN
   (* Find transporter for this batch based on its location *)
-  fb_find_trans(i_lift_stn := g_units[cur_wait_unit].location, i_sink_stn := 0);
+  fb_find_trans(i_lift_stn := g_unit[cur_wait_unit].location, i_sink_stn := 0);
   sched_trans := fb_find_trans.o_trans_id;
   IF sched_trans = 0 THEN sched_trans := 1; END_IF;
 
@@ -266,27 +266,27 @@ ELSIF phase = 1030 THEN
 
   FOR ti := 1 TO TRANSPORTERS DO
     write_idx := 0;
-    FOR qi := 1 TO g_tasks[ti].count DO
-      IF g_tasks[ti].queue[qi].unit = cur_wait_unit THEN
+    FOR qi := 1 TO g_task[ti].count DO
+      IF g_task[ti].queue[qi].unit = cur_wait_unit THEN
         (* Copy to waiting task array *)
         w_task_cnt := w_task_cnt + 1;
         IF w_task_cnt <= 30 THEN
-          w_tasks[w_task_cnt] := g_tasks[ti].queue[qi];
+          w_tasks[w_task_cnt] := g_task[ti].queue[qi];
           w_trans[w_task_cnt] := ti;
         END_IF;
       ELSE
         (* Keep in queue — shift down *)
         write_idx := write_idx + 1;
         IF write_idx <> qi THEN
-          g_tasks[ti].queue[write_idx] := g_tasks[ti].queue[qi];
+          g_task[ti].queue[write_idx] := g_task[ti].queue[qi];
         END_IF;
       END_IF;
     END_FOR;
     (* Clear remaining slots *)
-    FOR qi := write_idx + 1 TO g_tasks[ti].count DO
-      g_tasks[ti].queue[qi].unit := 0;
+    FOR qi := write_idx + 1 TO g_task[ti].count DO
+      g_task[ti].queue[qi].unit := 0;
     END_FOR;
-    g_tasks[ti].count := write_idx;
+    g_task[ti].count := write_idx;
   END_FOR;
 
   next_phase := 1040;
@@ -306,7 +306,7 @@ ELSIF phase = 1040 THEN
 (* Uses DEP_FB_FitTaskToSlot to fit the virtual pickup task    *)
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 2000 THEN
-  loading_stn := g_units[cur_wait_unit].location;
+  loading_stn := g_unit[cur_wait_unit].location;
 
   (* Find first treatment station from schedule *)
   first_stn := 0;
@@ -442,13 +442,13 @@ ELSIF phase = 3000 THEN
       (* Program stage delay: increase cal_time *)
       prog_idx := delay_stage;
       IF prog_idx >= 1 AND prog_idx <= 30 THEN
-        old_cal := g_programs[cur_wait_unit].stages[prog_idx].cal_time;
-        max_cal := g_programs[cur_wait_unit].stages[prog_idx].max_time;
+        old_cal := g_program[cur_wait_unit].stages[prog_idx].cal_time;
+        max_cal := g_program[cur_wait_unit].stages[prog_idx].max_time;
         new_cal := old_cal + REAL_TO_INT(delay_amount);
         IF new_cal > max_cal AND max_cal > 0 THEN
           new_cal := max_cal;
         END_IF;
-        g_programs[cur_wait_unit].stages[prog_idx].cal_time := new_cal;
+        g_program[cur_wait_unit].stages[prog_idx].cal_time := new_cal;
       END_IF;
     END_IF;
     (* Recalculate: schedule → tasks → idle → fit *)
@@ -461,7 +461,7 @@ ELSIF phase = 3000 THEN
 ELSIF phase = 8000 THEN
   (* Store pending write data *)
   FOR ui := 1 TO 10 DO
-    g_dep_pending.programs[ui] := g_programs[ui];
+    g_dep_pending.programs[ui] := g_program[ui];
     g_dep_pending.schedule[ui] := g_schedule[ui];
   END_FOR;
   g_dep_pending.batch_unit  := cur_wait_unit;

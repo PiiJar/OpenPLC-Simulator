@@ -15,14 +15,14 @@ VAR_OUTPUT
   dropping_time_s : REAL;
 END_VAR
 VAR_EXTERNAL
-  g_stations : ARRAY[101..125] OF STATION_T;
+  g_station : ARRAY[101..125] OF STATION_T;
 END_VAR
 VAR
   st : STATION_T;
 END_VAR
   (* Direct lookup by station number — no loop needed *)
   IF (station_number >= 101) AND (station_number <= 125) THEN
-    st := g_stations[station_number];
+    st := g_station[station_number];
     IF st.tank_id <> 0 THEN
       found := TRUE;
       idx := station_number;

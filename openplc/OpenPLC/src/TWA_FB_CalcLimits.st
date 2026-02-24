@@ -28,7 +28,7 @@ END_VAR
 VAR_EXTERNAL
   g_cfg            : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
   g_transporter          : ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T;
-  g_stations       : ARRAY[101..125] OF STATION_T;
+  g_station       : ARRAY[101..125] OF STATION_T;
   g_station_count  : INT;
   g_avoid_status   : ARRAY[101..125] OF INT;
 END_VAR
@@ -122,12 +122,12 @@ FOR i := 1 TO TRANSPORTERS DO
   (* --- Search downward (smaller station numbers) from current_station --- *)
   stn_num := g_transporter[i].current_station - 1;
   WHILE stn_num >= 101 DO
-    IF g_stations[stn_num].tank_id = 0 THEN
+    IF g_station[stn_num].tank_id = 0 THEN
       stn_num := stn_num - 1;
       CONTINUE;
     END_IF;
 
-    stn_x := g_stations[stn_num].x_position;
+    stn_x := g_station[stn_num].x_position;
     IF stn_x < min_x THEN
       EXIT;
     END_IF;
@@ -177,12 +177,12 @@ FOR i := 1 TO TRANSPORTERS DO
   (* --- Search upward (larger station numbers) from current_station --- *)
   stn_num := g_transporter[i].current_station + 1;
   WHILE stn_num <= (100 + MAX_STATIONS) DO
-    IF g_stations[stn_num].tank_id = 0 THEN
+    IF g_station[stn_num].tank_id = 0 THEN
       stn_num := stn_num + 1;
       CONTINUE;
     END_IF;
 
-    stn_x := g_stations[stn_num].x_position;
+    stn_x := g_station[stn_num].x_position;
     IF stn_x > max_x THEN
       EXIT;
     END_IF;

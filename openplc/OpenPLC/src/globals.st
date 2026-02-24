@@ -45,19 +45,19 @@ END_VAR
 VAR_GLOBAL
   (* --- Shared data arrays --- *)
   g_station_count    : INT := 0;
-  g_stations         : ARRAY[101..125] OF STATION_T;
+  g_station         : ARRAY[101..125] OF STATION_T;
   g_cfg              : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
   g_transporter      : ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T;
-  g_units            : ARRAY[1..10] OF UNIT_T;
-  g_batches          : ARRAY[1..10] OF BATCH_T;
-  g_programs         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
+  g_unit            : ARRAY[1..10] OF UNIT_T;
+  g_batch          : ARRAY[1..10] OF BATCH_T;
+  g_program         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
   g_avoid_status     : ARRAY[101..125] OF INT;  (* AVOID_NONE/PASS/BLOCK per station *)
   g_move             : ARRAY[1..TRANSPORTERS] OF MOVE_TIMES_T;  (* precomputed movement times per transporter *)
   g_schedule         : ARRAY[1..10] OF TSK_SCHEDULE_T;  (* calculated schedule per unit *)
-  g_tasks            : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;       (* task queue per transporter *)
+  g_task            : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;       (* task queue per transporter *)
   (* --- Departure Scheduler state --- *)
   g_dep_sandbox       : DEP_SANDBOX_T;                    (* sandbox: isolated copy for planning *)
-  g_dep_idle_slots    : ARRAY[1..TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T;  (* idle slots per transporter *)
+  g_dep_idle_slot    : ARRAY[1..TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T;  (* idle slots per transporter *)
   g_dep_waiting       : ARRAY[1..10] OF INT;              (* waiting batch unit indices *)
   g_dep_waiting_count : INT;
   g_dep_overlap       : DEP_OVERLAP_T;                    (* overlap station flags *)
@@ -226,7 +226,7 @@ VAR_GLOBAL
 
   (* --- Modbus INPUT: Batch write protocol (QW130..QW134, ack QW63) --- *)
   (*   Writes batch data and initializes treatment program for a unit.
-       PLC handler also clears all stages of g_programs[unit] on write.  *)
+       PLC handler also clears all stages of g_program[unit] on write.  *)
   iw_batch_seq     AT %QW130 : INT;  (* sequence number — triggers on change *)
   iw_batch_unit    AT %QW131 : INT;  (* unit index 1..10 *)
   iw_batch_code    AT %QW132 : INT;  (* numeric batch code *)

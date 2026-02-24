@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-24T11:40:50"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-24T11:40:50">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-24T11:46:58"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-24T11:46:58">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -757,10 +757,10 @@ END_IF;]]></xhtml:p>
             </variable>
           </inputVars>
           <externalVars>
-            <variable name="g_tasks">
+            <variable name="g_task">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
-            <variable name="g_dep_idle_slots">
+            <variable name="g_dep_idle_slot">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T"/></type>
             </variable>
           </externalVars>
@@ -800,9 +800,9 @@ IF i_trans < 1 OR i_trans > 3 THEN
 END_IF;
 
 (* Reset output *)
-g_dep_idle_slots[i_trans].count := 0;
+g_dep_idle_slot[i_trans].count := 0;
 si := 0;
-cnt := g_tasks[i_trans].count;
+cnt := g_task[i_trans].count;
 
 prev_end  := i_time_s;
 prev_sink := 0;
@@ -813,33 +813,33 @@ FOR qi := 1 TO 10 DO
   END_IF;
 
   gap_start := prev_end;
-  gap_end   := g_tasks[i_trans].queue[qi].start_time;
+  gap_end   := g_task[i_trans].queue[qi].start_time;
 
   (* Only create slot if there is a meaningful gap *)
   IF gap_end > gap_start + LINT#1 THEN
     si := si + 1;
     IF si <= 20 THEN
-      g_dep_idle_slots[i_trans].slots[si].start_time   := gap_start;
-      g_dep_idle_slots[i_trans].slots[si].end_time     := gap_end;
-      g_dep_idle_slots[i_trans].slots[si].lift_station := prev_sink;
-      g_dep_idle_slots[i_trans].slots[si].sink_station := g_tasks[i_trans].queue[qi].lift_station;
+      g_dep_idle_slot[i_trans].slots[si].start_time   := gap_start;
+      g_dep_idle_slot[i_trans].slots[si].end_time     := gap_end;
+      g_dep_idle_slot[i_trans].slots[si].lift_station := prev_sink;
+      g_dep_idle_slot[i_trans].slots[si].sink_station := g_task[i_trans].queue[qi].lift_station;
     END_IF;
   END_IF;
 
-  prev_end  := g_tasks[i_trans].queue[qi].finish_time;
-  prev_sink := g_tasks[i_trans].queue[qi].sink_station;
+  prev_end  := g_task[i_trans].queue[qi].finish_time;
+  prev_sink := g_task[i_trans].queue[qi].sink_station;
 END_FOR;
 
 (* Final slot: after last task → open-ended *)
 si := si + 1;
 IF si <= 20 THEN
-  g_dep_idle_slots[i_trans].slots[si].start_time   := prev_end;
-  g_dep_idle_slots[i_trans].slots[si].end_time     := HORIZON;
-  g_dep_idle_slots[i_trans].slots[si].lift_station := prev_sink;
-  g_dep_idle_slots[i_trans].slots[si].sink_station := 0;
+  g_dep_idle_slot[i_trans].slots[si].start_time   := prev_end;
+  g_dep_idle_slot[i_trans].slots[si].end_time     := HORIZON;
+  g_dep_idle_slot[i_trans].slots[si].lift_station := prev_sink;
+  g_dep_idle_slot[i_trans].slots[si].sink_station := 0;
 END_IF;
 
-g_dep_idle_slots[i_trans].count := si;]]></xhtml:p>
+g_dep_idle_slot[i_trans].count := si;]]></xhtml:p>
           </ST>
         </body>
       </pou>
@@ -948,7 +948,7 @@ END_FOR;]]></xhtml:p>
             </variable>
           </outputVars>
           <externalVars>
-            <variable name="g_dep_idle_slots">
+            <variable name="g_dep_idle_slot">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T"/></type>
             </variable>
           </externalVars>
@@ -1031,7 +1031,7 @@ flex_up    := i_max_time_s - i_calc_time_s;
 IF flex_up < 0.0 THEN flex_up := 0.0; END_IF;
 capped_flex := flex_up * i_flex_factor;
 
-slot_cnt   := g_dep_idle_slots[i_trans_id].count;
+slot_cnt   := g_dep_idle_slot[i_trans_id].count;
 best_delay := 1.0E9;
 best_slot  := 0;
 found      := FALSE;
@@ -1041,11 +1041,11 @@ FOR si := 1 TO 20 DO
     EXIT;
   END_IF;
 
-  slot_start := g_dep_idle_slots[i_trans_id].slots[si].start_time;
-  slot_end   := g_dep_idle_slots[i_trans_id].slots[si].end_time;
+  slot_start := g_dep_idle_slot[i_trans_id].slots[si].start_time;
+  slot_end   := g_dep_idle_slot[i_trans_id].slots[si].end_time;
 
   (* ── Travel time: prev task sink → this lift ── *)
-  from_stn := g_dep_idle_slots[i_trans_id].slots[si].lift_station;
+  from_stn := g_dep_idle_slot[i_trans_id].slots[si].lift_station;
   travel_to := 0.0;
   IF from_stn > 0 AND from_stn <> i_lift_stn THEN
     fb_travel_to(i_from_stn := from_stn, i_to_stn := i_lift_stn, i_trans := i_trans_id);
@@ -1053,7 +1053,7 @@ FOR si := 1 TO 20 DO
   END_IF;
 
   (* ── Travel time: this sink → next task lift ── *)
-  to_stn := g_dep_idle_slots[i_trans_id].slots[si].sink_station;
+  to_stn := g_dep_idle_slot[i_trans_id].slots[si].sink_station;
   travel_from := 0.0;
   IF to_stn > 0 AND to_stn <> i_sink_stn THEN
     fb_travel_from(i_from_stn := i_sink_stn, i_to_stn := to_stn, i_trans := i_trans_id);
@@ -1141,7 +1141,7 @@ END_IF;]]></xhtml:p>
             </variable>
           </outputVars>
           <externalVars>
-            <variable name="g_tasks">
+            <variable name="g_task">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
             <variable name="g_dep_overlap">
@@ -1224,14 +1224,14 @@ FOR round := 1 TO 20 DO
   FOR ti := 1 TO TRANSPORTERS DO
     IF ti <> i_trans_id THEN
       FOR qi := 1 TO 10 DO
-        IF qi > g_tasks[ti].count THEN
+        IF qi > g_task[ti].count THEN
           EXIT;
         END_IF;
 
-        e_lift  := g_tasks[ti].queue[qi].lift_station;
-        e_sink  := g_tasks[ti].queue[qi].sink_station;
-        e_start := g_tasks[ti].queue[qi].start_time;
-        e_end   := g_tasks[ti].queue[qi].finish_time;
+        e_lift  := g_task[ti].queue[qi].lift_station;
+        e_sink  := g_task[ti].queue[qi].sink_station;
+        e_start := g_task[ti].queue[qi].start_time;
+        e_end   := g_task[ti].queue[qi].finish_time;
 
         (* Does existing task share an overlap station? *)
         has_ovlp := FALSE;
@@ -1281,7 +1281,7 @@ END_FOR;  (* round *)]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_batches">
+            <variable name="g_batch">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -1289,7 +1289,7 @@ END_FOR;  (* round *)]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_programs">
+            <variable name="g_program">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -1297,7 +1297,7 @@ END_FOR;  (* round *)]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_tasks">
+            <variable name="g_task">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
             <variable name="g_dep_sandbox">
@@ -1319,11 +1319,11 @@ END_FOR;  (* round *)]]></xhtml:p>
   (* ── SNAPSHOT: globals → sandbox ── *)
   FOR ui := 1 TO 10 DO
     g_dep_sandbox.schedule[ui] := g_schedule[ui];
-    g_dep_sandbox.batches[ui]  := g_batches[ui];
-    g_dep_sandbox.programs[ui] := g_programs[ui];
+    g_dep_sandbox.batches[ui]  := g_batch[ui];
+    g_dep_sandbox.programs[ui] := g_program[ui];
   END_FOR;
   FOR ti := 1 TO TRANSPORTERS DO
-    g_dep_sandbox.tasks[ti] := g_tasks[ti];
+    g_dep_sandbox.tasks[ti] := g_task[ti];
   END_FOR;
   g_dep_sandbox.valid := TRUE;
 
@@ -1332,11 +1332,11 @@ ELSIF i_cmd = 2 THEN
   IF g_dep_sandbox.valid THEN
     FOR ui := 1 TO 10 DO
       g_schedule[ui] := g_dep_sandbox.schedule[ui];
-      g_batches[ui]  := g_dep_sandbox.batches[ui];
-      g_programs[ui] := g_dep_sandbox.programs[ui];
+      g_batch[ui]  := g_dep_sandbox.batches[ui];
+      g_program[ui] := g_dep_sandbox.programs[ui];
     END_FOR;
     FOR ti := 1 TO TRANSPORTERS DO
-      g_tasks[ti] := g_dep_sandbox.tasks[ti];
+      g_task[ti] := g_dep_sandbox.tasks[ti];
     END_FOR;
   END_IF;
 
@@ -1373,7 +1373,7 @@ END_IF;]]></xhtml:p>
             </variable>
           </outputVars>
           <externalVars>
-            <variable name="g_batches">
+            <variable name="g_batch">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -1381,7 +1381,7 @@ END_IF;]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_units">
+            <variable name="g_unit">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -1389,7 +1389,7 @@ END_IF;]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_programs">
+            <variable name="g_program">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -1405,7 +1405,7 @@ END_IF;]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_tasks">
+            <variable name="g_task">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
             <variable name="g_cfg">
@@ -1414,7 +1414,7 @@ END_IF;]]></xhtml:p>
             <variable name="g_dep_sandbox">
               <type><derived name="DEP_SANDBOX_T"/></type>
             </variable>
-            <variable name="g_dep_idle_slots">
+            <variable name="g_dep_idle_slot">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T"/></type>
             </variable>
             <variable name="g_dep_overlap">
@@ -1715,7 +1715,7 @@ ELSIF phase = 1000 THEN
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 1010 THEN
   (* Find transporter for this batch based on its location *)
-  fb_find_trans(i_lift_stn := g_units[cur_wait_unit].location, i_sink_stn := 0);
+  fb_find_trans(i_lift_stn := g_unit[cur_wait_unit].location, i_sink_stn := 0);
   sched_trans := fb_find_trans.o_trans_id;
   IF sched_trans = 0 THEN sched_trans := 1; END_IF;
 
@@ -1758,27 +1758,27 @@ ELSIF phase = 1030 THEN
 
   FOR ti := 1 TO TRANSPORTERS DO
     write_idx := 0;
-    FOR qi := 1 TO g_tasks[ti].count DO
-      IF g_tasks[ti].queue[qi].unit = cur_wait_unit THEN
+    FOR qi := 1 TO g_task[ti].count DO
+      IF g_task[ti].queue[qi].unit = cur_wait_unit THEN
         (* Copy to waiting task array *)
         w_task_cnt := w_task_cnt + 1;
         IF w_task_cnt <= 30 THEN
-          w_tasks[w_task_cnt] := g_tasks[ti].queue[qi];
+          w_tasks[w_task_cnt] := g_task[ti].queue[qi];
           w_trans[w_task_cnt] := ti;
         END_IF;
       ELSE
         (* Keep in queue — shift down *)
         write_idx := write_idx + 1;
         IF write_idx <> qi THEN
-          g_tasks[ti].queue[write_idx] := g_tasks[ti].queue[qi];
+          g_task[ti].queue[write_idx] := g_task[ti].queue[qi];
         END_IF;
       END_IF;
     END_FOR;
     (* Clear remaining slots *)
-    FOR qi := write_idx + 1 TO g_tasks[ti].count DO
-      g_tasks[ti].queue[qi].unit := 0;
+    FOR qi := write_idx + 1 TO g_task[ti].count DO
+      g_task[ti].queue[qi].unit := 0;
     END_FOR;
-    g_tasks[ti].count := write_idx;
+    g_task[ti].count := write_idx;
   END_FOR;
 
   next_phase := 1040;
@@ -1798,7 +1798,7 @@ ELSIF phase = 1040 THEN
 (* Uses DEP_FB_FitTaskToSlot to fit the virtual pickup task    *)
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 2000 THEN
-  loading_stn := g_units[cur_wait_unit].location;
+  loading_stn := g_unit[cur_wait_unit].location;
 
   (* Find first treatment station from schedule *)
   first_stn := 0;
@@ -1934,13 +1934,13 @@ ELSIF phase = 3000 THEN
       (* Program stage delay: increase cal_time *)
       prog_idx := delay_stage;
       IF prog_idx >= 1 AND prog_idx <= 30 THEN
-        old_cal := g_programs[cur_wait_unit].stages[prog_idx].cal_time;
-        max_cal := g_programs[cur_wait_unit].stages[prog_idx].max_time;
+        old_cal := g_program[cur_wait_unit].stages[prog_idx].cal_time;
+        max_cal := g_program[cur_wait_unit].stages[prog_idx].max_time;
         new_cal := old_cal + REAL_TO_INT(delay_amount);
         IF new_cal > max_cal AND max_cal > 0 THEN
           new_cal := max_cal;
         END_IF;
-        g_programs[cur_wait_unit].stages[prog_idx].cal_time := new_cal;
+        g_program[cur_wait_unit].stages[prog_idx].cal_time := new_cal;
       END_IF;
     END_IF;
     (* Recalculate: schedule → tasks → idle → fit *)
@@ -1953,7 +1953,7 @@ ELSIF phase = 3000 THEN
 ELSIF phase = 8000 THEN
   (* Store pending write data *)
   FOR ui := 1 TO 10 DO
-    g_dep_pending.programs[ui] := g_programs[ui];
+    g_dep_pending.programs[ui] := g_program[ui];
     g_dep_pending.schedule[ui] := g_schedule[ui];
   END_FOR;
   g_dep_pending.batch_unit  := cur_wait_unit;
@@ -2042,7 +2042,7 @@ o_phase := phase;]]></xhtml:p>
             <variable name="g_station_count">
               <type><INT/></type>
             </variable>
-            <variable name="g_stations">
+            <variable name="g_station">
               <type>
                 <array>
                   <dimension lower="101" upper="125"/>
@@ -2056,7 +2056,7 @@ o_phase := phase;]]></xhtml:p>
             <variable name="g_transporter">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
             </variable>
-            <variable name="g_units">
+            <variable name="g_unit">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -2064,7 +2064,7 @@ o_phase := phase;]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_batches">
+            <variable name="g_batch">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -2072,7 +2072,7 @@ o_phase := phase;]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_programs">
+            <variable name="g_program">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -2105,15 +2105,15 @@ o_phase := phase;]]></xhtml:p>
           <ST>
             <xhtml:p><![CDATA[(* --- Clear all stations --- *)
 FOR i := 101 TO 125 DO
-  g_stations[i].tank_id       := 0;
-  g_stations[i].status        := 0;
-  g_stations[i].x_position    := 0.0;
-  g_stations[i].y_position    := 0.0;
-  g_stations[i].z_position    := 0.0;
-  g_stations[i].stn_type      := 0;
-  g_stations[i].stn_function  := 0;
-  g_stations[i].dropping_time := 0.0;
-  g_stations[i].device_delay  := 0.0;
+  g_station[i].tank_id       := 0;
+  g_station[i].status        := 0;
+  g_station[i].x_position    := 0.0;
+  g_station[i].y_position    := 0.0;
+  g_station[i].z_position    := 0.0;
+  g_station[i].stn_type      := 0;
+  g_station[i].stn_function  := 0;
+  g_station[i].dropping_time := 0.0;
+  g_station[i].device_delay  := 0.0;
 END_FOR;
 g_station_count := 0;
 
@@ -2180,30 +2180,30 @@ END_FOR;
 
 (* --- Clear all units --- *)
 FOR i := 1 TO 10 DO
-  g_units[i].location := 0;
-  g_units[i].status   := 0;
-  g_units[i].state    := 0;
-  g_units[i].target   := 0;
+  g_unit[i].location := 0;
+  g_unit[i].status   := 0;
+  g_unit[i].state    := 0;
+  g_unit[i].target   := 0;
 END_FOR;
 
 (* --- Clear all batches --- *)
 FOR i := 1 TO 10 DO
-  g_batches[i].batch_code := 0;
-  g_batches[i].state      := 0;
-  g_batches[i].prog_id    := 0;
-  g_batches[i].cur_stage      := 0;
+  g_batch[i].batch_code := 0;
+  g_batch[i].state      := 0;
+  g_batch[i].prog_id    := 0;
+  g_batch[i].cur_stage      := 0;
 END_FOR;
 
 (* --- Clear all treatment programs --- *)
 FOR i := 1 TO 10 DO
-  g_programs[i].program_id := 0;
+  g_program[i].program_id := 0;
   FOR j := 1 TO 30 DO
     FOR k := 1 TO 5 DO
-      g_programs[i].stages[j].stations[k] := 0;
+      g_program[i].stages[j].stations[k] := 0;
     END_FOR;
-    g_programs[i].stages[j].min_time := 0;
-    g_programs[i].stages[j].max_time := 0;
-    g_programs[i].stages[j].cal_time := 0;
+    g_program[i].stages[j].min_time := 0;
+    g_program[i].stages[j].max_time := 0;
+    g_program[i].stages[j].cal_time := 0;
   END_FOR;
 END_FOR;]]></xhtml:p>
           </ST>
@@ -2220,7 +2220,7 @@ END_FOR;]]></xhtml:p>
             <variable name="g_transporter">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
             </variable>
-            <variable name="g_stations">
+            <variable name="g_station">
               <type>
                 <array>
                   <dimension lower="101" upper="125"/>
@@ -2635,8 +2635,8 @@ FOR i := 1 TO TRANSPORTERS DO
   min_dist := 1.0e9;
   nearest_num := g_transporter[i].current_station;
   FOR idx := 101 TO 125 DO
-    IF g_stations[idx].tank_id <> 0 THEN
-      dx := g_stations[idx].x_position - g_transporter[i].x_mm;
+    IF g_station[idx].tank_id <> 0 THEN
+      dx := g_station[idx].x_position - g_transporter[i].x_mm;
       IF ABS(dx) < min_dist THEN
         min_dist := ABS(dx);
         nearest_num := idx;
@@ -3070,7 +3070,7 @@ END_IF;]]></xhtml:p>
             <variable name="g_transporter">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
             </variable>
-            <variable name="g_stations">
+            <variable name="g_station">
               <type>
                 <array>
                   <dimension lower="101" upper="125"/>
@@ -3379,8 +3379,8 @@ IF cal_step = 200 THEN
 
       (* --- Fill lift_s and sink_s per station type --- *)
       FOR cj := 1 TO 25 DO
-        IF g_stations[100 + cj].tank_id <> 0 THEN
-          IF g_stations[100 + cj].stn_type = 1 THEN
+        IF g_station[100 + cj].tank_id <> 0 THEN
+          IF g_station[100 + cj].stn_type = 1 THEN
             (* Wet station *)
             g_move[ci].lift_s[cj] := g_cal[ci].lift_wet_s;
             g_move[ci].sink_s[cj] := g_cal[ci].sink_wet_s;
@@ -3404,13 +3404,13 @@ IF cal_step = 200 THEN
       d_dec := 0.5 * vm * td;
 
       FOR cj := 1 TO 25 DO
-        IF g_stations[100 + cj].tank_id <> 0 THEN
+        IF g_station[100 + cj].tank_id <> 0 THEN
           FOR wet_idx := 1 TO 25 DO
-            IF g_stations[100 + wet_idx].tank_id <> 0 THEN
+            IF g_station[100 + wet_idx].tank_id <> 0 THEN
               IF cj = wet_idx THEN
                 g_move[ci].travel[cj].to_s[wet_idx] := 0.0;
               ELSE
-                dist := ABS(g_stations[100 + cj].x_position - g_stations[100 + wet_idx].x_position);
+                dist := ABS(g_station[100 + cj].x_position - g_station[100 + wet_idx].x_position);
                 IF dist < 1.0 THEN
                   g_move[ci].travel[cj].to_s[wet_idx] := 0.0;
                 ELSIF dist >= (d_acc + d_dec) THEN
@@ -3455,7 +3455,7 @@ END_IF;]]></xhtml:p>
       <pou name="STC_FB_ClearTaskQueues" pouType="functionBlock">
         <interface>
           <externalVars>
-            <variable name="g_tasks">
+            <variable name="g_task">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
           </externalVars>
@@ -3471,17 +3471,17 @@ END_IF;]]></xhtml:p>
         <body>
           <ST>
             <xhtml:p><![CDATA[FOR ti := 1 TO TRANSPORTERS DO
-  g_tasks[ti].count := 0;
+  g_task[ti].count := 0;
   FOR qi := 1 TO 10 DO
-    g_tasks[ti].queue[qi].unit         := 0;
-    g_tasks[ti].queue[qi].stage        := 0;
-    g_tasks[ti].queue[qi].lift_station := 0;
-    g_tasks[ti].queue[qi].sink_station := 0;
-    g_tasks[ti].queue[qi].start_time   := 0;
-    g_tasks[ti].queue[qi].finish_time  := 0;
-    g_tasks[ti].queue[qi].calc_time    := 0.0;
-    g_tasks[ti].queue[qi].min_time     := 0.0;
-    g_tasks[ti].queue[qi].max_time     := 0.0;
+    g_task[ti].queue[qi].unit         := 0;
+    g_task[ti].queue[qi].stage        := 0;
+    g_task[ti].queue[qi].lift_station := 0;
+    g_task[ti].queue[qi].sink_station := 0;
+    g_task[ti].queue[qi].start_time   := 0;
+    g_task[ti].queue[qi].finish_time  := 0;
+    g_task[ti].queue[qi].calc_time    := 0.0;
+    g_task[ti].queue[qi].min_time     := 0.0;
+    g_task[ti].queue[qi].max_time     := 0.0;
   END_FOR;
 END_FOR;]]></xhtml:p>
           </ST>
@@ -3508,7 +3508,7 @@ END_FOR;]]></xhtml:p>
             </variable>
           </outputVars>
           <externalVars>
-            <variable name="g_batches">
+            <variable name="g_batch">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -3516,7 +3516,7 @@ END_FOR;]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_units">
+            <variable name="g_unit">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -3539,14 +3539,14 @@ FOR ui := 1 TO 10 DO
 END_FOR;
 
 FOR ui := 1 TO 10 DO
-  IF g_batches[ui].state = 1 THEN
+  IF g_batch[ui].state = 1 THEN
     IF i_mode = 0 THEN
       (* All active batches *)
       o_count := o_count + 1;
       o_list[o_count] := ui;
     ELSIF i_mode = 1 THEN
       (* Waiting batches: stage=90 AND unit target = TO_NONE (0) *)
-      IF g_batches[ui].cur_stage = 90 AND g_units[ui].target = 0 THEN
+      IF g_batch[ui].cur_stage = 90 AND g_unit[ui].target = 0 THEN
         o_count := o_count + 1;
         o_list[o_count] := ui;
       END_IF;
@@ -3584,7 +3584,7 @@ END_FOR;]]></xhtml:p>
             </variable>
           </outputVars>
           <externalVars>
-            <variable name="g_stations">
+            <variable name="g_station">
               <type>
                 <array>
                   <dimension lower="101" upper="125"/>
@@ -3603,7 +3603,7 @@ END_FOR;]]></xhtml:p>
           <ST>
             <xhtml:p><![CDATA[(* Direct lookup by station number — no loop needed *)
 IF (station_number >= 101) AND (station_number <= 125) THEN
-  st := g_stations[station_number];
+  st := g_station[station_number];
   IF st.tank_id <> 0 THEN
     found := TRUE;
     idx := station_number;
@@ -3986,7 +3986,7 @@ END_IF;]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_tasks">
+            <variable name="g_task">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
           </externalVars>
@@ -4023,13 +4023,13 @@ END_FOR;
 
 (* ── Shift matching tasks in all transporter queues ── *)
 FOR ti := 1 TO TRANSPORTERS DO
-  FOR qi := 1 TO g_tasks[ti].count DO
-    IF g_tasks[ti].queue[qi].unit = i_unit
-       AND g_tasks[ti].queue[qi].stage >= i_from_stage THEN
-      g_tasks[ti].queue[qi].start_time :=
-        g_tasks[ti].queue[qi].start_time + REAL_TO_LINT(i_amount);
-      g_tasks[ti].queue[qi].finish_time :=
-        g_tasks[ti].queue[qi].finish_time + REAL_TO_LINT(i_amount);
+  FOR qi := 1 TO g_task[ti].count DO
+    IF g_task[ti].queue[qi].unit = i_unit
+       AND g_task[ti].queue[qi].stage >= i_from_stage THEN
+      g_task[ti].queue[qi].start_time :=
+        g_task[ti].queue[qi].start_time + REAL_TO_LINT(i_amount);
+      g_task[ti].queue[qi].finish_time :=
+        g_task[ti].queue[qi].finish_time + REAL_TO_LINT(i_amount);
     END_IF;
   END_FOR;
 END_FOR;]]></xhtml:p>
@@ -4044,7 +4044,7 @@ END_FOR;]]></xhtml:p>
             </variable>
           </inputVars>
           <externalVars>
-            <variable name="g_tasks">
+            <variable name="g_task">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
           </externalVars>
@@ -4083,16 +4083,16 @@ ELSE
 END_IF;
 
 FOR ti := t_start TO t_end DO
-  ins_cnt := g_tasks[ti].count;
+  ins_cnt := g_task[ti].count;
   IF ins_cnt >= 2 THEN
     FOR ins_i := 2 TO ins_cnt DO
-      tmp_task := g_tasks[ti].queue[ins_i];
+      tmp_task := g_task[ti].queue[ins_i];
       ins_j := ins_i - 1;
-      WHILE ins_j >= 1 AND g_tasks[ti].queue[ins_j].start_time > tmp_task.start_time DO
-        g_tasks[ti].queue[ins_j + 1] := g_tasks[ti].queue[ins_j];
+      WHILE ins_j >= 1 AND g_task[ti].queue[ins_j].start_time > tmp_task.start_time DO
+        g_task[ti].queue[ins_j + 1] := g_task[ti].queue[ins_j];
         ins_j := ins_j - 1;
       END_WHILE;
-      g_tasks[ti].queue[ins_j + 1] := tmp_task;
+      g_task[ti].queue[ins_j + 1] := tmp_task;
     END_FOR;
   END_IF;
 END_FOR;]]></xhtml:p>
@@ -4131,10 +4131,10 @@ END_FOR;]]></xhtml:p>
             </variable>
           </outputVars>
           <externalVars>
-            <variable name="g_tasks">
+            <variable name="g_task">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
-            <variable name="g_stations">
+            <variable name="g_station">
               <type>
                 <array>
                   <dimension lower="101" upper="125"/>
@@ -4281,12 +4281,12 @@ chk_cnt        := 0;
 (* ══════ Step 1: Merge all queues into sorted[] by start_time (insertion sort) ══════ *)
 sorted_cnt := 0;
 FOR ti := 1 TO TRANSPORTERS DO
-  FOR qi := 1 TO g_tasks[ti].count DO
-    IF g_tasks[ti].queue[qi].unit > 0 THEN
+  FOR qi := 1 TO g_task[ti].count DO
+    IF g_task[ti].queue[qi].unit > 0 THEN
       (* Insert into sorted position *)
       sorted_cnt := sorted_cnt + 1;
       IF sorted_cnt <= 30 THEN
-        sorted[sorted_cnt] := g_tasks[ti].queue[qi];
+        sorted[sorted_cnt] := g_task[ti].queue[qi];
         sorted_trans[sorted_cnt] := ti;
         (* Insertion sort: bubble up *)
         ins := sorted_cnt;
@@ -4326,12 +4326,12 @@ FOR si := 1 TO sorted_cnt DO
   l_idx := sorted[si].lift_station - 100;
   s_idx := sorted[si].sink_station - 100;
   IF l_idx >= 1 AND l_idx <= 25 THEN
-    lift_x := g_stations[sorted[si].lift_station].x_position;
+    lift_x := g_station[sorted[si].lift_station].x_position;
   ELSE
     lift_x := 0.0;
   END_IF;
   IF s_idx >= 1 AND s_idx <= 25 THEN
-    sink_x := g_stations[sorted[si].sink_station].x_position;
+    sink_x := g_station[sorted[si].sink_station].x_position;
   ELSE
     sink_x := 0.0;
   END_IF;
@@ -4453,7 +4453,7 @@ checked_count := chk_cnt;]]></xhtml:p>
             </variable>
           </inputVars>
           <externalVars>
-            <variable name="g_batches">
+            <variable name="g_batch">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -4461,7 +4461,7 @@ checked_count := chk_cnt;]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_programs">
+            <variable name="g_program">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -4469,7 +4469,7 @@ checked_count := chk_cnt;]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_units">
+            <variable name="g_unit">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -4477,7 +4477,7 @@ checked_count := chk_cnt;]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_stations">
+            <variable name="g_station">
               <type>
                 <array>
                   <dimension lower="101" upper="125"/>
@@ -4567,8 +4567,8 @@ IF i_unit < 1 OR i_unit > 10 THEN RETURN; END_IF;
 IF i_trans < 1 OR i_trans > 3 THEN RETURN; END_IF;
 
 (* -- Read batch and unit data -- *)
-cur_stage := g_batches[i_unit].cur_stage;
-location  := g_units[i_unit].location;
+cur_stage := g_batch[i_unit].cur_stage;
+location  := g_unit[i_unit].location;
 is_on_stn := location >= 100;
 out_count := 0;
 
@@ -4606,7 +4606,7 @@ IF is_on_stn THEN
   prev_stn := location;
 ELSIF cur_stage >= 1 AND cur_stage <= 30 THEN
   (* On transporter: use previous stage station *)
-  prev_stn := g_programs[i_unit].stages[cur_stage].stations[1];
+  prev_stn := g_program[i_unit].stages[cur_stage].stations[1];
 ELSE
   prev_stn := 0;
 END_IF;
@@ -4614,7 +4614,7 @@ END_IF;
 (* -- prevExitTime: when next stage can begin -- *)
 IF is_on_stn THEN
   (* Unit is on station: calculate remaining time *)
-  calc_s := INT_TO_REAL(g_batches[i_unit].cur_stage);
+  calc_s := INT_TO_REAL(g_batch[i_unit].cur_stage);
   (* For first stage, remaining time based on calc_time *)
   exit_t := i_time_s;
 ELSE
@@ -4631,8 +4631,8 @@ FOR st := start_st TO 30 DO
   (* Check if stage has a valid station *)
   chosen_stn := 0;
   FOR p := 1 TO 5 DO
-    IF g_programs[i_unit].stages[st].stations[p] > 0 AND chosen_stn = 0 THEN
-      chosen_stn := g_programs[i_unit].stages[st].stations[p];
+    IF g_program[i_unit].stages[st].stations[p] > 0 AND chosen_stn = 0 THEN
+      chosen_stn := g_program[i_unit].stages[st].stations[p];
     END_IF;
   END_FOR;
 
@@ -4644,9 +4644,9 @@ FOR st := start_st TO 30 DO
   stn_num := chosen_stn;
 
   (* Read treatment times from program *)
-  calc_s := INT_TO_REAL(g_programs[i_unit].stages[st].cal_time);
-  min_s  := INT_TO_REAL(g_programs[i_unit].stages[st].min_time);
-  max_s  := INT_TO_REAL(g_programs[i_unit].stages[st].max_time);
+  calc_s := INT_TO_REAL(g_program[i_unit].stages[st].cal_time);
+  min_s  := INT_TO_REAL(g_program[i_unit].stages[st].min_time);
+  max_s  := INT_TO_REAL(g_program[i_unit].stages[st].max_time);
 
   (* -- Calculate transfer time from prev_stn to stn_num -- *)
   fb_xfer(i_from_stn := prev_stn, i_to_stn := stn_num, i_trans := i_trans);
@@ -4700,7 +4700,7 @@ g_schedule[i_unit].stage_count := out_count;]]></xhtml:p>
             </variable>
           </inputVars>
           <externalVars>
-            <variable name="g_batches">
+            <variable name="g_batch">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -4716,7 +4716,7 @@ g_schedule[i_unit].stage_count := out_count;]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_tasks">
+            <variable name="g_task">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
           </externalVars>
@@ -4760,7 +4760,7 @@ g_schedule[i_unit].stage_count := out_count;]]></xhtml:p>
 sc := g_schedule[i_unit].stage_count;
 IF sc < 2 THEN RETURN; END_IF;
 
-cur_stage := g_batches[i_unit].cur_stage;
+cur_stage := g_batch[i_unit].cur_stage;
 IF cur_stage = 90 THEN
   skip_before := 0;
 ELSE
@@ -4784,18 +4784,18 @@ FOR si := 1 TO sc - 1 DO
 
       (* -- Append task to transporter queue -- *)
       IF tid >= 1 AND tid <= 3 THEN
-        qi := g_tasks[tid].count + 1;
+        qi := g_task[tid].count + 1;
         IF qi <= 10 THEN
-          g_tasks[tid].queue[qi].unit         := i_unit;
-          g_tasks[tid].queue[qi].stage        := stg_num;
-          g_tasks[tid].queue[qi].lift_station := lift_stn;
-          g_tasks[tid].queue[qi].sink_station := sink_stn;
-          g_tasks[tid].queue[qi].start_time   := g_schedule[i_unit].stages[si].exit_time;
-          g_tasks[tid].queue[qi].finish_time  := g_schedule[i_unit].stages[si + 1].entry_time;
-          g_tasks[tid].queue[qi].calc_time    := g_schedule[i_unit].stages[si].calc_time;
-          g_tasks[tid].queue[qi].min_time     := g_schedule[i_unit].stages[si].min_time;
-          g_tasks[tid].queue[qi].max_time     := g_schedule[i_unit].stages[si].max_time;
-          g_tasks[tid].count := qi;
+          g_task[tid].queue[qi].unit         := i_unit;
+          g_task[tid].queue[qi].stage        := stg_num;
+          g_task[tid].queue[qi].lift_station := lift_stn;
+          g_task[tid].queue[qi].sink_station := sink_stn;
+          g_task[tid].queue[qi].start_time   := g_schedule[i_unit].stages[si].exit_time;
+          g_task[tid].queue[qi].finish_time  := g_schedule[i_unit].stages[si + 1].entry_time;
+          g_task[tid].queue[qi].calc_time    := g_schedule[i_unit].stages[si].calc_time;
+          g_task[tid].queue[qi].min_time     := g_schedule[i_unit].stages[si].min_time;
+          g_task[tid].queue[qi].max_time     := g_schedule[i_unit].stages[si].max_time;
+          g_task[tid].count := qi;
         END_IF;
       END_IF;
     END_IF;
@@ -4812,7 +4812,7 @@ END_FOR;]]></xhtml:p>
             </variable>
           </inputVars>
           <externalVars>
-            <variable name="g_units">
+            <variable name="g_unit">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -4826,10 +4826,10 @@ END_FOR;]]></xhtml:p>
             <variable name="g_cfg">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
             </variable>
-            <variable name="g_tasks">
+            <variable name="g_task">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
-            <variable name="g_stations">
+            <variable name="g_station">
               <type>
                 <array>
                   <dimension lower="101" upper="125"/>
@@ -4895,8 +4895,8 @@ END_FOR;]]></xhtml:p>
         <body>
           <ST>
             <xhtml:p><![CDATA[FOR ui := 1 TO 10 DO
-  tgt := g_units[ui].target;
-  loc := g_units[ui].location;
+  tgt := g_unit[ui].target;
+  loc := g_unit[ui].location;
 
   (* Skip: no target, target is process (handled by schedule), not on station *)
   IF tgt <> 0 AND tgt <> 3 AND loc >= 100 THEN
@@ -4919,7 +4919,7 @@ END_FOR;]]></xhtml:p>
                   (* Check station is free: no unit there *)
                   stn_free := TRUE;
                   FOR qi := 1 TO 10 DO
-                    IF g_units[qi].location = si AND g_units[qi].status = 1 THEN
+                    IF g_unit[qi].location = si AND g_unit[qi].status = 1 THEN
                       stn_free := FALSE;
                     END_IF;
                   END_FOR;
@@ -4941,18 +4941,18 @@ END_FOR;]]></xhtml:p>
           task_end   := task_start + REAL_TO_LINT(xfer_s);
 
           (* Append to queue *)
-          qi := g_tasks[cov_t].count + 1;
+          qi := g_task[cov_t].count + 1;
           IF qi <= 10 THEN
-            g_tasks[cov_t].queue[qi].unit         := ui;
-            g_tasks[cov_t].queue[qi].stage        := 0;  (* no program stage *)
-            g_tasks[cov_t].queue[qi].lift_station := loc;
-            g_tasks[cov_t].queue[qi].sink_station := dest_stn;
-            g_tasks[cov_t].queue[qi].start_time   := task_start;
-            g_tasks[cov_t].queue[qi].finish_time  := task_end;
-            g_tasks[cov_t].queue[qi].calc_time    := 0.0;
-            g_tasks[cov_t].queue[qi].min_time     := 0.0;
-            g_tasks[cov_t].queue[qi].max_time     := 0.0;
-            g_tasks[cov_t].count := qi;
+            g_task[cov_t].queue[qi].unit         := ui;
+            g_task[cov_t].queue[qi].stage        := 0;  (* no program stage *)
+            g_task[cov_t].queue[qi].lift_station := loc;
+            g_task[cov_t].queue[qi].sink_station := dest_stn;
+            g_task[cov_t].queue[qi].start_time   := task_start;
+            g_task[cov_t].queue[qi].finish_time  := task_end;
+            g_task[cov_t].queue[qi].calc_time    := 0.0;
+            g_task[cov_t].queue[qi].min_time     := 0.0;
+            g_task[cov_t].queue[qi].max_time     := 0.0;
+            g_task[cov_t].count := qi;
           END_IF;
         END_IF;
 
@@ -4997,7 +4997,7 @@ END_FOR;]]></xhtml:p>
             </variable>
           </outputVars>
           <externalVars>
-            <variable name="g_tasks">
+            <variable name="g_task">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
             <variable name="g_schedule">
@@ -5008,7 +5008,7 @@ END_FOR;]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_batches">
+            <variable name="g_batch">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -5108,7 +5108,7 @@ END_IF;
 
 IF prev_flex > 0.1 THEN
   (* Cap: 90% if batch is on this stage, 50% otherwise *)
-  IF g_batches[i_blocked_unit].cur_stage = i_blocked_stage THEN
+  IF g_batch[i_blocked_unit].cur_stage = i_blocked_stage THEN
     cap := 0.9;
   ELSE
     cap := 0.5;
@@ -5144,7 +5144,7 @@ IF i_conf_unit >= 1 AND i_conf_unit <= 10 AND i_conf_stage >= 1 AND i_conf_stage
 END_IF;
 
 IF next_flex > 0.1 THEN
-  IF g_batches[i_conf_unit].cur_stage = i_conf_stage THEN
+  IF g_batch[i_conf_unit].cur_stage = i_conf_stage THEN
     cap := 0.9;
   ELSE
     cap := 0.5;
@@ -5178,7 +5178,7 @@ IF i_conf_stage > 1 THEN
   END_IF;
 
   IF prev_stage_flex > 0.1 THEN
-    IF g_batches[i_conf_unit].cur_stage = (i_conf_stage - 1) THEN
+    IF g_batch[i_conf_unit].cur_stage = (i_conf_stage - 1) THEN
       cap := 0.9;
     ELSE
       cap := 0.5;
@@ -5213,7 +5213,7 @@ IF i_blocked_unit >= 1 AND i_blocked_unit <= 10 AND i_blocked_stage >= 1 AND i_b
 END_IF;
 
 IF prev_flex > 0.1 THEN
-  IF g_batches[i_blocked_unit].cur_stage = i_blocked_stage THEN
+  IF g_batch[i_blocked_unit].cur_stage = i_blocked_stage THEN
     cap := 0.9;
   ELSE
     cap := 0.5;
@@ -5267,7 +5267,7 @@ END_IF;
             </variable>
           </outputVars>
           <externalVars>
-            <variable name="g_batches">
+            <variable name="g_batch">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -5275,7 +5275,7 @@ END_IF;
                 </array>
               </type>
             </variable>
-            <variable name="g_units">
+            <variable name="g_unit">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -5283,7 +5283,7 @@ END_IF;
                 </array>
               </type>
             </variable>
-            <variable name="g_programs">
+            <variable name="g_program">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -5291,7 +5291,7 @@ END_IF;
                 </array>
               </type>
             </variable>
-            <variable name="g_tasks">
+            <variable name="g_task">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
             <variable name="g_schedule">
@@ -5439,7 +5439,7 @@ ELSIF phase >= 1001 AND phase <= 1010 THEN
     ui := batch_list[batch_idx];
 
     (* Find transporter for this unit — first one with matching task_area *)
-    fb_find(i_lift_stn := g_units[ui].location, i_sink_stn := 0);
+    fb_find(i_lift_stn := g_unit[ui].location, i_sink_stn := 0);
     sched_trans := fb_find.o_trans_id;
     IF sched_trans = 0 THEN sched_trans := 1; END_IF;  (* fallback default *)
 
@@ -5552,7 +5552,7 @@ ELSIF phase = 10000 THEN
   (* Count total tasks *)
   total_tasks := 0;
   FOR ti := 1 TO TRANSPORTERS DO
-    total_tasks := total_tasks + g_tasks[ti].count;
+    total_tasks := total_tasks + g_task[ti].count;
   END_FOR;
   o_task_cnt := total_tasks;
   next_phase := 10100;
@@ -5565,10 +5565,10 @@ ELSIF phase = 10100 THEN
   IF g_dep_pending.valid THEN
     (* Apply DEP’s pending data: programs + stage change *)
     FOR ui := 1 TO 10 DO
-      g_programs[ui] := g_dep_pending.programs[ui];
+      g_program[ui] := g_dep_pending.programs[ui];
     END_FOR;
     IF g_dep_pending.batch_unit >= 1 AND g_dep_pending.batch_unit <= 10 THEN
-      g_batches[g_dep_pending.batch_unit].cur_stage := g_dep_pending.batch_stage;
+      g_batch[g_dep_pending.batch_unit].cur_stage := g_dep_pending.batch_stage;
     END_IF;
     g_dep_pending.valid := FALSE;
     (* Full recalculation with new data *)
@@ -5606,7 +5606,7 @@ o_phase := phase;]]></xhtml:p>
             </variable>
           </outputVars>
           <externalVars>
-            <variable name="g_tasks">
+            <variable name="g_task">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
           </externalVars>
@@ -5630,16 +5630,16 @@ o_phase := phase;]]></xhtml:p>
             <xhtml:p><![CDATA[o_swap_count := 0;
 
 FOR ti := 1 TO TRANSPORTERS DO
-  cnt := g_tasks[ti].count;
+  cnt := g_task[ti].count;
   IF cnt >= 2 THEN
     FOR qi := 1 TO cnt - 1 DO
       (* Check: different units AND prev.sink == next.lift *)
-      IF g_tasks[ti].queue[qi].unit <> g_tasks[ti].queue[qi + 1].unit
-         AND g_tasks[ti].queue[qi].sink_station = g_tasks[ti].queue[qi + 1].lift_station THEN
+      IF g_task[ti].queue[qi].unit <> g_task[ti].queue[qi + 1].unit
+         AND g_task[ti].queue[qi].sink_station = g_task[ti].queue[qi + 1].lift_station THEN
         (* Swap *)
-        tmp := g_tasks[ti].queue[qi];
-        g_tasks[ti].queue[qi] := g_tasks[ti].queue[qi + 1];
-        g_tasks[ti].queue[qi + 1] := tmp;
+        tmp := g_task[ti].queue[qi];
+        g_task[ti].queue[qi] := g_task[ti].queue[qi + 1];
+        g_task[ti].queue[qi + 1] := tmp;
         o_swap_count := o_swap_count + 1;
       END_IF;
     END_FOR;
@@ -5657,7 +5657,7 @@ END_FOR;]]></xhtml:p>
             <variable name="g_transporter">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
             </variable>
-            <variable name="g_stations">
+            <variable name="g_station">
               <type>
                 <array>
                   <dimension lower="101" upper="125"/>
@@ -5856,12 +5856,12 @@ FOR i := 1 TO TRANSPORTERS DO
   (* --- Search downward (smaller station numbers) from current_station --- *)
   stn_num := g_transporter[i].current_station - 1;
   WHILE stn_num >= 101 DO
-    IF g_stations[stn_num].tank_id = 0 THEN
+    IF g_station[stn_num].tank_id = 0 THEN
       stn_num := stn_num - 1;
       CONTINUE;
     END_IF;
 
-    stn_x := g_stations[stn_num].x_position;
+    stn_x := g_station[stn_num].x_position;
     IF stn_x < min_x THEN
       EXIT;
     END_IF;
@@ -5911,12 +5911,12 @@ FOR i := 1 TO TRANSPORTERS DO
   (* --- Search upward (larger station numbers) from current_station --- *)
   stn_num := g_transporter[i].current_station + 1;
   WHILE stn_num <= (100 + MAX_STATIONS) DO
-    IF g_stations[stn_num].tank_id = 0 THEN
+    IF g_station[stn_num].tank_id = 0 THEN
       stn_num := stn_num + 1;
       CONTINUE;
     END_IF;
 
-    stn_x := g_stations[stn_num].x_position;
+    stn_x := g_station[stn_num].x_position;
     IF stn_x > max_x THEN
       EXIT;
     END_IF;
@@ -6207,7 +6207,7 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
             <variable name="g_station_count">
               <type><INT/></type>
             </variable>
-            <variable name="g_stations">
+            <variable name="g_station">
               <type>
                 <array>
                   <dimension lower="101" upper="125"/>
@@ -6335,7 +6335,7 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
             <variable name="qw_cfg_ack">
               <type><INT/></type>
             </variable>
-            <variable name="g_units">
+            <variable name="g_unit">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -6514,7 +6514,7 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
             <variable name="iw_unit_target">
               <type><INT/></type>
             </variable>
-            <variable name="g_batches">
+            <variable name="g_batch">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -6522,7 +6522,7 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_programs">
+            <variable name="g_program">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
@@ -6609,7 +6609,7 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
                 </array>
               </type>
             </variable>
-            <variable name="g_tasks">
+            <variable name="g_task">
               <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
             <variable name="g_cal">
@@ -6789,20 +6789,20 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     qw_cfg_ack := iw_cfg_seq;
 
   ELSIF iw_cfg_cmd = 1 THEN
-    (* --- Write one station to g_stations array --- *)
+    (* --- Write one station to g_station array --- *)
     IF (iw_cfg_param >= 101) AND (iw_cfg_param <= 125) THEN
-      g_stations[iw_cfg_param].tank_id       := iw_cfg_d0;
-      g_stations[iw_cfg_param].x_position    := INT_TO_REAL(iw_cfg_d1);
-      g_stations[iw_cfg_param].y_position    := INT_TO_REAL(iw_cfg_d2);
-      g_stations[iw_cfg_param].z_position    := INT_TO_REAL(iw_cfg_d3);
-      g_stations[iw_cfg_param].stn_function  := iw_cfg_d4;
+      g_station[iw_cfg_param].tank_id       := iw_cfg_d0;
+      g_station[iw_cfg_param].x_position    := INT_TO_REAL(iw_cfg_d1);
+      g_station[iw_cfg_param].y_position    := INT_TO_REAL(iw_cfg_d2);
+      g_station[iw_cfg_param].z_position    := INT_TO_REAL(iw_cfg_d3);
+      g_station[iw_cfg_param].stn_function  := iw_cfg_d4;
       IF (iw_cfg_d4 = 1) OR (iw_cfg_d4 = 11) THEN
-        g_stations[iw_cfg_param].stn_type := 1;   (* wet *)
+        g_station[iw_cfg_param].stn_type := 1;   (* wet *)
       ELSE
-        g_stations[iw_cfg_param].stn_type := 0;   (* dry *)
+        g_station[iw_cfg_param].stn_type := 0;   (* dry *)
       END_IF;
-      g_stations[iw_cfg_param].dropping_time := INT_TO_REAL(iw_cfg_d5) / 10.0;
-      g_stations[iw_cfg_param].device_delay  := INT_TO_REAL(iw_cfg_d6) / 10.0;
+      g_station[iw_cfg_param].dropping_time := INT_TO_REAL(iw_cfg_d5) / 10.0;
+      g_station[iw_cfg_param].device_delay  := INT_TO_REAL(iw_cfg_d6) / 10.0;
     END_IF;
     qw_cfg_ack := iw_cfg_seq;
 
@@ -6971,10 +6971,10 @@ END_IF;  (* init_done *)
 IF iw_unit_seq <> last_unit_seq THEN
   last_unit_seq := iw_unit_seq;
   IF (iw_unit_id >= 1) AND (iw_unit_id <= 10) THEN
-    g_units[iw_unit_id].location := iw_unit_loc;
-    g_units[iw_unit_id].status   := iw_unit_status;
-    g_units[iw_unit_id].state    := iw_unit_state;
-    g_units[iw_unit_id].target   := iw_unit_target;
+    g_unit[iw_unit_id].location := iw_unit_loc;
+    g_unit[iw_unit_id].status   := iw_unit_status;
+    g_unit[iw_unit_id].state    := iw_unit_state;
+    g_unit[iw_unit_id].target   := iw_unit_target;
   END_IF;
   qw_unit_ack := iw_unit_seq;
 END_IF;
@@ -6986,19 +6986,19 @@ END_IF;
 IF iw_batch_seq <> last_batch_seq THEN
   last_batch_seq := iw_batch_seq;
   IF (iw_batch_unit >= 1) AND (iw_batch_unit <= 10) THEN
-    g_batches[iw_batch_unit].batch_code := iw_batch_code;
-    g_batches[iw_batch_unit].state      := iw_batch_state;
-    g_batches[iw_batch_unit].prog_id    := iw_batch_prog_id;
-    g_batches[iw_batch_unit].cur_stage      := 0;
-    g_programs[iw_batch_unit].program_id := iw_batch_prog_id;
+    g_batch[iw_batch_unit].batch_code := iw_batch_code;
+    g_batch[iw_batch_unit].state      := iw_batch_state;
+    g_batch[iw_batch_unit].prog_id    := iw_batch_prog_id;
+    g_batch[iw_batch_unit].cur_stage      := 0;
+    g_program[iw_batch_unit].program_id := iw_batch_prog_id;
     (* Clear all stages *)
     FOR j := 1 TO 30 DO
       FOR k := 1 TO 5 DO
-        g_programs[iw_batch_unit].stages[j].stations[k] := 0;
+        g_program[iw_batch_unit].stages[j].stations[k] := 0;
       END_FOR;
-      g_programs[iw_batch_unit].stages[j].min_time := 0;
-      g_programs[iw_batch_unit].stages[j].max_time := 0;
-      g_programs[iw_batch_unit].stages[j].cal_time := 0;
+      g_program[iw_batch_unit].stages[j].min_time := 0;
+      g_program[iw_batch_unit].stages[j].max_time := 0;
+      g_program[iw_batch_unit].stages[j].cal_time := 0;
     END_FOR;
   END_IF;
   qw_batch_ack := iw_batch_seq;
@@ -7011,14 +7011,14 @@ IF iw_prog_seq <> last_prog_seq THEN
   last_prog_seq := iw_prog_seq;
   IF (iw_prog_unit >= 1) AND (iw_prog_unit <= 10) AND
      (iw_prog_stage >= 1) AND (iw_prog_stage <= 30) THEN
-    g_programs[iw_prog_unit].stages[iw_prog_stage].stations[1] := iw_prog_s1;
-    g_programs[iw_prog_unit].stages[iw_prog_stage].stations[2] := iw_prog_s2;
-    g_programs[iw_prog_unit].stages[iw_prog_stage].stations[3] := iw_prog_s3;
-    g_programs[iw_prog_unit].stages[iw_prog_stage].stations[4] := iw_prog_s4;
-    g_programs[iw_prog_unit].stages[iw_prog_stage].stations[5] := iw_prog_s5;
-    g_programs[iw_prog_unit].stages[iw_prog_stage].min_time := iw_prog_min_time;
-    g_programs[iw_prog_unit].stages[iw_prog_stage].max_time := iw_prog_max_time;
-    g_programs[iw_prog_unit].stages[iw_prog_stage].cal_time := iw_prog_cal_time;
+    g_program[iw_prog_unit].stages[iw_prog_stage].stations[1] := iw_prog_s1;
+    g_program[iw_prog_unit].stages[iw_prog_stage].stations[2] := iw_prog_s2;
+    g_program[iw_prog_unit].stages[iw_prog_stage].stations[3] := iw_prog_s3;
+    g_program[iw_prog_unit].stages[iw_prog_stage].stations[4] := iw_prog_s4;
+    g_program[iw_prog_unit].stages[iw_prog_stage].stations[5] := iw_prog_s5;
+    g_program[iw_prog_unit].stages[iw_prog_stage].min_time := iw_prog_min_time;
+    g_program[iw_prog_unit].stages[iw_prog_stage].max_time := iw_prog_max_time;
+    g_program[iw_prog_unit].stages[iw_prog_stage].cal_time := iw_prog_cal_time;
   END_IF;
   qw_prog_ack := iw_prog_seq;
 END_IF;
@@ -7067,58 +7067,58 @@ IF cycle_count > 30000 THEN cycle_count := 0; END_IF;
 qw_cycle_cnt := cycle_count;
 
 (* Write unit data to Modbus output QW22..QW61 *)
-qw_u1_loc    := g_units[1].location;
-qw_u1_status := g_units[1].status;
-qw_u1_state  := g_units[1].state;
-qw_u1_target := g_units[1].target;
-qw_u2_loc    := g_units[2].location;
-qw_u2_status := g_units[2].status;
-qw_u2_state  := g_units[2].state;
-qw_u2_target := g_units[2].target;
-qw_u3_loc    := g_units[3].location;
-qw_u3_status := g_units[3].status;
-qw_u3_state  := g_units[3].state;
-qw_u3_target := g_units[3].target;
-qw_u4_loc    := g_units[4].location;
-qw_u4_status := g_units[4].status;
-qw_u4_state  := g_units[4].state;
-qw_u4_target := g_units[4].target;
-qw_u5_loc    := g_units[5].location;
-qw_u5_status := g_units[5].status;
-qw_u5_state  := g_units[5].state;
-qw_u5_target := g_units[5].target;
-qw_u6_loc    := g_units[6].location;
-qw_u6_status := g_units[6].status;
-qw_u6_state  := g_units[6].state;
-qw_u6_target := g_units[6].target;
-qw_u7_loc    := g_units[7].location;
-qw_u7_status := g_units[7].status;
-qw_u7_state  := g_units[7].state;
-qw_u7_target := g_units[7].target;
-qw_u8_loc    := g_units[8].location;
-qw_u8_status := g_units[8].status;
-qw_u8_state  := g_units[8].state;
-qw_u8_target := g_units[8].target;
-qw_u9_loc    := g_units[9].location;
-qw_u9_status := g_units[9].status;
-qw_u9_state  := g_units[9].state;
-qw_u9_target := g_units[9].target;
-qw_u10_loc    := g_units[10].location;
-qw_u10_status := g_units[10].status;
-qw_u10_state  := g_units[10].state;
-qw_u10_target := g_units[10].target;
+qw_u1_loc    := g_unit[1].location;
+qw_u1_status := g_unit[1].status;
+qw_u1_state  := g_unit[1].state;
+qw_u1_target := g_unit[1].target;
+qw_u2_loc    := g_unit[2].location;
+qw_u2_status := g_unit[2].status;
+qw_u2_state  := g_unit[2].state;
+qw_u2_target := g_unit[2].target;
+qw_u3_loc    := g_unit[3].location;
+qw_u3_status := g_unit[3].status;
+qw_u3_state  := g_unit[3].state;
+qw_u3_target := g_unit[3].target;
+qw_u4_loc    := g_unit[4].location;
+qw_u4_status := g_unit[4].status;
+qw_u4_state  := g_unit[4].state;
+qw_u4_target := g_unit[4].target;
+qw_u5_loc    := g_unit[5].location;
+qw_u5_status := g_unit[5].status;
+qw_u5_state  := g_unit[5].state;
+qw_u5_target := g_unit[5].target;
+qw_u6_loc    := g_unit[6].location;
+qw_u6_status := g_unit[6].status;
+qw_u6_state  := g_unit[6].state;
+qw_u6_target := g_unit[6].target;
+qw_u7_loc    := g_unit[7].location;
+qw_u7_status := g_unit[7].status;
+qw_u7_state  := g_unit[7].state;
+qw_u7_target := g_unit[7].target;
+qw_u8_loc    := g_unit[8].location;
+qw_u8_status := g_unit[8].status;
+qw_u8_state  := g_unit[8].state;
+qw_u8_target := g_unit[8].target;
+qw_u9_loc    := g_unit[9].location;
+qw_u9_status := g_unit[9].status;
+qw_u9_state  := g_unit[9].state;
+qw_u9_target := g_unit[9].target;
+qw_u10_loc    := g_unit[10].location;
+qw_u10_status := g_unit[10].status;
+qw_u10_state  := g_unit[10].state;
+qw_u10_target := g_unit[10].target;
 
 (* Write batch data to Modbus output QW65..QW104 *)
-qw_b1_code  := g_batches[1].batch_code;  qw_b1_state  := g_batches[1].state;  qw_b1_prog  := g_batches[1].prog_id;  qw_b1_stage  := g_batches[1].cur_stage;
-qw_b2_code  := g_batches[2].batch_code;  qw_b2_state  := g_batches[2].state;  qw_b2_prog  := g_batches[2].prog_id;  qw_b2_stage  := g_batches[2].cur_stage;
-qw_b3_code  := g_batches[3].batch_code;  qw_b3_state  := g_batches[3].state;  qw_b3_prog  := g_batches[3].prog_id;  qw_b3_stage  := g_batches[3].cur_stage;
-qw_b4_code  := g_batches[4].batch_code;  qw_b4_state  := g_batches[4].state;  qw_b4_prog  := g_batches[4].prog_id;  qw_b4_stage  := g_batches[4].cur_stage;
-qw_b5_code  := g_batches[5].batch_code;  qw_b5_state  := g_batches[5].state;  qw_b5_prog  := g_batches[5].prog_id;  qw_b5_stage  := g_batches[5].cur_stage;
-qw_b6_code  := g_batches[6].batch_code;  qw_b6_state  := g_batches[6].state;  qw_b6_prog  := g_batches[6].prog_id;  qw_b6_stage  := g_batches[6].cur_stage;
-qw_b7_code  := g_batches[7].batch_code;  qw_b7_state  := g_batches[7].state;  qw_b7_prog  := g_batches[7].prog_id;  qw_b7_stage  := g_batches[7].cur_stage;
-qw_b8_code  := g_batches[8].batch_code;  qw_b8_state  := g_batches[8].state;  qw_b8_prog  := g_batches[8].prog_id;  qw_b8_stage  := g_batches[8].cur_stage;
-qw_b9_code  := g_batches[9].batch_code;  qw_b9_state  := g_batches[9].state;  qw_b9_prog  := g_batches[9].prog_id;  qw_b9_stage  := g_batches[9].cur_stage;
-qw_b10_code := g_batches[10].batch_code; qw_b10_state := g_batches[10].state; qw_b10_prog := g_batches[10].prog_id; qw_b10_stage := g_batches[10].cur_stage;
+qw_b1_code  := g_batch[1].batch_code;  qw_b1_state  := g_batch[1].state;  qw_b1_prog  := g_batch[1].prog_id;  qw_b1_stage  := g_batch[1].cur_stage;
+qw_b2_code  := g_batch[2].batch_code;  qw_b2_state  := g_batch[2].state;  qw_b2_prog  := g_batch[2].prog_id;  qw_b2_stage  := g_batch[2].cur_stage;
+qw_b3_code  := g_batch[3].batch_code;  qw_b3_state  := g_batch[3].state;  qw_b3_prog  := g_batch[3].prog_id;  qw_b3_stage  := g_batch[3].cur_stage;
+qw_b4_code  := g_batch[4].batch_code;  qw_b4_state  := g_batch[4].state;  qw_b4_prog  := g_batch[4].prog_id;  qw_b4_stage  := g_batch[4].cur_stage;
+qw_b5_code  := g_batch[5].batch_code;  qw_b5_state  := g_batch[5].state;  qw_b5_prog  := g_batch[5].prog_id;  qw_b5_stage  := g_batch[5].cur_stage;
+qw_b6_code  := g_batch[6].batch_code;  qw_b6_state  := g_batch[6].state;  qw_b6_prog  := g_batch[6].prog_id;  qw_b6_stage  := g_batch[6].cur_stage;
+qw_b7_code  := g_batch[7].batch_code;  qw_b7_state  := g_batch[7].state;  qw_b7_prog  := g_batch[7].prog_id;  qw_b7_stage  := g_batch[7].cur_stage;
+qw_b8_code  := g_batch[8].batch_code;  qw_b8_state  := g_batch[8].state;  qw_b8_prog  := g_batch[8].prog_id;  qw_b8_stage  := g_batch[8].cur_stage;
+qw_b9_code  := g_batch[9].batch_code;  qw_b9_state  := g_batch[9].state;  qw_b9_prog  := g_batch[9].prog_id;  qw_b9_stage  := g_batch[9].cur_stage;
+qw_b10_code := g_batch[10].batch_code; qw_b10_state := g_batch[10].state; qw_b10_prog := g_batch[10].prog_id; qw_b10_stage := g_batch[10].cur_stage;
 
 (* Write calibration status & results to Modbus QW170..QW192 *)
 qw_cal_step := calibrate.o_step;
@@ -7277,7 +7277,7 @@ qw_cal_t3_x_max    := REAL_TO_INT(g_cal[3].x_max_mm_s);]]></xhtml:p>
             <type><INT/></type>
             <initialValue><simpleValue value="0"/></initialValue>
           </variable>
-          <variable name="g_stations">
+          <variable name="g_station">
             <type>
               <array>
                 <dimension lower="101" upper="125"/>
@@ -7291,7 +7291,7 @@ qw_cal_t3_x_max    := REAL_TO_INT(g_cal[3].x_max_mm_s);]]></xhtml:p>
           <variable name="g_transporter">
             <type><derived name="ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
           </variable>
-          <variable name="g_units">
+          <variable name="g_unit">
             <type>
               <array>
                 <dimension lower="1" upper="10"/>
@@ -7299,7 +7299,7 @@ qw_cal_t3_x_max    := REAL_TO_INT(g_cal[3].x_max_mm_s);]]></xhtml:p>
               </array>
             </type>
           </variable>
-          <variable name="g_batches">
+          <variable name="g_batch">
             <type>
               <array>
                 <dimension lower="1" upper="10"/>
@@ -7307,7 +7307,7 @@ qw_cal_t3_x_max    := REAL_TO_INT(g_cal[3].x_max_mm_s);]]></xhtml:p>
               </array>
             </type>
           </variable>
-          <variable name="g_programs">
+          <variable name="g_program">
             <type>
               <array>
                 <dimension lower="1" upper="10"/>
@@ -7334,13 +7334,13 @@ qw_cal_t3_x_max    := REAL_TO_INT(g_cal[3].x_max_mm_s);]]></xhtml:p>
               </array>
             </type>
           </variable>
-          <variable name="g_tasks">
+          <variable name="g_task">
             <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
           </variable>
           <variable name="g_dep_sandbox">
             <type><derived name="DEP_SANDBOX_T"/></type>
           </variable>
-          <variable name="g_dep_idle_slots">
+          <variable name="g_dep_idle_slot">
             <type><derived name="ARRAY[1..TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T"/></type>
           </variable>
           <variable name="g_dep_waiting">

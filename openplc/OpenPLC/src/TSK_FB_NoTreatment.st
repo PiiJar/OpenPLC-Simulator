@@ -23,11 +23,11 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_units    : ARRAY[1..10] OF UNIT_T;
+  g_unit    : ARRAY[1..10] OF UNIT_T;
   g_transporter : ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T;
   g_cfg      : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
-  g_tasks    : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
-  g_stations : ARRAY[101..125] OF STATION_T;
+  g_task    : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
+  g_station : ARRAY[101..125] OF STATION_T;
   g_station_count : INT;
 END_VAR
 VAR
@@ -53,8 +53,8 @@ VAR
 END_VAR
 
 FOR ui := 1 TO 10 DO
-  tgt := g_units[ui].target;
-  loc := g_units[ui].location;
+  tgt := g_unit[ui].target;
+  loc := g_unit[ui].location;
 
   (* Skip: no target, target is process (handled by schedule), not on station *)
   IF tgt <> 0 AND tgt <> 3 AND loc >= 100 THEN
@@ -77,7 +77,7 @@ FOR ui := 1 TO 10 DO
                   (* Check station is free: no unit there *)
                   stn_free := TRUE;
                   FOR qi := 1 TO 10 DO
-                    IF g_units[qi].location = si AND g_units[qi].status = 1 THEN
+                    IF g_unit[qi].location = si AND g_unit[qi].status = 1 THEN
                       stn_free := FALSE;
                     END_IF;
                   END_FOR;
@@ -99,18 +99,18 @@ FOR ui := 1 TO 10 DO
           task_end   := task_start + REAL_TO_LINT(xfer_s);
 
           (* Append to queue *)
-          qi := g_tasks[cov_t].count + 1;
+          qi := g_task[cov_t].count + 1;
           IF qi <= 10 THEN
-            g_tasks[cov_t].queue[qi].unit         := ui;
-            g_tasks[cov_t].queue[qi].stage        := 0;  (* no program stage *)
-            g_tasks[cov_t].queue[qi].lift_station := loc;
-            g_tasks[cov_t].queue[qi].sink_station := dest_stn;
-            g_tasks[cov_t].queue[qi].start_time   := task_start;
-            g_tasks[cov_t].queue[qi].finish_time  := task_end;
-            g_tasks[cov_t].queue[qi].calc_time    := 0.0;
-            g_tasks[cov_t].queue[qi].min_time     := 0.0;
-            g_tasks[cov_t].queue[qi].max_time     := 0.0;
-            g_tasks[cov_t].count := qi;
+            g_task[cov_t].queue[qi].unit         := ui;
+            g_task[cov_t].queue[qi].stage        := 0;  (* no program stage *)
+            g_task[cov_t].queue[qi].lift_station := loc;
+            g_task[cov_t].queue[qi].sink_station := dest_stn;
+            g_task[cov_t].queue[qi].start_time   := task_start;
+            g_task[cov_t].queue[qi].finish_time  := task_end;
+            g_task[cov_t].queue[qi].calc_time    := 0.0;
+            g_task[cov_t].queue[qi].min_time     := 0.0;
+            g_task[cov_t].queue[qi].max_time     := 0.0;
+            g_task[cov_t].count := qi;
           END_IF;
         END_IF;
 

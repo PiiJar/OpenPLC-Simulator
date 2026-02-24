@@ -12,7 +12,7 @@
    Each phase uses flex capacity with cap factor:
      90% if batch is currently on that station, 50% otherwise.
 
-   Modifies g_tasks and g_schedule in-place by propagating
+   Modifies g_task and g_schedule in-place by propagating
    time changes through the remaining task chain.
 
    lockedStages prevents oscillation: once a stage is advanced,
@@ -33,9 +33,9 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_tasks    : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
+  g_task    : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
   g_schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
-  g_batches  : ARRAY[1..10] OF BATCH_T;
+  g_batch  : ARRAY[1..10] OF BATCH_T;
 END_VAR
 VAR_OUTPUT
   o_solved      : BOOL;
@@ -93,7 +93,7 @@ END_IF;
 
 IF prev_flex > 0.1 THEN
   (* Cap: 90% if batch is on this stage, 50% otherwise *)
-  IF g_batches[i_blocked_unit].cur_stage = i_blocked_stage THEN
+  IF g_batch[i_blocked_unit].cur_stage = i_blocked_stage THEN
     cap := 0.9;
   ELSE
     cap := 0.5;
@@ -129,7 +129,7 @@ IF i_conf_unit >= 1 AND i_conf_unit <= 10 AND i_conf_stage >= 1 AND i_conf_stage
 END_IF;
 
 IF next_flex > 0.1 THEN
-  IF g_batches[i_conf_unit].cur_stage = i_conf_stage THEN
+  IF g_batch[i_conf_unit].cur_stage = i_conf_stage THEN
     cap := 0.9;
   ELSE
     cap := 0.5;
@@ -163,7 +163,7 @@ IF i_conf_stage > 1 THEN
   END_IF;
 
   IF prev_stage_flex > 0.1 THEN
-    IF g_batches[i_conf_unit].cur_stage = (i_conf_stage - 1) THEN
+    IF g_batch[i_conf_unit].cur_stage = (i_conf_stage - 1) THEN
       cap := 0.9;
     ELSE
       cap := 0.5;
@@ -198,7 +198,7 @@ IF i_blocked_unit >= 1 AND i_blocked_unit <= 10 AND i_blocked_stage >= 1 AND i_b
 END_IF;
 
 IF prev_flex > 0.1 THEN
-  IF g_batches[i_blocked_unit].cur_stage = i_blocked_stage THEN
+  IF g_batch[i_blocked_unit].cur_stage = i_blocked_stage THEN
     cap := 0.9;
   ELSE
     cap := 0.5;

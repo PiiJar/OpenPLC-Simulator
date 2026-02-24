@@ -7,7 +7,7 @@
    if prev.sink_station == next.lift_station AND different units,
    swap order so the lift happens first (avoids deadlock).
 
-   Operates on g_tasks[1..3] in-place.
+   Operates on g_task[1..3] in-place.
    ============================================================ *)
 
 FUNCTION_BLOCK TSK_FB_SwapTasks
@@ -16,7 +16,7 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_tasks : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
+  g_task : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
 END_VAR
 VAR_OUTPUT
   o_swap_count : INT;   (* number of swaps performed *)
@@ -31,16 +31,16 @@ END_VAR
 o_swap_count := 0;
 
 FOR ti := 1 TO TRANSPORTERS DO
-  cnt := g_tasks[ti].count;
+  cnt := g_task[ti].count;
   IF cnt >= 2 THEN
     FOR qi := 1 TO cnt - 1 DO
       (* Check: different units AND prev.sink == next.lift *)
-      IF g_tasks[ti].queue[qi].unit <> g_tasks[ti].queue[qi + 1].unit
-         AND g_tasks[ti].queue[qi].sink_station = g_tasks[ti].queue[qi + 1].lift_station THEN
+      IF g_task[ti].queue[qi].unit <> g_task[ti].queue[qi + 1].unit
+         AND g_task[ti].queue[qi].sink_station = g_task[ti].queue[qi + 1].lift_station THEN
         (* Swap *)
-        tmp := g_tasks[ti].queue[qi];
-        g_tasks[ti].queue[qi] := g_tasks[ti].queue[qi + 1];
-        g_tasks[ti].queue[qi + 1] := tmp;
+        tmp := g_task[ti].queue[qi];
+        g_task[ti].queue[qi] := g_task[ti].queue[qi + 1];
+        g_task[ti].queue[qi + 1] := tmp;
         o_swap_count := o_swap_count + 1;
       END_IF;
     END_FOR;

@@ -23,7 +23,7 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_tasks : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
+  g_task : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
 END_VAR
 VAR
   ti       : INT;
@@ -44,16 +44,16 @@ ELSE
 END_IF;
 
 FOR ti := t_start TO t_end DO
-  ins_cnt := g_tasks[ti].count;
+  ins_cnt := g_task[ti].count;
   IF ins_cnt >= 2 THEN
     FOR ins_i := 2 TO ins_cnt DO
-      tmp_task := g_tasks[ti].queue[ins_i];
+      tmp_task := g_task[ti].queue[ins_i];
       ins_j := ins_i - 1;
-      WHILE ins_j >= 1 AND g_tasks[ti].queue[ins_j].start_time > tmp_task.start_time DO
-        g_tasks[ti].queue[ins_j + 1] := g_tasks[ti].queue[ins_j];
+      WHILE ins_j >= 1 AND g_task[ti].queue[ins_j].start_time > tmp_task.start_time DO
+        g_task[ti].queue[ins_j + 1] := g_task[ti].queue[ins_j];
         ins_j := ins_j - 1;
       END_WHILE;
-      g_tasks[ti].queue[ins_j + 1] := tmp_task;
+      g_task[ti].queue[ins_j + 1] := tmp_task;
     END_FOR;
   END_IF;
 END_FOR;

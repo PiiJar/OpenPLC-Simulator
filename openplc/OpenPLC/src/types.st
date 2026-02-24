@@ -161,8 +161,8 @@ END_STRUCT;
 END_TYPE
 
 (* Transporter task queue — indexed by transporter, then task slot       *)
-(* unit is direct index to g_batches, g_programs, g_schedule, g_units   *)
-(* Access: g_tasks[transporter].queue[slot].lift_station                *)
+(* unit is direct index to g_batch, g_program, g_schedule, g_unit   *)
+(* Access: g_task[transporter].queue[slot].lift_station                *)
 
 TYPE TSK_TASK_T :
 STRUCT

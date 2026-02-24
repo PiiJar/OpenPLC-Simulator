@@ -22,7 +22,7 @@ END_VAR
 
 VAR_EXTERNAL
   g_schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
-  g_tasks    : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
+  g_task    : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
 END_VAR
 VAR
   sc : INT;
@@ -47,13 +47,13 @@ END_FOR;
 
 (* ── Shift matching tasks in all transporter queues ── *)
 FOR ti := 1 TO TRANSPORTERS DO
-  FOR qi := 1 TO g_tasks[ti].count DO
-    IF g_tasks[ti].queue[qi].unit = i_unit
-       AND g_tasks[ti].queue[qi].stage >= i_from_stage THEN
-      g_tasks[ti].queue[qi].start_time :=
-        g_tasks[ti].queue[qi].start_time + REAL_TO_LINT(i_amount);
-      g_tasks[ti].queue[qi].finish_time :=
-        g_tasks[ti].queue[qi].finish_time + REAL_TO_LINT(i_amount);
+  FOR qi := 1 TO g_task[ti].count DO
+    IF g_task[ti].queue[qi].unit = i_unit
+       AND g_task[ti].queue[qi].stage >= i_from_stage THEN
+      g_task[ti].queue[qi].start_time :=
+        g_task[ti].queue[qi].start_time + REAL_TO_LINT(i_amount);
+      g_task[ti].queue[qi].finish_time :=
+        g_task[ti].queue[qi].finish_time + REAL_TO_LINT(i_amount);
     END_IF;
   END_FOR;
 END_FOR;

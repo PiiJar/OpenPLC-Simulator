@@ -13,12 +13,12 @@ END_VAR
 
 VAR_EXTERNAL
   g_station_count    : INT;
-  g_stations         : ARRAY[101..125] OF STATION_T;
+  g_station         : ARRAY[101..125] OF STATION_T;
   g_cfg              : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
   g_transporter      : ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T;
-  g_units            : ARRAY[1..10] OF UNIT_T;
-  g_batches          : ARRAY[1..10] OF BATCH_T;
-  g_programs         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
+  g_unit            : ARRAY[1..10] OF UNIT_T;
+  g_batch          : ARRAY[1..10] OF BATCH_T;
+  g_program         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
   g_avoid_status     : ARRAY[101..125] OF INT;
 END_VAR
 VAR
@@ -29,15 +29,15 @@ END_VAR
 
 (* --- Clear all stations --- *)
 FOR i := 101 TO 125 DO
-  g_stations[i].tank_id       := 0;
-  g_stations[i].status        := 0;
-  g_stations[i].x_position    := 0.0;
-  g_stations[i].y_position    := 0.0;
-  g_stations[i].z_position    := 0.0;
-  g_stations[i].stn_type      := 0;
-  g_stations[i].stn_function  := 0;
-  g_stations[i].dropping_time := 0.0;
-  g_stations[i].device_delay  := 0.0;
+  g_station[i].tank_id       := 0;
+  g_station[i].status        := 0;
+  g_station[i].x_position    := 0.0;
+  g_station[i].y_position    := 0.0;
+  g_station[i].z_position    := 0.0;
+  g_station[i].stn_type      := 0;
+  g_station[i].stn_function  := 0;
+  g_station[i].dropping_time := 0.0;
+  g_station[i].device_delay  := 0.0;
 END_FOR;
 g_station_count := 0;
 
@@ -104,30 +104,30 @@ END_FOR;
 
 (* --- Clear all units --- *)
 FOR i := 1 TO 10 DO
-  g_units[i].location := 0;
-  g_units[i].status   := 0;
-  g_units[i].state    := 0;
-  g_units[i].target   := 0;
+  g_unit[i].location := 0;
+  g_unit[i].status   := 0;
+  g_unit[i].state    := 0;
+  g_unit[i].target   := 0;
 END_FOR;
 
 (* --- Clear all batches --- *)
 FOR i := 1 TO 10 DO
-  g_batches[i].batch_code := 0;
-  g_batches[i].state      := 0;
-  g_batches[i].prog_id    := 0;
-  g_batches[i].cur_stage      := 0;
+  g_batch[i].batch_code := 0;
+  g_batch[i].state      := 0;
+  g_batch[i].prog_id    := 0;
+  g_batch[i].cur_stage      := 0;
 END_FOR;
 
 (* --- Clear all treatment programs --- *)
 FOR i := 1 TO 10 DO
-  g_programs[i].program_id := 0;
+  g_program[i].program_id := 0;
   FOR j := 1 TO 30 DO
     FOR k := 1 TO 5 DO
-      g_programs[i].stages[j].stations[k] := 0;
+      g_program[i].stages[j].stations[k] := 0;
     END_FOR;
-    g_programs[i].stages[j].min_time := 0;
-    g_programs[i].stages[j].max_time := 0;
-    g_programs[i].stages[j].cal_time := 0;
+    g_program[i].stages[j].min_time := 0;
+    g_program[i].stages[j].max_time := 0;
+    g_program[i].stages[j].cal_time := 0;
   END_FOR;
 END_FOR;
 

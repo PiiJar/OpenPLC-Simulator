@@ -26,7 +26,7 @@ END_VAR
 
 VAR_EXTERNAL
   g_transporter  : ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T;
-  g_stations     : ARRAY[101..125] OF STATION_T;
+  g_station     : ARRAY[101..125] OF STATION_T;
   g_cfg          : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
   g_move         : ARRAY[1..TRANSPORTERS] OF MOVE_TIMES_T;
 END_VAR
@@ -381,8 +381,8 @@ FOR i := 1 TO TRANSPORTERS DO
   min_dist := 1.0e9;
   nearest_num := g_transporter[i].current_station;
   FOR idx := 101 TO 125 DO
-    IF g_stations[idx].tank_id <> 0 THEN
-      dx := g_stations[idx].x_position - g_transporter[i].x_mm;
+    IF g_station[idx].tank_id <> 0 THEN
+      dx := g_station[idx].x_position - g_transporter[i].x_mm;
       IF ABS(dx) < min_dist THEN
         min_dist := ABS(dx);
         nearest_num := idx;

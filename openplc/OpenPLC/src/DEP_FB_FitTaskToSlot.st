@@ -36,7 +36,7 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_dep_idle_slots : ARRAY[1..TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T;
+  g_dep_idle_slot : ARRAY[1..TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T;
 END_VAR
 VAR
   fb_travel_to   : STC_FB_CalcHorizontalTravel;
@@ -77,7 +77,7 @@ flex_up    := i_max_time_s - i_calc_time_s;
 IF flex_up < 0.0 THEN flex_up := 0.0; END_IF;
 capped_flex := flex_up * i_flex_factor;
 
-slot_cnt   := g_dep_idle_slots[i_trans_id].count;
+slot_cnt   := g_dep_idle_slot[i_trans_id].count;
 best_delay := 1.0E9;
 best_slot  := 0;
 found      := FALSE;
@@ -87,11 +87,11 @@ FOR si := 1 TO 20 DO
     EXIT;
   END_IF;
 
-  slot_start := g_dep_idle_slots[i_trans_id].slots[si].start_time;
-  slot_end   := g_dep_idle_slots[i_trans_id].slots[si].end_time;
+  slot_start := g_dep_idle_slot[i_trans_id].slots[si].start_time;
+  slot_end   := g_dep_idle_slot[i_trans_id].slots[si].end_time;
 
   (* ── Travel time: prev task sink → this lift ── *)
-  from_stn := g_dep_idle_slots[i_trans_id].slots[si].lift_station;
+  from_stn := g_dep_idle_slot[i_trans_id].slots[si].lift_station;
   travel_to := 0.0;
   IF from_stn > 0 AND from_stn <> i_lift_stn THEN
     fb_travel_to(i_from_stn := from_stn, i_to_stn := i_lift_stn, i_trans := i_trans_id);
@@ -99,7 +99,7 @@ FOR si := 1 TO 20 DO
   END_IF;
 
   (* ── Travel time: this sink → next task lift ── *)
-  to_stn := g_dep_idle_slots[i_trans_id].slots[si].sink_station;
+  to_stn := g_dep_idle_slot[i_trans_id].slots[si].sink_station;
   travel_from := 0.0;
   IF to_stn > 0 AND to_stn <> i_sink_stn THEN
     fb_travel_from(i_from_stn := i_sink_stn, i_to_stn := to_stn, i_trans := i_trans_id);

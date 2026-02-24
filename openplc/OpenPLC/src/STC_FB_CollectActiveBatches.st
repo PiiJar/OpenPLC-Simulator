@@ -1,7 +1,7 @@
 (* ============================================================
    STC_FB_CollectActiveBatches — Filter active batches to list
    ============================================================
-   Scans g_batches[1..10] and collects unit indices where
+   Scans g_batch[1..10] and collects unit indices where
    state = IN_PROCESS (1) into an output list.
 
    Optionally filters by cur_stage and unit target for
@@ -22,8 +22,8 @@ VAR_INPUT
   i_mode : INT;    (* 0 = all active, 1 = waiting only *)
 END_VAR
 VAR_EXTERNAL
-  g_batches : ARRAY[1..10] OF BATCH_T;
-  g_units   : ARRAY[1..10] OF UNIT_T;
+  g_batch : ARRAY[1..10] OF BATCH_T;
+  g_unit   : ARRAY[1..10] OF UNIT_T;
 END_VAR
 VAR_OUTPUT
   o_list  : ARRAY[1..10] OF INT;  (* unit indices *)
@@ -39,14 +39,14 @@ FOR ui := 1 TO 10 DO
 END_FOR;
 
 FOR ui := 1 TO 10 DO
-  IF g_batches[ui].state = 1 THEN
+  IF g_batch[ui].state = 1 THEN
     IF i_mode = 0 THEN
       (* All active batches *)
       o_count := o_count + 1;
       o_list[o_count] := ui;
     ELSIF i_mode = 1 THEN
       (* Waiting batches: stage=90 AND unit target = TO_NONE (0) *)
-      IF g_batches[ui].cur_stage = 90 AND g_units[ui].target = 0 THEN
+      IF g_batch[ui].cur_stage = 90 AND g_unit[ui].target = 0 THEN
         o_count := o_count + 1;
         o_list[o_count] := ui;
       END_IF;
