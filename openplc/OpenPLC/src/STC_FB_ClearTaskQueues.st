@@ -11,6 +11,7 @@
 FUNCTION_BLOCK STC_FB_ClearTaskQueues
 VAR_EXTERNAL CONSTANT
     MAX_TRANSPORTERS : INT;
+    MAX_UNITS        : INT;
 END_VAR
 
 VAR_EXTERNAL
@@ -23,7 +24,7 @@ END_VAR
 
 FOR ti := 1 TO MAX_TRANSPORTERS DO
   g_task[ti].count := 0;
-  FOR qi := 1 TO 10 DO
+  FOR qi := 1 TO MAX_UNITS DO
     g_task[ti].queue[qi].unit         := 0;
     g_task[ti].queue[qi].stage        := 0;
     g_task[ti].queue[qi].lift_station := 0;

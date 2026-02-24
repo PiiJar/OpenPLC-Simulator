@@ -39,13 +39,14 @@ VAR_INPUT
 END_VAR
 VAR_EXTERNAL CONSTANT
     MAX_TRANSPORTERS : INT;
+    MAX_UNITS        : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_batch          : ARRAY[1..10] OF BATCH_T;
-  g_unit            : ARRAY[1..10] OF UNIT_T;
-  g_program         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
-  g_schedule         : ARRAY[1..10] OF TSK_SCHEDULE_T;
+  g_batch          : ARRAY[1..MAX_UNITS] OF BATCH_T;
+  g_unit            : ARRAY[1..MAX_UNITS] OF UNIT_T;
+  g_program         : ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T;
+  g_schedule         : ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T;
   g_task            : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
   g_cfg              : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
   g_dep_sandbox      : DEP_SANDBOX_T;
@@ -67,13 +68,13 @@ VAR
   next_phase  : INT;
 
   (* ── Waiting batch management ── *)
-  waiting_list  : ARRAY[1..10] OF INT;  (* unit indices with stage=90 *)
+  waiting_list  : ARRAY[1..MAX_UNITS] OF INT;  (* unit indices with stage=90 *)
   waiting_cnt   : INT;
   cur_wait_idx  : INT;
   cur_wait_unit : INT;
 
   (* ── Active batch list for rebuild ── *)
-  batch_list    : ARRAY[1..10] OF INT;
+  batch_list    : ARRAY[1..MAX_UNITS] OF INT;
   batch_count   : INT;
 
   (* ── Extracted waiting batch tasks ── *)
@@ -460,7 +461,7 @@ ELSIF phase = 3000 THEN
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 8000 THEN
   (* Store pending write data *)
-  FOR ui := 1 TO 10 DO
+  FOR ui := 1 TO MAX_UNITS DO
     g_dep_pending.programs[ui] := g_program[ui];
     g_dep_pending.schedule[ui] := g_schedule[ui];
   END_FOR;

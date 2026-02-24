@@ -23,13 +23,15 @@ END_VAR
 VAR_EXTERNAL CONSTANT
     STATION_ARRAY_START : INT;
     STATION_ARRAY_END   : INT;
+    MAX_UNITS           : INT;
+    MAX_TRANSPORTERS    : INT;
 END_VAR
 VAR_EXTERNAL
-  g_batch  : ARRAY[1..10] OF BATCH_T;
-  g_program : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
-  g_unit    : ARRAY[1..10] OF UNIT_T;
+  g_batch  : ARRAY[1..MAX_UNITS] OF BATCH_T;
+  g_program : ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T;
+  g_unit    : ARRAY[1..MAX_UNITS] OF UNIT_T;
   g_station : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
-  g_schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
+  g_schedule : ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T;
   g_station_count : INT;
 END_VAR
 VAR
@@ -56,8 +58,8 @@ VAR
 END_VAR
 
 (* -- Validate inputs -- *)
-IF i_unit < 1 OR i_unit > 10 THEN RETURN; END_IF;
-IF i_trans < 1 OR i_trans > 3 THEN RETURN; END_IF;
+IF i_unit < 1 OR i_unit > MAX_UNITS THEN RETURN; END_IF;
+IF i_trans < 1 OR i_trans > MAX_TRANSPORTERS THEN RETURN; END_IF;
 
 (* -- Read batch and unit data -- *)
 cur_stage := g_batch[i_unit].cur_stage;

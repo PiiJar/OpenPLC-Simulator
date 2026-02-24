@@ -21,12 +21,15 @@ FUNCTION_BLOCK STC_FB_CollectActiveBatches
 VAR_INPUT
   i_mode : INT;    (* 0 = all active, 1 = waiting only *)
 END_VAR
+VAR_EXTERNAL CONSTANT
+    MAX_UNITS : INT;
+END_VAR
 VAR_EXTERNAL
-  g_batch : ARRAY[1..10] OF BATCH_T;
-  g_unit   : ARRAY[1..10] OF UNIT_T;
+  g_batch : ARRAY[1..MAX_UNITS] OF BATCH_T;
+  g_unit   : ARRAY[1..MAX_UNITS] OF UNIT_T;
 END_VAR
 VAR_OUTPUT
-  o_list  : ARRAY[1..10] OF INT;  (* unit indices *)
+  o_list  : ARRAY[1..MAX_UNITS] OF INT;  (* unit indices *)
   o_count : INT;
 END_VAR
 VAR
@@ -34,11 +37,11 @@ VAR
 END_VAR
 
 o_count := 0;
-FOR ui := 1 TO 10 DO
+FOR ui := 1 TO MAX_UNITS DO
   o_list[ui] := 0;
 END_FOR;
 
-FOR ui := 1 TO 10 DO
+FOR ui := 1 TO MAX_UNITS DO
   IF g_batch[ui].state = 1 THEN
     IF i_mode = 0 THEN
       (* All active batches *)

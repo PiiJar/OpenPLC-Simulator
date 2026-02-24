@@ -29,6 +29,7 @@ VAR_EXTERNAL CONSTANT
     MAX_TRANSPORTERS    : INT;
     STATION_ARRAY_START : INT;
     STATION_ARRAY_END   : INT;
+    MAX_UNITS           : INT;
 END_VAR
 
 VAR_EXTERNAL
@@ -80,7 +81,7 @@ FOR round := 1 TO 20 DO
   (* Check all tasks on OTHER transporters *)
   FOR ti := 1 TO MAX_TRANSPORTERS DO
     IF ti <> i_trans_id THEN
-      FOR qi := 1 TO 10 DO
+      FOR qi := 1 TO MAX_UNITS DO
         IF qi > g_task[ti].count THEN
           EXIT;
         END_IF;

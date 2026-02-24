@@ -18,10 +18,11 @@ VAR_INPUT
 END_VAR
 VAR_EXTERNAL CONSTANT
     MAX_TRANSPORTERS : INT;
+    MAX_UNITS        : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
+  g_schedule : ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T;
   g_task    : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
 END_VAR
 VAR
@@ -31,7 +32,7 @@ VAR
   ti : INT;
 END_VAR
 
-IF i_unit < 1 OR i_unit > 10 THEN RETURN; END_IF;
+IF i_unit < 1 OR i_unit > MAX_UNITS THEN RETURN; END_IF;
 IF ABS(i_amount) < 0.001 THEN RETURN; END_IF;
 
 (* ── Shift schedule stages entry/exit times ── *)

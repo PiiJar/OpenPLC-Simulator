@@ -181,7 +181,7 @@ END_TYPE
 TYPE TSK_QUEUE_T :
 STRUCT
   count : INT;                                    (* number of active tasks *)
-  queue : ARRAY[1..10] OF TSK_TASK_T;             (* task slots, MAX_UNITS *)
+  queue : ARRAY[1..50] OF TSK_TASK_T;             (* task slots, MAX_UNITS — literal required in TYPE *)
 END_STRUCT;
 END_TYPE
 
@@ -277,9 +277,9 @@ END_TYPE
 
 TYPE DEP_SANDBOX_T :
 STRUCT
-  schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
-  batches  : ARRAY[1..10] OF BATCH_T;
-  programs : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
+  schedule : ARRAY[1..50] OF TSK_SCHEDULE_T;
+  batches  : ARRAY[1..50] OF BATCH_T;
+  programs : ARRAY[1..50] OF TREATMENT_PROGRAM_T;
   tasks    : ARRAY[1..3] OF TSK_QUEUE_T;   (* literal — TYPE cannot use constants *)
   valid    : BOOL;
 END_STRUCT;
@@ -290,8 +290,8 @@ END_TYPE
 TYPE DEP_PENDING_WRITE_T :
 STRUCT
   valid      : BOOL;
-  programs   : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
-  schedule   : ARRAY[1..10] OF TSK_SCHEDULE_T;
+  programs   : ARRAY[1..50] OF TREATMENT_PROGRAM_T;
+  schedule   : ARRAY[1..50] OF TSK_SCHEDULE_T;
   batch_unit : INT;     (* activated batch: unit index *)
   batch_stage : INT;    (* activated batch: new stage *)
   time_s     : LINT;    (* activation time (s), unix seconds *)

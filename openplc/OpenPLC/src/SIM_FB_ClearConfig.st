@@ -11,6 +11,7 @@ VAR_EXTERNAL CONSTANT
     MAX_TRANSPORTERS    : INT;
     STATION_ARRAY_START : INT;
     STATION_ARRAY_END   : INT;
+    MAX_UNITS           : INT;
 END_VAR
 
 VAR_EXTERNAL
@@ -18,9 +19,9 @@ VAR_EXTERNAL
   g_station         : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
   g_cfg              : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
   g_transporter      : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
-  g_unit            : ARRAY[1..10] OF UNIT_T;
-  g_batch          : ARRAY[1..10] OF BATCH_T;
-  g_program         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
+  g_unit            : ARRAY[1..MAX_UNITS] OF UNIT_T;
+  g_batch          : ARRAY[1..MAX_UNITS] OF BATCH_T;
+  g_program         : ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T;
   g_avoid_status     : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF INT;
 END_VAR
 VAR
@@ -105,7 +106,7 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
 END_FOR;
 
 (* --- Clear all units --- *)
-FOR i := 1 TO 10 DO
+FOR i := 1 TO MAX_UNITS DO
   g_unit[i].location := 0;
   g_unit[i].status   := 0;
   g_unit[i].state    := 0;
@@ -113,7 +114,7 @@ FOR i := 1 TO 10 DO
 END_FOR;
 
 (* --- Clear all batches --- *)
-FOR i := 1 TO 10 DO
+FOR i := 1 TO MAX_UNITS DO
   g_batch[i].batch_code := 0;
   g_batch[i].state      := 0;
   g_batch[i].prog_id    := 0;
@@ -121,7 +122,7 @@ FOR i := 1 TO 10 DO
 END_FOR;
 
 (* --- Clear all treatment programs --- *)
-FOR i := 1 TO 10 DO
+FOR i := 1 TO MAX_UNITS DO
   g_program[i].program_id := 0;
   FOR j := 1 TO 30 DO
     FOR k := 1 TO 5 DO

@@ -30,12 +30,13 @@ VAR_INPUT
 END_VAR
 VAR_EXTERNAL CONSTANT
     MAX_TRANSPORTERS : INT;
+    MAX_UNITS        : INT;
 END_VAR
 
 VAR_EXTERNAL
   g_task    : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
-  g_schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
-  g_batch  : ARRAY[1..10] OF BATCH_T;
+  g_schedule : ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T;
+  g_batch  : ARRAY[1..MAX_UNITS] OF BATCH_T;
 END_VAR
 VAR_OUTPUT
   o_solved      : BOOL;
@@ -80,7 +81,7 @@ END_IF;
 
 (* Find flex_down for blocked stage in schedule *)
 prev_flex := 0.0;
-IF i_blocked_unit >= 1 AND i_blocked_unit <= 10 THEN
+IF i_blocked_unit >= 1 AND i_blocked_unit <= MAX_UNITS THEN
   sc := g_schedule[i_blocked_unit].stage_count;
   FOR si := 1 TO sc DO
     IF si = i_blocked_stage THEN
@@ -122,7 +123,7 @@ END_IF;
 (* ══════ Phase 2: DELAY next batch conflict stage (conf_unit, conf_stage) ══════ *)
 (* Increase treatment time toward max_time = flex_up *)
 next_flex := 0.0;
-IF i_conf_unit >= 1 AND i_conf_unit <= 10 AND i_conf_stage >= 1 AND i_conf_stage <= 30 THEN
+IF i_conf_unit >= 1 AND i_conf_unit <= MAX_UNITS AND i_conf_stage >= 1 AND i_conf_stage <= 30 THEN
   next_flex := g_schedule[i_conf_unit].stages[i_conf_stage].max_time
              - g_schedule[i_conf_unit].stages[i_conf_stage].calc_time;
   IF next_flex < 0.0 THEN next_flex := 0.0; END_IF;
@@ -156,7 +157,7 @@ END_IF;
 (* ══════ Phase 3: DELAY next batch previous stage (conf_stage - 1) ══════ *)
 IF i_conf_stage > 1 THEN
   prev_stage_flex := 0.0;
-  IF i_conf_unit >= 1 AND i_conf_unit <= 10 AND (i_conf_stage - 1) >= 1 THEN
+  IF i_conf_unit >= 1 AND i_conf_unit <= MAX_UNITS AND (i_conf_stage - 1) >= 1 THEN
     prev_stage_flex := g_schedule[i_conf_unit].stages[i_conf_stage - 1].max_time
                      - g_schedule[i_conf_unit].stages[i_conf_stage - 1].calc_time;
     IF prev_stage_flex < 0.0 THEN prev_stage_flex := 0.0; END_IF;
@@ -191,7 +192,7 @@ END_IF;
 (* ══════ Phase 4: DELAY prev past next (forced reorder) ══════ *)
 (* Delay blocked_unit's stage to push it past conflict *)
 prev_flex := 0.0;
-IF i_blocked_unit >= 1 AND i_blocked_unit <= 10 AND i_blocked_stage >= 1 AND i_blocked_stage <= 30 THEN
+IF i_blocked_unit >= 1 AND i_blocked_unit <= MAX_UNITS AND i_blocked_stage >= 1 AND i_blocked_stage <= 30 THEN
   prev_flex := g_schedule[i_blocked_unit].stages[i_blocked_stage].max_time
              - g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time;
   IF prev_flex < 0.0 THEN prev_flex := 0.0; END_IF;

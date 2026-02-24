@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-24T12:30:47"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-24T12:30:47">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-24T12:45:39"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-24T12:45:39">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -408,7 +408,7 @@
             <variable name="queue">
               <type>
                 <array>
-                  <dimension lower="1" upper="10"/>
+                  <dimension lower="1" upper="50"/>
                   <baseType><derived name="TSK_TASK_T"/></baseType>
                 </array>
               </type>
@@ -596,7 +596,7 @@
             <variable name="schedule">
               <type>
                 <array>
-                  <dimension lower="1" upper="10"/>
+                  <dimension lower="1" upper="50"/>
                   <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
                 </array>
               </type>
@@ -604,7 +604,7 @@
             <variable name="batches">
               <type>
                 <array>
-                  <dimension lower="1" upper="10"/>
+                  <dimension lower="1" upper="50"/>
                   <baseType><derived name="BATCH_T"/></baseType>
                 </array>
               </type>
@@ -612,7 +612,7 @@
             <variable name="programs">
               <type>
                 <array>
-                  <dimension lower="1" upper="10"/>
+                  <dimension lower="1" upper="50"/>
                   <baseType><derived name="TREATMENT_PROGRAM_T"/></baseType>
                 </array>
               </type>
@@ -640,7 +640,7 @@
             <variable name="programs">
               <type>
                 <array>
-                  <dimension lower="1" upper="10"/>
+                  <dimension lower="1" upper="50"/>
                   <baseType><derived name="TREATMENT_PROGRAM_T"/></baseType>
                 </array>
               </type>
@@ -648,7 +648,7 @@
             <variable name="schedule">
               <type>
                 <array>
-                  <dimension lower="1" upper="10"/>
+                  <dimension lower="1" upper="50"/>
                   <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
                 </array>
               </type>
@@ -807,7 +807,7 @@ cnt := g_task[i_trans].count;
 prev_end  := i_time_s;
 prev_sink := 0;
 
-FOR qi := 1 TO 10 DO
+FOR qi := 1 TO MAX_UNITS DO
   IF qi > cnt THEN
     EXIT;
   END_IF;
@@ -1223,7 +1223,7 @@ FOR round := 1 TO 20 DO
   (* Check all tasks on OTHER transporters *)
   FOR ti := 1 TO MAX_TRANSPORTERS DO
     IF ti <> i_trans_id THEN
-      FOR qi := 1 TO 10 DO
+      FOR qi := 1 TO MAX_UNITS DO
         IF qi > g_task[ti].count THEN
           EXIT;
         END_IF;
@@ -1274,28 +1274,13 @@ END_FOR;  (* round *)]]></xhtml:p>
           </inputVars>
           <externalVars>
             <variable name="g_schedule">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T"/></type>
             </variable>
             <variable name="g_batch">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="BATCH_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF BATCH_T"/></type>
             </variable>
             <variable name="g_program">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="TREATMENT_PROGRAM_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T"/></type>
             </variable>
             <variable name="g_task">
               <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
@@ -1317,7 +1302,7 @@ END_FOR;  (* round *)]]></xhtml:p>
           <ST>
             <xhtml:p><![CDATA[IF i_cmd = 1 THEN
   (* ── SNAPSHOT: globals → sandbox ── *)
-  FOR ui := 1 TO 10 DO
+  FOR ui := 1 TO MAX_UNITS DO
     g_dep_sandbox.schedule[ui] := g_schedule[ui];
     g_dep_sandbox.batches[ui]  := g_batch[ui];
     g_dep_sandbox.programs[ui] := g_program[ui];
@@ -1330,7 +1315,7 @@ END_FOR;  (* round *)]]></xhtml:p>
 ELSIF i_cmd = 2 THEN
   (* ── RESTORE: sandbox → globals ── *)
   IF g_dep_sandbox.valid THEN
-    FOR ui := 1 TO 10 DO
+    FOR ui := 1 TO MAX_UNITS DO
       g_schedule[ui] := g_dep_sandbox.schedule[ui];
       g_batch[ui]  := g_dep_sandbox.batches[ui];
       g_program[ui] := g_dep_sandbox.programs[ui];
@@ -1374,36 +1359,16 @@ END_IF;]]></xhtml:p>
           </outputVars>
           <externalVars>
             <variable name="g_batch">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="BATCH_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF BATCH_T"/></type>
             </variable>
             <variable name="g_unit">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="UNIT_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF UNIT_T"/></type>
             </variable>
             <variable name="g_program">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="TREATMENT_PROGRAM_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T"/></type>
             </variable>
             <variable name="g_schedule">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T"/></type>
             </variable>
             <variable name="g_task">
               <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
@@ -1450,12 +1415,7 @@ END_IF;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="waiting_list">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><INT/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF INT"/></type>
             </variable>
             <variable name="waiting_cnt">
               <type><INT/></type>
@@ -1467,12 +1427,7 @@ END_IF;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="batch_list">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><INT/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF INT"/></type>
             </variable>
             <variable name="batch_count">
               <type><INT/></type>
@@ -1952,7 +1907,7 @@ ELSIF phase = 3000 THEN
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 8000 THEN
   (* Store pending write data *)
-  FOR ui := 1 TO 10 DO
+  FOR ui := 1 TO MAX_UNITS DO
     g_dep_pending.programs[ui] := g_program[ui];
     g_dep_pending.schedule[ui] := g_schedule[ui];
   END_FOR;
@@ -2052,28 +2007,13 @@ o_phase := phase;]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
             </variable>
             <variable name="g_unit">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="UNIT_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF UNIT_T"/></type>
             </variable>
             <variable name="g_batch">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="BATCH_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF BATCH_T"/></type>
             </variable>
             <variable name="g_program">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="TREATMENT_PROGRAM_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T"/></type>
             </variable>
             <variable name="g_avoid_status">
               <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF INT"/></type>
@@ -2169,7 +2109,7 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
 END_FOR;
 
 (* --- Clear all units --- *)
-FOR i := 1 TO 10 DO
+FOR i := 1 TO MAX_UNITS DO
   g_unit[i].location := 0;
   g_unit[i].status   := 0;
   g_unit[i].state    := 0;
@@ -2177,7 +2117,7 @@ FOR i := 1 TO 10 DO
 END_FOR;
 
 (* --- Clear all batches --- *)
-FOR i := 1 TO 10 DO
+FOR i := 1 TO MAX_UNITS DO
   g_batch[i].batch_code := 0;
   g_batch[i].state      := 0;
   g_batch[i].prog_id    := 0;
@@ -2185,7 +2125,7 @@ FOR i := 1 TO 10 DO
 END_FOR;
 
 (* --- Clear all treatment programs --- *)
-FOR i := 1 TO 10 DO
+FOR i := 1 TO MAX_UNITS DO
   g_program[i].program_id := 0;
   FOR j := 1 TO 30 DO
     FOR k := 1 TO 5 DO
@@ -3452,7 +3392,7 @@ END_IF;]]></xhtml:p>
           <ST>
             <xhtml:p><![CDATA[FOR ti := 1 TO MAX_TRANSPORTERS DO
   g_task[ti].count := 0;
-  FOR qi := 1 TO 10 DO
+  FOR qi := 1 TO MAX_UNITS DO
     g_task[ti].queue[qi].unit         := 0;
     g_task[ti].queue[qi].stage        := 0;
     g_task[ti].queue[qi].lift_station := 0;
@@ -3476,12 +3416,7 @@ END_FOR;]]></xhtml:p>
           </inputVars>
           <outputVars>
             <variable name="o_list">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><INT/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF INT"/></type>
             </variable>
             <variable name="o_count">
               <type><INT/></type>
@@ -3489,20 +3424,10 @@ END_FOR;]]></xhtml:p>
           </outputVars>
           <externalVars>
             <variable name="g_batch">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="BATCH_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF BATCH_T"/></type>
             </variable>
             <variable name="g_unit">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="UNIT_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF UNIT_T"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -3514,11 +3439,11 @@ END_FOR;]]></xhtml:p>
         <body>
           <ST>
             <xhtml:p><![CDATA[o_count := 0;
-FOR ui := 1 TO 10 DO
+FOR ui := 1 TO MAX_UNITS DO
   o_list[ui] := 0;
 END_FOR;
 
-FOR ui := 1 TO 10 DO
+FOR ui := 1 TO MAX_UNITS DO
   IF g_batch[ui].state = 1 THEN
     IF i_mode = 0 THEN
       (* All active batches *)
@@ -3954,12 +3879,7 @@ END_IF;]]></xhtml:p>
           </inputVars>
           <externalVars>
             <variable name="g_schedule">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T"/></type>
             </variable>
             <variable name="g_task">
               <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
@@ -3982,7 +3902,7 @@ END_IF;]]></xhtml:p>
         </interface>
         <body>
           <ST>
-            <xhtml:p><![CDATA[IF i_unit < 1 OR i_unit > 10 THEN RETURN; END_IF;
+            <xhtml:p><![CDATA[IF i_unit < 1 OR i_unit > MAX_UNITS THEN RETURN; END_IF;
 IF ABS(i_amount) < 0.001 THEN RETURN; END_IF;
 
 (* ── Shift schedule stages entry/exit times ── *)
@@ -4424,39 +4344,19 @@ checked_count := chk_cnt;]]></xhtml:p>
           </inputVars>
           <externalVars>
             <variable name="g_batch">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="BATCH_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF BATCH_T"/></type>
             </variable>
             <variable name="g_program">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="TREATMENT_PROGRAM_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T"/></type>
             </variable>
             <variable name="g_unit">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="UNIT_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF UNIT_T"/></type>
             </variable>
             <variable name="g_station">
               <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T"/></type>
             </variable>
             <variable name="g_schedule">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T"/></type>
             </variable>
             <variable name="g_station_count">
               <type><INT/></type>
@@ -4528,8 +4428,8 @@ checked_count := chk_cnt;]]></xhtml:p>
         <body>
           <ST>
             <xhtml:p><![CDATA[(* -- Validate inputs -- *)
-IF i_unit < 1 OR i_unit > 10 THEN RETURN; END_IF;
-IF i_trans < 1 OR i_trans > 3 THEN RETURN; END_IF;
+IF i_unit < 1 OR i_unit > MAX_UNITS THEN RETURN; END_IF;
+IF i_trans < 1 OR i_trans > MAX_TRANSPORTERS THEN RETURN; END_IF;
 
 (* -- Read batch and unit data -- *)
 cur_stage := g_batch[i_unit].cur_stage;
@@ -4666,20 +4566,10 @@ g_schedule[i_unit].stage_count := out_count;]]></xhtml:p>
           </inputVars>
           <externalVars>
             <variable name="g_batch">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="BATCH_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF BATCH_T"/></type>
             </variable>
             <variable name="g_schedule">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T"/></type>
             </variable>
             <variable name="g_task">
               <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
@@ -4720,7 +4610,7 @@ g_schedule[i_unit].stage_count := out_count;]]></xhtml:p>
         </interface>
         <body>
           <ST>
-            <xhtml:p><![CDATA[IF i_unit < 1 OR i_unit > 10 THEN RETURN; END_IF;
+            <xhtml:p><![CDATA[IF i_unit < 1 OR i_unit > MAX_UNITS THEN RETURN; END_IF;
 
 sc := g_schedule[i_unit].stage_count;
 IF sc < 2 THEN RETURN; END_IF;
@@ -4750,7 +4640,7 @@ FOR si := 1 TO sc - 1 DO
       (* -- Append task to transporter queue -- *)
       IF tid >= 1 AND tid <= 3 THEN
         qi := g_task[tid].count + 1;
-        IF qi <= 10 THEN
+        IF qi <= MAX_UNITS THEN
           g_task[tid].queue[qi].unit         := i_unit;
           g_task[tid].queue[qi].stage        := stg_num;
           g_task[tid].queue[qi].lift_station := lift_stn;
@@ -4778,12 +4668,7 @@ END_FOR;]]></xhtml:p>
           </inputVars>
           <externalVars>
             <variable name="g_unit">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="UNIT_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF UNIT_T"/></type>
             </variable>
             <variable name="g_transporter">
               <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
@@ -4854,7 +4739,7 @@ END_FOR;]]></xhtml:p>
         </interface>
         <body>
           <ST>
-            <xhtml:p><![CDATA[FOR ui := 1 TO 10 DO
+            <xhtml:p><![CDATA[FOR ui := 1 TO MAX_UNITS DO
   tgt := g_unit[ui].target;
   loc := g_unit[ui].location;
 
@@ -4878,7 +4763,7 @@ END_FOR;]]></xhtml:p>
                 IF dest_stn = 0 AND si <> loc AND si >= STATION_ARRAY_START AND si <= STATION_ARRAY_END THEN
                   (* Check station is free: no unit there *)
                   stn_free := TRUE;
-                  FOR qi := 1 TO 10 DO
+                  FOR qi := 1 TO MAX_UNITS DO
                     IF g_unit[qi].location = si AND g_unit[qi].status = 1 THEN
                       stn_free := FALSE;
                     END_IF;
@@ -4902,7 +4787,7 @@ END_FOR;]]></xhtml:p>
 
           (* Append to queue *)
           qi := g_task[cov_t].count + 1;
-          IF qi <= 10 THEN
+          IF qi <= MAX_UNITS THEN
             g_task[cov_t].queue[qi].unit         := ui;
             g_task[cov_t].queue[qi].stage        := 0;  (* no program stage *)
             g_task[cov_t].queue[qi].lift_station := loc;
@@ -4961,20 +4846,10 @@ END_FOR;]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
             <variable name="g_schedule">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T"/></type>
             </variable>
             <variable name="g_batch">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="BATCH_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF BATCH_T"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -5055,7 +4930,7 @@ END_IF;
 
 (* Find flex_down for blocked stage in schedule *)
 prev_flex := 0.0;
-IF i_blocked_unit >= 1 AND i_blocked_unit <= 10 THEN
+IF i_blocked_unit >= 1 AND i_blocked_unit <= MAX_UNITS THEN
   sc := g_schedule[i_blocked_unit].stage_count;
   FOR si := 1 TO sc DO
     IF si = i_blocked_stage THEN
@@ -5097,7 +4972,7 @@ END_IF;
 (* ══════ Phase 2: DELAY next batch conflict stage (conf_unit, conf_stage) ══════ *)
 (* Increase treatment time toward max_time = flex_up *)
 next_flex := 0.0;
-IF i_conf_unit >= 1 AND i_conf_unit <= 10 AND i_conf_stage >= 1 AND i_conf_stage <= 30 THEN
+IF i_conf_unit >= 1 AND i_conf_unit <= MAX_UNITS AND i_conf_stage >= 1 AND i_conf_stage <= 30 THEN
   next_flex := g_schedule[i_conf_unit].stages[i_conf_stage].max_time
              - g_schedule[i_conf_unit].stages[i_conf_stage].calc_time;
   IF next_flex < 0.0 THEN next_flex := 0.0; END_IF;
@@ -5131,7 +5006,7 @@ END_IF;
 (* ══════ Phase 3: DELAY next batch previous stage (conf_stage - 1) ══════ *)
 IF i_conf_stage > 1 THEN
   prev_stage_flex := 0.0;
-  IF i_conf_unit >= 1 AND i_conf_unit <= 10 AND (i_conf_stage - 1) >= 1 THEN
+  IF i_conf_unit >= 1 AND i_conf_unit <= MAX_UNITS AND (i_conf_stage - 1) >= 1 THEN
     prev_stage_flex := g_schedule[i_conf_unit].stages[i_conf_stage - 1].max_time
                      - g_schedule[i_conf_unit].stages[i_conf_stage - 1].calc_time;
     IF prev_stage_flex < 0.0 THEN prev_stage_flex := 0.0; END_IF;
@@ -5166,7 +5041,7 @@ END_IF;
 (* ══════ Phase 4: DELAY prev past next (forced reorder) ══════ *)
 (* Delay blocked_unit's stage to push it past conflict *)
 prev_flex := 0.0;
-IF i_blocked_unit >= 1 AND i_blocked_unit <= 10 AND i_blocked_stage >= 1 AND i_blocked_stage <= 30 THEN
+IF i_blocked_unit >= 1 AND i_blocked_unit <= MAX_UNITS AND i_blocked_stage >= 1 AND i_blocked_stage <= 30 THEN
   prev_flex := g_schedule[i_blocked_unit].stages[i_blocked_stage].max_time
              - g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time;
   IF prev_flex < 0.0 THEN prev_flex := 0.0; END_IF;
@@ -5228,39 +5103,19 @@ END_IF;
           </outputVars>
           <externalVars>
             <variable name="g_batch">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="BATCH_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF BATCH_T"/></type>
             </variable>
             <variable name="g_unit">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="UNIT_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF UNIT_T"/></type>
             </variable>
             <variable name="g_program">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="TREATMENT_PROGRAM_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T"/></type>
             </variable>
             <variable name="g_task">
               <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
             <variable name="g_schedule">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T"/></type>
             </variable>
             <variable name="g_dep_pending">
               <type><derived name="DEP_PENDING_WRITE_T"/></type>
@@ -5278,12 +5133,7 @@ END_IF;
               <type><INT/></type>
             </variable>
             <variable name="batch_list">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><INT/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF INT"/></type>
             </variable>
             <variable name="batch_count">
               <type><INT/></type>
@@ -5392,9 +5242,9 @@ ELSIF phase = 1000 THEN
   next_phase := 1001;
 
 (* ══════════════════════════════════════════════════════════════ *)
-(* PHASE 1001..1010: SCHEDULE per batch (one per tick)          *)
+(* PHASE 1001..1000+MAX_UNITS: SCHEDULE per batch (one per tick) *)
 (* ══════════════════════════════════════════════════════════════ *)
-ELSIF phase >= 1001 AND phase <= 1010 THEN
+ELSIF phase >= 1001 AND phase <= 1000 + MAX_UNITS THEN
   IF batch_idx <= batch_count THEN
     ui := batch_list[batch_idx];
 
@@ -5430,9 +5280,9 @@ ELSIF phase = 2000 THEN
   next_phase := 2001;
 
 (* ══════════════════════════════════════════════════════════════ *)
-(* PHASE 2001..2010: CREATE_TASKS per batch (one per tick)      *)
+(* PHASE 2001..2000+MAX_UNITS: CREATE_TASKS per batch (one per tick) *)
 (* ══════════════════════════════════════════════════════════════ *)
-ELSIF phase >= 2001 AND phase <= 2010 THEN
+ELSIF phase >= 2001 AND phase <= 2000 + MAX_UNITS THEN
   IF batch_idx <= batch_count THEN
     ui := batch_list[batch_idx];
     fb_create(i_unit := ui);
@@ -5524,10 +5374,10 @@ ELSIF phase = 10000 THEN
 ELSIF phase = 10100 THEN
   IF g_dep_pending.valid THEN
     (* Apply DEP’s pending data: programs + stage change *)
-    FOR ui := 1 TO 10 DO
+    FOR ui := 1 TO MAX_UNITS DO
       g_program[ui] := g_dep_pending.programs[ui];
     END_FOR;
-    IF g_dep_pending.batch_unit >= 1 AND g_dep_pending.batch_unit <= 10 THEN
+    IF g_dep_pending.batch_unit >= 1 AND g_dep_pending.batch_unit <= MAX_UNITS THEN
       g_batch[g_dep_pending.batch_unit].cur_stage := g_dep_pending.batch_stage;
     END_IF;
     g_dep_pending.valid := FALSE;
@@ -6281,12 +6131,7 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="g_unit">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="UNIT_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF UNIT_T"/></type>
             </variable>
             <variable name="qw_u1_loc">
               <type><INT/></type>
@@ -6460,20 +6305,10 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="g_batch">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="BATCH_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF BATCH_T"/></type>
             </variable>
             <variable name="g_program">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="TREATMENT_PROGRAM_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T"/></type>
             </variable>
             <variable name="g_avoid_status">
               <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF INT"/></type>
@@ -6542,12 +6377,7 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="g_schedule">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T"/></type>
             </variable>
             <variable name="g_task">
               <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
@@ -6910,7 +6740,7 @@ END_IF;  (* init_done *)
    ============================================================ *)
 IF iw_unit_seq <> last_unit_seq THEN
   last_unit_seq := iw_unit_seq;
-  IF (iw_unit_id >= 1) AND (iw_unit_id <= 10) THEN
+  IF (iw_unit_id >= 1) AND (iw_unit_id <= MAX_UNITS) THEN
     g_unit[iw_unit_id].location := iw_unit_loc;
     g_unit[iw_unit_id].status   := iw_unit_status;
     g_unit[iw_unit_id].state    := iw_unit_state;
@@ -6925,7 +6755,7 @@ END_IF;
    ============================================================ *)
 IF iw_batch_seq <> last_batch_seq THEN
   last_batch_seq := iw_batch_seq;
-  IF (iw_batch_unit >= 1) AND (iw_batch_unit <= 10) THEN
+  IF (iw_batch_unit >= 1) AND (iw_batch_unit <= MAX_UNITS) THEN
     g_batch[iw_batch_unit].batch_code := iw_batch_code;
     g_batch[iw_batch_unit].state      := iw_batch_state;
     g_batch[iw_batch_unit].prog_id    := iw_batch_prog_id;
@@ -6949,7 +6779,7 @@ END_IF;
    ============================================================ *)
 IF iw_prog_seq <> last_prog_seq THEN
   last_prog_seq := iw_prog_seq;
-  IF (iw_prog_unit >= 1) AND (iw_prog_unit <= 10) AND
+  IF (iw_prog_unit >= 1) AND (iw_prog_unit <= MAX_UNITS) AND
      (iw_prog_stage >= 1) AND (iw_prog_stage <= 30) THEN
     g_program[iw_prog_unit].stages[iw_prog_stage].stations[1] := iw_prog_s1;
     g_program[iw_prog_unit].stages[iw_prog_stage].stations[2] := iw_prog_s2;
@@ -7239,28 +7069,13 @@ qw_cal_t3_x_max    := REAL_TO_INT(g_cal[3].x_max_mm_s);]]></xhtml:p>
             <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
           </variable>
           <variable name="g_unit">
-            <type>
-              <array>
-                <dimension lower="1" upper="10"/>
-                <baseType><derived name="UNIT_T"/></baseType>
-              </array>
-            </type>
+            <type><derived name="ARRAY[1..MAX_UNITS] OF UNIT_T"/></type>
           </variable>
           <variable name="g_batch">
-            <type>
-              <array>
-                <dimension lower="1" upper="10"/>
-                <baseType><derived name="BATCH_T"/></baseType>
-              </array>
-            </type>
+            <type><derived name="ARRAY[1..MAX_UNITS] OF BATCH_T"/></type>
           </variable>
           <variable name="g_program">
-            <type>
-              <array>
-                <dimension lower="1" upper="10"/>
-                <baseType><derived name="TREATMENT_PROGRAM_T"/></baseType>
-              </array>
-            </type>
+            <type><derived name="ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T"/></type>
           </variable>
           <variable name="g_avoid_status">
             <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF INT"/></type>
@@ -7269,12 +7084,7 @@ qw_cal_t3_x_max    := REAL_TO_INT(g_cal[3].x_max_mm_s);]]></xhtml:p>
             <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T"/></type>
           </variable>
           <variable name="g_schedule">
-            <type>
-              <array>
-                <dimension lower="1" upper="10"/>
-                <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
-              </array>
-            </type>
+            <type><derived name="ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T"/></type>
           </variable>
           <variable name="g_task">
             <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>

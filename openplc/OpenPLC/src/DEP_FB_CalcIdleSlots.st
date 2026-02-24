@@ -20,6 +20,7 @@ VAR_INPUT
 END_VAR
 VAR_EXTERNAL CONSTANT
     MAX_TRANSPORTERS : INT;
+    MAX_UNITS        : INT;
 END_VAR
 
 VAR_EXTERNAL
@@ -50,7 +51,7 @@ cnt := g_task[i_trans].count;
 prev_end  := i_time_s;
 prev_sink := 0;
 
-FOR qi := 1 TO 10 DO
+FOR qi := 1 TO MAX_UNITS DO
   IF qi > cnt THEN
     EXIT;
   END_IF;

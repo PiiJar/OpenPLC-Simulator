@@ -22,10 +22,11 @@ VAR_EXTERNAL CONSTANT
     MAX_TRANSPORTERS    : INT;
     STATION_ARRAY_START : INT;
     STATION_ARRAY_END   : INT;
+    MAX_UNITS           : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_unit    : ARRAY[1..10] OF UNIT_T;
+  g_unit    : ARRAY[1..MAX_UNITS] OF UNIT_T;
   g_transporter : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
   g_cfg      : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
   g_task    : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
@@ -54,7 +55,7 @@ VAR
   fb_xfer  : STC_FB_CalcTransferTime;
 END_VAR
 
-FOR ui := 1 TO 10 DO
+FOR ui := 1 TO MAX_UNITS DO
   tgt := g_unit[ui].target;
   loc := g_unit[ui].location;
 
@@ -78,7 +79,7 @@ FOR ui := 1 TO 10 DO
                 IF dest_stn = 0 AND si <> loc AND si >= STATION_ARRAY_START AND si <= STATION_ARRAY_END THEN
                   (* Check station is free: no unit there *)
                   stn_free := TRUE;
-                  FOR qi := 1 TO 10 DO
+                  FOR qi := 1 TO MAX_UNITS DO
                     IF g_unit[qi].location = si AND g_unit[qi].status = 1 THEN
                       stn_free := FALSE;
                     END_IF;
@@ -102,7 +103,7 @@ FOR ui := 1 TO 10 DO
 
           (* Append to queue *)
           qi := g_task[cov_t].count + 1;
-          IF qi <= 10 THEN
+          IF qi <= MAX_UNITS THEN
             g_task[cov_t].queue[qi].unit         := ui;
             g_task[cov_t].queue[qi].stage        := 0;  (* no program stage *)
             g_task[cov_t].queue[qi].lift_station := loc;

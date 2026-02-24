@@ -61,12 +61,12 @@ VAR_GLOBAL
   g_station         : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
   g_cfg              : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
   g_transporter      : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
-  g_unit            : ARRAY[1..10] OF UNIT_T;
-  g_batch          : ARRAY[1..10] OF BATCH_T;
-  g_program         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
+  g_unit            : ARRAY[1..MAX_UNITS] OF UNIT_T;
+  g_batch          : ARRAY[1..MAX_UNITS] OF BATCH_T;
+  g_program         : ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T;
   g_avoid_status     : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF INT;  (* AVOID_NONE/PASS/BLOCK per station *)
   g_move             : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;  (* precomputed movement times per transporter *)
-  g_schedule         : ARRAY[1..10] OF TSK_SCHEDULE_T;  (* calculated schedule per unit *)
+  g_schedule         : ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T;  (* calculated schedule per unit *)
   g_task            : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;       (* task queue per transporter *)
   (* --- Departure Scheduler state --- *)
   g_dep_sandbox       : DEP_SANDBOX_T;                    (* sandbox: isolated copy for planning *)

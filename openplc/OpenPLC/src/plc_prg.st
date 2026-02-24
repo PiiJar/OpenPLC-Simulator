@@ -7,6 +7,7 @@ VAR_EXTERNAL CONSTANT
     MAX_TRANSPORTERS    : INT;
     STATION_ARRAY_START : INT;
     STATION_ARRAY_END   : INT;
+    MAX_UNITS           : INT;
 END_VAR
 
 VAR_EXTERNAL
@@ -58,7 +59,7 @@ VAR_EXTERNAL
   iw_cfg_d6      : INT;
   qw_cfg_ack     : INT;
   (* Units array *)
-  g_unit        : ARRAY[1..10] OF UNIT_T;
+  g_unit        : ARRAY[1..MAX_UNITS] OF UNIT_T;
   (* Modbus output: units QW22..QW61 *)
   qw_u1_loc  : INT;
   qw_u1_status  : INT;
@@ -120,8 +121,8 @@ VAR_EXTERNAL
   iw_unit_state  : INT;
   iw_unit_target : INT;
   (* Batch and program arrays *)
-  g_batch      : ARRAY[1..10] OF BATCH_T;
-  g_program     : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
+  g_batch      : ARRAY[1..MAX_UNITS] OF BATCH_T;
+  g_program     : ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T;
   g_avoid_status : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF INT;
   (* Modbus input: batch write protocol *)
   iw_batch_seq     : INT;
@@ -148,7 +149,7 @@ VAR_EXTERNAL
   iw_time_hi  : INT;
   iw_time_lo  : INT;
   (* Task scheduler globals *)
-  g_schedule  : ARRAY[1..10] OF TSK_SCHEDULE_T;
+  g_schedule  : ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T;
   g_task     : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
   (* Calibration *)
   g_cal       : ARRAY[1..MAX_TRANSPORTERS] OF CALIBRATION_T;
@@ -403,7 +404,7 @@ END_IF;  (* init_done *)
    ============================================================ *)
 IF iw_unit_seq <> last_unit_seq THEN
   last_unit_seq := iw_unit_seq;
-  IF (iw_unit_id >= 1) AND (iw_unit_id <= 10) THEN
+  IF (iw_unit_id >= 1) AND (iw_unit_id <= MAX_UNITS) THEN
     g_unit[iw_unit_id].location := iw_unit_loc;
     g_unit[iw_unit_id].status   := iw_unit_status;
     g_unit[iw_unit_id].state    := iw_unit_state;
@@ -418,7 +419,7 @@ END_IF;
    ============================================================ *)
 IF iw_batch_seq <> last_batch_seq THEN
   last_batch_seq := iw_batch_seq;
-  IF (iw_batch_unit >= 1) AND (iw_batch_unit <= 10) THEN
+  IF (iw_batch_unit >= 1) AND (iw_batch_unit <= MAX_UNITS) THEN
     g_batch[iw_batch_unit].batch_code := iw_batch_code;
     g_batch[iw_batch_unit].state      := iw_batch_state;
     g_batch[iw_batch_unit].prog_id    := iw_batch_prog_id;
@@ -442,7 +443,7 @@ END_IF;
    ============================================================ *)
 IF iw_prog_seq <> last_prog_seq THEN
   last_prog_seq := iw_prog_seq;
-  IF (iw_prog_unit >= 1) AND (iw_prog_unit <= 10) AND
+  IF (iw_prog_unit >= 1) AND (iw_prog_unit <= MAX_UNITS) AND
      (iw_prog_stage >= 1) AND (iw_prog_stage <= 30) THEN
     g_program[iw_prog_unit].stages[iw_prog_stage].stations[1] := iw_prog_s1;
     g_program[iw_prog_unit].stages[iw_prog_stage].stations[2] := iw_prog_s2;

@@ -19,11 +19,12 @@ VAR_INPUT
 END_VAR
 VAR_EXTERNAL CONSTANT
     MAX_TRANSPORTERS : INT;
+    MAX_UNITS        : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_batch  : ARRAY[1..10] OF BATCH_T;
-  g_schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
+  g_batch  : ARRAY[1..MAX_UNITS] OF BATCH_T;
+  g_schedule : ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T;
   g_task    : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
 END_VAR
 VAR
@@ -39,7 +40,7 @@ VAR
   fb_find    : STC_FB_FindTransporter;  (* shared transporter finder *)
 END_VAR
 
-IF i_unit < 1 OR i_unit > 10 THEN RETURN; END_IF;
+IF i_unit < 1 OR i_unit > MAX_UNITS THEN RETURN; END_IF;
 
 sc := g_schedule[i_unit].stage_count;
 IF sc < 2 THEN RETURN; END_IF;
@@ -69,7 +70,7 @@ FOR si := 1 TO sc - 1 DO
       (* -- Append task to transporter queue -- *)
       IF tid >= 1 AND tid <= 3 THEN
         qi := g_task[tid].count + 1;
-        IF qi <= 10 THEN
+        IF qi <= MAX_UNITS THEN
           g_task[tid].queue[qi].unit         := i_unit;
           g_task[tid].queue[qi].stage        := stg_num;
           g_task[tid].queue[qi].lift_station := lift_stn;
