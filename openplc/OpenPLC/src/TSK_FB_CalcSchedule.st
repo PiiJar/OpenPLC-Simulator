@@ -20,11 +20,15 @@ VAR_INPUT
   i_trans    : INT;     (* transporter index 1..3 for move times *)
   i_time_s   : LINT;    (* current absolute time (s), unix seconds *)
 END_VAR
+VAR_EXTERNAL CONSTANT
+    STATION_ARRAY_START : INT;
+    STATION_ARRAY_END   : INT;
+END_VAR
 VAR_EXTERNAL
   g_batch  : ARRAY[1..10] OF BATCH_T;
   g_program : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
   g_unit    : ARRAY[1..10] OF UNIT_T;
-  g_station : ARRAY[101..125] OF STATION_T;
+  g_station : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
   g_schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
   g_station_count : INT;
 END_VAR

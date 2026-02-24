@@ -19,14 +19,14 @@ VAR_INPUT
   i_cmd : INT;     (* 1=SNAPSHOT, 2=RESTORE, 3=CLEAR *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    TRANSPORTERS : INT;
+    MAX_TRANSPORTERS : INT;
 END_VAR
 
 VAR_EXTERNAL
   g_schedule    : ARRAY[1..10] OF TSK_SCHEDULE_T;
   g_batch     : ARRAY[1..10] OF BATCH_T;
   g_program    : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
-  g_task       : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
+  g_task       : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
   g_dep_sandbox : DEP_SANDBOX_T;
 END_VAR
 VAR
@@ -41,7 +41,7 @@ IF i_cmd = 1 THEN
     g_dep_sandbox.batches[ui]  := g_batch[ui];
     g_dep_sandbox.programs[ui] := g_program[ui];
   END_FOR;
-  FOR ti := 1 TO TRANSPORTERS DO
+  FOR ti := 1 TO MAX_TRANSPORTERS DO
     g_dep_sandbox.tasks[ti] := g_task[ti];
   END_FOR;
   g_dep_sandbox.valid := TRUE;
@@ -54,7 +54,7 @@ ELSIF i_cmd = 2 THEN
       g_batch[ui]  := g_dep_sandbox.batches[ui];
       g_program[ui] := g_dep_sandbox.programs[ui];
     END_FOR;
-    FOR ti := 1 TO TRANSPORTERS DO
+    FOR ti := 1 TO MAX_TRANSPORTERS DO
       g_task[ti] := g_dep_sandbox.tasks[ti];
     END_FOR;
   END_IF;

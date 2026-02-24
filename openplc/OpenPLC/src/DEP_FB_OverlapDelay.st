@@ -26,11 +26,13 @@ VAR_OUTPUT
   o_delay_s : REAL;       (* total delay needed (s), 0 = no conflict *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    TRANSPORTERS : INT;
+    MAX_TRANSPORTERS    : INT;
+    STATION_ARRAY_START : INT;
+    STATION_ARRAY_END   : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_task       : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
+  g_task       : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
   g_dep_overlap : DEP_OVERLAP_T;
 END_VAR
 VAR
@@ -53,12 +55,12 @@ END_VAR
 o_delay_s := 0.0;
 
 (* Check if lift/sink are in overlap zone *)
-IF i_lift_stn >= 101 AND i_lift_stn <= 125 THEN
+IF i_lift_stn >= STATION_ARRAY_START AND i_lift_stn <= STATION_ARRAY_END THEN
   lift_is_overlap := g_dep_overlap.flags[i_lift_stn];
 ELSE
   lift_is_overlap := FALSE;
 END_IF;
-IF i_sink_stn >= 101 AND i_sink_stn <= 125 THEN
+IF i_sink_stn >= STATION_ARRAY_START AND i_sink_stn <= STATION_ARRAY_END THEN
   sink_is_overlap := g_dep_overlap.flags[i_sink_stn];
 ELSE
   sink_is_overlap := FALSE;
@@ -76,7 +78,7 @@ FOR round := 1 TO 20 DO
   t_end    := i_task_end + REAL_TO_LINT(o_delay_s);
 
   (* Check all tasks on OTHER transporters *)
-  FOR ti := 1 TO TRANSPORTERS DO
+  FOR ti := 1 TO MAX_TRANSPORTERS DO
     IF ti <> i_trans_id THEN
       FOR qi := 1 TO 10 DO
         IF qi > g_task[ti].count THEN

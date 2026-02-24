@@ -208,6 +208,98 @@ CONFIGURATION Config0
 END_CONFIGURATION
 ```
 
+### ✅ Toimii: Vakiot array-rajoissa (`-a`-lippu)
+
+Matiec tukee vakioiden käyttöä taulukon rajoissa kun käytetään `-a`-lippua:
+
+```iecst
+CONFIGURATION Config0
+  VAR_GLOBAL CONSTANT
+    TRANSPORTERS : INT := 3;
+  END_VAR
+  VAR_GLOBAL
+    g_cfg : ARRAY[1..TRANSPORTERS] OF CFG_T;
+  END_VAR
+  ...
+END_CONFIGURATION
+```
+
+FB/PROGRAM-tasolla vakio tuodaan `VAR_EXTERNAL CONSTANT` -lohkolla:
+
+```iecst
+FUNCTION_BLOCK FB_Example
+  VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+  END_VAR
+  VAR_EXTERNAL
+    g_cfg : ARRAY[1..TRANSPORTERS] OF CFG_T;
+  END_VAR
+  VAR
+    i : INT;
+  END_VAR
+
+  FOR i := 1 TO TRANSPORTERS DO
+    (* ... *)
+  END_FOR;
+END_FUNCTION_BLOCK
+```
+
+> **KRIITTINEN:** Kääntäjälippu `-a` on pakollinen. OpenPLC:n
+> `compile_program.sh` käyttää sitä oletuksena (rivi 20).
+
+### ⚠️ VAROITUS: VAR_EXTERNAL CONSTANT -järjestys
+
+`VAR_EXTERNAL CONSTANT` -lohkon **PITÄÄ** tulla **ENNEN** `VAR_EXTERNAL`
+-lohkoa samassa POU:ssa. Jos järjestys on väärä, matiec ei pysty
+resolvaamaan vakion arvoa array-rajoissa ja antaa virheen
+"Subrange upper limit is not a constant value".
+
+```iecst
+(* ✅ TOIMII: CONSTANT ensin *)
+FUNCTION_BLOCK FB_OK
+  VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+  END_VAR
+  VAR_EXTERNAL
+    g_cfg : ARRAY[1..TRANSPORTERS] OF CFG_T;
+  END_VAR
+END_FUNCTION_BLOCK
+
+(* ❌ EI TOIMI: CONSTANT jälkeen *)
+FUNCTION_BLOCK FB_Fail
+  VAR_EXTERNAL
+    g_cfg : ARRAY[1..TRANSPORTERS] OF CFG_T;  (* VIRHE! *)
+  END_VAR
+  VAR_EXTERNAL CONSTANT
+    TRANSPORTERS : INT;
+  END_VAR
+END_FUNCTION_BLOCK
+```
+
+### ❌ EI TOIMI: Vakio TYPE-lohkon array-rajoissa
+
+TYPE-lohkot parsitaan ennen CONFIGURATION-lohkon vakioita, joten
+vakioita ei voi käyttää struct-kenttien array-rajoissa:
+
+```iecst
+(* VIRHE: segfault kääntäjässä *)
+TYPE
+  MY_T : STRUCT
+    items : ARRAY[1..TRANSPORTERS] OF ITEM_T;  (* EI TOIMI *)
+  END_STRUCT;
+END_TYPE
+```
+
+**Kiertotapa:** Käytä literaaliarvoa TYPE-lohkossa:
+
+```iecst
+TYPE
+  MY_T : STRUCT
+    items : ARRAY[1..3] OF ITEM_T;  (* literaali — TYPE ei tue vakioita *)
+  END_STRUCT;
+END_TYPE
+```
+
 ### ❌ EI TOIMI: Globaalin käyttö ilman VAR_EXTERNAL
 
 ```iecst
@@ -714,3 +806,6 @@ END_CONFIGURATION
 | 7 | Tyhjä `VAR_INPUT END_VAR` ei sallittu | Poista tyhjä lohko kokonaan |
 | 8 | `VAR_GLOBAL` erillään flat .st:ssä | Siirrä `CONFIGURATION`-osion sisään |
 | 9 | `%IW` read-only Modbus-masterilta | Käytä `%QW` jos gateway kirjoittaa |
+| 10 | Vakio array-rajoissa vaatii `-a`-lipun | OpenPLC käyttää oletuksena |
+| 11 | `VAR_EXTERNAL CONSTANT` pitää olla ennen `VAR_EXTERNAL` | Järjestys ratkaisee |
+| 12 | TYPE-lohko ei tue vakioita array-rajoissa | Käytä literaaliarvoa TYPE:ssä |

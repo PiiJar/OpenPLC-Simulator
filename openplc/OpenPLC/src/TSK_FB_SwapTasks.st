@@ -12,11 +12,11 @@
 
 FUNCTION_BLOCK TSK_FB_SwapTasks
 VAR_EXTERNAL CONSTANT
-    TRANSPORTERS : INT;
+    MAX_TRANSPORTERS : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_task : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
+  g_task : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
 END_VAR
 VAR_OUTPUT
   o_swap_count : INT;   (* number of swaps performed *)
@@ -30,7 +30,7 @@ END_VAR
 
 o_swap_count := 0;
 
-FOR ti := 1 TO TRANSPORTERS DO
+FOR ti := 1 TO MAX_TRANSPORTERS DO
   cnt := g_task[ti].count;
   IF cnt >= 2 THEN
     FOR qi := 1 TO cnt - 1 DO

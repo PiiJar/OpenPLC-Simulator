@@ -21,14 +21,16 @@ VAR_INPUT
   i_run : BOOL;       (* enable — typically init_done *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    TRANSPORTERS : INT;
+    MAX_TRANSPORTERS    : INT;
+    STATION_ARRAY_START : INT;
+    STATION_ARRAY_END   : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_transporter  : ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T;
-  g_station     : ARRAY[101..125] OF STATION_T;
-  g_cfg          : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
-  g_move         : ARRAY[1..TRANSPORTERS] OF MOVE_TIMES_T;
+  g_transporter  : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
+  g_station     : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
+  g_cfg          : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
+  g_move         : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
 END_VAR
 VAR
   i            : INT;
@@ -68,7 +70,7 @@ IF NOT i_run THEN
   RETURN;
 END_IF;
 
-FOR i := 1 TO TRANSPORTERS DO
+FOR i := 1 TO MAX_TRANSPORTERS DO
   IF g_transporter[i].active THEN
 
   (* ── Phase 0 → 1: Accept new task ───────────────────────── *)
@@ -380,7 +382,7 @@ FOR i := 1 TO TRANSPORTERS DO
   (* ── Nearest station tracking ──────────────────────────── *)
   min_dist := 1.0e9;
   nearest_num := g_transporter[i].current_station;
-  FOR idx := 101 TO 125 DO
+  FOR idx := STATION_ARRAY_START TO STATION_ARRAY_END DO
     IF g_station[idx].tank_id <> 0 THEN
       dx := g_station[idx].x_position - g_transporter[i].x_mm;
       IF ABS(dx) < min_dist THEN

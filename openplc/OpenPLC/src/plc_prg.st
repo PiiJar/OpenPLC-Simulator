@@ -4,14 +4,16 @@
 
 PROGRAM PLC_PRG
 VAR_EXTERNAL CONSTANT
-    TRANSPORTERS : INT;
+    MAX_TRANSPORTERS    : INT;
+    STATION_ARRAY_START : INT;
+    STATION_ARRAY_END   : INT;
 END_VAR
 
 VAR_EXTERNAL
   g_station_count    : INT;
-  g_station         : ARRAY[101..125] OF STATION_T;
-  g_cfg              : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
-  g_transporter      : ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T;
+  g_station         : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
+  g_cfg              : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
+  g_transporter      : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
   (* Modbus output: transporter 1 *)
   qw_t1_x_mm    : INT;
   qw_t1_z_mm    : INT;
@@ -120,7 +122,7 @@ VAR_EXTERNAL
   (* Batch and program arrays *)
   g_batch      : ARRAY[1..10] OF BATCH_T;
   g_program     : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
-  g_avoid_status : ARRAY[101..125] OF INT;
+  g_avoid_status : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF INT;
   (* Modbus input: batch write protocol *)
   iw_batch_seq     : INT;
   iw_batch_unit    : INT;
@@ -147,9 +149,9 @@ VAR_EXTERNAL
   iw_time_lo  : INT;
   (* Task scheduler globals *)
   g_schedule  : ARRAY[1..10] OF TSK_SCHEDULE_T;
-  g_task     : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
+  g_task     : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
   (* Calibration *)
-  g_cal       : ARRAY[1..TRANSPORTERS] OF CALIBRATION_T;
+  g_cal       : ARRAY[1..MAX_TRANSPORTERS] OF CALIBRATION_T;
   g_cal_active : BOOL;
   (* Calibration output registers *)
   qw_cal_step     : INT;
@@ -221,7 +223,7 @@ IF iw_cfg_seq <> last_cfg_seq THEN
 
   ELSIF iw_cfg_cmd = 1 THEN
     (* --- Write one station to g_station array --- *)
-    IF (iw_cfg_param >= 101) AND (iw_cfg_param <= 125) THEN
+    IF (iw_cfg_param >= STATION_ARRAY_START) AND (iw_cfg_param <= STATION_ARRAY_END) THEN
       g_station[iw_cfg_param].tank_id       := iw_cfg_d0;
       g_station[iw_cfg_param].x_position    := INT_TO_REAL(iw_cfg_d1);
       g_station[iw_cfg_param].y_position    := INT_TO_REAL(iw_cfg_d2);
@@ -312,7 +314,7 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     (* --- Finish init: all config uploaded, init transporter states --- *)
     g_station_count := iw_cfg_param;
 
-    FOR i := 1 TO TRANSPORTERS DO
+    FOR i := 1 TO MAX_TRANSPORTERS DO
       (* Active if task_area[1] has non-zero stations *)
       IF g_cfg[i].task_area[1].min_lift > 0 THEN
         g_transporter[i].active := TRUE;

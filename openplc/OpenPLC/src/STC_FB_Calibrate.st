@@ -49,15 +49,17 @@ VAR_OUTPUT
   o_active : BOOL;    (* calibration in progress *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    TRANSPORTERS : INT;
+    MAX_TRANSPORTERS    : INT;
+    STATION_ARRAY_START : INT;
+    STATION_ARRAY_END   : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_transporter : ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T;
-  g_station    : ARRAY[101..125] OF STATION_T;
-  g_cfg         : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
-  g_cal         : ARRAY[1..TRANSPORTERS] OF CALIBRATION_T;
-  g_move        : ARRAY[1..TRANSPORTERS] OF MOVE_TIMES_T;
+  g_transporter : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
+  g_station    : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
+  g_cfg         : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
+  g_cal         : ARRAY[1..MAX_TRANSPORTERS] OF CALIBRATION_T;
+  g_move        : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
   g_time_s      : LINT;
 END_VAR
 VAR
@@ -97,7 +99,7 @@ END_IF;
 IF i_cmd = 1 AND cal_step = 0 THEN
   (* Start calibration — find first active transporter with plan *)
   tid := 0;
-  FOR ci := 1 TO TRANSPORTERS DO
+  FOR ci := 1 TO MAX_TRANSPORTERS DO
     IF g_transporter[ci].active AND tid = 0 THEN
       IF g_cal[ci].wet_station > 0 AND g_cal[ci].dry_station > 0 THEN
         tid := ci;
@@ -258,7 +260,7 @@ END_IF;
 IF cal_step = 40 THEN
   (* Find next active transporter after current tid with plan *)
   next_tid := 0;
-  FOR ci := tid + 1 TO TRANSPORTERS DO
+  FOR ci := tid + 1 TO MAX_TRANSPORTERS DO
     IF g_transporter[ci].active AND next_tid = 0 THEN
       IF g_cal[ci].wet_station > 0 AND g_cal[ci].dry_station > 0 THEN
         next_tid := ci;
@@ -285,7 +287,7 @@ END_IF;
        measured v_max, t_acc, t_dec and station distances
    ================================================================ *)
 IF cal_step = 200 THEN
-  FOR ci := 1 TO TRANSPORTERS DO
+  FOR ci := 1 TO MAX_TRANSPORTERS DO
     IF g_transporter[ci].active AND g_cal[ci].x_max_mm_s > 0.0 THEN
 
       vm := g_cal[ci].x_max_mm_s;

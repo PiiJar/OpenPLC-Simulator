@@ -19,15 +19,17 @@ VAR_INPUT
   i_time_s : LINT;   (* current absolute time (s), unix seconds *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    TRANSPORTERS : INT;
+    MAX_TRANSPORTERS    : INT;
+    STATION_ARRAY_START : INT;
+    STATION_ARRAY_END   : INT;
 END_VAR
 
 VAR_EXTERNAL
   g_unit    : ARRAY[1..10] OF UNIT_T;
-  g_transporter : ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T;
-  g_cfg      : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
-  g_task    : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
-  g_station : ARRAY[101..125] OF STATION_T;
+  g_transporter : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
+  g_cfg      : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
+  g_task    : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
+  g_station : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
   g_station_count : INT;
 END_VAR
 VAR
@@ -73,7 +75,7 @@ FOR ui := 1 TO 10 DO
             area := g_cfg[cov_t].task_area[ai];
             IF area.min_sink > 0 THEN
               FOR si := area.min_sink TO area.max_sink DO
-                IF dest_stn = 0 AND si <> loc AND si >= 101 AND si <= 125 THEN
+                IF dest_stn = 0 AND si <> loc AND si >= STATION_ARRAY_START AND si <= STATION_ARRAY_END THEN
                   (* Check station is free: no unit there *)
                   stn_free := TRUE;
                   FOR qi := 1 TO 10 DO

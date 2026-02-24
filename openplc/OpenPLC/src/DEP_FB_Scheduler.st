@@ -38,7 +38,7 @@ VAR_INPUT
   i_tsk_phase : INT;      (* TSK_FB_Scheduler.o_phase *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    TRANSPORTERS : INT;
+    MAX_TRANSPORTERS : INT;
 END_VAR
 
 VAR_EXTERNAL
@@ -46,10 +46,10 @@ VAR_EXTERNAL
   g_unit            : ARRAY[1..10] OF UNIT_T;
   g_program         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
   g_schedule         : ARRAY[1..10] OF TSK_SCHEDULE_T;
-  g_task            : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
-  g_cfg              : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
+  g_task            : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
+  g_cfg              : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
   g_dep_sandbox      : DEP_SANDBOX_T;
-  g_dep_idle_slot   : ARRAY[1..TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T;
+  g_dep_idle_slot   : ARRAY[1..MAX_TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T;
   g_dep_overlap      : DEP_OVERLAP_T;
   g_dep_pending      : DEP_PENDING_WRITE_T;
   g_dep_activated    : BOOL;
@@ -264,7 +264,7 @@ ELSIF phase = 1020 THEN
 ELSIF phase = 1030 THEN
   w_task_cnt := 0;
 
-  FOR ti := 1 TO TRANSPORTERS DO
+  FOR ti := 1 TO MAX_TRANSPORTERS DO
     write_idx := 0;
     FOR qi := 1 TO g_task[ti].count DO
       IF g_task[ti].queue[qi].unit = cur_wait_unit THEN
@@ -295,7 +295,7 @@ ELSIF phase = 1030 THEN
 (* PHASE 1040: CALC_IDLE — calc idle slots for all transporters*)
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 1040 THEN
-  FOR ti := 1 TO TRANSPORTERS DO
+  FOR ti := 1 TO MAX_TRANSPORTERS DO
     fb_idle_slots(i_trans := ti, i_time_s := i_time_s);
   END_FOR;
   cur_task_idx := 1;

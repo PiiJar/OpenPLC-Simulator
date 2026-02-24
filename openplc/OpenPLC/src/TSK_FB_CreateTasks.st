@@ -18,13 +18,13 @@ VAR_INPUT
   i_unit : INT;   (* unit index 1..10 *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    TRANSPORTERS : INT;
+    MAX_TRANSPORTERS : INT;
 END_VAR
 
 VAR_EXTERNAL
   g_batch  : ARRAY[1..10] OF BATCH_T;
   g_schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;
-  g_task    : ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T;
+  g_task    : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
 END_VAR
 VAR
   si         : INT;     (* schedule stage index *)

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-24T11:46:58"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-24T11:46:58">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-24T12:30:47"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-24T12:30:47">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -579,7 +579,7 @@
             <variable name="flags">
               <type>
                 <array>
-                  <dimension lower="101" upper="125"/>
+                  <dimension lower="101" upper="450"/>
                   <baseType><BOOL/></baseType>
                 </array>
               </type>
@@ -758,10 +758,10 @@ END_IF;]]></xhtml:p>
           </inputVars>
           <externalVars>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
             <variable name="g_dep_idle_slot">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -847,7 +847,7 @@ g_dep_idle_slot[i_trans].count := si;]]></xhtml:p>
         <interface>
           <externalVars>
             <variable name="g_cfg">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
             </variable>
             <variable name="g_dep_overlap">
               <type><derived name="DEP_OVERLAP_T"/></type>
@@ -878,10 +878,10 @@ g_dep_idle_slot[i_trans].count := si;]]></xhtml:p>
           <ST>
             <xhtml:p><![CDATA[g_dep_overlap.count := 0;
 
-FOR stn := 101 TO 125 DO
+FOR stn := STATION_ARRAY_START TO STATION_ARRAY_END DO
   cover_count := 0;
 
-  FOR ti := 1 TO TRANSPORTERS DO
+  FOR ti := 1 TO MAX_TRANSPORTERS DO
     covered := FALSE;
     FOR ai := 1 TO 4 DO
       IF NOT covered THEN
@@ -949,7 +949,7 @@ END_FOR;]]></xhtml:p>
           </outputVars>
           <externalVars>
             <variable name="g_dep_idle_slot">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -1142,7 +1142,7 @@ END_IF;]]></xhtml:p>
           </outputVars>
           <externalVars>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
             <variable name="g_dep_overlap">
               <type><derived name="DEP_OVERLAP_T"/></type>
@@ -1198,12 +1198,12 @@ END_IF;]]></xhtml:p>
             <xhtml:p><![CDATA[o_delay_s := 0.0;
 
 (* Check if lift/sink are in overlap zone *)
-IF i_lift_stn >= 101 AND i_lift_stn <= 125 THEN
+IF i_lift_stn >= STATION_ARRAY_START AND i_lift_stn <= STATION_ARRAY_END THEN
   lift_is_overlap := g_dep_overlap.flags[i_lift_stn];
 ELSE
   lift_is_overlap := FALSE;
 END_IF;
-IF i_sink_stn >= 101 AND i_sink_stn <= 125 THEN
+IF i_sink_stn >= STATION_ARRAY_START AND i_sink_stn <= STATION_ARRAY_END THEN
   sink_is_overlap := g_dep_overlap.flags[i_sink_stn];
 ELSE
   sink_is_overlap := FALSE;
@@ -1221,7 +1221,7 @@ FOR round := 1 TO 20 DO
   t_end    := i_task_end + REAL_TO_LINT(o_delay_s);
 
   (* Check all tasks on OTHER transporters *)
-  FOR ti := 1 TO TRANSPORTERS DO
+  FOR ti := 1 TO MAX_TRANSPORTERS DO
     IF ti <> i_trans_id THEN
       FOR qi := 1 TO 10 DO
         IF qi > g_task[ti].count THEN
@@ -1298,7 +1298,7 @@ END_FOR;  (* round *)]]></xhtml:p>
               </type>
             </variable>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
             <variable name="g_dep_sandbox">
               <type><derived name="DEP_SANDBOX_T"/></type>
@@ -1322,7 +1322,7 @@ END_FOR;  (* round *)]]></xhtml:p>
     g_dep_sandbox.batches[ui]  := g_batch[ui];
     g_dep_sandbox.programs[ui] := g_program[ui];
   END_FOR;
-  FOR ti := 1 TO TRANSPORTERS DO
+  FOR ti := 1 TO MAX_TRANSPORTERS DO
     g_dep_sandbox.tasks[ti] := g_task[ti];
   END_FOR;
   g_dep_sandbox.valid := TRUE;
@@ -1335,7 +1335,7 @@ ELSIF i_cmd = 2 THEN
       g_batch[ui]  := g_dep_sandbox.batches[ui];
       g_program[ui] := g_dep_sandbox.programs[ui];
     END_FOR;
-    FOR ti := 1 TO TRANSPORTERS DO
+    FOR ti := 1 TO MAX_TRANSPORTERS DO
       g_task[ti] := g_dep_sandbox.tasks[ti];
     END_FOR;
   END_IF;
@@ -1406,16 +1406,16 @@ END_IF;]]></xhtml:p>
               </type>
             </variable>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
             <variable name="g_cfg">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
             </variable>
             <variable name="g_dep_sandbox">
               <type><derived name="DEP_SANDBOX_T"/></type>
             </variable>
             <variable name="g_dep_idle_slot">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T"/></type>
             </variable>
             <variable name="g_dep_overlap">
               <type><derived name="DEP_OVERLAP_T"/></type>
@@ -1756,7 +1756,7 @@ ELSIF phase = 1020 THEN
 ELSIF phase = 1030 THEN
   w_task_cnt := 0;
 
-  FOR ti := 1 TO TRANSPORTERS DO
+  FOR ti := 1 TO MAX_TRANSPORTERS DO
     write_idx := 0;
     FOR qi := 1 TO g_task[ti].count DO
       IF g_task[ti].queue[qi].unit = cur_wait_unit THEN
@@ -1787,7 +1787,7 @@ ELSIF phase = 1030 THEN
 (* PHASE 1040: CALC_IDLE — calc idle slots for all transporters*)
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 1040 THEN
-  FOR ti := 1 TO TRANSPORTERS DO
+  FOR ti := 1 TO MAX_TRANSPORTERS DO
     fb_idle_slots(i_trans := ti, i_time_s := i_time_s);
   END_FOR;
   cur_task_idx := 1;
@@ -2043,18 +2043,13 @@ o_phase := phase;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="g_station">
-              <type>
-                <array>
-                  <dimension lower="101" upper="125"/>
-                  <baseType><derived name="STATION_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T"/></type>
             </variable>
             <variable name="g_cfg">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
             </variable>
             <variable name="g_transporter">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
             </variable>
             <variable name="g_unit">
               <type>
@@ -2081,12 +2076,7 @@ o_phase := phase;]]></xhtml:p>
               </type>
             </variable>
             <variable name="g_avoid_status">
-              <type>
-                <array>
-                  <dimension lower="101" upper="125"/>
-                  <baseType><INT/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF INT"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -2104,7 +2094,7 @@ o_phase := phase;]]></xhtml:p>
         <body>
           <ST>
             <xhtml:p><![CDATA[(* --- Clear all stations --- *)
-FOR i := 101 TO 125 DO
+FOR i := STATION_ARRAY_START TO STATION_ARRAY_END DO
   g_station[i].tank_id       := 0;
   g_station[i].status        := 0;
   g_station[i].x_position    := 0.0;
@@ -2118,7 +2108,7 @@ END_FOR;
 g_station_count := 0;
 
 (* --- Clear all transporter configs --- *)
-FOR i := 1 TO TRANSPORTERS DO
+FOR i := 1 TO MAX_TRANSPORTERS DO
   g_cfg[i].x_min_limit   := 0.0;
   g_cfg[i].x_max_limit   := 0.0;
   g_cfg[i].y_min_limit   := 0.0;
@@ -2145,12 +2135,12 @@ FOR i := 1 TO TRANSPORTERS DO
 END_FOR;
 
 (* --- Clear avoid status --- *)
-FOR i := 101 TO 125 DO
+FOR i := STATION_ARRAY_START TO STATION_ARRAY_END DO
   g_avoid_status[i] := 0;
 END_FOR;
 
 (* --- Clear all transporter states --- *)
-FOR i := 1 TO TRANSPORTERS DO
+FOR i := 1 TO MAX_TRANSPORTERS DO
   g_transporter[i].active          := FALSE;
   g_transporter[i].status          := 0;
   g_transporter[i].phase           := 0;
@@ -2218,21 +2208,16 @@ END_FOR;]]></xhtml:p>
           </inputVars>
           <externalVars>
             <variable name="g_transporter">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
             </variable>
             <variable name="g_station">
-              <type>
-                <array>
-                  <dimension lower="101" upper="125"/>
-                  <baseType><derived name="STATION_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T"/></type>
             </variable>
             <variable name="g_cfg">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
             </variable>
             <variable name="g_move">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF MOVE_TIMES_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -2322,7 +2307,7 @@ END_FOR;]]></xhtml:p>
   RETURN;
 END_IF;
 
-FOR i := 1 TO TRANSPORTERS DO
+FOR i := 1 TO MAX_TRANSPORTERS DO
   IF g_transporter[i].active THEN
 
   (* ── Phase 0 → 1: Accept new task ───────────────────────── *)
@@ -2634,7 +2619,7 @@ FOR i := 1 TO TRANSPORTERS DO
   (* ── Nearest station tracking ──────────────────────────── *)
   min_dist := 1.0e9;
   nearest_num := g_transporter[i].current_station;
-  FOR idx := 101 TO 125 DO
+  FOR idx := STATION_ARRAY_START TO STATION_ARRAY_END DO
     IF g_station[idx].tank_id <> 0 THEN
       dx := g_station[idx].x_position - g_transporter[i].x_mm;
       IF ABS(dx) < min_dist THEN
@@ -2957,7 +2942,7 @@ END_CASE;]]></xhtml:p>
           </outputVars>
           <externalVars>
             <variable name="g_move">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF MOVE_TIMES_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -3012,7 +2997,7 @@ END_IF;]]></xhtml:p>
           </outputVars>
           <externalVars>
             <variable name="g_move">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF MOVE_TIMES_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -3068,24 +3053,19 @@ END_IF;]]></xhtml:p>
           </outputVars>
           <externalVars>
             <variable name="g_transporter">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
             </variable>
             <variable name="g_station">
-              <type>
-                <array>
-                  <dimension lower="101" upper="125"/>
-                  <baseType><derived name="STATION_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T"/></type>
             </variable>
             <variable name="g_cfg">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
             </variable>
             <variable name="g_cal">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF CALIBRATION_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF CALIBRATION_T"/></type>
             </variable>
             <variable name="g_move">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF MOVE_TIMES_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T"/></type>
             </variable>
             <variable name="g_time_s">
               <type><LINT/></type>
@@ -3182,7 +3162,7 @@ END_IF;
 IF i_cmd = 1 AND cal_step = 0 THEN
   (* Start calibration — find first active transporter with plan *)
   tid := 0;
-  FOR ci := 1 TO TRANSPORTERS DO
+  FOR ci := 1 TO MAX_TRANSPORTERS DO
     IF g_transporter[ci].active AND tid = 0 THEN
       IF g_cal[ci].wet_station > 0 AND g_cal[ci].dry_station > 0 THEN
         tid := ci;
@@ -3343,7 +3323,7 @@ END_IF;
 IF cal_step = 40 THEN
   (* Find next active transporter after current tid with plan *)
   next_tid := 0;
-  FOR ci := tid + 1 TO TRANSPORTERS DO
+  FOR ci := tid + 1 TO MAX_TRANSPORTERS DO
     IF g_transporter[ci].active AND next_tid = 0 THEN
       IF g_cal[ci].wet_station > 0 AND g_cal[ci].dry_station > 0 THEN
         next_tid := ci;
@@ -3370,7 +3350,7 @@ END_IF;
        measured v_max, t_acc, t_dec and station distances
    ================================================================ *)
 IF cal_step = 200 THEN
-  FOR ci := 1 TO TRANSPORTERS DO
+  FOR ci := 1 TO MAX_TRANSPORTERS DO
     IF g_transporter[ci].active AND g_cal[ci].x_max_mm_s > 0.0 THEN
 
       vm := g_cal[ci].x_max_mm_s;
@@ -3456,7 +3436,7 @@ END_IF;]]></xhtml:p>
         <interface>
           <externalVars>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -3470,7 +3450,7 @@ END_IF;]]></xhtml:p>
         </interface>
         <body>
           <ST>
-            <xhtml:p><![CDATA[FOR ti := 1 TO TRANSPORTERS DO
+            <xhtml:p><![CDATA[FOR ti := 1 TO MAX_TRANSPORTERS DO
   g_task[ti].count := 0;
   FOR qi := 1 TO 10 DO
     g_task[ti].queue[qi].unit         := 0;
@@ -3585,12 +3565,7 @@ END_FOR;]]></xhtml:p>
           </outputVars>
           <externalVars>
             <variable name="g_station">
-              <type>
-                <array>
-                  <dimension lower="101" upper="125"/>
-                  <baseType><derived name="STATION_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -3602,7 +3577,7 @@ END_FOR;]]></xhtml:p>
         <body>
           <ST>
             <xhtml:p><![CDATA[(* Direct lookup by station number — no loop needed *)
-IF (station_number >= 101) AND (station_number <= 125) THEN
+IF (station_number >= STATION_ARRAY_START) AND (station_number <= STATION_ARRAY_END) THEN
   st := g_station[station_number];
   IF st.tank_id <> 0 THEN
     found := TRUE;
@@ -3641,7 +3616,7 @@ dropping_time_s := 0.0;]]></xhtml:p>
           </outputVars>
           <externalVars>
             <variable name="g_cfg">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -3665,7 +3640,7 @@ dropping_time_s := 0.0;]]></xhtml:p>
         <body>
           <ST>
             <xhtml:p><![CDATA[o_trans_id := 0;
-FOR ti := 1 TO TRANSPORTERS DO
+FOR ti := 1 TO MAX_TRANSPORTERS DO
   IF o_trans_id = 0 THEN
     FOR ai := 1 TO 4 DO
       IF o_trans_id = 0 THEN
@@ -3852,7 +3827,7 @@ o_skip_cnt  := skip_cnt;]]></xhtml:p>
           </inputVars>
           <externalVars>
             <variable name="g_move">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF MOVE_TIMES_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -3987,7 +3962,7 @@ END_IF;]]></xhtml:p>
               </type>
             </variable>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -4022,7 +3997,7 @@ FOR si := i_from_stage TO sc DO
 END_FOR;
 
 (* ── Shift matching tasks in all transporter queues ── *)
-FOR ti := 1 TO TRANSPORTERS DO
+FOR ti := 1 TO MAX_TRANSPORTERS DO
   FOR qi := 1 TO g_task[ti].count DO
     IF g_task[ti].queue[qi].unit = i_unit
        AND g_task[ti].queue[qi].stage >= i_from_stage THEN
@@ -4045,7 +4020,7 @@ END_FOR;]]></xhtml:p>
           </inputVars>
           <externalVars>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -4132,15 +4107,10 @@ END_FOR;]]></xhtml:p>
           </outputVars>
           <externalVars>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
             <variable name="g_station">
-              <type>
-                <array>
-                  <dimension lower="101" upper="125"/>
-                  <baseType><derived name="STATION_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -4280,7 +4250,7 @@ chk_cnt        := 0;
 
 (* ══════ Step 1: Merge all queues into sorted[] by start_time (insertion sort) ══════ *)
 sorted_cnt := 0;
-FOR ti := 1 TO TRANSPORTERS DO
+FOR ti := 1 TO MAX_TRANSPORTERS DO
   FOR qi := 1 TO g_task[ti].count DO
     IF g_task[ti].queue[qi].unit > 0 THEN
       (* Insert into sorted position *)
@@ -4478,12 +4448,7 @@ checked_count := chk_cnt;]]></xhtml:p>
               </type>
             </variable>
             <variable name="g_station">
-              <type>
-                <array>
-                  <dimension lower="101" upper="125"/>
-                  <baseType><derived name="STATION_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T"/></type>
             </variable>
             <variable name="g_schedule">
               <type>
@@ -4717,7 +4682,7 @@ g_schedule[i_unit].stage_count := out_count;]]></xhtml:p>
               </type>
             </variable>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -4821,21 +4786,16 @@ END_FOR;]]></xhtml:p>
               </type>
             </variable>
             <variable name="g_transporter">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
             </variable>
             <variable name="g_cfg">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
             </variable>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
             <variable name="g_station">
-              <type>
-                <array>
-                  <dimension lower="101" upper="125"/>
-                  <baseType><derived name="STATION_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T"/></type>
             </variable>
             <variable name="g_station_count">
               <type><INT/></type>
@@ -4915,7 +4875,7 @@ END_FOR;]]></xhtml:p>
             area := g_cfg[cov_t].task_area[ai];
             IF area.min_sink > 0 THEN
               FOR si := area.min_sink TO area.max_sink DO
-                IF dest_stn = 0 AND si <> loc AND si >= 101 AND si <= 125 THEN
+                IF dest_stn = 0 AND si <> loc AND si >= STATION_ARRAY_START AND si <= STATION_ARRAY_END THEN
                   (* Check station is free: no unit there *)
                   stn_free := TRUE;
                   FOR qi := 1 TO 10 DO
@@ -4998,7 +4958,7 @@ END_FOR;]]></xhtml:p>
           </outputVars>
           <externalVars>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
             <variable name="g_schedule">
               <type>
@@ -5292,7 +5252,7 @@ END_IF;
               </type>
             </variable>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
             <variable name="g_schedule">
               <type>
@@ -5551,7 +5511,7 @@ ELSIF phase = 2204 THEN
 ELSIF phase = 10000 THEN
   (* Count total tasks *)
   total_tasks := 0;
-  FOR ti := 1 TO TRANSPORTERS DO
+  FOR ti := 1 TO MAX_TRANSPORTERS DO
     total_tasks := total_tasks + g_task[ti].count;
   END_FOR;
   o_task_cnt := total_tasks;
@@ -5607,7 +5567,7 @@ o_phase := phase;]]></xhtml:p>
           </outputVars>
           <externalVars>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -5629,7 +5589,7 @@ o_phase := phase;]]></xhtml:p>
           <ST>
             <xhtml:p><![CDATA[o_swap_count := 0;
 
-FOR ti := 1 TO TRANSPORTERS DO
+FOR ti := 1 TO MAX_TRANSPORTERS DO
   cnt := g_task[ti].count;
   IF cnt >= 2 THEN
     FOR qi := 1 TO cnt - 1 DO
@@ -5652,29 +5612,19 @@ END_FOR;]]></xhtml:p>
         <interface>
           <externalVars>
             <variable name="g_cfg">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
             </variable>
             <variable name="g_transporter">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
             </variable>
             <variable name="g_station">
-              <type>
-                <array>
-                  <dimension lower="101" upper="125"/>
-                  <baseType><derived name="STATION_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T"/></type>
             </variable>
             <variable name="g_station_count">
               <type><INT/></type>
             </variable>
             <variable name="g_avoid_status">
-              <type>
-                <array>
-                  <dimension lower="101" upper="125"/>
-                  <baseType><INT/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF INT"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -5733,31 +5683,31 @@ END_FOR;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="w_idx">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF INT"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF INT"/></type>
             </variable>
             <variable name="w_xpos">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF REAL"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF REAL"/></type>
             </variable>
             <variable name="w_phase">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF INT"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF INT"/></type>
             </variable>
             <variable name="w_target">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF REAL"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF REAL"/></type>
             </variable>
             <variable name="w_avoid">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF REAL"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF REAL"/></type>
             </variable>
             <variable name="w_can_evade">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF BOOL"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF BOOL"/></type>
             </variable>
             <variable name="w_priority">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF REAL"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF REAL"/></type>
             </variable>
             <variable name="w_status">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF INT"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF INT"/></type>
             </variable>
             <variable name="w_ypos">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF REAL"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF REAL"/></type>
             </variable>
             <variable name="min_idx">
               <type><INT/></type>
@@ -5831,7 +5781,7 @@ END_FOR;]]></xhtml:p>
    For each active transporter, search stations near current_station
    and restrict x_min/x_max based on avoid_status 1 (pass) and 2 (block).
    ================================================================ *)
-FOR i := 1 TO TRANSPORTERS DO
+FOR i := 1 TO MAX_TRANSPORTERS DO
   IF NOT g_transporter[i].active THEN
     CONTINUE;
   END_IF;
@@ -5855,7 +5805,7 @@ FOR i := 1 TO TRANSPORTERS DO
 
   (* --- Search downward (smaller station numbers) from current_station --- *)
   stn_num := g_transporter[i].current_station - 1;
-  WHILE stn_num >= 101 DO
+  WHILE stn_num >= STATION_ARRAY_START DO
     IF g_station[stn_num].tank_id = 0 THEN
       stn_num := stn_num - 1;
       CONTINUE;
@@ -5910,7 +5860,7 @@ FOR i := 1 TO TRANSPORTERS DO
 
   (* --- Search upward (larger station numbers) from current_station --- *)
   stn_num := g_transporter[i].current_station + 1;
-  WHILE stn_num <= (100 + MAX_STATIONS) DO
+  WHILE stn_num <= STATION_ARRAY_END DO
     IF g_station[stn_num].tank_id = 0 THEN
       stn_num := stn_num + 1;
       CONTINUE;
@@ -5975,7 +5925,7 @@ END_FOR;
    STEP 2.0: Basic safety distance — current positions
    Every active transporter pushes neighbors away by x_avoid_mm.
    ================================================================ *)
-FOR i := 1 TO TRANSPORTERS DO
+FOR i := 1 TO MAX_TRANSPORTERS DO
   IF NOT g_transporter[i].active THEN
     CONTINUE;
   END_IF;
@@ -5984,7 +5934,7 @@ FOR i := 1 TO TRANSPORTERS DO
   current_y := g_transporter[i].y_mm;
   avoid_dist := g_cfg[i].x_avoid_mm;
 
-  FOR j := 1 TO TRANSPORTERS DO
+  FOR j := 1 TO MAX_TRANSPORTERS DO
     IF j = i THEN CONTINUE; END_IF;
     IF NOT g_transporter[j].active THEN CONTINUE; END_IF;
 
@@ -6016,7 +5966,7 @@ END_FOR;
 
 (* --- 2.2.1: Build sorted array of active transporters by x-position --- *)
 n_active := 0;
-FOR i := 1 TO TRANSPORTERS DO
+FOR i := 1 TO MAX_TRANSPORTERS DO
   IF g_transporter[i].active THEN
     n_active := n_active + 1;
     w_idx[n_active] := i;
@@ -6208,18 +6158,13 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="g_station">
-              <type>
-                <array>
-                  <dimension lower="101" upper="125"/>
-                  <baseType><derived name="STATION_T"/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T"/></type>
             </variable>
             <variable name="g_cfg">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
             </variable>
             <variable name="g_transporter">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
             </variable>
             <variable name="qw_t1_x_mm">
               <type><INT/></type>
@@ -6531,12 +6476,7 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
               </type>
             </variable>
             <variable name="g_avoid_status">
-              <type>
-                <array>
-                  <dimension lower="101" upper="125"/>
-                  <baseType><INT/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF INT"/></type>
             </variable>
             <variable name="iw_batch_seq">
               <type><INT/></type>
@@ -6610,10 +6550,10 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
               </type>
             </variable>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
             <variable name="g_cal">
-              <type><derived name="ARRAY[1..TRANSPORTERS] OF CALIBRATION_T"/></type>
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF CALIBRATION_T"/></type>
             </variable>
             <variable name="g_cal_active">
               <type><BOOL/></type>
@@ -6790,7 +6730,7 @@ IF iw_cfg_seq <> last_cfg_seq THEN
 
   ELSIF iw_cfg_cmd = 1 THEN
     (* --- Write one station to g_station array --- *)
-    IF (iw_cfg_param >= 101) AND (iw_cfg_param <= 125) THEN
+    IF (iw_cfg_param >= STATION_ARRAY_START) AND (iw_cfg_param <= STATION_ARRAY_END) THEN
       g_station[iw_cfg_param].tank_id       := iw_cfg_d0;
       g_station[iw_cfg_param].x_position    := INT_TO_REAL(iw_cfg_d1);
       g_station[iw_cfg_param].y_position    := INT_TO_REAL(iw_cfg_d2);
@@ -6881,7 +6821,7 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     (* --- Finish init: all config uploaded, init transporter states --- *)
     g_station_count := iw_cfg_param;
 
-    FOR i := 1 TO TRANSPORTERS DO
+    FOR i := 1 TO MAX_TRANSPORTERS DO
       (* Active if task_area[1] has non-zero stations *)
       IF g_cfg[i].task_area[1].min_lift > 0 THEN
         g_transporter[i].active := TRUE;
@@ -7161,33 +7101,45 @@ qw_cal_t3_x_max    := REAL_TO_INT(g_cal[3].x_max_mm_s);]]></xhtml:p>
           </task>
         </resource>
         <globalVars>
-          <variable name="MAX_STATIONS">
-            <type><INT/></type>
-            <initialValue><simpleValue value="25"/></initialValue>
-          </variable>
-          <variable name="TRANSPORTERS">
-            <type><INT/></type>
-            <initialValue><simpleValue value="3"/></initialValue>
-          </variable>
-          <variable name="MAX_UNITS">
-            <type><INT/></type>
-            <initialValue><simpleValue value="10"/></initialValue>
-          </variable>
-          <variable name="MAX_PARALLELS">
-            <type><INT/></type>
-            <initialValue><simpleValue value="5"/></initialValue>
-          </variable>
-          <variable name="MAX_STAGES">
-            <type><INT/></type>
-            <initialValue><simpleValue value="30"/></initialValue>
-          </variable>
           <variable name="MAX_LINES">
             <type><INT/></type>
             <initialValue><simpleValue value="4"/></initialValue>
           </variable>
+          <variable name="MAX_STATIONS_PER_LINE">
+            <type><INT/></type>
+            <initialValue><simpleValue value="50"/></initialValue>
+          </variable>
+          <variable name="MAX_TRANSPORTERS_PER_LINE">
+            <type><INT/></type>
+            <initialValue><simpleValue value="4"/></initialValue>
+          </variable>
+          <variable name="STATION_ARRAY_START">
+            <type><INT/></type>
+            <initialValue><simpleValue value="101"/></initialValue>
+          </variable>
+          <variable name="STATION_ARRAY_END">
+            <type><INT/></type>
+            <initialValue><simpleValue value="450"/></initialValue>
+          </variable>
+          <variable name="MAX_TRANSPORTERS">
+            <type><INT/></type>
+            <initialValue><simpleValue value="10"/></initialValue>
+          </variable>
+          <variable name="MAX_UNITS">
+            <type><INT/></type>
+            <initialValue><simpleValue value="50"/></initialValue>
+          </variable>
+          <variable name="MAX_PARALLELS">
+            <type><INT/></type>
+            <initialValue><simpleValue value="8"/></initialValue>
+          </variable>
+          <variable name="MAX_STAGES">
+            <type><INT/></type>
+            <initialValue><simpleValue value="70"/></initialValue>
+          </variable>
           <variable name="DEP_MAX_IDLE_SLOTS">
             <type><INT/></type>
-            <initialValue><simpleValue value="20"/></initialValue>
+            <initialValue><simpleValue value="100"/></initialValue>
           </variable>
           <variable name="DEP_MAX_DELAY_ACTS">
             <type><INT/></type>
@@ -7278,18 +7230,13 @@ qw_cal_t3_x_max    := REAL_TO_INT(g_cal[3].x_max_mm_s);]]></xhtml:p>
             <initialValue><simpleValue value="0"/></initialValue>
           </variable>
           <variable name="g_station">
-            <type>
-              <array>
-                <dimension lower="101" upper="125"/>
-                <baseType><derived name="STATION_T"/></baseType>
-              </array>
-            </type>
+            <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T"/></type>
           </variable>
           <variable name="g_cfg">
-            <type><derived name="ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
+            <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
           </variable>
           <variable name="g_transporter">
-            <type><derived name="ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
+            <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
           </variable>
           <variable name="g_unit">
             <type>
@@ -7316,15 +7263,10 @@ qw_cal_t3_x_max    := REAL_TO_INT(g_cal[3].x_max_mm_s);]]></xhtml:p>
             </type>
           </variable>
           <variable name="g_avoid_status">
-            <type>
-              <array>
-                <dimension lower="101" upper="125"/>
-                <baseType><INT/></baseType>
-              </array>
-            </type>
+            <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF INT"/></type>
           </variable>
           <variable name="g_move">
-            <type><derived name="ARRAY[1..TRANSPORTERS] OF MOVE_TIMES_T"/></type>
+            <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T"/></type>
           </variable>
           <variable name="g_schedule">
             <type>
@@ -7335,13 +7277,13 @@ qw_cal_t3_x_max    := REAL_TO_INT(g_cal[3].x_max_mm_s);]]></xhtml:p>
             </type>
           </variable>
           <variable name="g_task">
-            <type><derived name="ARRAY[1..TRANSPORTERS] OF TSK_QUEUE_T"/></type>
+            <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
           </variable>
           <variable name="g_dep_sandbox">
             <type><derived name="DEP_SANDBOX_T"/></type>
           </variable>
           <variable name="g_dep_idle_slot">
-            <type><derived name="ARRAY[1..TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T"/></type>
+            <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T"/></type>
           </variable>
           <variable name="g_dep_waiting">
             <type>
@@ -7367,7 +7309,7 @@ qw_cal_t3_x_max    := REAL_TO_INT(g_cal[3].x_max_mm_s);]]></xhtml:p>
             <type><BOOL/></type>
           </variable>
           <variable name="g_cal">
-            <type><derived name="ARRAY[1..TRANSPORTERS] OF CALIBRATION_T"/></type>
+            <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF CALIBRATION_T"/></type>
           </variable>
           <variable name="g_cal_active">
             <type><BOOL/></type>

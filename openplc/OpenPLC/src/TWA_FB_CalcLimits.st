@@ -18,19 +18,20 @@
 
 FUNCTION_BLOCK TWA_FB_CalcLimits
 VAR_EXTERNAL CONSTANT
-    TRANSPORTERS : INT;
-    MAX_STATIONS     : INT;
-    AVOID_PASS       : INT;
-    AVOID_BLOCK      : INT;
-    MIN_WORK_AREA    : REAL;
+    MAX_TRANSPORTERS    : INT;
+    STATION_ARRAY_START : INT;
+    STATION_ARRAY_END   : INT;
+    AVOID_PASS          : INT;
+    AVOID_BLOCK         : INT;
+    MIN_WORK_AREA       : REAL;
 END_VAR
 
 VAR_EXTERNAL
-  g_cfg            : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
-  g_transporter          : ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T;
-  g_station       : ARRAY[101..125] OF STATION_T;
+  g_cfg            : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
+  g_transporter          : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
+  g_station       : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
   g_station_count  : INT;
-  g_avoid_status   : ARRAY[101..125] OF INT;
+  g_avoid_status   : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF INT;
 END_VAR
 VAR
   i            : INT;
@@ -53,15 +54,15 @@ VAR
 
   (* Working arrays for sort + priority (max 3 transporters) *)
   n_active     : INT;
-  w_idx        : ARRAY[1..TRANSPORTERS] OF INT;
-  w_xpos       : ARRAY[1..TRANSPORTERS] OF REAL;
-  w_phase      : ARRAY[1..TRANSPORTERS] OF INT;
-  w_target     : ARRAY[1..TRANSPORTERS] OF REAL;
-  w_avoid      : ARRAY[1..TRANSPORTERS] OF REAL;
-  w_can_evade  : ARRAY[1..TRANSPORTERS] OF BOOL;
-  w_priority   : ARRAY[1..TRANSPORTERS] OF REAL;
-  w_status     : ARRAY[1..TRANSPORTERS] OF INT;
-  w_ypos       : ARRAY[1..TRANSPORTERS] OF REAL;
+  w_idx        : ARRAY[1..MAX_TRANSPORTERS] OF INT;
+  w_xpos       : ARRAY[1..MAX_TRANSPORTERS] OF REAL;
+  w_phase      : ARRAY[1..MAX_TRANSPORTERS] OF INT;
+  w_target     : ARRAY[1..MAX_TRANSPORTERS] OF REAL;
+  w_avoid      : ARRAY[1..MAX_TRANSPORTERS] OF REAL;
+  w_can_evade  : ARRAY[1..MAX_TRANSPORTERS] OF BOOL;
+  w_priority   : ARRAY[1..MAX_TRANSPORTERS] OF REAL;
+  w_status     : ARRAY[1..MAX_TRANSPORTERS] OF INT;
+  w_ypos       : ARRAY[1..MAX_TRANSPORTERS] OF REAL;
 
   (* Sort temp vars *)
   min_idx      : INT;
@@ -97,7 +98,7 @@ END_VAR
    For each active transporter, search stations near current_station
    and restrict x_min/x_max based on avoid_status 1 (pass) and 2 (block).
    ================================================================ *)
-FOR i := 1 TO TRANSPORTERS DO
+FOR i := 1 TO MAX_TRANSPORTERS DO
   IF NOT g_transporter[i].active THEN
     CONTINUE;
   END_IF;
@@ -121,7 +122,7 @@ FOR i := 1 TO TRANSPORTERS DO
 
   (* --- Search downward (smaller station numbers) from current_station --- *)
   stn_num := g_transporter[i].current_station - 1;
-  WHILE stn_num >= 101 DO
+  WHILE stn_num >= STATION_ARRAY_START DO
     IF g_station[stn_num].tank_id = 0 THEN
       stn_num := stn_num - 1;
       CONTINUE;
@@ -176,7 +177,7 @@ FOR i := 1 TO TRANSPORTERS DO
 
   (* --- Search upward (larger station numbers) from current_station --- *)
   stn_num := g_transporter[i].current_station + 1;
-  WHILE stn_num <= (100 + MAX_STATIONS) DO
+  WHILE stn_num <= STATION_ARRAY_END DO
     IF g_station[stn_num].tank_id = 0 THEN
       stn_num := stn_num + 1;
       CONTINUE;
@@ -241,7 +242,7 @@ END_FOR;
    STEP 2.0: Basic safety distance — current positions
    Every active transporter pushes neighbors away by x_avoid_mm.
    ================================================================ *)
-FOR i := 1 TO TRANSPORTERS DO
+FOR i := 1 TO MAX_TRANSPORTERS DO
   IF NOT g_transporter[i].active THEN
     CONTINUE;
   END_IF;
@@ -250,7 +251,7 @@ FOR i := 1 TO TRANSPORTERS DO
   current_y := g_transporter[i].y_mm;
   avoid_dist := g_cfg[i].x_avoid_mm;
 
-  FOR j := 1 TO TRANSPORTERS DO
+  FOR j := 1 TO MAX_TRANSPORTERS DO
     IF j = i THEN CONTINUE; END_IF;
     IF NOT g_transporter[j].active THEN CONTINUE; END_IF;
 
@@ -282,7 +283,7 @@ END_FOR;
 
 (* --- 2.2.1: Build sorted array of active transporters by x-position --- *)
 n_active := 0;
-FOR i := 1 TO TRANSPORTERS DO
+FOR i := 1 TO MAX_TRANSPORTERS DO
   IF g_transporter[i].active THEN
     n_active := n_active + 1;
     w_idx[n_active] := i;

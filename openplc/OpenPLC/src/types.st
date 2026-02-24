@@ -67,7 +67,7 @@ END_TYPE
 
 (* ── Transporter interface — production-compatible ──────────── *)
 (* Used by scheduler, TWA, simulation, and production alike.     *)
-(* g_transporter : ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T              *)
+(* g_transporter : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T              *)
 TYPE STC_TRANSPORTER_T :
 STRUCT
   (* --- Command (scheduler → transporter) --- *)
@@ -203,8 +203,8 @@ END_STRUCT;
 END_TYPE
 
 (* Precomputed movement times — timed from real motions, not calculated *)
-(* Index 1..25 maps to station 101..125 (idx = stn_num - 100)           *)
-(* Access: g_move[transporter].travel[from_idx].to_s[to_idx]            *)
+(* Station number IS the array index (STATION_ARRAY_START..STATION_ARRAY_END) *)
+(* Access: g_move[transporter].travel[from_stn].to_s[to_stn]            *)
 
 TYPE TRAVEL_FROM_T :
 STRUCT
@@ -268,7 +268,7 @@ END_TYPE
 
 TYPE DEP_OVERLAP_T :
 STRUCT
-  flags : ARRAY[101..125] OF BOOL;  (* TRUE = station is in overlap zone *)
+  flags : ARRAY[101..450] OF BOOL;  (* TRUE = station is in overlap zone — literal required in TYPE *)
   count : INT;
 END_STRUCT;
 END_TYPE

@@ -14,14 +14,18 @@ VAR_OUTPUT
   device_delay_s  : REAL;
   dropping_time_s : REAL;
 END_VAR
+VAR_EXTERNAL CONSTANT
+    STATION_ARRAY_START : INT;
+    STATION_ARRAY_END   : INT;
+END_VAR
 VAR_EXTERNAL
-  g_station : ARRAY[101..125] OF STATION_T;
+  g_station : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
 END_VAR
 VAR
   st : STATION_T;
 END_VAR
   (* Direct lookup by station number — no loop needed *)
-  IF (station_number >= 101) AND (station_number <= 125) THEN
+  IF (station_number >= STATION_ARRAY_START) AND (station_number <= STATION_ARRAY_END) THEN
     st := g_station[station_number];
     IF st.tank_id <> 0 THEN
       found := TRUE;

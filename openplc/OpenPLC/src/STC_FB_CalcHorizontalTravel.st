@@ -21,11 +21,11 @@ VAR_OUTPUT
   o_travel_s : REAL;    (* horizontal travel time in seconds *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    TRANSPORTERS : INT;
+    MAX_TRANSPORTERS : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_move : ARRAY[1..TRANSPORTERS] OF MOVE_TIMES_T;
+  g_move : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
 END_VAR
 VAR
   from_idx : INT;

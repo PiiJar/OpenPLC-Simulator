@@ -8,18 +8,20 @@
 
 FUNCTION_BLOCK SIM_FB_ClearConfig
 VAR_EXTERNAL CONSTANT
-    TRANSPORTERS : INT;
+    MAX_TRANSPORTERS    : INT;
+    STATION_ARRAY_START : INT;
+    STATION_ARRAY_END   : INT;
 END_VAR
 
 VAR_EXTERNAL
   g_station_count    : INT;
-  g_station         : ARRAY[101..125] OF STATION_T;
-  g_cfg              : ARRAY[1..TRANSPORTERS] OF TRANSPORTER_CFG_T;
-  g_transporter      : ARRAY[1..TRANSPORTERS] OF STC_TRANSPORTER_T;
+  g_station         : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
+  g_cfg              : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
+  g_transporter      : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
   g_unit            : ARRAY[1..10] OF UNIT_T;
   g_batch          : ARRAY[1..10] OF BATCH_T;
   g_program         : ARRAY[1..10] OF TREATMENT_PROGRAM_T;
-  g_avoid_status     : ARRAY[101..125] OF INT;
+  g_avoid_status     : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF INT;
 END_VAR
 VAR
   i : INT;
@@ -28,7 +30,7 @@ VAR
 END_VAR
 
 (* --- Clear all stations --- *)
-FOR i := 101 TO 125 DO
+FOR i := STATION_ARRAY_START TO STATION_ARRAY_END DO
   g_station[i].tank_id       := 0;
   g_station[i].status        := 0;
   g_station[i].x_position    := 0.0;
@@ -42,7 +44,7 @@ END_FOR;
 g_station_count := 0;
 
 (* --- Clear all transporter configs --- *)
-FOR i := 1 TO TRANSPORTERS DO
+FOR i := 1 TO MAX_TRANSPORTERS DO
   g_cfg[i].x_min_limit   := 0.0;
   g_cfg[i].x_max_limit   := 0.0;
   g_cfg[i].y_min_limit   := 0.0;
@@ -69,12 +71,12 @@ FOR i := 1 TO TRANSPORTERS DO
 END_FOR;
 
 (* --- Clear avoid status --- *)
-FOR i := 101 TO 125 DO
+FOR i := STATION_ARRAY_START TO STATION_ARRAY_END DO
   g_avoid_status[i] := 0;
 END_FOR;
 
 (* --- Clear all transporter states --- *)
-FOR i := 1 TO TRANSPORTERS DO
+FOR i := 1 TO MAX_TRANSPORTERS DO
   g_transporter[i].active          := FALSE;
   g_transporter[i].status          := 0;
   g_transporter[i].phase           := 0;
