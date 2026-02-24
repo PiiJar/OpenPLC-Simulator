@@ -19,8 +19,9 @@ VAR_INPUT
   i_time_s : LINT;     (* current simulation time (s), unix seconds *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    MAX_TRANSPORTERS : INT;
-    MAX_UNITS        : INT;
+    MAX_TRANSPORTERS   : INT;
+    MAX_UNITS          : INT;
+    DEP_MAX_IDLE_SLOTS : INT;
 END_VAR
 
 VAR_EXTERNAL
@@ -62,7 +63,7 @@ FOR qi := 1 TO MAX_UNITS DO
   (* Only create slot if there is a meaningful gap *)
   IF gap_end > gap_start + LINT#1 THEN
     si := si + 1;
-    IF si <= 20 THEN
+    IF si <= DEP_MAX_IDLE_SLOTS THEN
       g_dep_idle_slot[i_trans].slots[si].start_time   := gap_start;
       g_dep_idle_slot[i_trans].slots[si].end_time     := gap_end;
       g_dep_idle_slot[i_trans].slots[si].lift_station := prev_sink;
@@ -76,7 +77,7 @@ END_FOR;
 
 (* Final slot: after last task → open-ended *)
 si := si + 1;
-IF si <= 20 THEN
+IF si <= DEP_MAX_IDLE_SLOTS THEN
   g_dep_idle_slot[i_trans].slots[si].start_time   := prev_end;
   g_dep_idle_slot[i_trans].slots[si].end_time     := HORIZON;
   g_dep_idle_slot[i_trans].slots[si].lift_station := prev_sink;

@@ -24,7 +24,7 @@ VAR_GLOBAL CONSTANT
 
   (* ── Algorithm / scheduler limits ── *)
   DEP_MAX_IDLE_SLOTS : INT := 100;    (* max idle slots per transporter *)
-  DEP_MAX_DELAY_ACTS : INT := 10;    (* max delay actions per cycle *)
+  DEP_MAX_DELAY_ACTS : INT := 100;    (* max delay actions per cycle *)
   DEP_MAX_WAITING    : INT := 10;    (* max waiting batches *)
   MIN_WORK_AREA      : REAL := 20.0; (* mm — TWA minimum working area *)
 
@@ -71,7 +71,7 @@ VAR_GLOBAL
   (* --- Departure Scheduler state --- *)
   g_dep_sandbox       : DEP_SANDBOX_T;                    (* sandbox: isolated copy for planning *)
   g_dep_idle_slot    : ARRAY[1..MAX_TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T;  (* idle slots per transporter *)
-  g_dep_waiting       : ARRAY[1..10] OF INT;              (* waiting batch unit indices *)
+  g_dep_waiting       : ARRAY[1..DEP_MAX_WAITING] OF INT;  (* waiting batch unit indices *)
   g_dep_waiting_count : INT;
   g_dep_overlap       : DEP_OVERLAP_T;                    (* overlap station flags *)
   g_dep_pending       : DEP_PENDING_WRITE_T;              (* ACTIVATE → write buffer *)

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-24T12:45:39"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-24T12:45:39">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-24T12:52:18"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-24T12:52:18">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -520,7 +520,7 @@
             <variable name="slots">
               <type>
                 <array>
-                  <dimension lower="1" upper="20"/>
+                  <dimension lower="1" upper="100"/>
                   <baseType><derived name="DEP_IDLE_SLOT_T"/></baseType>
                 </array>
               </type>
@@ -818,7 +818,7 @@ FOR qi := 1 TO MAX_UNITS DO
   (* Only create slot if there is a meaningful gap *)
   IF gap_end > gap_start + LINT#1 THEN
     si := si + 1;
-    IF si <= 20 THEN
+    IF si <= DEP_MAX_IDLE_SLOTS THEN
       g_dep_idle_slot[i_trans].slots[si].start_time   := gap_start;
       g_dep_idle_slot[i_trans].slots[si].end_time     := gap_end;
       g_dep_idle_slot[i_trans].slots[si].lift_station := prev_sink;
@@ -832,7 +832,7 @@ END_FOR;
 
 (* Final slot: after last task → open-ended *)
 si := si + 1;
-IF si <= 20 THEN
+IF si <= DEP_MAX_IDLE_SLOTS THEN
   g_dep_idle_slot[i_trans].slots[si].start_time   := prev_end;
   g_dep_idle_slot[i_trans].slots[si].end_time     := HORIZON;
   g_dep_idle_slot[i_trans].slots[si].lift_station := prev_sink;
@@ -1036,7 +1036,7 @@ best_delay := 1.0E9;
 best_slot  := 0;
 found      := FALSE;
 
-FOR si := 1 TO 20 DO
+FOR si := 1 TO DEP_MAX_IDLE_SLOTS DO
   IF si > slot_cnt THEN
     EXIT;
   END_IF;
@@ -1214,8 +1214,8 @@ IF NOT lift_is_overlap AND NOT sink_is_overlap THEN
   RETURN;
 END_IF;
 
-(* Iterative conflict resolution — max 20 rounds *)
-FOR round := 1 TO 20 DO
+(* Iterative conflict resolution — max DEP_MAX_DELAY_ACTS rounds *)
+FOR round := 1 TO DEP_MAX_DELAY_ACTS DO
   max_conf := 0.0;
   t_start  := i_task_start + REAL_TO_LINT(o_delay_s);
   t_end    := i_task_end + REAL_TO_LINT(o_delay_s);
@@ -1395,12 +1395,7 @@ END_IF;]]></xhtml:p>
               <type><BOOL/></type>
             </variable>
             <variable name="g_dep_waiting">
-              <type>
-                <array>
-                  <dimension lower="1" upper="10"/>
-                  <baseType><INT/></baseType>
-                </array>
-              </type>
+              <type><derived name="ARRAY[1..DEP_MAX_WAITING] OF INT"/></type>
             </variable>
             <variable name="g_dep_waiting_count">
               <type><INT/></type>
@@ -6973,7 +6968,7 @@ qw_cal_t3_x_max    := REAL_TO_INT(g_cal[3].x_max_mm_s);]]></xhtml:p>
           </variable>
           <variable name="DEP_MAX_DELAY_ACTS">
             <type><INT/></type>
-            <initialValue><simpleValue value="10"/></initialValue>
+            <initialValue><simpleValue value="100"/></initialValue>
           </variable>
           <variable name="DEP_MAX_WAITING">
             <type><INT/></type>
@@ -7096,12 +7091,7 @@ qw_cal_t3_x_max    := REAL_TO_INT(g_cal[3].x_max_mm_s);]]></xhtml:p>
             <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T"/></type>
           </variable>
           <variable name="g_dep_waiting">
-            <type>
-              <array>
-                <dimension lower="1" upper="10"/>
-                <baseType><INT/></baseType>
-              </array>
-            </type>
+            <type><derived name="ARRAY[1..DEP_MAX_WAITING] OF INT"/></type>
           </variable>
           <variable name="g_dep_waiting_count">
             <type><INT/></type>

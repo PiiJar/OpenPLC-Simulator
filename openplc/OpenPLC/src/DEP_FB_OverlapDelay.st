@@ -30,6 +30,7 @@ VAR_EXTERNAL CONSTANT
     STATION_ARRAY_START : INT;
     STATION_ARRAY_END   : INT;
     MAX_UNITS           : INT;
+    DEP_MAX_DELAY_ACTS  : INT;
 END_VAR
 
 VAR_EXTERNAL
@@ -72,8 +73,8 @@ IF NOT lift_is_overlap AND NOT sink_is_overlap THEN
   RETURN;
 END_IF;
 
-(* Iterative conflict resolution — max 20 rounds *)
-FOR round := 1 TO 20 DO
+(* Iterative conflict resolution — max DEP_MAX_DELAY_ACTS rounds *)
+FOR round := 1 TO DEP_MAX_DELAY_ACTS DO
   max_conf := 0.0;
   t_start  := i_task_start + REAL_TO_LINT(o_delay_s);
   t_end    := i_task_end + REAL_TO_LINT(o_delay_s);

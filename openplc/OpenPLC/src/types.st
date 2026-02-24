@@ -235,7 +235,7 @@ END_TYPE
 
 TYPE DEP_IDLE_SLOT_SET_T :
 STRUCT
-  slots : ARRAY[1..20] OF DEP_IDLE_SLOT_T;
+  slots : ARRAY[1..100] OF DEP_IDLE_SLOT_T;  (* DEP_MAX_IDLE_SLOTS — literal required in TYPE *)
   count : INT;
 END_STRUCT;
 END_TYPE

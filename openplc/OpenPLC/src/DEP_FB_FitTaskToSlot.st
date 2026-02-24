@@ -32,7 +32,8 @@ VAR_OUTPUT
   o_result : DEP_FIT_RESULT_T;
 END_VAR
 VAR_EXTERNAL CONSTANT
-    MAX_TRANSPORTERS : INT;
+    MAX_TRANSPORTERS   : INT;
+    DEP_MAX_IDLE_SLOTS : INT;
 END_VAR
 
 VAR_EXTERNAL
@@ -82,7 +83,7 @@ best_delay := 1.0E9;
 best_slot  := 0;
 found      := FALSE;
 
-FOR si := 1 TO 20 DO
+FOR si := 1 TO DEP_MAX_IDLE_SLOTS DO
   IF si > slot_cnt THEN
     EXIT;
   END_IF;

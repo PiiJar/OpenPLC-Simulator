@@ -40,6 +40,7 @@ END_VAR
 VAR_EXTERNAL CONSTANT
     MAX_TRANSPORTERS : INT;
     MAX_UNITS        : INT;
+    DEP_MAX_WAITING  : INT;
 END_VAR
 
 VAR_EXTERNAL
@@ -55,7 +56,7 @@ VAR_EXTERNAL
   g_dep_pending      : DEP_PENDING_WRITE_T;
   g_dep_activated    : BOOL;
   g_dep_stable       : BOOL;
-  g_dep_waiting      : ARRAY[1..10] OF INT;
+  g_dep_waiting      : ARRAY[1..DEP_MAX_WAITING] OF INT;
   g_dep_waiting_count : INT;
 END_VAR
 VAR_OUTPUT
