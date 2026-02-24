@@ -1,0 +1,380 @@
+{
+  "_comment": [
+    "Single source of truth for PLC ↔ Gateway Modbus register mapping.",
+    "generate_modbus.py reads this and produces:",
+    "  1. globals_modbus.st    — AT %QW declarations (included in globals.st)",
+    "  2. plc_prg_modbus.st    — output write assignments (included in plc_prg.st)",
+    "  3. gateway/modbus_map.js — register addresses + decode/encode helpers",
+    "",
+    "Register types: 'int16' = 1 register, 'uint32' = 2 registers (hi/lo).",
+    "Direction: 'out' = PLC writes, gateway reads. 'in' = gateway writes, PLC reads.",
+    "Repeat blocks expand {var} from start..start+count-1. Fields get sequential QW addresses.",
+    "template_fields: nested repeat within a repeated block — expands BEFORE outer repeat.",
+    "Convert: ST expression for PLC→Modbus (out), or null if direct INT copy.",
+    "",
+    "Coverage: ALL PLC globals accessible via Modbus.",
+    "Skipped (too large for continuous polling):",
+    "  g_move         — 960 REALs per transporter (precomputed travel times)",
+    "  g_dep_sandbox  — massive copy of scheduler state (planning only)",
+    "  g_dep_idle_slot — 20 slots × 6 fields × 3 transporters (internal planner)",
+    "  g_program      — already uploaded by gateway (30 stages × 8 fields × 10 units)",
+    "  g_station      — already uploaded by gateway (30 stations × 9 fields)"
+  ],
+
+  "blocks": [
+
+    {
+      "name": "transporter_state",
+      "comment": "Per-transporter live state — PLC writes, gateway reads",
+      "direction": "out",
+      "repeat": { "count": 3, "var": "i", "label": "t{i}" },
+      "fields": [
+        { "suffix": "x_mm",      "source": "g_transporter[{i}].x_mm",           "convert": "REAL_TO_INT", "api": "x_position",    "comment": "X position mm" },
+        { "suffix": "z_mm",      "source": "g_transporter[{i}].z_mm",           "convert": "REAL_TO_INT", "api": "z_position",    "comment": "Z position mm" },
+        { "suffix": "vel_x10",   "source": "g_transporter[{i}].vel_x * 10.0",  "convert": "REAL_TO_INT", "api": "velocity_x",    "api_scale": 0.1, "comment": "X velocity ×10" },
+        { "suffix": "phase",     "source": "g_transporter[{i}].phase",          "convert": null,          "api": "phase",         "comment": "0=idle 1=to_lift 2=lifting 3=to_sink 4=sinking" },
+        { "suffix": "z_stage",   "source": "g_transporter[{i}].z_stage",        "convert": null,          "api": "z_stage",       "comment": "Z motion sub-phase" },
+        { "suffix": "cur_st",    "source": "g_transporter[{i}].current_station", "convert": null,         "api": "current_station", "comment": "nearest station" },
+        { "suffix": "lift_tgt",  "source": "g_transporter[{i}].lift_station",   "convert": null,          "api": "lift_station_target", "comment": "pickup station" },
+        { "suffix": "sink_tgt",  "source": "g_transporter[{i}].sink_station",   "convert": null,          "api": "sink_station_target", "comment": "putdown station" },
+        { "suffix": "active",    "source": "g_transporter[{i}].active",         "convert": "BOOL_TO_INT", "api": "active",        "comment": "1=active 0=inactive" },
+        { "suffix": "status",    "source": "g_transporter[{i}].status",         "convert": null,          "api": "status_raw",    "comment": "0=not_used 1=manual 2=half 3=auto_idle 4=auto_run" },
+        { "suffix": "rtask_hi",  "source": "g_transporter[{i}].running_task_id","convert": "LINT_HI",     "api": "_rtask_id_hi",  "comment": "running task_id upper 16 bits", "type": "uint32_hi" },
+        { "suffix": "rtask_lo",  "source": "g_transporter[{i}].running_task_id","convert": "LINT_LO",     "api": "_rtask_id_lo",  "comment": "running task_id lower 16 bits", "type": "uint32_lo",
+          "api_combine": { "name": "running_task_id", "hi_suffix": "rtask_hi", "lo_suffix": "rtask_lo", "type": "uint32" }
+        }
+      ]
+    },
+
+    {
+      "name": "transporter_extended",
+      "comment": "Per-transporter extended state — remaining STC_TRANSPORTER_T fields",
+      "direction": "out",
+      "repeat": { "count": 3, "var": "i", "label": "t{i}" },
+      "fields": [
+        { "suffix": "remain_x10", "source": "g_transporter[{i}].remaining_time * 10.0", "convert": "REAL_TO_INT", "api": "remaining_time", "api_scale": 0.1, "comment": "remaining treatment time ×10 (0.1s)" },
+        { "suffix": "treat_time", "source": "g_transporter[{i}].treatment_time",        "convert": "REAL_TO_INT", "api": "treatment_time",  "comment": "treatment duration (s)" },
+        { "suffix": "fintgt_x",   "source": "g_transporter[{i}].final_target_x",        "convert": "REAL_TO_INT", "api": "final_target_x",  "comment": "destination X mm" },
+        { "suffix": "drvtgt_x",   "source": "g_transporter[{i}].drive_target_x",        "convert": "REAL_TO_INT", "api": "drive_target_x",  "comment": "TWA-clamped X mm" },
+        { "suffix": "fintgt_y",   "source": "g_transporter[{i}].final_target_y",        "convert": "REAL_TO_INT", "api": "final_target_y",  "comment": "destination Y mm (3D)" },
+        { "suffix": "drvtgt_y",   "source": "g_transporter[{i}].drive_target_y",        "convert": "REAL_TO_INT", "api": "drive_target_y",  "comment": "TWA-clamped Y mm (3D)" },
+        { "suffix": "y_mm",       "source": "g_transporter[{i}].y_mm",                  "convert": "REAL_TO_INT", "api": "y_position",      "comment": "Y position mm (3D)" },
+        { "suffix": "ztimer_x10", "source": "g_transporter[{i}].z_timer_s * 10.0",      "convert": "REAL_TO_INT", "api": "z_timer",         "api_scale": 0.1, "comment": "Z motion timer ×10 (0.1s)" },
+        { "suffix": "ctask_hi",   "source": "g_transporter[{i}].task_id",               "convert": "LINT_HI",     "api": "_cmd_task_hi",    "comment": "command task_id upper 16", "type": "uint32_hi" },
+        { "suffix": "ctask_lo",   "source": "g_transporter[{i}].task_id",               "convert": "LINT_LO",     "api": "_cmd_task_lo",    "comment": "command task_id lower 16", "type": "uint32_lo",
+          "api_combine": { "name": "cmd_task_id", "hi_suffix": "ctask_hi", "lo_suffix": "ctask_lo", "type": "uint32" }
+        },
+        { "suffix": "ldev_x10",   "source": "g_transporter[{i}].lift_device_delay * 10.0", "convert": "REAL_TO_INT", "api": "lift_device_delay", "api_scale": 0.1, "comment": "lift device delay ×10 (0.1s)" },
+        { "suffix": "sdev_x10",   "source": "g_transporter[{i}].sink_device_delay * 10.0", "convert": "REAL_TO_INT", "api": "sink_device_delay", "api_scale": 0.1, "comment": "sink device delay ×10 (0.1s)" },
+        { "suffix": "drop_x10",   "source": "g_transporter[{i}].dropping_time * 10.0",     "convert": "REAL_TO_INT", "api": "dropping_time",     "api_scale": 0.1, "comment": "dropping time ×10 (0.1s)" }
+      ]
+    },
+
+    {
+      "name": "twa_limits",
+      "comment": "TWA dynamic drive limits — PLC writes, gateway reads",
+      "direction": "out",
+      "repeat": { "count": 3, "var": "i", "label": "t{i}" },
+      "fields": [
+        { "suffix": "xmin", "source": "g_transporter[{i}].x_min_limit", "convert": "REAL_TO_INT", "api": "x_min_drive_limit", "comment": "TWA lower X limit mm" },
+        { "suffix": "xmax", "source": "g_transporter[{i}].x_max_limit", "convert": "REAL_TO_INT", "api": "x_max_drive_limit", "comment": "TWA upper X limit mm" }
+      ]
+    },
+
+    {
+      "name": "plc_status",
+      "comment": "PLC status + acks — PLC writes, gateway reads",
+      "direction": "out",
+      "fields": [
+        { "suffix": "station_cnt", "source": "g_station_count",      "convert": null,          "api": "station_count", "comment": "configured station count" },
+        { "suffix": "init_done",   "source": "init_done",            "convert": "BOOL_TO_INT", "api": "init_done",     "comment": "1=initialized" },
+        { "suffix": "cycle_cnt",   "source": "cycle_count",          "convert": null,          "api": "cycle_count",   "comment": "heartbeat counter" },
+        { "suffix": "cfg_ack",     "source": "last_cfg_seq",         "convert": null,          "api": "cfg_ack",       "comment": "last processed cfg seq" },
+        { "suffix": "unit_ack",    "source": "last_unit_seq",        "convert": null,          "api": "unit_ack",      "comment": "last processed unit write seq" },
+        { "suffix": "batch_ack",   "source": "last_batch_seq",       "convert": null,          "api": "batch_ack",     "comment": "last processed batch write seq" },
+        { "suffix": "prog_ack",    "source": "last_prog_seq",        "convert": null,          "api": "prog_ack",      "comment": "last processed program stage seq" },
+        { "suffix": "avoid_ack",   "source": "last_avoid_seq",       "convert": null,          "api": "avoid_ack",     "comment": "last processed avoid write seq" },
+        { "suffix": "cal_active",  "source": "g_cal_active",         "convert": "BOOL_TO_INT", "api": "cal_active",    "comment": "1=calibration in progress" },
+        { "suffix": "time_hi",     "source": "g_time_s",             "convert": "LINT_HI",     "api": "_plc_time_hi",  "comment": "PLC unix time upper 16 bits", "type": "uint32_hi" },
+        { "suffix": "time_lo",     "source": "g_time_s",             "convert": "LINT_LO",     "api": "_plc_time_lo",  "comment": "PLC unix time lower 16 bits", "type": "uint32_lo",
+          "api_combine": { "name": "plc_time_s", "hi_suffix": "time_hi", "lo_suffix": "time_lo", "type": "uint32" }
+        }
+      ]
+    },
+
+    {
+      "name": "unit_state",
+      "comment": "Per-unit live state — PLC writes, gateway reads",
+      "direction": "out",
+      "repeat": { "count": 10, "var": "i", "label": "u{i}" },
+      "fields": [
+        { "suffix": "loc",    "source": "g_unit[{i}].location", "convert": null, "api": "location",  "comment": "station number" },
+        { "suffix": "status", "source": "g_unit[{i}].status",   "convert": null, "api": "status",    "comment": "NOT_USED=0, USED=1" },
+        { "suffix": "state",  "source": "g_unit[{i}].state",    "convert": null, "api": "state",     "comment": "EMPTY=0, FULL=1" },
+        { "suffix": "target", "source": "g_unit[{i}].target",   "convert": null, "api": "target",    "comment": "TO_NONE=0..TO_AVOID=5" }
+      ]
+    },
+
+    {
+      "name": "batch_state",
+      "comment": "Per-unit batch data — PLC writes, gateway reads",
+      "direction": "out",
+      "repeat": { "count": 10, "var": "i", "label": "b{i}" },
+      "fields": [
+        { "suffix": "code",  "source": "g_batch[{i}].batch_code", "convert": null, "api": "batch_code",    "comment": "numeric batch code" },
+        { "suffix": "state", "source": "g_batch[{i}].state",      "convert": null, "api": "batch_state",   "comment": "NOT_PROCESSED=0, IN_PROCESS=1, PROCESSED=2" },
+        { "suffix": "prog",  "source": "g_batch[{i}].prog_id",   "convert": null, "api": "batch_program", "comment": "treatment program ID" },
+        { "suffix": "stage", "source": "g_batch[{i}].cur_stage",  "convert": null, "api": "batch_stage",   "comment": "current stage number" }
+      ]
+    },
+
+    {
+      "name": "calibration",
+      "comment": "Calibration status — PLC writes, gateway reads",
+      "direction": "out",
+      "fields": [
+        { "suffix": "step",  "source": "calibrate.o_step", "convert": null, "api": "cal_step", "comment": "0=idle, 100=done, 999=complete" },
+        { "suffix": "tid",   "source": "calibrate.o_tid",  "convert": null, "api": "cal_tid",  "comment": "transporter being calibrated" }
+      ]
+    },
+
+    {
+      "name": "calibration_results",
+      "comment": "Per-transporter calibration results — PLC writes, gateway reads",
+      "direction": "out",
+      "repeat": { "count": 3, "var": "i", "label": "cal_t{i}" },
+      "fields": [
+        { "suffix": "lift_wet", "source": "g_cal[{i}].lift_wet_s * 10.0", "convert": "REAL_TO_INT", "api": "lift_wet", "api_scale": 0.1, "comment": "lift wet time ×10" },
+        { "suffix": "sink_wet", "source": "g_cal[{i}].sink_wet_s * 10.0", "convert": "REAL_TO_INT", "api": "sink_wet", "api_scale": 0.1, "comment": "sink wet time ×10" },
+        { "suffix": "lift_dry", "source": "g_cal[{i}].lift_dry_s * 10.0", "convert": "REAL_TO_INT", "api": "lift_dry", "api_scale": 0.1, "comment": "lift dry time ×10" },
+        { "suffix": "sink_dry", "source": "g_cal[{i}].sink_dry_s * 10.0", "convert": "REAL_TO_INT", "api": "sink_dry", "api_scale": 0.1, "comment": "sink dry time ×10" },
+        { "suffix": "x_acc",    "source": "g_cal[{i}].x_accel_s * 10.0",  "convert": "REAL_TO_INT", "api": "x_acc",    "api_scale": 0.1, "comment": "X accel time ×10" },
+        { "suffix": "x_dec",    "source": "g_cal[{i}].x_decel_s * 10.0",  "convert": "REAL_TO_INT", "api": "x_dec",    "api_scale": 0.1, "comment": "X decel time ×10" },
+        { "suffix": "x_max",    "source": "g_cal[{i}].x_max_mm_s",        "convert": "REAL_TO_INT", "api": "x_max",    "comment": "X max speed mm/s" }
+      ]
+    },
+
+    {
+      "name": "transporter_config",
+      "comment": "Per-transporter config (g_cfg) — limits, physics, task areas",
+      "direction": "out",
+      "repeat": { "count": 3, "var": "i", "label": "cfg_t{i}" },
+      "fields": [
+        { "suffix": "x_min",       "source": "g_cfg[{i}].x_min_limit",              "convert": "REAL_TO_INT", "api": "x_min_limit",   "comment": "config X min limit mm" },
+        { "suffix": "x_max",       "source": "g_cfg[{i}].x_max_limit",              "convert": "REAL_TO_INT", "api": "x_max_limit",   "comment": "config X max limit mm" },
+        { "suffix": "y_min",       "source": "g_cfg[{i}].y_min_limit",              "convert": "REAL_TO_INT", "api": "y_min_limit",   "comment": "config Y min limit mm" },
+        { "suffix": "y_max",       "source": "g_cfg[{i}].y_max_limit",              "convert": "REAL_TO_INT", "api": "y_max_limit",   "comment": "config Y max limit mm" },
+        { "suffix": "x_avoid",     "source": "g_cfg[{i}].x_avoid_mm",               "convert": "REAL_TO_INT", "api": "x_avoid_mm",    "comment": "X avoid distance mm" },
+        { "suffix": "y_avoid",     "source": "g_cfg[{i}].y_avoid_mm",               "convert": "REAL_TO_INT", "api": "y_avoid_mm",    "comment": "Y avoid distance mm" },
+        { "suffix": "ph_xacc_x100","source": "g_cfg[{i}].phys2d.x_accel_s * 100.0", "convert": "REAL_TO_INT", "api": "phys_x_accel",  "api_scale": 0.01, "comment": "X accel ×100 (0.01s)" },
+        { "suffix": "ph_xdec_x100","source": "g_cfg[{i}].phys2d.x_decel_s * 100.0", "convert": "REAL_TO_INT", "api": "phys_x_decel",  "api_scale": 0.01, "comment": "X decel ×100 (0.01s)" },
+        { "suffix": "ph_xmax",     "source": "g_cfg[{i}].phys2d.x_max_mm_s",        "convert": "REAL_TO_INT", "api": "phys_x_max",    "comment": "X max speed mm/s" },
+        { "suffix": "ph_ztot",     "source": "g_cfg[{i}].phys2d.z_total_mm",        "convert": "REAL_TO_INT", "api": "phys_z_total",  "comment": "Z total travel mm" },
+        { "suffix": "ph_zsdry",    "source": "g_cfg[{i}].phys2d.z_slow_dry_mm",     "convert": "REAL_TO_INT", "api": "phys_z_sdry",   "comment": "Z slow zone dry mm" },
+        { "suffix": "ph_zswet",    "source": "g_cfg[{i}].phys2d.z_slow_wet_mm",     "convert": "REAL_TO_INT", "api": "phys_z_swet",   "comment": "Z slow zone wet mm" },
+        { "suffix": "ph_zsend",    "source": "g_cfg[{i}].phys2d.z_slow_end_mm",     "convert": "REAL_TO_INT", "api": "phys_z_send",   "comment": "Z slow zone end mm" },
+        { "suffix": "ph_zslow",    "source": "g_cfg[{i}].phys2d.z_slow_mm_s",       "convert": "REAL_TO_INT", "api": "phys_z_slow",   "comment": "Z slow speed mm/s" },
+        { "suffix": "ph_zfast",    "source": "g_cfg[{i}].phys2d.z_fast_mm_s",       "convert": "REAL_TO_INT", "api": "phys_z_fast",   "comment": "Z fast speed mm/s" },
+        { "suffix": "ph_drip_x10", "source": "g_cfg[{i}].phys2d.drip_delay_s * 10.0","convert": "REAL_TO_INT","api": "phys_drip",     "api_scale": 0.1, "comment": "drip delay ×10 (0.1s)" },
+        { "suffix": "ph_avoid",    "source": "g_cfg[{i}].phys2d.avoid_mm",          "convert": "REAL_TO_INT", "api": "phys_avoid",    "comment": "physics avoid mm" }
+      ],
+      "template_fields": {
+        "repeat": { "count": 3, "var": "a" },
+        "fields": [
+          { "suffix": "ta{a}_min_lift", "source": "g_cfg[{i}].task_area[{a}].min_lift", "convert": null, "api": "ta{a}_min_lift", "comment": "task area {a} min lift station" },
+          { "suffix": "ta{a}_max_lift", "source": "g_cfg[{i}].task_area[{a}].max_lift", "convert": null, "api": "ta{a}_max_lift", "comment": "task area {a} max lift station" },
+          { "suffix": "ta{a}_min_sink", "source": "g_cfg[{i}].task_area[{a}].min_sink", "convert": null, "api": "ta{a}_min_sink", "comment": "task area {a} min sink station" },
+          { "suffix": "ta{a}_max_sink", "source": "g_cfg[{i}].task_area[{a}].max_sink", "convert": null, "api": "ta{a}_max_sink", "comment": "task area {a} max sink station" }
+        ]
+      }
+    },
+
+    {
+      "name": "avoid_status",
+      "comment": "Per-station avoid flags readback (g_avoid_status) — 30 stations",
+      "direction": "out",
+      "repeat": { "count": 30, "var": "s", "label": "s{s}", "start": 101 },
+      "fields": [
+        { "suffix": "val", "source": "g_avoid_status[{s}]", "convert": null, "api": "avoid_val", "comment": "AVOID_NONE=0, PASS=1, BLOCK=2" }
+      ]
+    },
+
+    {
+      "name": "schedule_summary",
+      "comment": "Per-unit schedule summary (g_schedule) — stage count only",
+      "direction": "out",
+      "repeat": { "count": 10, "var": "i", "label": "sched_u{i}" },
+      "fields": [
+        { "suffix": "stage_cnt", "source": "g_schedule[{i}].stage_count", "convert": null, "api": "stage_count", "comment": "number of active stages" }
+      ]
+    },
+
+    {
+      "name": "task_queue",
+      "comment": "Per-transporter task queue (g_task) — count + 10 task slots",
+      "direction": "out",
+      "repeat": { "count": 3, "var": "i", "label": "tq{i}" },
+      "fields": [
+        { "suffix": "count", "source": "g_task[{i}].count", "convert": null, "api": "task_count", "comment": "number of active tasks" }
+      ],
+      "template_fields": {
+        "repeat": { "count": 10, "var": "q" },
+        "fields": [
+          { "suffix": "q{q}_unit",      "source": "g_task[{i}].queue[{q}].unit",                     "convert": null,          "api": "q{q}_unit",      "comment": "task {q} unit index (0=empty)" },
+          { "suffix": "q{q}_stage",     "source": "g_task[{i}].queue[{q}].stage",                    "convert": null,          "api": "q{q}_stage",     "comment": "task {q} program stage" },
+          { "suffix": "q{q}_lift",      "source": "g_task[{i}].queue[{q}].lift_station",             "convert": null,          "api": "q{q}_lift",      "comment": "task {q} pickup station" },
+          { "suffix": "q{q}_sink",      "source": "g_task[{i}].queue[{q}].sink_station",             "convert": null,          "api": "q{q}_sink",      "comment": "task {q} putdown station" },
+          { "suffix": "q{q}_start_hi",  "source": "g_task[{i}].queue[{q}].start_time",               "convert": "LINT_HI",     "api": "_q{q}_start_hi", "comment": "task {q} start time upper 16", "type": "uint32_hi" },
+          { "suffix": "q{q}_start_lo",  "source": "g_task[{i}].queue[{q}].start_time",               "convert": "LINT_LO",     "api": "_q{q}_start_lo", "comment": "task {q} start time lower 16", "type": "uint32_lo",
+            "api_combine": { "name": "q{q}_start_time", "hi_suffix": "q{q}_start_hi", "lo_suffix": "q{q}_start_lo", "type": "uint32" }
+          },
+          { "suffix": "q{q}_fin_hi",    "source": "g_task[{i}].queue[{q}].finish_time",              "convert": "LINT_HI",     "api": "_q{q}_fin_hi",   "comment": "task {q} finish time upper 16", "type": "uint32_hi" },
+          { "suffix": "q{q}_fin_lo",    "source": "g_task[{i}].queue[{q}].finish_time",              "convert": "LINT_LO",     "api": "_q{q}_fin_lo",   "comment": "task {q} finish time lower 16", "type": "uint32_lo",
+            "api_combine": { "name": "q{q}_finish_time", "hi_suffix": "q{q}_fin_hi", "lo_suffix": "q{q}_fin_lo", "type": "uint32" }
+          },
+          { "suffix": "q{q}_calc_x10",  "source": "g_task[{i}].queue[{q}].calc_time * 10.0",         "convert": "REAL_TO_INT", "api": "q{q}_calc_time", "api_scale": 0.1, "comment": "task {q} calc time ×10" },
+          { "suffix": "q{q}_min_x10",   "source": "g_task[{i}].queue[{q}].min_time * 10.0",          "convert": "REAL_TO_INT", "api": "q{q}_min_time",  "api_scale": 0.1, "comment": "task {q} min time ×10" },
+          { "suffix": "q{q}_max_x10",   "source": "g_task[{i}].queue[{q}].max_time * 10.0",          "convert": "REAL_TO_INT", "api": "q{q}_max_time",  "api_scale": 0.1, "comment": "task {q} max time ×10" }
+        ]
+      }
+    },
+
+    {
+      "name": "dep_state",
+      "comment": "Departure scheduler state — PLC writes, gateway reads",
+      "direction": "out",
+      "fields": [
+        { "suffix": "activated",     "source": "g_dep_activated",              "convert": "BOOL_TO_INT", "api": "dep_activated",     "comment": "1=departure activated handshake" },
+        { "suffix": "stable",        "source": "g_dep_stable",                "convert": "BOOL_TO_INT", "api": "dep_stable",        "comment": "1=task list stable for DEP" },
+        { "suffix": "waiting_cnt",   "source": "g_dep_waiting_count",         "convert": null,          "api": "dep_waiting_count", "comment": "waiting batch count" },
+        { "suffix": "overlap_cnt",   "source": "g_dep_overlap.count",         "convert": null,          "api": "dep_overlap_count", "comment": "overlap station count" },
+        { "suffix": "pend_valid",    "source": "g_dep_pending.valid",         "convert": "BOOL_TO_INT", "api": "dep_pending_valid", "comment": "1=pending write valid" },
+        { "suffix": "pend_unit",     "source": "g_dep_pending.batch_unit",    "convert": null,          "api": "dep_pending_unit",  "comment": "pending activated unit" },
+        { "suffix": "pend_stage",    "source": "g_dep_pending.batch_stage",   "convert": null,          "api": "dep_pending_stage", "comment": "pending activated stage" },
+        { "suffix": "pend_time_hi",  "source": "g_dep_pending.time_s",        "convert": "LINT_HI",     "api": "_dep_pend_time_hi", "comment": "pending activation time upper 16", "type": "uint32_hi" },
+        { "suffix": "pend_time_lo",  "source": "g_dep_pending.time_s",        "convert": "LINT_LO",     "api": "_dep_pend_time_lo", "comment": "pending activation time lower 16", "type": "uint32_lo",
+          "api_combine": { "name": "dep_pending_time", "hi_suffix": "pend_time_hi", "lo_suffix": "pend_time_lo", "type": "uint32" }
+        }
+      ]
+    },
+
+    {
+      "name": "dep_waiting",
+      "comment": "Departure waiting batch unit indices",
+      "direction": "out",
+      "repeat": { "count": 5, "var": "i", "label": "dw{i}" },
+      "fields": [
+        { "suffix": "unit", "source": "g_dep_waiting[{i}]", "convert": null, "api": "waiting_unit", "comment": "waiting batch unit index (0=empty)" }
+      ]
+    },
+
+    {
+      "name": "dep_overlap",
+      "comment": "Departure overlap flags per station (g_dep_overlap.flags)",
+      "direction": "out",
+      "repeat": { "count": 30, "var": "s", "label": "ov_s{s}", "start": 101 },
+      "fields": [
+        { "suffix": "flag", "source": "g_dep_overlap.flags[{s}]", "convert": "BOOL_TO_INT", "api": "overlap_flag", "comment": "1=station in overlap zone" }
+      ]
+    },
+
+    {
+      "name": "cmd_transport",
+      "comment": "Manual transport commands — gateway writes, PLC reads",
+      "direction": "in",
+      "repeat": { "count": 2, "var": "i", "label": "cmd_t{i}" },
+      "fields": [
+        { "suffix": "start", "api": "cmd_start", "comment": "1=trigger command" },
+        { "suffix": "lift",  "api": "cmd_lift",  "comment": "lift station number" },
+        { "suffix": "sink",  "api": "cmd_sink",  "comment": "sink station number" }
+      ]
+    },
+
+    {
+      "name": "cfg",
+      "comment": "Station config upload protocol — gateway writes, PLC reads",
+      "direction": "in",
+      "fields": [
+        { "suffix": "seq",   "api": "cfg_seq",   "comment": "sequence — triggers on change" },
+        { "suffix": "cmd",   "api": "cfg_cmd",   "comment": "1=write_station, 2=init, 3=clear_all" },
+        { "suffix": "param", "api": "cfg_param", "comment": "station_number or station_count" },
+        { "suffix": "d0",    "api": "cfg_d0",    "comment": "tank_id" },
+        { "suffix": "d1",    "api": "cfg_d1",    "comment": "x_position mm" },
+        { "suffix": "d2",    "api": "cfg_d2",    "comment": "y_position mm" },
+        { "suffix": "d3",    "api": "cfg_d3",    "comment": "z_position mm" },
+        { "suffix": "d4",    "api": "cfg_d4",    "comment": "type" },
+        { "suffix": "d5",    "api": "cfg_d5",    "comment": "dropping_time ×10" },
+        { "suffix": "d6",    "api": "cfg_d6",    "comment": "device_delay ×10" }
+      ]
+    },
+
+    {
+      "name": "unit",
+      "comment": "Unit write protocol — gateway writes, PLC reads",
+      "direction": "in",
+      "fields": [
+        { "suffix": "seq",    "api": "unit_seq",    "comment": "sequence — triggers on change" },
+        { "suffix": "id",     "api": "unit_id",     "comment": "unit number 1..10" },
+        { "suffix": "loc",    "api": "unit_loc",    "comment": "location (station number)" },
+        { "suffix": "status", "api": "unit_status", "comment": "NOT_USED=0, USED=1" },
+        { "suffix": "state",  "api": "unit_state",  "comment": "EMPTY=0, FULL=1" },
+        { "suffix": "target", "api": "unit_target", "comment": "TO_NONE=0..TO_AVOID=5" }
+      ]
+    },
+
+    {
+      "name": "batch",
+      "comment": "Batch write protocol — gateway writes, PLC reads",
+      "direction": "in",
+      "fields": [
+        { "suffix": "seq",     "api": "batch_seq",     "comment": "sequence — triggers on change" },
+        { "suffix": "unit",    "api": "batch_unit",    "comment": "unit index 1..10" },
+        { "suffix": "code",    "api": "batch_code",    "comment": "numeric batch code" },
+        { "suffix": "state",   "api": "batch_state",   "comment": "NOT_PROCESSED=0, IN_PROCESS=1, PROCESSED=2" },
+        { "suffix": "prog_id", "api": "batch_prog_id", "comment": "treatment program ID" }
+      ]
+    },
+
+    {
+      "name": "prog",
+      "comment": "Program stage write protocol — gateway writes, PLC reads",
+      "direction": "in",
+      "fields": [
+        { "suffix": "seq",      "api": "prog_seq",      "comment": "sequence — triggers on change" },
+        { "suffix": "unit",     "api": "prog_unit",     "comment": "unit index 1..10" },
+        { "suffix": "stage",    "api": "prog_stage",    "comment": "stage index 1..30" },
+        { "suffix": "s1",       "api": "prog_s1",       "comment": "station 1 (0=unused)" },
+        { "suffix": "s2",       "api": "prog_s2",       "comment": "station 2" },
+        { "suffix": "s3",       "api": "prog_s3",       "comment": "station 3" },
+        { "suffix": "s4",       "api": "prog_s4",       "comment": "station 4" },
+        { "suffix": "s5",       "api": "prog_s5",       "comment": "station 5" },
+        { "suffix": "min_time", "api": "prog_min_time", "comment": "min processing time seconds" },
+        { "suffix": "max_time", "api": "prog_max_time", "comment": "max processing time seconds" },
+        { "suffix": "cal_time", "api": "prog_cal_time", "comment": "calculated time seconds" }
+      ]
+    },
+
+    {
+      "name": "avoid",
+      "comment": "Avoid status write protocol — gateway writes, PLC reads",
+      "direction": "in",
+      "fields": [
+        { "suffix": "seq",     "api": "avoid_seq",     "comment": "sequence — triggers on change" },
+        { "suffix": "station", "api": "avoid_station", "comment": "station number" },
+        { "suffix": "value",   "api": "avoid_value",   "comment": "AVOID_NONE=0, PASS=1, BLOCK=2" }
+      ]
+    },
+
+    {
+      "name": "time",
+      "comment": "Unix time sync — gateway writes 32-bit unix seconds as hi/lo pair, PLC reads",
+      "direction": "in",
+      "fields": [
+        { "suffix": "hi", "api": "time_hi", "comment": "unix seconds upper 16 bits", "type": "uint32_hi" },
+        { "suffix": "lo", "api": "time_lo", "comment": "unix seconds lower 16 bits", "type": "uint32_lo",
+          "api_combine": { "name": "time_s", "hi_suffix": "hi", "lo_suffix": "lo", "type": "uint32" }
+        }
+      ]
+    }
+  ]
+}

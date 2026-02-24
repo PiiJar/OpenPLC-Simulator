@@ -363,7 +363,7 @@ function Station({
         textAnchor="middle"
         fontSize={14}
         fontWeight="700"
-        fill={config.colors.text}
+        fill={config.colors?.text || '#555555'}
       >
         {station.number}
       </text>

@@ -4,26 +4,8 @@
  * Thin Node.js gateway that reads PLC state via Modbus TCP
  * and serves REST API compatible with the existing React/Vite UI.
  * 
- * Modbus Register Map (matches plc.xml):
- *   %QW0..8   = Transporter 1 state (Holding Registers, FC3)
- *   %QW9..17  = Transporter 2 state
- *   %QW18     = station_count
- *   %QW19     = init_done (1/0)
- *   %QW20     = cycle_count (heartbeat)
- *   %QW21     = cfg_ack (echoes last processed cfg_seq)
- *   %QW22..61 = Units 1-10 (4 regs each: location, status, state, target)
- *   %QW62     = unit_ack (echoes last processed unit write seq)
- *   %QW63     = batch_ack (echoes last processed batch write seq)
- *   %QW64     = prog_ack (echoes last processed program stage seq)
- *   %QW65..104 = Batch data 1-10 (4 regs each: batch_code, state, program, stage)
- *   %QW200..205 = Commands for T1/T2
- * 
- * OpenPLC Modbus mapping:
- *   Holding Registers (FC3, FC6, FC16) → %QW  (PLC writes, we read)
- *   Input Registers   (FC4)            → %IW  (PLC reads, we write via FC6 to holding offset)
- *   
- * Note: OpenPLC maps %IW to input_regs[] read by FC4, but to WRITE to them
- * from external, we write to holding registers at offset 1024+addr (OpenPLC convention).
+ * Register map auto-generated from modbus_map.json (see gateway/modbus_map.js).
+ * All QW addresses managed by generate_modbus.py — do not hardcode.
  */
 
 const express = require('express');
@@ -32,6 +14,9 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
+
+// Auto-generated Modbus register map (addresses, decoder, input blocks)
+const { TOTAL_REGISTERS, BLOCKS, REG, toSigned: mbSigned, INPUT_BLOCKS } = require('./modbus_map');
 
 // --- Configuration ---
 const PLC_HOST = process.env.PLC_HOST || 'localhost';
@@ -118,7 +103,10 @@ let plcAlive = false;
 let simStartTime = Date.now();
 let simRunning = false;
 
-// --- Calibration state (updated from QW170..QW192) ---
+// --- TWA dynamic drive limits (from Modbus) ---
+let twaLimits = { 1: { x_min: 0, x_max: 0 }, 2: { x_min: 0, x_max: 0 }, 3: { x_min: 0, x_max: 0 } };
+
+// --- Calibration state (from Modbus) ---
 let calibrationState = {
   step: 0,
   tid: 0,
@@ -268,61 +256,59 @@ async function connectModbus() {
   reconnecting = false;
 }
 
-// Read holding registers (PLC outputs %QW)
+// Read holding registers (PLC outputs %QW) — addresses from modbus_map.js
 async function readPLCState() {
   if (!connected) return null;
   try {
-    // Read QW0..QW104 = 105 holding registers starting at address 0
-    const result = await client.readHoldingRegisters(0, 105);
-    const r = result.data;
-    
-    // Convert unsigned 16-bit to signed if needed (for velocities etc.)
+    // Read all output registers in chunks of 125 (Modbus FC3 limit)
+    const totalOut = BLOCKS.calibration_results.end + 1; // up to end of cal results
+    const r = new Array(totalOut).fill(0);
+    const CHUNK = 125;
+    for (let offset = 0; offset < totalOut; offset += CHUNK) {
+      const count = Math.min(CHUNK, totalOut - offset);
+      const result = await client.readHoldingRegisters(offset, count);
+      for (let j = 0; j < result.data.length; j++) {
+        r[offset + j] = result.data[j];
+      }
+    }
+
     const toSigned = (v) => v > 32767 ? v - 65536 : v;
-    
+
+    // Transporters (3 × 12 fields in transporter_state block)
     const transporters = [];
-    
-    // Transporter 1: QW0..QW8
-    const t1cfg = transporterConfig.transporters.find(t => t.id === 1) || {};
-    transporters.push(buildTransporterState(1, t1cfg, {
-      x_mm: toSigned(r[0]),
-      z_mm: toSigned(r[1]),
-      vel_x10: toSigned(r[2]),
-      phase: r[3],
-      z_stage: r[4],
-      cur_st: toSigned(r[5]),
-      lift_tgt: toSigned(r[6]),
-      sink_tgt: toSigned(r[7]),
-      active: r[8]
-    }));
-    
-    // Transporter 2: QW9..QW17
-    const t2cfg = transporterConfig.transporters.find(t => t.id === 2) || {};
-    transporters.push(buildTransporterState(2, t2cfg, {
-      x_mm: toSigned(r[9]),
-      z_mm: toSigned(r[10]),
-      vel_x10: toSigned(r[11]),
-      phase: r[12],
-      z_stage: r[13],
-      cur_st: toSigned(r[14]),
-      lift_tgt: toSigned(r[15]),
-      sink_tgt: toSigned(r[16]),
-      active: r[17]
-    }));
-    
+    const FIELDS_PER_T = 12; // fields per transporter in transporter_state
+    for (let i = 1; i <= 3; i++) {
+      const base = BLOCKS.transporter_state.start + (i - 1) * FIELDS_PER_T;
+      const tcfg = transporterConfig.transporters.find(t => t.id === i) || {};
+      transporters.push(buildTransporterState(i, tcfg, {
+        x_mm: toSigned(r[base + 0]),
+        z_mm: toSigned(r[base + 1]),
+        vel_x10: toSigned(r[base + 2]),
+        phase: toSigned(r[base + 3]),
+        z_stage: toSigned(r[base + 4]),
+        cur_st: toSigned(r[base + 5]),
+        lift_tgt: toSigned(r[base + 6]),
+        sink_tgt: toSigned(r[base + 7]),
+        active: toSigned(r[base + 8]),
+      }));
+    }
+
+    // PLC status
     plcMeta = {
-      station_count: r[18],
-      init_done: r[19] !== 0,
-      cycle_count: r[20]
+      station_count: toSigned(r[REG.qw_plc_status_station_cnt]),
+      init_done: toSigned(r[REG.qw_plc_status_init_done]) !== 0,
+      cycle_count: toSigned(r[REG.qw_plc_status_cycle_cnt])
     };
 
-    // Parse unit data from QW22..QW61 (10 units x 4 fields)
+    // Units (10 × 4 fields in unit_state block)
     plcUnits = [];
+    const UNIT_FIELDS = 4;
     for (let u = 0; u < 10; u++) {
-      const base = 22 + u * 4;
+      const base = BLOCKS.unit_state.start + u * UNIT_FIELDS;
       const stateInt = toSigned(r[base + 2]);
       const targetInt = toSigned(r[base + 3]);
-      // Batch data from QW65..QW104 (10 units x 4 fields)
-      const bBase = 65 + u * 4;
+      // Batch data (10 × 4 fields in batch_state block)
+      const bBase = BLOCKS.batch_state.start + u * 4;
       const batchCode = toSigned(r[bBase]);
       const batchState = toSigned(r[bBase + 1]);
       const batchProg = toSigned(r[bBase + 2]);
@@ -340,44 +326,49 @@ async function readPLCState() {
         batch_stage: batchStage
       });
     }
-    
-    // Check heartbeat
+
+    // Heartbeat check
     if (plcMeta.cycle_count !== lastCycleCount) {
       plcAlive = true;
       lastCycleCount = plcMeta.cycle_count;
     }
-    
+
     if (plcMeta.init_done && !simRunning) {
       simRunning = true;
       simStartTime = Date.now();
       console.log('[PLC] Init done, simulation running');
     }
-    
+
     plcState = {
       timestamp: new Date().toISOString(),
       transporters
     };
-    
-    // Read calibration registers QW170..QW192 (23 registers)
-    try {
-      const calResult = await client.readHoldingRegisters(170, 23);
-      const c = calResult.data;
-      calibrationState.step = c[0];
-      calibrationState.tid = c[1];
-      for (let t = 0; t < 3; t++) {
-        const base = 2 + t * 7;
-        calibrationState.results[t].lift_wet = c[base]     / 10.0;
-        calibrationState.results[t].sink_wet = c[base + 1] / 10.0;
-        calibrationState.results[t].lift_dry = c[base + 2] / 10.0;
-        calibrationState.results[t].sink_dry = c[base + 3] / 10.0;
-        calibrationState.results[t].x_acc    = c[base + 4] / 10.0;
-        calibrationState.results[t].x_dec    = c[base + 5] / 10.0;
-        calibrationState.results[t].x_max    = c[base + 6];
-      }
-    } catch (calErr) {
-      // Calibration registers not critical — ignore read errors
+
+    // Calibration (already in r[] since we read up to calibration_results.end)
+    calibrationState.step = toSigned(r[REG.qw_calibration_step]);
+    calibrationState.tid = toSigned(r[REG.qw_calibration_tid]);
+    const CAL_FIELDS = 7; // fields per transporter in calibration_results
+    for (let t = 0; t < 3; t++) {
+      const base = BLOCKS.calibration_results.start + t * CAL_FIELDS;
+      calibrationState.results[t].lift_wet = toSigned(r[base])     / 10.0;
+      calibrationState.results[t].sink_wet = toSigned(r[base + 1]) / 10.0;
+      calibrationState.results[t].lift_dry = toSigned(r[base + 2]) / 10.0;
+      calibrationState.results[t].sink_dry = toSigned(r[base + 3]) / 10.0;
+      calibrationState.results[t].x_acc    = toSigned(r[base + 4]) / 10.0;
+      calibrationState.results[t].x_dec    = toSigned(r[base + 5]) / 10.0;
+      calibrationState.results[t].x_max    = toSigned(r[base + 6]);
     }
-    
+
+    // TWA dynamic drive limits (already in r[])
+    const TWA_FIELDS = 2;
+    for (let t = 1; t <= 3; t++) {
+      const base = BLOCKS.twa_limits.start + (t - 1) * TWA_FIELDS;
+      twaLimits[t] = {
+        x_min: toSigned(r[base]),
+        x_max: toSigned(r[base + 1])
+      };
+    }
+
     return plcState;
   } catch (err) {
     connected = false;
@@ -421,8 +412,8 @@ function buildTransporterState(id, cfg, regs) {
       x_final_target: 0,
       y_drive_target: 0,
       y_final_target: 0,
-      x_min_drive_limit: cfg.x_min_drive_limit || 0,
-      x_max_drive_limit: cfg.x_max_drive_limit || 0,
+      x_min_drive_limit: twaLimits[id]?.x_min || cfg.x_min_drive_limit || 0,
+      x_max_drive_limit: twaLimits[id]?.x_max || cfg.x_max_drive_limit || 0,
       y_min_drive_limit: 0,
       y_max_drive_limit: 0,
       z_min_drive_limit: 0,
@@ -439,19 +430,18 @@ function buildTransporterState(id, cfg, regs) {
   };
 }
 
-// Write command to PLC via Modbus
-// OpenPLC %QW maps to holding registers directly.
-// Commands at QW100-105, config at QW110-119, units at QW120-126.
+// Write command to PLC via Modbus — addresses from modbus_map.js
 async function writePLCCommand(transporterId, liftStation, sinkStation) {
   if (!connected) throw new Error('Not connected to PLC');
   
-  const baseAddr = transporterId === 1 ? 200 : 203; // QW200 for T1, QW203 for T2
+  // cmd_transport block: T1 at start, T2 at start+3 (3 fields per transporter)
+  const baseAddr = BLOCKS.cmd_transport.start + (transporterId - 1) * 3;
   
   // Write lift station, sink station, then start command
-  await client.writeRegisters(baseAddr + 1, [liftStation]);  // iw_cmd_lift
-  await client.writeRegisters(baseAddr + 2, [sinkStation]);  // iw_cmd_sink
-  await client.writeRegisters(baseAddr, [1]);                 // iw_cmd_start = 1 (trigger)
-  
+  await client.writeRegisters(baseAddr + 1, [liftStation]);  // iw_cmd_t{n}_lift
+  await client.writeRegisters(baseAddr + 2, [sinkStation]);  // iw_cmd_t{n}_sink
+  await client.writeRegisters(baseAddr, [1]);                 // iw_cmd_t{n}_start = 1
+
   // Clear start after a short delay (PLC reads it, then we clear)
   setTimeout(async () => {
     try {
@@ -464,7 +454,7 @@ async function writePLCCommand(transporterId, liftStation, sinkStation) {
 
 // --- Write unix time to PLC ---
 // Sends current wall-clock unix seconds as two unsigned 16-bit words
-// to QW160 (upper) and QW161 (lower). PLC reconstructs full 32-bit value.
+// Sends hi/lo 16-bit words to PLC time input registers. PLC reconstructs full 32-bit value.
 // Called periodically (TIME_SYNC_MS) — PLC keeps its own clock between syncs.
 const TIME_SYNC_MS = parseInt(process.env.TIME_SYNC_MS || '60000'); // default 60 s
 let lastTimeSyncMs = 0;
@@ -475,7 +465,7 @@ async function writeTimeToPLC() {
     const unixSeconds = Math.floor(Date.now() / 1000);
     const hi = (unixSeconds >>> 16) & 0xFFFF;
     const lo = unixSeconds & 0xFFFF;
-    await client.writeRegisters(160, [hi, lo]);
+    await client.writeRegisters(REG.iw_time_hi, [hi, lo]);
     console.log(`[TIME] Synced PLC time: ${unixSeconds} (${new Date().toISOString()})`);
   } catch (err) {
     // Non-critical — PLC continues with its own clock
@@ -513,6 +503,98 @@ app.get('/api/config/:filename', (req, res) => {
     res.json(JSON.parse(fs.readFileSync(filePath, 'utf8')));
   } else {
     res.status(404).json({ error: `Config file not found: ${req.params.filename}` });
+  }
+});
+
+// PUT config files — write to customer plant path + forward to simulator
+app.put('/api/config/:filename', (req, res) => {
+  try {
+    let filename = req.params.filename;
+    if (!filename.endsWith('.json')) filename += '.json';
+    const allowedFiles = ['layout_config.json'];
+    if (!allowedFiles.includes(filename)) {
+      return res.status(403).json({ success: false, error: `Cannot update config file: ${filename}` });
+    }
+    const filePath = path.join(getCurrentCustomerPath(), filename);
+    fs.writeFileSync(filePath, JSON.stringify(req.body, null, 2));
+    console.log(`[CONFIG] Updated ${filename} in ${currentCustomer}/${currentPlant}`);
+    res.json({ success: true, message: `Config file ${filename} updated` });
+  } catch (err) {
+    console.error(`[CONFIG] Failed to update ${req.params.filename}:`, err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ============================================================
+// Avoid status — write to PLC via Modbus
+// ============================================================
+let avoidWriteSeq = 0;
+let avoidStatuses = {};  // In-memory cache: { "105": { avoid_status: 1 }, ... }
+
+async function waitForAvoidAck(expectedSeq, timeoutMs) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const result = await client.readHoldingRegisters(REG.qw_plc_status_avoid_ack, 1);
+      if (result.data[0] === expectedSeq) return true;
+    } catch (_) {}
+    await new Promise(r => setTimeout(r, 20));
+  }
+  console.log(`[AVOID-ACK] TIMEOUT expecting seq=${expectedSeq}`);
+  return false;
+}
+
+app.get('/api/avoid-statuses', (req, res) => {
+  res.json({ stations: avoidStatuses, timestamp: new Date().toISOString() });
+});
+
+app.post('/api/avoid-statuses', async (req, res) => {
+  try {
+    const { stationNumber, avoid_status } = req.body;
+    if (!stationNumber || typeof avoid_status !== 'number') {
+      return res.status(400).json({ success: false, error: 'stationNumber and avoid_status are required' });
+    }
+    if (!connected) {
+      return res.status(503).json({ success: false, error: 'PLC not connected' });
+    }
+
+    const stnNum = parseInt(stationNumber);
+    const AVOID_BASE = BLOCKS.avoid.start; // auto-generated base address
+
+    // Write data fields first
+    await client.writeRegisters(AVOID_BASE + 1, [stnNum]);       
+    await client.writeRegisters(AVOID_BASE + 2, [avoid_status]); 
+
+    // Trigger with sequence number
+    avoidWriteSeq = (avoidWriteSeq % 30000) + 1;
+    console.log(`[AVOID] Writing avoid: seq=${avoidWriteSeq}, station=${stnNum}, value=${avoid_status}`);
+    await client.writeRegisters(AVOID_BASE + 0, [avoidWriteSeq]); 
+
+    // Wait for PLC ack (avoid_ack)
+    const ackOk = await waitForAvoidAck(avoidWriteSeq, 3000);
+    if (!ackOk) {
+      return res.status(504).json({ success: false, error: `PLC ack timeout for avoid station ${stnNum}` });
+    }
+
+    // Update in-memory cache
+    avoidStatuses[stationNumber] = { avoid_status };
+
+    // Forward to simulator for file persistence (fire-and-forget)
+    try {
+      await fetch(`http://simulator:3002/api/avoid-statuses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stationNumber, avoid_status })
+      });
+    } catch (_) {
+      // Simulator persistence is secondary — PLC is the source of truth
+    }
+
+    console.log(`[AVOID] Station ${stnNum} avoid_status=${avoid_status} written to PLC`);
+    res.json({ success: true, stationNumber: stnNum, avoid_status });
+  } catch (err) {
+    console.error(`[AVOID] Error: ${err.message}`);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -624,11 +706,11 @@ app.post('/api/reset', async (req, res) => {
 
     // --- Step 1: Send clear_all command (cmd=3) ---
     let seq = 1;
-    const CFG_BASE = 110; // QW110-QW119 for config upload protocol
+    const CFG_BASE = BLOCKS.cfg.start; // auto-generated base address
 
-    await client.writeRegisters(CFG_BASE + 2, [0]);      // QW112 = param (unused)
-    await client.writeRegisters(CFG_BASE + 1, [3]);       // QW111 = cmd (3=clear_all)
-    await client.writeRegisters(CFG_BASE + 0, [seq]);     // QW110 = seq (triggers PLC)
+    await client.writeRegisters(CFG_BASE + 2, [0]);      
+    await client.writeRegisters(CFG_BASE + 1, [3]);       
+    await client.writeRegisters(CFG_BASE + 0, [seq]);     
 
     const clearAck = await waitForCfgAck(seq, 3000);
     if (!clearAck) {
@@ -642,7 +724,7 @@ app.post('/api/reset', async (req, res) => {
       const stNum = st.number; // e.g. 101..125
       if (stNum < 101 || stNum > 125) continue;
 
-      // Write data fields first (QW113..QW119 = d0..d6)
+      // Write data fields first (cfg d0..d6)
       await client.writeRegisters(CFG_BASE + 3, [
         st.tank || 0,                              // d0 = tank_id
         Math.round(st.x_position || 0),            // d1 = x_position mm
@@ -654,11 +736,11 @@ app.post('/api/reset', async (req, res) => {
       ]);
 
       // Write param (station number) and cmd
-      await client.writeRegisters(CFG_BASE + 2, [stNum]);  // QW112 = param
-      await client.writeRegisters(CFG_BASE + 1, [1]);       // QW111 = cmd (1=write_station)
-      await client.writeRegisters(CFG_BASE + 0, [seq]);     // QW110 = seq (triggers PLC)
+      await client.writeRegisters(CFG_BASE + 2, [stNum]);  
+      await client.writeRegisters(CFG_BASE + 1, [1]);       
+      await client.writeRegisters(CFG_BASE + 0, [seq]);     
 
-      // Wait for PLC ack (QW21 = cfg_ack matches seq)
+      // Wait for PLC ack (cfg_ack matches seq)
       const ackOk = await waitForCfgAck(seq, 2000);
       if (!ackOk) {
         return res.status(504).json({ 
@@ -737,9 +819,9 @@ app.post('/api/reset', async (req, res) => {
     }
 
     // --- Step 4: Send init command (cmd=2, param=station_count) ---
-    await client.writeRegisters(CFG_BASE + 2, [stations.length]); // QW112 = station_count
-    await client.writeRegisters(CFG_BASE + 1, [2]);               // QW111 = cmd (2=init)
-    await client.writeRegisters(CFG_BASE + 0, [seq]);             // QW110 = seq
+    await client.writeRegisters(CFG_BASE + 2, [stations.length]); 
+    await client.writeRegisters(CFG_BASE + 1, [2]);               
+    await client.writeRegisters(CFG_BASE + 0, [seq]);             
 
     const initAck = await waitForCfgAck(seq, 3000);
     if (!initAck) {
@@ -758,7 +840,7 @@ app.post('/api/reset', async (req, res) => {
       // String → INT mappings matching PLC globals.st constants
       const STATUS_MAP = { 'not_used': 0, 'used': 1 };
 
-      const UNIT_BASE = 120;
+      const UNIT_BASE = BLOCKS.unit.start;
       for (const u of units) {
         const uid = u.unit_id;
         if (uid < 1 || uid > 10) continue;
@@ -768,14 +850,14 @@ app.post('/api/reset', async (req, res) => {
         const targetInt = TARGET_STR_TO_INT[u.target]  ?? (typeof u.target === 'number' ? u.target : 0);
         const location  = u.location || 0;
 
-        await client.writeRegisters(UNIT_BASE + 1, [uid]);         // QW121
-        await client.writeRegisters(UNIT_BASE + 2, [location]);    // QW122
-        await client.writeRegisters(UNIT_BASE + 3, [statusInt]);   // QW123
-        await client.writeRegisters(UNIT_BASE + 4, [stateInt]);    // QW124
-        await client.writeRegisters(UNIT_BASE + 5, [targetInt]);   // QW125
+        await client.writeRegisters(UNIT_BASE + 1, [uid]);         
+        await client.writeRegisters(UNIT_BASE + 2, [location]);    
+        await client.writeRegisters(UNIT_BASE + 3, [statusInt]);   
+        await client.writeRegisters(UNIT_BASE + 4, [stateInt]);    
+        await client.writeRegisters(UNIT_BASE + 5, [targetInt]);   
 
         unitWriteSeq = (unitWriteSeq % 30000) + 1;
-        await client.writeRegisters(UNIT_BASE + 0, [unitWriteSeq]); // QW120 = seq
+        await client.writeRegisters(UNIT_BASE + 0, [unitWriteSeq]); 
 
         const unitAck = await waitForUnitAck(unitWriteSeq, 2000);
         if (!unitAck) {
@@ -827,12 +909,12 @@ app.post('/api/reset', async (req, res) => {
   }
 });
 
-// Wait for PLC cfg_ack (QW21) to match expected sequence number
+// Wait for PLC cfg_ack to match expected sequence number
 async function waitForCfgAck(expectedSeq, timeoutMs) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     try {
-      const result = await client.readHoldingRegisters(21, 1);
+      const result = await client.readHoldingRegisters(REG.qw_plc_status_cfg_ack, 1);
       if (result.data[0] === expectedSeq) return true;
     } catch (_) {}
     await new Promise(r => setTimeout(r, 20));
@@ -855,25 +937,25 @@ app.put('/api/units/:id', async (req, res) => {
     if (!connected) return res.status(503).json({ error: 'PLC not connected' });
 
     const { location, status, state, target } = req.body;
-    const UNIT_BASE = 120; // QW120-QW125 for unit write protocol
+    const UNIT_BASE = BLOCKS.unit.start; // auto-generated base address
 
     // Convert string state/target to INT if needed
     const stateInt  = typeof state  === 'string' ? (STATE_STR_TO_INT[state]   ?? 0) : (state  || 0);
     const targetInt = typeof target === 'string' ? (TARGET_STR_TO_INT[target]  ?? 0) : (target || 0);
 
     // Write data fields first
-    await client.writeRegisters(UNIT_BASE + 1, [uid]);                    // QW121 = unit_id
-    await client.writeRegisters(UNIT_BASE + 2, [location || 0]);          // QW122 = location
-    await client.writeRegisters(UNIT_BASE + 3, [status || 0]);            // QW123 = status
-    await client.writeRegisters(UNIT_BASE + 4, [stateInt]);               // QW124 = state
-    await client.writeRegisters(UNIT_BASE + 5, [targetInt]);              // QW125 = target
+    await client.writeRegisters(UNIT_BASE + 1, [uid]);                     // unit_id
+    await client.writeRegisters(UNIT_BASE + 2, [location || 0]);           // location
+    await client.writeRegisters(UNIT_BASE + 3, [status || 0]);             // status
+    await client.writeRegisters(UNIT_BASE + 4, [stateInt]);                // state
+    await client.writeRegisters(UNIT_BASE + 5, [targetInt]);               // target
 
     // Trigger with sequence number
     unitWriteSeq = (unitWriteSeq % 30000) + 1;
-    console.log(`[UNIT] Writing QW120-125: seq=${unitWriteSeq}, id=${uid}, loc=${location||0}, status=${status||0}, state=${stateInt}, target=${targetInt}`);
-    await client.writeRegisters(UNIT_BASE + 0, [unitWriteSeq]);           // QW120 = seq
+    console.log(`[UNIT] Writing unit: seq=${unitWriteSeq}, id=${uid}, loc=${location||0}, status=${status||0}, state=${stateInt}, target=${targetInt}`);
+    await client.writeRegisters(UNIT_BASE + 0, [unitWriteSeq]);           
 
-    // Wait for PLC ack (QW62)
+    // Wait for PLC ack (unit_ack)
     const ackOk = await waitForUnitAck(unitWriteSeq, 3000);
     if (!ackOk) {
       return res.status(504).json({ error: `PLC ack timeout for unit ${uid}` });
@@ -893,11 +975,11 @@ async function waitForUnitAck(expectedSeq, timeoutMs) {
   let readCount = 0;
   while (Date.now() - start < timeoutMs) {
     try {
-      const result = await client.readHoldingRegisters(62, 1);
+      const result = await client.readHoldingRegisters(REG.qw_plc_status_unit_ack, 1);
       readCount++;
       const val = result.data[0];
       if (val !== lastVal) {
-        console.log(`[UNIT-ACK] QW62=${val}, expecting=${expectedSeq} (read #${readCount}, ${Date.now()-start}ms)`);
+        console.log(`[UNIT-ACK] ack=${val}, expecting=${expectedSeq} (read #${readCount}, ${Date.now()-start}ms)`);
         lastVal = val;
       }
       if (val === expectedSeq) return true;
@@ -920,7 +1002,7 @@ async function waitForBatchAck(expectedSeq, timeoutMs) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     try {
-      const result = await client.readHoldingRegisters(63, 1); // QW63
+      const result = await client.readHoldingRegisters(REG.qw_plc_status_batch_ack, 1);
       if (result.data[0] === expectedSeq) return true;
     } catch (_) {}
     await new Promise(r => setTimeout(r, 20));
@@ -933,7 +1015,7 @@ async function waitForProgAck(expectedSeq, timeoutMs) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     try {
-      const result = await client.readHoldingRegisters(64, 1); // QW64
+      const result = await client.readHoldingRegisters(REG.qw_plc_status_prog_ack, 1);
       if (result.data[0] === expectedSeq) return true;
     } catch (_) {}
     await new Promise(r => setTimeout(r, 20));
@@ -950,14 +1032,14 @@ async function waitForProgAck(expectedSeq, timeoutMs) {
  * @param {number} programId - treatment program ID
  */
 async function writeBatchToPLC(unitIndex, batchCode, batchState, programId) {
-  const BATCH_BASE = 130; // QW130..QW134
-  await client.writeRegisters(BATCH_BASE + 1, [unitIndex]);   // QW131
-  await client.writeRegisters(BATCH_BASE + 2, [batchCode]);   // QW132
-  await client.writeRegisters(BATCH_BASE + 3, [batchState]);  // QW133
-  await client.writeRegisters(BATCH_BASE + 4, [programId]);   // QW134
+  const BATCH_BASE = BLOCKS.batch.start; // auto-generated base address
+  await client.writeRegisters(BATCH_BASE + 1, [unitIndex]);   
+  await client.writeRegisters(BATCH_BASE + 2, [batchCode]);   
+  await client.writeRegisters(BATCH_BASE + 3, [batchState]);  
+  await client.writeRegisters(BATCH_BASE + 4, [programId]);   
 
   batchWriteSeq = (batchWriteSeq % 30000) + 1;
-  await client.writeRegisters(BATCH_BASE + 0, [batchWriteSeq]); // QW130 = seq
+  await client.writeRegisters(BATCH_BASE + 0, [batchWriteSeq]); 
 
   const ack = await waitForBatchAck(batchWriteSeq, 3000);
   if (!ack) throw new Error(`PLC batch ack timeout (unit=${unitIndex}, seq=${batchWriteSeq})`);
@@ -974,25 +1056,25 @@ async function writeBatchToPLC(unitIndex, batchCode, batchState, programId) {
  * @param {number} calTime - seconds
  */
 async function writeProgramStageToPLC(unitIndex, stageIndex, stations, minTime, maxTime, calTime) {
-  const PROG_BASE = 140; // QW140..QW150
+  const PROG_BASE = BLOCKS.prog.start; // auto-generated base address
   const s = [0, 0, 0, 0, 0];
   for (let i = 0; i < Math.min(stations.length, 5); i++) {
     s[i] = stations[i] || 0;
   }
 
-  await client.writeRegisters(PROG_BASE + 1, [unitIndex]);   // QW141
-  await client.writeRegisters(PROG_BASE + 2, [stageIndex]);  // QW142
-  await client.writeRegisters(PROG_BASE + 3, [s[0]]);        // QW143 s1
-  await client.writeRegisters(PROG_BASE + 4, [s[1]]);        // QW144 s2
-  await client.writeRegisters(PROG_BASE + 5, [s[2]]);        // QW145 s3
-  await client.writeRegisters(PROG_BASE + 6, [s[3]]);        // QW146 s4
-  await client.writeRegisters(PROG_BASE + 7, [s[4]]);        // QW147 s5
-  await client.writeRegisters(PROG_BASE + 8, [minTime]);     // QW148
-  await client.writeRegisters(PROG_BASE + 9, [maxTime]);     // QW149
-  await client.writeRegisters(PROG_BASE + 10, [calTime]);    // QW150
+  await client.writeRegisters(PROG_BASE + 1, [unitIndex]);   
+  await client.writeRegisters(PROG_BASE + 2, [stageIndex]);  
+  await client.writeRegisters(PROG_BASE + 3, [s[0]]);        
+  await client.writeRegisters(PROG_BASE + 4, [s[1]]);        
+  await client.writeRegisters(PROG_BASE + 5, [s[2]]);        
+  await client.writeRegisters(PROG_BASE + 6, [s[3]]);        
+  await client.writeRegisters(PROG_BASE + 7, [s[4]]);        
+  await client.writeRegisters(PROG_BASE + 8, [minTime]);     
+  await client.writeRegisters(PROG_BASE + 9, [maxTime]);     
+  await client.writeRegisters(PROG_BASE + 10, [calTime]);    
 
   progStageSeq = (progStageSeq % 30000) + 1;
-  await client.writeRegisters(PROG_BASE + 0, [progStageSeq]); // QW140 = seq
+  await client.writeRegisters(PROG_BASE + 0, [progStageSeq]); 
 
   const ack = await waitForProgAck(progStageSeq, 3000);
   if (!ack) throw new Error(`PLC prog stage ack timeout (unit=${unitIndex}, stage=${stageIndex}, seq=${progStageSeq})`);
@@ -1057,7 +1139,7 @@ app.post('/api/calibrate/plan', async (req, res) => {
       return res.status(400).json({ error: 'transporters array required' });
     }
 
-    const CFG_BASE = 110;
+    const CFG_BASE = BLOCKS.cfg.start;
     let seq = (await readCfgSeq()) + 1;
 
     for (const plan of plans) {
@@ -1108,7 +1190,7 @@ app.post('/api/calibrate/plan', async (req, res) => {
 app.post('/api/calibrate/start', async (req, res) => {
   try {
     if (!connected) return res.status(503).json({ error: 'PLC not connected' });
-    const CFG_BASE = 110;
+    const CFG_BASE = BLOCKS.cfg.start;
     let seq = (await readCfgSeq()) + 1;
 
     // cfg_cmd=8, param=1 (start)
@@ -1132,7 +1214,7 @@ app.post('/api/calibrate/start', async (req, res) => {
 app.post('/api/calibrate/calculate', async (req, res) => {
   try {
     if (!connected) return res.status(503).json({ error: 'PLC not connected' });
-    const CFG_BASE = 110;
+    const CFG_BASE = BLOCKS.cfg.start;
     let seq = (await readCfgSeq()) + 1;
 
     // cfg_cmd=8, param=2 (calculate)
@@ -1156,7 +1238,7 @@ app.post('/api/calibrate/calculate', async (req, res) => {
 app.post('/api/calibrate/abort', async (req, res) => {
   try {
     if (!connected) return res.status(503).json({ error: 'PLC not connected' });
-    const CFG_BASE = 110;
+    const CFG_BASE = BLOCKS.cfg.start;
     let seq = (await readCfgSeq()) + 1;
 
     // cfg_cmd=8, param=3 (abort)
@@ -1292,7 +1374,7 @@ app.get('/api/calibrate/file', (req, res) => {
 // Helper: read current cfg_ack to determine next seq
 async function readCfgSeq() {
   try {
-    const result = await client.readHoldingRegisters(21, 1);
+    const result = await client.readHoldingRegisters(REG.qw_plc_status_cfg_ack, 1);
     return result.data[0] || 0;
   } catch (_) {
     return 0;

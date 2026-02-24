@@ -30,7 +30,8 @@
     },
     "transporters": {
       "heightMM": 1400,
-      "widthScaleFactor": 0.8
+      "widthScaleFactor": 0.8,
+      "showDriveLimits": true
     },
     "cross-transporters": {
       "showConnections": true,
