@@ -214,13 +214,15 @@ const withScanLock = async (fn) => {
 
 /**
  * Tarkista onko asematyyppi märkä
- * Asematyypit:
- * - 0: kuiva
- * - 1: märkä
- * - 10: kuiva poikittaissiirtokuljetin (cross-transporter)
- * - 11: märkä poikittaissiirtokuljetin (cross-transporter)
+ * Station operations:
+ * - 0: treatment (kind determines wet/dry)
+ * - 10: cross-transporter (kind determines wet/dry)
+ * - 20: loading, 21: unloading, 22: loading/unloading
+ * - 30: buffer, 31: empty buffer, 32: loaded buffer, 33: processed buffer
+ *
+ * kind: 0=dry, 1=wet
  */
-const isWetStationType = (stationType) => stationType === 1 || stationType === 11;
+const isWetStation = (station) => (Number(station.kind) || 0) === 1;
 
 let lastBatchLocations = new Map();
 let productionPlan = null;
@@ -912,9 +914,9 @@ const getOccupiedStations = (units) =>
 // ─── Unit-tavoitepohjainen automaattinen tehtävänluonti ─────────────────────
 // Asematyypit: 20=loading, 21=unloading, 22=loading/unloading
 //              30=buffer, 31=empty_buffer, 32=loaded_buffer, 33=processed_buffer
-const LOADING_STATION_TYPES = new Set([20, 22]);
-const UNLOADING_STATION_TYPES = new Set([21, 22]);
-const BUFFER_STATION_TYPES = new Set([30, 31, 32, 33]);
+const LOADING_STATION_OPS = new Set([20, 22]);
+const UNLOADING_STATION_OPS = new Set([21, 22]);
+const BUFFER_STATION_OPS = new Set([30, 31, 32, 33]);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // updateUnitTargets — Keskitetty Unit target -arviointi
@@ -996,9 +998,9 @@ const updateUnitTargets = ({ units, batches, batchPrograms, productionPlan, simT
 
     const stObj = stations.find(s => s.number === unit.location);
     if (!stObj) continue;
-    const stType = Number(stObj.type) || 0;
+    const stOp = Number(stObj.operation) || 0;
     // Bufferit, loading ja unloading ovat turvallisia — ei tarvitse väistää
-    if (LOADING_STATION_TYPES.has(stType) || UNLOADING_STATION_TYPES.has(stType) || BUFFER_STATION_TYPES.has(stType)) continue;
+    if (LOADING_STATION_OPS.has(stOp) || UNLOADING_STATION_OPS.has(stOp) || BUFFER_STATION_OPS.has(stOp)) continue;
 
     // Onko prosessiasemalle tulossa erä (task)?
     let incoming = false;
@@ -1033,8 +1035,8 @@ const updateUnitTargets = ({ units, batches, batchPrograms, productionPlan, simT
 
       const stObj = stations.find(s => s.number === unit.location);
       if (!stObj) continue;
-      const stType = Number(stObj.type) || 0;
-      if (!UNLOADING_STATION_TYPES.has(stType)) continue;
+      const stOp = Number(stObj.operation) || 0;
+      if (!UNLOADING_STATION_OPS.has(stOp)) continue;
 
       const prevTarget = unit.target || 'none';
       unit.target = 'to_avoid';
@@ -1119,7 +1121,7 @@ const findLoadingStationInTransporterArea = (transporterCfg, stations) => {
   }
   // Etsi ensimmäinen loading-tyyppinen asema sink-alueelta
   for (const s of stations) {
-    if (sinkStations.has(s.number) && LOADING_STATION_TYPES.has(Number(s.type) || 0)) {
+    if (sinkStations.has(s.number) && LOADING_STATION_OPS.has(Number(s.operation) || 0)) {
       return s.number;
     }
   }
@@ -1142,7 +1144,7 @@ const findUnloadingStationInTransporterArea = (transporterCfg, stations) => {
   }
   // Etsi ensimmäinen unloading-tyyppinen asema sink-alueelta
   for (const s of stations) {
-    if (sinkStations.has(s.number) && UNLOADING_STATION_TYPES.has(Number(s.type) || 0)) {
+    if (sinkStations.has(s.number) && UNLOADING_STATION_OPS.has(Number(s.operation) || 0)) {
       return s.number;
     }
   }
@@ -2040,7 +2042,8 @@ const stepSimulation = async (dtMs) => {
     const zFastSpeed = physics.z_fast_speed_mm_s || 0;
     const dripDelay = physics.drip_tray_delay_s || 0;
     const deviceDelay = Number(station.device_delay) || 0;
-    const stationType = Number(station.type) || 0; // 0=dry, 1=wet
+    const stationOp = Number(station.operation) || 0;
+    const stationKind = Number(station.kind) || 0;
 
     const state = { ...tState.state };
     
@@ -2381,7 +2384,7 @@ const stepSimulation = async (dtMs) => {
           console.log(`[PHASE2-CALC] Station=${state.current_station} TIMER: initial_delay=${state.initial_delay?.toFixed(1)}s lift_s=${liftS.toFixed(1)}s dropping=${stationDroppingTime}s drip=${dripDelay}s TOTAL=${phase2.toFixed(1)}s`);
         } else {
           // 3D: analyyttinen fysiikka (ei muuttunut)
-          const slowStart = isWetStationType(stationType) ? zSlowWet : zSlowDry;
+          const slowStart = (stationKind === 1) ? zSlowWet : zSlowDry;
           const slowEndStart = Math.max(0, zTotal - zSlowEnd);
           const safeDiv = (dist, speed) => (speed > 0 ? dist / speed : 0);
 
@@ -2425,8 +2428,8 @@ const stepSimulation = async (dtMs) => {
 
           const sinkStation = sink || station;
           const sinkDeviceDelay = Number(sinkStation.device_delay) || 0;
-          const sinkType = Number(sinkStation.type) || 0;
-          const sinkSlowStart = isWetStationType(sinkType) ? zSlowWet : zSlowDry;
+          const sinkOp = Number(sinkStation.operation) || 0;
+          const sinkSlowStart = ((Number(sinkStation.kind) || 0) === 1) ? zSlowWet : zSlowDry;
           const safeDiv2 = safeDiv;
           const tDripSink = dripDelay;
           const tDelayDown = sinkDeviceDelay;
@@ -2863,7 +2866,7 @@ const stepSimulation = async (dtMs) => {
       const zIdleHeight = physics.z_idle_height_mm || 100;
       const dripTrayDelay = physics.drip_tray_delay_s || 0;
       const catcherDelay = physics.catcher_delay_s || 0;
-      const speedChangeLimit = isWetStationType(stationType) ? (physics.z_speed_change_limit_wet_mm || 800) : (physics.z_speed_change_limit_dry_mm || 300);
+      const speedChangeLimit = (stationKind === 1) ? (physics.z_speed_change_limit_wet_mm || 800) : (physics.z_speed_change_limit_dry_mm || 300);
 
       if (state.z_stage === 'idle') {
         state.z_position = zIdleHeight;
@@ -3006,8 +3009,8 @@ const stepSimulation = async (dtMs) => {
       const catcherDelay = physics.catcher_delay_s || 0;
       // KORJAUS: Käytä kohde-aseman (sink_station_target) tyyppiä
       const sinkStation3D = stations.find((s) => s.number === state.sink_station_target) || station;
-      const sinkStationType3D = Number(sinkStation3D.type) || 0;
-      const speedChangeLimit = isWetStationType(sinkStationType3D) ? (physics.z_speed_change_limit_wet_mm || 800) : (physics.z_speed_change_limit_dry_mm || 300);
+      const sinkStationOp3D = Number(sinkStation3D.operation) || 0;
+      const speedChangeLimit = ((Number(sinkStation3D.kind) || 0) === 1) ? (physics.z_speed_change_limit_wet_mm || 800) : (physics.z_speed_change_limit_dry_mm || 300);
 
       if (state.z_stage === 'idle') {
         // SAFETY CHECK: Do not lower if station is occupied
@@ -3500,8 +3503,8 @@ const stepSimulation = async (dtMs) => {
 
             // Kun Unit on tuonut erän unloading-asemalle → target = 'none'
             const sinkStation = stations.find(s => s.number === state.current_station);
-            const sinkType = sinkStation ? (Number(sinkStation.type) || 0) : 0;
-            if (UNLOADING_STATION_TYPES.has(sinkType)) {
+            const sinkOp = sinkStation ? (Number(sinkStation.operation) || 0) : 0;
+            if (UNLOADING_STATION_OPS.has(sinkOp)) {
               const unitOnSink = getUnitAtLocation(units, state.current_station);
               if (unitOnSink && unitOnSink.target === 'to_unloading') {
                 console.log(`[SINK DONE] Unit U${unitOnSink.unit_id} arrived at unloading station ${state.current_station} → target 'none'`);
@@ -3544,11 +3547,11 @@ const stepSimulation = async (dtMs) => {
                 } else {
                   // Muu siirto: alkuperäinen logiikka (asematyypin mukaan)
                   const destStation = stations.find(s => s.number === state.current_station);
-                  const destType = destStation ? (Number(destStation.type) || 0) : 0;
-                  if (emptyUnitOnT.target === 'to_loading' && !LOADING_STATION_TYPES.has(destType)) {
-                    console.log(`[SINK DONE] Unit U${emptyUnitOnT.unit_id} target '${emptyUnitOnT.target}' KEPT (station ${state.current_station} type=${destType}, not loading)`);
-                  } else if (emptyUnitOnT.target === 'to_unloading' && !UNLOADING_STATION_TYPES.has(destType)) {
-                    console.log(`[SINK DONE] Unit U${emptyUnitOnT.unit_id} target '${emptyUnitOnT.target}' KEPT (station ${state.current_station} type=${destType}, not unloading)`);
+                  const destOp = destStation ? (Number(destStation.operation) || 0) : 0;
+                  if (emptyUnitOnT.target === 'to_loading' && !LOADING_STATION_OPS.has(destOp)) {
+                    console.log(`[SINK DONE] Unit U${emptyUnitOnT.unit_id} target '${emptyUnitOnT.target}' KEPT (station ${state.current_station} type=${destOp}, not loading)`);
+                  } else if (emptyUnitOnT.target === 'to_unloading' && !UNLOADING_STATION_OPS.has(destOp)) {
+                    console.log(`[SINK DONE] Unit U${emptyUnitOnT.unit_id} target '${emptyUnitOnT.target}' KEPT (station ${state.current_station} type=${destOp}, not unloading)`);
                   } else {
                     console.log(`[SINK DONE] Unit U${emptyUnitOnT.unit_id} target '${emptyUnitOnT.target}' → 'none' (arrived at destination station ${state.current_station})`);
                     emptyUnitOnT.target = 'none';
@@ -3795,7 +3798,7 @@ const stepSimulation = async (dtMs) => {
     if (!batchStation) continue;
     
     // Tarkista onko asema poikittaissiirtokuljetin
-    if (!scheduler.isCrossTransporterType(batchStation.type)) continue;
+    if (!scheduler.isCrossTransporterOp(batchStation.operation)) continue;
     
     // Laske kuinka kauan erä on ollut asemalla
     const startTime = batch.start_time || 0;
@@ -4648,8 +4651,8 @@ app.post('/api/reset-transporters', async (req, res) => {
             travel_s: {}
           };
           stations.forEach(fromStation => {
-            movementTimes.transporters[transporterId].lift_s[fromStation.number] = scheduler.calculateLiftTime2D(fromStation.type, transporter.physics_2D);
-            movementTimes.transporters[transporterId].sink_s[fromStation.number] = scheduler.calculateSinkTime2D(fromStation.type, transporter.physics_2D);
+            movementTimes.transporters[transporterId].lift_s[fromStation.number] = scheduler.calculateLiftTime2D(Number(fromStation.kind) || 0, transporter.physics_2D);
+            movementTimes.transporters[transporterId].sink_s[fromStation.number] = scheduler.calculateSinkTime2D(Number(fromStation.kind) || 0, transporter.physics_2D);
             movementTimes.transporters[transporterId].travel_s[fromStation.number] = {};
             stations.forEach(toStation => {
               const xDistance = Math.abs((toStation.x_position || 0) - (fromStation.x_position || 0));

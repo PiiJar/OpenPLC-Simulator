@@ -41,8 +41,8 @@ function getStepColor(step) {
   return '#333';
 }
 
-// Wet station = type 1 (wet) or 11 (wet variant). Everything else = dry.
-const isWetStation = (s) => s.type === 1 || s.type === 11;
+// Wet station = kind 1. Everything else = dry.
+const isWetStation = (s) => (Number(s.kind) || 0) === 1;
 
 export default function CalibrationPanel({ onClose, stations, transporterStates }) {
   const activeTransporters = (transporterStates || []).filter(t => t?.state?.status >= 3);

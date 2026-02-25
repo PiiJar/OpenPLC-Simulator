@@ -297,7 +297,7 @@ IF cal_step = 200 THEN
       (* --- Fill lift_s and sink_s per station type --- *)
       FOR cj := 1 TO 25 DO
         IF g_station[100 + cj].tank_id <> 0 THEN
-          IF g_station[100 + cj].stn_type = 1 THEN
+          IF g_station[100 + cj].kind = 1 THEN
             (* Wet station *)
             g_move[ci].lift_s[cj] := g_cal[ci].lift_wet_s;
             g_move[ci].sink_s[cj] := g_cal[ci].sink_wet_s;

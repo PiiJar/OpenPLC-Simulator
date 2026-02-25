@@ -87,8 +87,8 @@ function Tank({
     }
   }, [viewMode]);
 
-  // Get tank type (default to type 10 = plastic PP)
-  const tankTypeNum = tank.type ?? 10;
+  // Get tank operation code (default to 10 = plastic PP)
+  const tankTypeNum = tank.operation ?? 10;
   const typeInfo = getTankType(tankTypeNum);
   
   // Get colors from palette

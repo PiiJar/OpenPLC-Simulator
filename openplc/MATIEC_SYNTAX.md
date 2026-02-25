@@ -18,7 +18,7 @@ TYPE
   STATION_T : STRUCT
     number : INT;
     x_mm : REAL;
-    station_type : INT;
+    station_kind : INT;
   END_STRUCT;
 END_TYPE
 ```
@@ -410,7 +410,7 @@ x := tmp.x_mm;               (* lue kopiosta *)
 
 ```iecst
 (* VIRHE: "')' missing at the end of expression" *)
-station := (number := 101, x_mm := 100.0, station_type := 1);
+station := (number := 101, x_mm := 100.0, station_kind := 1);
 
 (* EI MYÖSKÄÄN TOIMI: *)
 stations[1] := (number := 101, x_mm := 100.0);
@@ -421,7 +421,7 @@ stations[1] := (number := 101, x_mm := 100.0);
 ```iecst
 stations[1].number := 101;
 stations[1].x_mm := 100.0;
-stations[1].station_type := 1;
+stations[1].station_kind := 1;
 stations[1].device_delay_s := 0.0;
 stations[1].dropping_time_s := 0.0;
 ```
@@ -435,9 +435,9 @@ stations[1].dropping_time_s := 0.0;
 ```iecst
 FUNCTION IsWetStation : BOOL
   VAR_INPUT
-    station_type : INT;
+    station_kind : INT;
   END_VAR
-  IsWetStation := (station_type = 1) OR (station_type = 11);
+  IsWetStation := (station_kind = 1) OR (station_kind = 11);
 END_FUNCTION
 ```
 

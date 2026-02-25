@@ -27,7 +27,7 @@
 FUNCTION_BLOCK SIM_FB_ZMotion
 VAR_INPUT
   delta_t       : REAL;    (* Cycle time in seconds *)
-  station_type  : INT;     (* STN_DRY=0, STN_WET=1 *)
+  station_kind  : INT;     (* KIND_DRY=0, KIND_WET=1 *)
   z_total_mm    : REAL;    (* Total Z travel distance *)
   z_slow_dry_mm : REAL;    (* Slow zone for dry stations *)
   z_slow_wet_mm : REAL;    (* Slow zone for wet stations *)
@@ -45,7 +45,7 @@ VAR_OUTPUT
   done : BOOL;             (* TRUE when sequence complete *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-  STN_WET : INT;
+  KIND_WET : INT;
 END_VAR
 VAR
   slow_zone : REAL;
@@ -53,8 +53,8 @@ END_VAR
 
   done := FALSE;
 
-  (* Select slow zone based on station type *)
-  IF station_type = STN_WET THEN
+  (* Select slow zone based on station kind *)
+  IF station_kind = KIND_WET THEN
     slow_zone := z_slow_wet_mm;
   ELSE
     slow_zone := z_slow_dry_mm;

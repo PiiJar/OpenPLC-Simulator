@@ -34,6 +34,8 @@ VAR_EXTERNAL
   (* --- Calibration --- *)
   g_cal              : ARRAY[1..MAX_TRANSPORTERS] OF CALIBRATION_T;
   g_cal_active       : BOOL;
+  (* --- Production --- *)
+  g_production_queue : INT;
   (* --- Time --- *)
   g_time_s           : LINT;
   (* --- BEGIN GENERATED MODBUS EXTERNALS --- *)
@@ -41,6 +43,7 @@ VAR_EXTERNAL
   qw_t1_z_mm                     : INT;
   qw_t1_vel_x10                  : INT;
   qw_t1_phase                    : INT;
+  qw_t1_unit_id                  : INT;
   qw_t1_z_stage                  : INT;
   qw_t1_cur_st                   : INT;
   qw_t1_lift_tgt                 : INT;
@@ -53,6 +56,7 @@ VAR_EXTERNAL
   qw_t2_z_mm                     : INT;
   qw_t2_vel_x10                  : INT;
   qw_t2_phase                    : INT;
+  qw_t2_unit_id                  : INT;
   qw_t2_z_stage                  : INT;
   qw_t2_cur_st                   : INT;
   qw_t2_lift_tgt                 : INT;
@@ -65,6 +69,7 @@ VAR_EXTERNAL
   qw_t3_z_mm                     : INT;
   qw_t3_vel_x10                  : INT;
   qw_t3_phase                    : INT;
+  qw_t3_unit_id                  : INT;
   qw_t3_z_stage                  : INT;
   qw_t3_cur_st                   : INT;
   qw_t3_lift_tgt                 : INT;
@@ -127,47 +132,38 @@ VAR_EXTERNAL
   qw_plc_status_prog_ack         : INT;
   qw_plc_status_avoid_ack        : INT;
   qw_plc_status_cal_active       : INT;
+  qw_plc_status_prod_queue       : INT;
   qw_plc_status_time_hi          : INT;
   qw_plc_status_time_lo          : INT;
   qw_u1_loc                      : INT;
   qw_u1_status                   : INT;
-  qw_u1_state                    : INT;
   qw_u1_target                   : INT;
   qw_u2_loc                      : INT;
   qw_u2_status                   : INT;
-  qw_u2_state                    : INT;
   qw_u2_target                   : INT;
   qw_u3_loc                      : INT;
   qw_u3_status                   : INT;
-  qw_u3_state                    : INT;
   qw_u3_target                   : INT;
   qw_u4_loc                      : INT;
   qw_u4_status                   : INT;
-  qw_u4_state                    : INT;
   qw_u4_target                   : INT;
   qw_u5_loc                      : INT;
   qw_u5_status                   : INT;
-  qw_u5_state                    : INT;
   qw_u5_target                   : INT;
   qw_u6_loc                      : INT;
   qw_u6_status                   : INT;
-  qw_u6_state                    : INT;
   qw_u6_target                   : INT;
   qw_u7_loc                      : INT;
   qw_u7_status                   : INT;
-  qw_u7_state                    : INT;
   qw_u7_target                   : INT;
   qw_u8_loc                      : INT;
   qw_u8_status                   : INT;
-  qw_u8_state                    : INT;
   qw_u8_target                   : INT;
   qw_u9_loc                      : INT;
   qw_u9_status                   : INT;
-  qw_u9_state                    : INT;
   qw_u9_target                   : INT;
   qw_u10_loc                     : INT;
   qw_u10_status                  : INT;
-  qw_u10_state                   : INT;
   qw_u10_target                  : INT;
   qw_b1_code                     : INT;
   qw_b1_state                    : INT;
@@ -752,6 +748,7 @@ VAR_EXTERNAL
   iw_cfg_d4                      : INT;
   iw_cfg_d5                      : INT;
   iw_cfg_d6                      : INT;
+  iw_cfg_d7                      : INT;
   iw_unit_seq                    : INT;
   iw_unit_id                     : INT;
   iw_unit_loc                    : INT;
@@ -777,9 +774,15 @@ VAR_EXTERNAL
   iw_avoid_seq                   : INT;
   iw_avoid_station               : INT;
   iw_avoid_value                 : INT;
+  iw_production_queue            : INT;
   iw_time_hi                     : INT;
   iw_time_lo                     : INT;
   (* --- END GENERATED MODBUS EXTERNALS --- *)
+
+
+
+
+
 
 
 END_VAR
@@ -832,12 +835,8 @@ IF iw_cfg_seq <> last_cfg_seq THEN
       g_station[iw_cfg_param].x_position    := INT_TO_REAL(iw_cfg_d1);
       g_station[iw_cfg_param].y_position    := INT_TO_REAL(iw_cfg_d2);
       g_station[iw_cfg_param].z_position    := INT_TO_REAL(iw_cfg_d3);
-      g_station[iw_cfg_param].stn_function  := iw_cfg_d4;
-      IF (iw_cfg_d4 = 1) OR (iw_cfg_d4 = 11) THEN
-        g_station[iw_cfg_param].stn_type := 1;   (* wet *)
-      ELSE
-        g_station[iw_cfg_param].stn_type := 0;   (* dry *)
-      END_IF;
+      g_station[iw_cfg_param].operation     := iw_cfg_d4;
+      g_station[iw_cfg_param].kind            := iw_cfg_d7;
       g_station[iw_cfg_param].dropping_time := INT_TO_REAL(iw_cfg_d5) / 10.0;
       g_station[iw_cfg_param].device_delay  := INT_TO_REAL(iw_cfg_d6) / 10.0;
     END_IF;
@@ -928,21 +927,10 @@ IF iw_cfg_seq <> last_cfg_seq THEN
       g_transporter[i].x_min_limit := g_cfg[i].x_min_limit;
       g_transporter[i].x_max_limit := g_cfg[i].x_max_limit;
 
-      (* Start position: use task_area[1].min_lift as start station *)
-      IF g_cfg[i].task_area[1].min_lift > 0 THEN
-        stn_num := g_cfg[i].task_area[1].min_lift;
-      ELSE
-        stn_num := 0;
-      END_IF;
-      lookup(station_number := stn_num);
-      IF lookup.found THEN
-        g_transporter[i].x_mm := lookup.x_mm;
-        g_transporter[i].current_station := stn_num;
-      ELSE
-        g_transporter[i].x_mm := 0.0;
-        g_transporter[i].current_station := 0;
-      END_IF;
+      (* Start position: at own area minimum, z=0 *)
+      g_transporter[i].x_mm := g_cfg[i].x_min_limit;
       g_transporter[i].z_mm := 0.0;
+      g_transporter[i].current_station := 0;
     END_FOR;
 
     init_done := TRUE;
@@ -956,6 +944,9 @@ IF init_done THEN
 
 (* Calculate transporter working areas (X-limits) every cycle *)
 twa_calc();
+
+(* ── Production queue sync from gateway ── *)
+g_production_queue := iw_production_queue;
 
 (* ── Unix time maintenance ── *)
 (* PLC keeps g_time_s by incrementing +1 every 50 cycles (50 × 20 ms = 1 s).
@@ -1003,10 +994,19 @@ END_IF;  (* init_done *)
 IF iw_unit_seq <> last_unit_seq THEN
   last_unit_seq := iw_unit_seq;
   IF (iw_unit_id >= 1) AND (iw_unit_id <= MAX_UNITS) THEN
+    (* Clear unit_id from old station if unit had a valid location *)
+    IF (g_unit[iw_unit_id].location >= STATION_ARRAY_START) AND (g_unit[iw_unit_id].location <= STATION_ARRAY_END) THEN
+      g_station[g_unit[iw_unit_id].location].unit_id := 0;
+    END_IF;
+
     g_unit[iw_unit_id].location := iw_unit_loc;
     g_unit[iw_unit_id].status   := iw_unit_status;
-    g_unit[iw_unit_id].state    := iw_unit_state;
     g_unit[iw_unit_id].target   := iw_unit_target;
+
+    (* Set unit_id on the new station *)
+    IF (iw_unit_loc >= STATION_ARRAY_START) AND (iw_unit_loc <= STATION_ARRAY_END) THEN
+      g_station[iw_unit_loc].unit_id := iw_unit_id;
+    END_IF;
   END_IF;
 END_IF;
 
@@ -1081,13 +1081,14 @@ cycle_count := cycle_count + 1;
 IF cycle_count > 30000 THEN cycle_count := 0; END_IF;
 
 (* --- BEGIN GENERATED MODBUS OUTPUT --- *)
-(* Auto-generated from modbus_map.json — 699 output registers *)
+(* Auto-generated from modbus_map.json — 693 output registers *)
 
 (* === Per-transporter live state — PLC writes, gateway reads === *)
 qw_t1_x_mm := REAL_TO_INT(g_transporter[1].x_mm);
 qw_t1_z_mm := REAL_TO_INT(g_transporter[1].z_mm);
 qw_t1_vel_x10 := REAL_TO_INT(g_transporter[1].vel_x * 10.0);
 qw_t1_phase := g_transporter[1].phase;
+qw_t1_unit_id := g_transporter[1].unit_id;
 qw_t1_z_stage := g_transporter[1].z_stage;
 qw_t1_cur_st := g_transporter[1].current_station;
 qw_t1_lift_tgt := g_transporter[1].lift_station;
@@ -1100,6 +1101,7 @@ qw_t2_x_mm := REAL_TO_INT(g_transporter[2].x_mm);
 qw_t2_z_mm := REAL_TO_INT(g_transporter[2].z_mm);
 qw_t2_vel_x10 := REAL_TO_INT(g_transporter[2].vel_x * 10.0);
 qw_t2_phase := g_transporter[2].phase;
+qw_t2_unit_id := g_transporter[2].unit_id;
 qw_t2_z_stage := g_transporter[2].z_stage;
 qw_t2_cur_st := g_transporter[2].current_station;
 qw_t2_lift_tgt := g_transporter[2].lift_station;
@@ -1112,6 +1114,7 @@ qw_t3_x_mm := REAL_TO_INT(g_transporter[3].x_mm);
 qw_t3_z_mm := REAL_TO_INT(g_transporter[3].z_mm);
 qw_t3_vel_x10 := REAL_TO_INT(g_transporter[3].vel_x * 10.0);
 qw_t3_phase := g_transporter[3].phase;
+qw_t3_unit_id := g_transporter[3].unit_id;
 qw_t3_z_stage := g_transporter[3].z_stage;
 qw_t3_cur_st := g_transporter[3].current_station;
 qw_t3_lift_tgt := g_transporter[3].lift_station;
@@ -1177,48 +1180,39 @@ qw_plc_status_batch_ack := last_batch_seq;
 qw_plc_status_prog_ack := last_prog_seq;
 qw_plc_status_avoid_ack := last_avoid_seq;
 IF g_cal_active THEN qw_plc_status_cal_active := 1; ELSE qw_plc_status_cal_active := 0; END_IF;
+qw_plc_status_prod_queue := g_production_queue;
 qw_plc_status_time_hi := LINT_TO_INT(g_time_s / 65536);
 qw_plc_status_time_lo := LINT_TO_INT(g_time_s MOD 65536);
 (* === Per-unit live state — PLC writes, gateway reads === *)
 qw_u1_loc := g_unit[1].location;
 qw_u1_status := g_unit[1].status;
-qw_u1_state := g_unit[1].state;
 qw_u1_target := g_unit[1].target;
 qw_u2_loc := g_unit[2].location;
 qw_u2_status := g_unit[2].status;
-qw_u2_state := g_unit[2].state;
 qw_u2_target := g_unit[2].target;
 qw_u3_loc := g_unit[3].location;
 qw_u3_status := g_unit[3].status;
-qw_u3_state := g_unit[3].state;
 qw_u3_target := g_unit[3].target;
 qw_u4_loc := g_unit[4].location;
 qw_u4_status := g_unit[4].status;
-qw_u4_state := g_unit[4].state;
 qw_u4_target := g_unit[4].target;
 qw_u5_loc := g_unit[5].location;
 qw_u5_status := g_unit[5].status;
-qw_u5_state := g_unit[5].state;
 qw_u5_target := g_unit[5].target;
 qw_u6_loc := g_unit[6].location;
 qw_u6_status := g_unit[6].status;
-qw_u6_state := g_unit[6].state;
 qw_u6_target := g_unit[6].target;
 qw_u7_loc := g_unit[7].location;
 qw_u7_status := g_unit[7].status;
-qw_u7_state := g_unit[7].state;
 qw_u7_target := g_unit[7].target;
 qw_u8_loc := g_unit[8].location;
 qw_u8_status := g_unit[8].status;
-qw_u8_state := g_unit[8].state;
 qw_u8_target := g_unit[8].target;
 qw_u9_loc := g_unit[9].location;
 qw_u9_status := g_unit[9].status;
-qw_u9_state := g_unit[9].state;
 qw_u9_target := g_unit[9].target;
 qw_u10_loc := g_unit[10].location;
 qw_u10_status := g_unit[10].status;
-qw_u10_state := g_unit[10].state;
 qw_u10_target := g_unit[10].target;
 (* === Per-unit batch data — PLC writes, gateway reads === *)
 qw_b1_code := g_batch[1].batch_code;
@@ -1799,6 +1793,11 @@ IF g_dep_overlap.flags[129] THEN qw_ov_s129_flag := 1; ELSE qw_ov_s129_flag := 0
 IF g_dep_overlap.flags[130] THEN qw_ov_s130_flag := 1; ELSE qw_ov_s130_flag := 0; END_IF;
 
 (* --- END GENERATED MODBUS OUTPUT --- *)
+
+
+
+
+
 
 
 END_PROGRAM

@@ -253,15 +253,15 @@ Update a Unit's `location`, `status`, `state`, and/or `target`.
 
 ---
 
-## Station Types Related to Units
+## Station Operations Related to Units
 
-The `station.type` field in `stations.json` is an integer. In addition to the existing process-line types (0 = dry, 1 = wet, 10 = dry cross-transfer, 11 = wet cross-transfer), the following types are defined for unit handling and buffer stations.
+The `station.operation` field in `stations.json` is an integer. In addition to the existing process-line operations (0 = dry, 1 = wet, 10 = dry cross-transfer, 11 = wet cross-transfer), the following operations are defined for unit handling and buffer stations.
 
-**All unit-related station types are dry** — the transporter uses dry z-movement parameters (slow distance, speed change limits) when lifting from or sinking to these stations.
+**All unit-related station operations are dry** — the transporter uses dry z-movement parameters (slow distance, speed change limits) when lifting from or sinking to these stations.
 
-### Complete Station Type Table
+### Complete Station Operation Table
 
-| Type | Name | Wet/Dry | Description |
+| Operation | Name | Wet/Dry | Description |
 |------|------|---------|-------------|
 | 0 | Normal dry | Dry | Standard dry process station (buffer, dryer, etc.) |
 | 1 | Normal wet | Wet | Standard wet process station (treatment tank) |
@@ -328,21 +328,20 @@ Dedicated storage for processed Units that are waiting for the unloading station
 |-------------|------------------------|
 | `to_loading` | 20 (Loading) or 22 (Loading/Unloading) |
 | `to_unloading` | 21 (Unloading) or 22 (Loading/Unloading) |
-| `to_process` | 0 or 1 (process line stations) |
+| `to_process` | 0 (process line stations) |
 | `to_empty_buffer` | 31 (Empty buffer) |
 | `to_loaded_buffer` | 32 (Loaded buffer) |
 | `to_processed_buffer` | 33 (Processed buffer) |
 
 ### Z-Movement Classification
 
-The `isWetStationType()` function determines z-movement speed parameters:
+The `isWetStation()` function determines z-movement speed parameters based on station `kind`:
 
 ```javascript
-// Wet types: use z_slow_distance_wet_mm, z_speed_change_limit_wet_mm
-const isWetStationType = (type) => type === 1 || type === 11;
+// Wet stations (kind === 1): use z_slow_distance_wet_mm, z_speed_change_limit_wet_mm
+const isWetStation = (station) => (Number(station.kind) || 0) === 1;
 
-// All other types (0, 10, 20–33) are dry:
-// use z_slow_distance_dry_mm, z_speed_change_limit_dry_mm
+// Dry stations (kind === 0): use z_slow_distance_dry_mm, z_speed_change_limit_dry_mm
 ```
 
-Types 20–33 are all dry, so no changes to `isWetStationType()` are needed.
+The `kind` field is independent of `operation` — it is set directly in `stations.json`.

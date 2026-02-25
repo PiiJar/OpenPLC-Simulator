@@ -10,7 +10,7 @@ VAR_OUTPUT
   found           : BOOL;
   idx             : INT;
   x_mm            : REAL;
-  stype           : INT;
+  skind           : INT;
   device_delay_s  : REAL;
   dropping_time_s : REAL;
 END_VAR
@@ -31,7 +31,7 @@ END_VAR
       found := TRUE;
       idx := station_number;
       x_mm := st.x_position;
-      stype := st.stn_type;
+      skind := st.kind;
       device_delay_s := st.device_delay;
       dropping_time_s := st.dropping_time;
       RETURN;
@@ -41,7 +41,7 @@ END_VAR
   found := FALSE;
   idx := 0;
   x_mm := 0.0;
-  stype := 0;
+  skind := 0;
   device_delay_s := 0.0;
   dropping_time_s := 0.0;
 END_FUNCTION_BLOCK

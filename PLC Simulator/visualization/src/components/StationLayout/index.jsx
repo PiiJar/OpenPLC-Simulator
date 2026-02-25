@@ -63,7 +63,7 @@ function StationLayout({
   // Group stations for cross-transporter connections
   const stationsByGroup = {};
   stations.forEach(station => {
-    if (station.type === 10 || station.type === 11) {
+    if (station.operation === 10) {
       if (!stationsByGroup[station.group]) {
         stationsByGroup[station.group] = [];
       }

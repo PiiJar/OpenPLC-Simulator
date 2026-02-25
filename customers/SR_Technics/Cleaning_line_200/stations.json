@@ -8,7 +8,8 @@
       "x_position": 500,
       "y_position": 1350,
       "z_position": 0,
-      "type": 0,
+      "kind": 0,
+      "operation": 0,
       "dropping_time": 0.0,
       "device_delay": 0.0,
       "start_station": true
@@ -21,7 +22,8 @@
       "x_position": 1500,
       "y_position": 1350,
       "z_position": 0,
-      "type": 0,
+      "kind": 0,
+      "operation": 0,
       "dropping_time": 0.0,
       "device_delay": 0.0,
       "start_station": false
@@ -34,7 +36,8 @@
       "x_position": 3000,
       "y_position": 1350,
       "z_position": 0,
-      "type": 0,
+      "kind": 0,
+      "operation": 0,
       "dropping_time": 0.0,
       "device_delay": 0.0,
       "start_station": false
@@ -47,7 +50,8 @@
       "x_position": 4500,
       "y_position": 1350,
       "z_position": 0,
-      "type": 0,
+      "kind": 0,
+      "operation": 0,
       "dropping_time": 0.0,
       "device_delay": 5.0,
       "start_station": false
@@ -60,7 +64,8 @@
       "x_position": 5500,
       "y_position": 1350,
       "z_position": 0,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "dropping_time": 10.0,
       "device_delay": 0.0,
       "start_station": false
@@ -73,7 +78,8 @@
       "x_position": 6500,
       "y_position": 1350,
       "z_position": 0,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "dropping_time": 10.0,
       "device_delay": 0.0,
       "start_station": false
@@ -86,7 +92,8 @@
       "x_position": 7500,
       "y_position": 1350,
       "z_position": 0,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "dropping_time": 10.0,
       "device_delay": 0.0,
       "start_station": false
@@ -99,7 +106,8 @@
       "x_position": 8500,
       "y_position": 1350,
       "z_position": 0,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "dropping_time": 10.0,
       "device_delay": 0.0,
       "start_station": false
@@ -112,7 +120,8 @@
       "x_position": 9500,
       "y_position": 1350,
       "z_position": 0,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "dropping_time": 10.0,
       "device_delay": 0.0,
       "start_station": false
@@ -125,7 +134,8 @@
       "x_position": 10500,
       "y_position": 1350,
       "z_position": 0,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "dropping_time": 10.0,
       "device_delay": 0.0,
       "start_station": false
@@ -138,7 +148,8 @@
       "x_position": 11500,
       "y_position": 1350,
       "z_position": 0,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "dropping_time": 10.0,
       "device_delay": 0.0,
       "start_station": false
@@ -151,7 +162,8 @@
       "x_position": 12500,
       "y_position": 1350,
       "z_position": 0,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "dropping_time": 10.0,
       "device_delay": 0.0,
       "start_station": false
@@ -164,7 +176,8 @@
       "x_position": 13500,
       "y_position": 1350,
       "z_position": 0,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "dropping_time": 10.0,
       "device_delay": 0.0,
       "start_station": false
@@ -177,7 +190,8 @@
       "x_position": 14500,
       "y_position": 1350,
       "z_position": 0,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "dropping_time": 10.0,
       "device_delay": 0.0,
       "start_station": false
@@ -190,7 +204,8 @@
       "x_position": 15500,
       "y_position": 1350,
       "z_position": 0,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "dropping_time": 10.0,
       "device_delay": 0.0,
       "start_station": false
@@ -203,7 +218,8 @@
       "x_position": 16500,
       "y_position": 1350,
       "z_position": 0,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "dropping_time": 10.0,
       "device_delay": 0.0,
       "start_station": false
@@ -216,7 +232,8 @@
       "x_position": 17500,
       "y_position": 1350,
       "z_position": 0,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "dropping_time": 10.0,
       "device_delay": 0.0,
       "start_station": false
@@ -229,7 +246,8 @@
       "x_position": 18500,
       "y_position": 1350,
       "z_position": 0,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "dropping_time": 10.0,
       "device_delay": 0.0,
       "start_station": false
@@ -242,7 +260,8 @@
       "x_position": 19500,
       "y_position": 1350,
       "z_position": 0,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "dropping_time": 10.0,
       "device_delay": 0.0,
       "start_station": false
@@ -255,7 +274,8 @@
       "x_position": 21000,
       "y_position": 1350,
       "z_position": 0,
-      "type": 0,
+      "kind": 0,
+      "operation": 0,
       "dropping_time": 0.0,
       "device_delay": 0.0,
       "start_station": false

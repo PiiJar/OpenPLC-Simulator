@@ -238,27 +238,21 @@ function calculateAxisTime(distance, maxSpeed, accelTime, decelTime) {
 }
 
 /**
- * Tarkista onko asematyyppi märkä
- * @param {number} stationType - Aseman tyyppi
- * @returns {boolean} true jos märkä (type 1 tai 11)
- * 
- * Asematyypit:
- * - 0: kuiva
- * - 1: märkä
- * - 10: kuiva poikittaissiirtokuljetin (cross-transporter)
- * - 11: märkä poikittaissiirtokuljetin (cross-transporter)
+ * Tarkista onko asema märkä
+ * @param {number} stationKind - Aseman kind (0=dry, 1=wet)
+ * @returns {boolean} true jos märkä
  */
-function isWetStationType(stationType) {
-    return stationType === 1 || stationType === 11;
+function isWetStation(stationKind) {
+    return stationKind === 1;
 }
 
 /**
- * Tarkista onko asematyyppi poikittaissiirtokuljetin
- * @param {number} stationType - Aseman tyyppi
- * @returns {boolean} true jos poikittaissiirtokuljetin (type 10 tai 11)
+ * Tarkista onko asema poikittaissiirtokuljetin
+ * @param {number} stationOp - Aseman operation
+ * @returns {boolean} true jos poikittaissiirtokuljetin (operation 10)
  */
-function isCrossTransporterType(stationType) {
-    return stationType === 10 || stationType === 11;
+function isCrossTransporterOp(stationOp) {
+    return stationOp === 10;
 }
 
 /**
@@ -278,10 +272,10 @@ function findCrossTransporterEndStation(liftStation, sinkStation, stations) {
         return null;
     }
     
-    const liftType = liftStation.type;
+    const liftOp = liftStation.operation;
     
     // Tarkista että nostoasema on poikittaissiirtokuljetin
-    if (!isCrossTransporterType(liftType)) {
+    if (!isCrossTransporterOp(liftOp)) {
         return null;
     }
     
@@ -299,7 +293,7 @@ function findCrossTransporterEndStation(liftStation, sinkStation, stations) {
     const candidates = stations.filter(s => 
         s.group === liftGroup &&                           // Sama ryhmä
         s.number !== liftStation.number &&                  // Ei sama asema
-        isCrossTransporterType(s.type) &&                   // Myös poikittaissiirtokuljetin
+        isCrossTransporterOp(s.operation) &&                   // Myös poikittaissiirtokuljetin
         (s.y_position || 0) === sinkY                       // Samalla linjalla kuin laskuasema
     );
     
@@ -326,11 +320,11 @@ function findCrossTransporterEndStation(liftStation, sinkStation, stations) {
 
 /**
  * Laske 2D-nostimen nostoaika
- * @param {number} stationType - Aseman tyyppi (0=kuiva, 1=märkä, 10=kuiva cross, 11=märkä cross)
+ * @param {number} stationKind - Aseman kind (0=dry, 1=wet)
  * @param {object} physics - Nostimen fysiikkaparametrit
  * @returns {number} Nostoaika (s)
  */
-function calculateLiftTime2D(stationType, physics) {
+function calculateLiftTime2D(stationKind, physics) {
     const zTotal = physics.z_total_distance_mm || 1200;
     const zSlowDry = physics.z_slow_distance_dry_mm || 300;
     const zSlowWet = physics.z_slow_distance_wet_mm || 800;
@@ -338,8 +332,7 @@ function calculateLiftTime2D(stationType, physics) {
     const zSlowSpeed = physics.z_slow_speed_mm_s || 50;
     const zFastSpeed = physics.z_fast_speed_mm_s || 200;
     
-    // Märkä = type 1 tai 11 (märkä poikittaissiirtokuljetin)
-    const slowStart = isWetStationType(stationType) ? zSlowWet : zSlowDry;
+    const slowStart = (stationKind === 1) ? zSlowWet : zSlowDry;
     const slowEndStart = zTotal - zSlowEnd;
     
     const tSlowUp = slowStart / zSlowSpeed;
@@ -351,19 +344,18 @@ function calculateLiftTime2D(stationType, physics) {
 
 /**
  * Laske 2D-nostimen laskuaika
- * @param {number} stationType - Aseman tyyppi (0=kuiva, 1=märkä, 10=kuiva cross, 11=märkä cross)
+ * @param {number} stationKind - Aseman kind (0=dry, 1=wet)
  * @param {object} physics - Nostimen fysiikkaparametrit
  * @returns {number} Laskuaika (s)
  */
-function calculateSinkTime2D(stationType, physics) {
+function calculateSinkTime2D(stationKind, physics) {
     const zTotal = physics.z_total_distance_mm || 1200;
     const zSlowDry = physics.z_slow_distance_dry_mm || 300;
     const zSlowWet = physics.z_slow_distance_wet_mm || 800;
     const zSlowSpeed = physics.z_slow_speed_mm_s || 50;
     const zFastSpeed = physics.z_fast_speed_mm_s || 200;
     
-    // Märkä = type 1 tai 11 (märkä poikittaissiirtokuljetin)
-    const slowStart = isWetStationType(stationType) ? zSlowWet : zSlowDry;
+    const slowStart = (stationKind === 1) ? zSlowWet : zSlowDry;
     
     const tFastDown = Math.max(0, zTotal - slowStart) / zFastSpeed;
     const tSlowDown = slowStart / zSlowSpeed;
@@ -386,11 +378,11 @@ function calculateSinkTime2D(stationType, physics) {
  * 9. dropping_time (lisätään erikseen)
  * 10. drip_tray_delay (close drip tray - lisätään erikseen)
  * 
- * @param {number} stationType - Aseman tyyppi
+ * @param {number} stationKind - Aseman kind (0=dry, 1=wet)
  * @param {object} physics - Nostimen fysiikkaparametrit (physics_3D)
  * @returns {number} Z-liikkeen aika (s) - ilman device_delay, drip_tray_delay, dropping_time
  */
-function calculateLiftTime3D(stationType, physics) {
+function calculateLiftTime3D(stationKind, physics) {
     const zTotal = physics.z_total_distance_mm || 4000;
     const zIdle = physics.z_idle_height_mm || 100;
     const zSlowEnd = physics.z_slow_end_distance_mm || 50;
@@ -400,8 +392,8 @@ function calculateLiftTime3D(stationType, physics) {
     const zFastSpeed = physics.z_fast_speed_mm_s || 200;
     const catcherDelay = physics.catcher_delay_s || 0;
     
-    // Valitse speed change limit asematyypin mukaan
-    const zSpeedChangeLimit = isWetStationType(stationType) ? zSpeedChangeLimitWet : zSpeedChangeLimitDry;
+    // Valitse speed change limit aseman kind:n mukaan
+    const zSpeedChangeLimit = (stationKind === 1) ? zSpeedChangeLimitWet : zSpeedChangeLimitDry;
     
     // 3. Fast down: z_idle → z_slow_end
     const fastDown = Math.max(0, zIdle - zSlowEnd) / Math.max(zFastSpeed, 1e-6);
@@ -433,11 +425,11 @@ function calculateLiftTime3D(stationType, physics) {
  * 6. Fast up: 0 → z_idle
  * 7. drip_tray_delay (close drip tray - lisätään erikseen)
  * 
- * @param {number} stationType - Aseman tyyppi
+ * @param {number} stationKind - Aseman kind (0=dry, 1=wet)
  * @param {object} physics - Nostimen fysiikkaparametrit (physics_3D)
  * @returns {number} Z-liikkeen aika (s) - ilman device_delay, drip_tray_delay
  */
-function calculateSinkTime3D(stationType, physics) {
+function calculateSinkTime3D(stationKind, physics) {
     const zTotal = physics.z_total_distance_mm || 4000;
     const zIdle = physics.z_idle_height_mm || 100;
     const zSpeedChangeLimitDry = physics.z_speed_change_limit_dry_mm || 300;
@@ -446,8 +438,8 @@ function calculateSinkTime3D(stationType, physics) {
     const zFastSpeed = physics.z_fast_speed_mm_s || 200;
     const catcherDelay = physics.catcher_delay_s || 0;
     
-    // Valitse speed change limit asematyypin mukaan
-    const zSpeedChangeLimit = isWetStationType(stationType) ? zSpeedChangeLimitWet : zSpeedChangeLimitDry;
+    // Valitse speed change limit aseman kind:n mukaan
+    const zSpeedChangeLimit = (stationKind === 1) ? zSpeedChangeLimitWet : zSpeedChangeLimitDry;
     
     // 3. Fast down: z_total → z_speed_change_limit
     const fastDown = Math.max(0, zTotal - zSpeedChangeLimit) / Math.max(zFastSpeed, 1e-6);
@@ -560,20 +552,20 @@ function calculateTransferTime(fromStation, toStation, transporter, movementTime
     // 1. NOSTO
     // HUOM: Nostoaseman device_delay (kannet) EI lisätä phase2:een,
     // koska kannet avataan nostoasemalla käsittelyajan aikana (menee päällekkäin).
-    const fromType = fromStation.type || 0;
+    const fromKind = Number(fromStation.kind) || 0;
     const fromDroppingTime = fromStation.dropping_time || 0;
     
     // Valitse nostoajan laskenta mallin mukaan
     const liftTime = is3D 
-        ? calculateLiftTime3D(fromType, physics) 
-        : calculateLiftTime2D(fromType, physics);
+        ? calculateLiftTime3D(fromKind, physics) 
+        : calculateLiftTime2D(fromKind, physics);
     
     // 3D-nostimella drip_tray_delay lisätään sekä alkuun että loppuun
     const phase2 = is3D
         ? dripDelay + liftTime + fromDroppingTime + dripDelay
         : liftTime + fromDroppingTime + dripDelay;
     
-    console.log(`[PHASE2-SCHED] Station=${fromStation.number} type=${fromType} model=${model} lift=${liftTime.toFixed(1)}s dropping=${fromDroppingTime}s drip=${dripDelay}s TOTAL=${phase2.toFixed(1)}s (device_delay overlaps with treatment)`);
+    console.log(`[PHASE2-SCHED] Station=${fromStation.number} kind=${fromKind} model=${model} lift=${liftTime.toFixed(1)}s dropping=${fromDroppingTime}s drip=${dripDelay}s TOTAL=${phase2.toFixed(1)}s (device_delay overlaps with treatment)`);
     
     // 2. VAAKASIIRTO (X-akseli)
     const xDistance = Math.abs((toStation.x_position || 0) - (fromStation.x_position || 0));
@@ -589,13 +581,13 @@ function calculateTransferTime(fromStation, toStation, transporter, movementTime
     // 3. LASKU
     // HUOM: Tippakouru (drip_tray) avataan MYÖS ennen laskua, samoin kuin ennen nostoa
     // Simulaatiossa: z_stage = 'drip_tray_delay_sink', z_timer = dripTrayDelay
-    const toType = toStation.type || 0;
+    const toKind = Number(toStation.kind) || 0;
     const toDeviceDelay = toStation.device_delay || 0;
     
     // Valitse laskuajan laskenta mallin mukaan
     const sinkTime = is3D
-        ? calculateSinkTime3D(toType, physics)
-        : calculateSinkTime2D(toType, physics);
+        ? calculateSinkTime3D(toKind, physics)
+        : calculateSinkTime2D(toKind, physics);
     
     // phase4 = tippakouru auki + device_delay + varsinainen lasku
     const phase4 = dripDelay + toDeviceDelay + sinkTime;
@@ -4080,7 +4072,7 @@ function resolveLocalConflicts(classifications) {
     const adjustments = [];
     
     for (const cls of classifications) {
-        if (cls.type === 'LOCAL_FORWARD') {
+        if (cls.operation === 'LOCAL_FORWARD') {
             // Viivästä B:tä (nextTask) ja kompensoi seuraavassa stagessa
             const B = cls.target;
             const deficit = cls.deficit;
@@ -4105,7 +4097,7 @@ function resolveLocalConflicts(classifications) {
             
             console.log(`[RESOLVE] LOCAL_FORWARD: B${B.batch_id}s${B.stage} +${deficit.toFixed(1)}s, kompensaatio s${B.stage + 1} -${deficit.toFixed(1)}s`);
         }
-        else if (cls.type === 'LOCAL_BACKWARD') {
+        else if (cls.operation === 'LOCAL_BACKWARD') {
             // Aikaista A:ta (prevTask) ja kompensoi seuraavassa stagessa
             const A = cls.target;
             const deficit = cls.deficit;
@@ -4130,7 +4122,7 @@ function resolveLocalConflicts(classifications) {
             
             console.log(`[RESOLVE] LOCAL_BACKWARD: B${A.batch_id}s${A.stage} -${deficit.toFixed(1)}s, kompensaatio s${A.stage + 1} +${deficit.toFixed(1)}s`);
         }
-        else if (cls.type === 'LOCAL_COMBINED') {
+        else if (cls.operation === 'LOCAL_COMBINED') {
             // Sekä A:n aikaistus että B:n viivästys
             const A = cls.targetA;
             const B = cls.targetB;
@@ -4175,7 +4167,7 @@ function resolveLocalConflicts(classifications) {
             
             console.log(`[RESOLVE] LOCAL_COMBINED: A=${adjustA.toFixed(1)}s, B=${adjustB.toFixed(1)}s`);
         }
-        else if (cls.type === 'CHAIN_FORWARD') {
+        else if (cls.operation === 'CHAIN_FORWARD') {
             // Viivästä B:tä ja KOKO loppuketjua (ei kompensaatiota)
             const B = cls.target;
             const deficit = cls.deficit;
@@ -4191,7 +4183,7 @@ function resolveLocalConflicts(classifications) {
             
             console.log(`[RESOLVE] CHAIN_FORWARD: B${B.batch_id}s${B.stage}→end +${deficit.toFixed(1)}s`);
         }
-        else if (cls.type === 'CHAIN_BACKWARD') {
+        else if (cls.operation === 'CHAIN_BACKWARD') {
             // Aikaista A:ta ja KOKO loppuketjua (ei kompensaatiota)
             const A = cls.target;
             const deficit = cls.deficit;
@@ -4207,7 +4199,7 @@ function resolveLocalConflicts(classifications) {
             
             console.log(`[RESOLVE] CHAIN_BACKWARD: B${A.batch_id}s${A.stage}→end -${deficit.toFixed(1)}s`);
         }
-        else if (cls.type === 'CHAIN_COMBINED') {
+        else if (cls.operation === 'CHAIN_COMBINED') {
             // Sekä A:n ketjutettu aikaistus että B:n ketjutettu viivästys
             const A = cls.targetA;
             const B = cls.targetB;
@@ -5045,7 +5037,7 @@ module.exports = {
     selectBestParallelStation,
     
     // Poikittaissiirtokuljetin (cross-transporter)
-    isCrossTransporterType,
+    isCrossTransporterOp,
     findCrossTransporterEndStation,
     
     // Debug

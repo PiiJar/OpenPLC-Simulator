@@ -11,7 +11,8 @@
       "dropping_time": 0,
       "device_delay": 0.0,
       "start_station": true,
-      "type": 0
+      "kind": 0,
+      "operation": 0
     },
     {
       "number": 102,
@@ -24,7 +25,8 @@
       "dropping_time": 0,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 0
+      "kind": 0,
+      "operation": 0
     },
     {
       "number": 103,
@@ -37,7 +39,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 104,
@@ -50,7 +53,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 105,
@@ -63,7 +67,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 106,
@@ -76,7 +81,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 107,
@@ -89,7 +95,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 108,
@@ -102,7 +109,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 109,
@@ -115,7 +123,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 110,
@@ -128,7 +137,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 111,
@@ -141,7 +151,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 112,
@@ -154,7 +165,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 113,
@@ -167,7 +179,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 114,
@@ -180,7 +193,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 115,
@@ -193,7 +207,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 116,
@@ -206,7 +221,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 117,
@@ -219,7 +235,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 118,
@@ -232,7 +249,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 119,
@@ -245,7 +263,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 120,
@@ -258,7 +277,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 201,
@@ -271,7 +291,8 @@
       "dropping_time": 0,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 0
+      "kind": 0,
+      "operation": 0
     },
     {
       "number": 202,
@@ -284,7 +305,8 @@
       "dropping_time": 0,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 0
+      "kind": 0,
+      "operation": 0
     },
     {
       "number": 203,
@@ -297,7 +319,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 204,
@@ -310,7 +333,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 205,
@@ -323,7 +347,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 206,
@@ -336,7 +361,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 207,
@@ -349,7 +375,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 208,
@@ -362,7 +389,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 209,
@@ -375,7 +403,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 210,
@@ -388,7 +417,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 211,
@@ -401,7 +431,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 212,
@@ -414,7 +445,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 213,
@@ -427,7 +459,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 214,
@@ -440,7 +473,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 215,
@@ -453,7 +487,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 216,
@@ -466,7 +501,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 217,
@@ -479,7 +515,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 218,
@@ -492,7 +529,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 219,
@@ -505,7 +543,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 220,
@@ -518,7 +557,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 301,
@@ -531,7 +571,8 @@
       "dropping_time": 0,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 0
+      "kind": 0,
+      "operation": 0
     },
     {
       "number": 302,
@@ -544,7 +585,8 @@
       "dropping_time": 0,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 0
+      "kind": 0,
+      "operation": 0
     },
     {
       "number": 303,
@@ -557,7 +599,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 304,
@@ -570,7 +613,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 305,
@@ -583,7 +627,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 306,
@@ -596,7 +641,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 307,
@@ -609,7 +655,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 308,
@@ -622,7 +669,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 309,
@@ -635,7 +683,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 310,
@@ -648,7 +697,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 311,
@@ -661,7 +711,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 312,
@@ -674,7 +725,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 313,
@@ -687,7 +739,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 314,
@@ -700,7 +753,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 315,
@@ -713,7 +767,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 316,
@@ -726,7 +781,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 317,
@@ -739,7 +795,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 318,
@@ -752,7 +809,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 319,
@@ -765,7 +823,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 320,
@@ -778,7 +837,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 401,
@@ -791,7 +851,8 @@
       "dropping_time": 0,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 0
+      "kind": 0,
+      "operation": 0
     },
     {
       "number": 402,
@@ -804,7 +865,8 @@
       "dropping_time": 0,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 0
+      "kind": 0,
+      "operation": 0
     },
     {
       "number": 403,
@@ -817,7 +879,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 404,
@@ -830,7 +893,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 405,
@@ -843,7 +907,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 406,
@@ -856,7 +921,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 407,
@@ -869,7 +935,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 408,
@@ -882,7 +949,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 409,
@@ -895,7 +963,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 410,
@@ -908,7 +977,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 411,
@@ -921,7 +991,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 412,
@@ -934,7 +1005,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 413,
@@ -947,7 +1019,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 414,
@@ -960,7 +1033,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 415,
@@ -973,7 +1047,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 416,
@@ -986,7 +1061,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 417,
@@ -999,7 +1075,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 418,
@@ -1012,7 +1089,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 419,
@@ -1025,7 +1103,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 420,
@@ -1038,7 +1117,8 @@
       "dropping_time": 5,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     }
   ]
 }

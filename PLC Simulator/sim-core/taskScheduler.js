@@ -232,12 +232,12 @@ function _insertionSort(arr, count, compareFn, context) {
 }
 
 /** Safe station types — buffer/loading/unloading (PLC: constant array) */
-const SAFE_STATION_TYPES = [20, 21, 22, 30, 31, 32, 33];
-const SAFE_STATION_TYPES_COUNT = 7;
-function _isSafeStationType(type) {
+const SAFE_STATION_OPS = [20, 21, 22, 30, 31, 32, 33];
+const SAFE_STATION_OPS_COUNT = 7;
+function _isSafeStationOp(type) {
     const t = Number(type) || 0;
-    for (let i = 0; i < SAFE_STATION_TYPES_COUNT; i++) {
-        if (SAFE_STATION_TYPES[i] === t) return true;
+    for (let i = 0; i < SAFE_STATION_OPS_COUNT; i++) {
+        if (SAFE_STATION_OPS[i] === t) return true;
     }
     return false;
 }

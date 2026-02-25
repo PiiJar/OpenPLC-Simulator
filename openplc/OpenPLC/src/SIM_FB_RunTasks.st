@@ -22,8 +22,11 @@ VAR_INPUT
 END_VAR
 VAR_EXTERNAL CONSTANT
     MAX_TRANSPORTERS    : INT;
+    MAX_UNITS           : INT;
+    MAX_STAGES          : INT;
     STATION_ARRAY_START : INT;
     STATION_ARRAY_END   : INT;
+    IN_PROCESS          : INT;
 END_VAR
 
 VAR_EXTERNAL
@@ -31,6 +34,9 @@ VAR_EXTERNAL
   g_station     : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
   g_cfg          : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
   g_move         : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
+  g_unit         : ARRAY[1..MAX_UNITS] OF UNIT_T;
+  g_batch        : ARRAY[1..MAX_UNITS] OF BATCH_T;
+  g_time_s       : LINT;
 END_VAR
 VAR
   i            : INT;
@@ -53,9 +59,11 @@ VAR
   arrived_x    : BOOL;
   at_station   : BOOL;    (* TRUE only when actually at station, not just at drive limit *)
   arrived_z    : BOOL;
-  station_type : INT;
+  station_kind : INT;
   device_delay : REAL;
   drop_time    : REAL;
+  pick_unit_id : INT;     (* unit_id picked up from lift station *)
+  sink_unit_id : INT;     (* unit_id being placed at sink station *)
   (* Nearest-station calculation *)
   nearest_num  : INT;
   min_dist     : REAL;
@@ -64,6 +72,10 @@ VAR
   tm1          : STC_FB_MeasureMoveTimes;
   tm2          : STC_FB_MeasureMoveTimes;
   tm3          : STC_FB_MeasureMoveTimes;
+  (* Unit location update instances *)
+  upd_loc1     : STC_FB_UpdateUnitLocation;
+  upd_loc2     : STC_FB_UpdateUnitLocation;
+  upd_loc3     : STC_FB_UpdateUnitLocation;
 END_VAR
 
 IF NOT i_run THEN
@@ -142,20 +154,32 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
       g_transporter[i].z_timer_s := device_delay + drop_time;
       g_transporter[i].z_stage := 1;
       g_transporter[i].phase := 2;
+
+      (* Unit moves from lift station → transporter *)
+      pick_unit_id := g_station[g_transporter[i].lift_station].unit_id;
+      IF pick_unit_id >= 1 THEN
+        IF i = 1 THEN
+          upd_loc1(i_unit := pick_unit_id, i_location := i);
+        ELSIF i = 2 THEN
+          upd_loc2(i_unit := pick_unit_id, i_location := i);
+        ELSIF i = 3 THEN
+          upd_loc3(i_unit := pick_unit_id, i_location := i);
+        END_IF;
+      END_IF;
     END_IF;
     (* If arrived_x but not at_station → at drive limit, wait for clearance *)
 
   (* ── Phase 2: Lift Z at lift station ────────────────────── *)
   ELSIF g_transporter[i].phase = 2 THEN
     lookup(station_number := g_transporter[i].lift_station);
-    station_type := lookup.stype;
+    station_kind := lookup.skind;
     tmp_z  := g_transporter[i].z_mm;
     tmp_zs := g_transporter[i].z_stage;
     tmp_zt := g_transporter[i].z_timer_s;
     IF i = 1 THEN
       fb_z1(
         delta_t       := 0.02,
-        station_type  := station_type,
+        station_kind  := station_kind,
         z_total_mm    := g_cfg[i].phys2d.z_total_mm,
         z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
         z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
@@ -171,7 +195,7 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
     ELSIF i = 2 THEN
       fb_z2(
         delta_t       := 0.02,
-        station_type  := station_type,
+        station_kind  := station_kind,
         z_total_mm    := g_cfg[i].phys2d.z_total_mm,
         z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
         z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
@@ -187,7 +211,7 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
     ELSIF i = 3 THEN
       fb_z3(
         delta_t       := 0.02,
-        station_type  := station_type,
+        station_kind  := station_kind,
         z_total_mm    := g_cfg[i].phys2d.z_total_mm,
         z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
         z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
@@ -273,14 +297,14 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
   (* ── Phase 4: Sink Z at sink station ───────────────────── *)
   ELSIF g_transporter[i].phase = 4 THEN
     lookup(station_number := g_transporter[i].sink_station);
-    station_type := lookup.stype;
+    station_kind := lookup.skind;
     tmp_z  := g_transporter[i].z_mm;
     tmp_zs := g_transporter[i].z_stage;
     tmp_zt := g_transporter[i].z_timer_s;
     IF i = 1 THEN
       fb_z1(
         delta_t       := 0.02,
-        station_type  := station_type,
+        station_kind  := station_kind,
         z_total_mm    := g_cfg[i].phys2d.z_total_mm,
         z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
         z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
@@ -296,7 +320,7 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
     ELSIF i = 2 THEN
       fb_z2(
         delta_t       := 0.02,
-        station_type  := station_type,
+        station_kind  := station_kind,
         z_total_mm    := g_cfg[i].phys2d.z_total_mm,
         z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
         z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
@@ -312,7 +336,7 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
     ELSIF i = 3 THEN
       fb_z3(
         delta_t       := 0.02,
-        station_type  := station_type,
+        station_kind  := station_kind,
         z_total_mm    := g_cfg[i].phys2d.z_total_mm,
         z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
         z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
@@ -330,6 +354,25 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
     g_transporter[i].z_stage   := tmp_zs;
     g_transporter[i].z_timer_s := tmp_zt;
     IF arrived_z THEN
+      (* Unit moves from transporter → sink station *)
+      sink_unit_id := g_transporter[i].unit_id;
+      IF sink_unit_id >= 1 THEN
+        IF i = 1 THEN
+          upd_loc1(i_unit := sink_unit_id, i_location := g_transporter[i].sink_station);
+        ELSIF i = 2 THEN
+          upd_loc2(i_unit := sink_unit_id, i_location := g_transporter[i].sink_station);
+        ELSIF i = 3 THEN
+          upd_loc3(i_unit := sink_unit_id, i_location := g_transporter[i].sink_station);
+        END_IF;
+
+        (* Advance batch stage if unit has an active batch *)
+        IF (g_batch[sink_unit_id].batch_code <> 0)
+           AND (g_batch[sink_unit_id].state = IN_PROCESS)
+           AND (g_batch[sink_unit_id].cur_stage < MAX_STAGES) THEN
+          g_batch[sink_unit_id].cur_stage := g_batch[sink_unit_id].cur_stage + 1;
+        END_IF;
+      END_IF;
+
       g_transporter[i].phase := 0;
       g_transporter[i].status := 3;  (* auto_idle *)
     END_IF;

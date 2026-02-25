@@ -9,7 +9,7 @@ STRUCT
   x_position : REAL;
   y_position : REAL;
   z_position : REAL;
-  stn_type   : INT;
+  kind       : INT;
 END_STRUCT;
 END_TYPE
 
@@ -17,13 +17,15 @@ TYPE STATION_T :
 STRUCT
   tank_id       : INT;
   status        : INT;    (* NOT_USED=0, USED=1 *)
+  unit_id       : INT;    (* unit currently at this station, 0 = none *)
   x_position    : REAL;
   y_position    : REAL;
   z_position    : REAL;
-  stn_type      : INT;    (* 0=dry, 1=wet *)
-  stn_function  : INT;    (* original station type from JSON *)
+  kind          : INT;    (* 0=dry, 1=wet *)
+  operation     : INT;    (* original station type from JSON *)
   dropping_time : REAL;
   device_delay  : REAL;
+  change_time   : LINT;   (* timestamp of last unit arrival/departure (unix seconds) *)
 END_STRUCT;
 END_TYPE
 
@@ -81,6 +83,7 @@ STRUCT
   (* --- Status (transporter → outside world) --- *)
   status             : INT;      (* 0=not_used 1=manual 2=half_manual 3=auto_idle 4=auto_run *)
   phase              : INT;      (* 0=idle 1=to_lift 2=lifting 3=to_sink 4=sinking *)
+  unit_id            : INT;      (* unit currently being transported, 0 = none *)
   running_task_id    : LINT;     (* copied from task_id when accepted *)
   current_station    : INT;      (* nearest station number *)
   remaining_time     : REAL;     (* remaining treatment time (s) *)
@@ -131,7 +134,6 @@ TYPE UNIT_T :
 STRUCT
   location : INT;    (* station number where unit currently is *)
   status   : INT;    (* NOT_USED=0, USED=1 *)
-  state    : INT;    (* EMPTY=0, FULL=1 *)
   target   : INT;    (* TO_NONE=0, TO_LOADING=1, TO_BUFFER=2, TO_PROCESS=3, TO_UNLOAD=4, TO_AVOID=5 *)
 END_STRUCT;
 END_TYPE

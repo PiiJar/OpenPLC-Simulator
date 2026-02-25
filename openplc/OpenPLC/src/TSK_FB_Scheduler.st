@@ -6,6 +6,7 @@
    One phase per PLC scan cycle. Phase counter advances through:
      0    STOPPED
      1    INIT (count active batches)
+     2    NO_TREATMENT_STATES (update unit/batch states)
      1000 SCHEDULE_START
      1001..1000+N  SCHEDULE per batch (one per tick, N=MAX_UNITS)
      1900 SCHEDULE_DONE
@@ -72,6 +73,7 @@ VAR
   fb_clear   : STC_FB_ClearTaskQueues;  (* shared queue clear *)
   fb_sort    : STC_FB_SortTaskQueue;    (* shared queue sort *)
   fb_collect : STC_FB_CollectActiveBatches; (* shared batch collector *)
+  fb_notrt_st : STC_FB_NoTreatmentStates;  (* non-treatment state updates *)
   (* Transporter assignment for schedule calculation *)
   sched_trans : INT;
   (* Temp *)
@@ -113,8 +115,15 @@ ELSIF phase = 1 THEN
     (* No active batches — go to READY directly *)
     next_phase := 10000;
   ELSE
-    next_phase := 1000;
+    next_phase := 2;
   END_IF;
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* PHASE 2: NO_TREATMENT_STATES — update unit/batch states      *)
+(* ══════════════════════════════════════════════════════════════ *)
+ELSIF phase = 2 THEN
+  fb_notrt_st();
+  next_phase := 1000;
 
 (* ══════════════════════════════════════════════════════════════ *)
 (* PHASE 1000: SCHEDULE_START                                   *)

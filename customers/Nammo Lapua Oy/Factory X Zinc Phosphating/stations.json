@@ -9,7 +9,8 @@
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 0,
-      "type": 22,
+      "kind": 0,
+      "operation": 22,
       "device_delay": 0.0,
       "start_station": true
     },
@@ -22,7 +23,8 @@
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 0,
-      "type": 30,
+      "kind": 0,
+      "operation": 30,
       "device_delay": 0.0,
       "start_station": false
     },
@@ -35,7 +37,8 @@
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 0,
-      "type": 30,
+      "kind": 0,
+      "operation": 30,
       "device_delay": 0.0,
       "start_station": false
     },
@@ -48,7 +51,8 @@
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 0,
-      "type": 0,
+      "kind": 0,
+      "operation": 0,
       "device_delay": 3.0,
       "start_station": false
     },
@@ -61,7 +65,8 @@
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 0,
-      "type": 0,
+      "kind": 0,
+      "operation": 0,
       "device_delay": 3.0,
       "start_station": false
     },
@@ -74,7 +79,8 @@
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 0,
-      "type": 0,
+      "kind": 0,
+      "operation": 0,
       "device_delay": 3.0,
       "start_station": false
     },
@@ -87,7 +93,8 @@
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 10,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "device_delay": 3.0,
       "start_station": false
     },
@@ -100,7 +107,8 @@
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 10,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "device_delay": 0.0,
       "start_station": false
     },
@@ -113,7 +121,8 @@
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 10,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "device_delay": 0.0,
       "start_station": false
     },
@@ -126,7 +135,8 @@
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 10,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "device_delay": 0.0,
       "start_station": false
     },
@@ -139,7 +149,8 @@
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 10,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "device_delay": 0.0,
       "start_station": false
     },
@@ -152,7 +163,8 @@
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 10,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "device_delay": 3.0,
       "start_station": false
     },
@@ -165,7 +177,8 @@
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 10,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "device_delay": 0.0,
       "start_station": false
     },
@@ -178,7 +191,8 @@
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 0,
-      "type": 32,
+      "kind": 0,
+      "operation": 32,
       "device_delay": 0.0,
       "start_station": false
     },
@@ -191,7 +205,8 @@
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 10,
-      "type": 0,
+      "kind": 0,
+      "operation": 0,
       "device_delay": 3.0,
       "start_station": false
     },
@@ -204,7 +219,8 @@
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 10,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "device_delay": 3.0,
       "start_station": false
     },
@@ -217,7 +233,8 @@
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 10,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "device_delay": 0.0,
       "start_station": false
     },
@@ -230,7 +247,8 @@
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 10,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "device_delay": 0.0,
       "start_station": false
     },
@@ -243,7 +261,8 @@
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 0,
-      "type": 30,
+      "kind": 0,
+      "operation": 30,
       "device_delay": 0.0,
       "start_station": false
     },
@@ -256,7 +275,8 @@
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 0,
-      "type": 30,
+      "kind": 0,
+      "operation": 30,
       "device_delay": 0.0,
       "start_station": false
     },
@@ -269,7 +289,8 @@
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 10,
-      "type": 1,
+      "kind": 1,
+      "operation": 0,
       "device_delay": 0.0,
       "start_station": false
     }
@@ -285,7 +306,7 @@
       "y_position": "Physical position in mm perpendicular to line (int)",
       "z_position": "Physical position in mm vertical height (int)",
       "dropping_time": "Time in seconds to drop/lift parts at this station (int)",
-      "type": "0 = dry station (buffer/dryer), 1 = wet station (treatment tank) (int)",
+      "operation": "0 = dry station (buffer/dryer), 1 = wet station (treatment tank) (int)",
       "device_delay": "Additional device-specific delay in seconds (float)"
     },
     "relationships": {

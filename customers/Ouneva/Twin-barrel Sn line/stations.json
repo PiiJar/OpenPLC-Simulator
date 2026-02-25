@@ -11,7 +11,8 @@
       "dropping_time": 0,
       "device_delay": 0.0,
       "start_station": true,
-      "type": 0
+      "kind": 0,
+      "operation": 0
     },
     {
       "number": 302,
@@ -24,7 +25,8 @@
       "dropping_time": 0,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 0
+      "kind": 0,
+      "operation": 0
     },
     {
       "number": 303,
@@ -37,7 +39,8 @@
       "dropping_time": 0,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 10
+      "kind": 0,
+      "operation": 10
     },
     {
       "number": 304,
@@ -50,7 +53,8 @@
       "dropping_time": 0,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 10
+      "kind": 0,
+      "operation": 10
     },
     {
       "number": 305,
@@ -63,7 +67,8 @@
       "dropping_time": 0,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 0
+      "kind": 0,
+      "operation": 0
     },
     {
       "number": 306,
@@ -76,20 +81,22 @@
       "dropping_time": 0,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 0
+      "kind": 0,
+      "operation": 0
     },
     {
       "number": 307,
       "tank": 307,
       "group": 307,
-      "name": "Esipesu (Al-ty\u00f6st\u00f6-\u00f6ljy)",
+      "name": "Esipesu (Al-työstö-öljy)",
       "x_position": 3520,
       "y_position": 0,
       "z_position": 0,
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 308,
@@ -102,7 +109,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 309,
@@ -115,7 +123,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 310,
@@ -128,7 +137,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 311,
@@ -141,7 +151,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 312,
@@ -154,7 +165,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 313,
@@ -167,7 +179,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 314,
@@ -180,7 +193,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 315,
@@ -193,7 +207,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 316,
@@ -206,7 +221,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 317,
@@ -219,7 +235,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 318,
@@ -232,7 +249,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 319,
@@ -245,7 +263,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 320,
@@ -258,7 +277,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 321,
@@ -271,7 +291,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 322,
@@ -284,7 +305,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 323,
@@ -297,7 +319,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 324,
@@ -310,7 +333,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 325,
@@ -323,7 +347,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 11
+      "kind": 1,
+      "operation": 10
     },
     {
       "number": 403,
@@ -336,7 +361,8 @@
       "dropping_time": 0,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 10
+      "kind": 0,
+      "operation": 10
     },
     {
       "number": 404,
@@ -349,7 +375,8 @@
       "dropping_time": 0,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 10
+      "kind": 0,
+      "operation": 10
     },
     {
       "number": 405,
@@ -362,7 +389,8 @@
       "dropping_time": 0,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 0
+      "kind": 0,
+      "operation": 0
     },
     {
       "number": 407,
@@ -375,7 +403,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 408,
@@ -388,7 +417,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 409,
@@ -401,7 +431,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 410,
@@ -414,7 +445,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 411,
@@ -427,7 +459,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 412,
@@ -440,7 +473,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 413,
@@ -453,7 +487,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 414,
@@ -466,7 +501,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 415,
@@ -479,7 +515,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 416,
@@ -492,7 +529,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 417,
@@ -505,7 +543,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 420,
@@ -518,7 +557,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 421,
@@ -531,7 +571,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 422,
@@ -544,7 +585,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 423,
@@ -557,7 +599,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 424,
@@ -570,7 +613,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 1
+      "kind": 1,
+      "operation": 0
     },
     {
       "number": 425,
@@ -583,7 +627,8 @@
       "dropping_time": 10,
       "device_delay": 0.0,
       "start_station": false,
-      "type": 11
+      "kind": 1,
+      "operation": 10
     }
   ],
   "metadata": {
@@ -600,7 +645,7 @@
       "z_position": "Physical position in mm vertical height (int) - placeholder set to 0",
       "dropping_time": "Time in seconds to drop/lift parts at this station (int)",
       "device_delay": "Additional device-specific delay in seconds (float)",
-      "type": "0 = dry normal, 1 = wet normal, 10 = dry cross-transfer, 11 = wet cross-transfer (int)"
+      "operation": "0 = dry normal, 1 = wet normal, 10 = dry cross-transfer, 11 = wet cross-transfer (int)"
     },
     "groups": {
       "303": "Varasto / Poikittaiskuljetin - stations 303, 304 (type 10 cross-transfer)",
@@ -616,7 +661,7 @@
           303,
           304
         ],
-        "type": 10,
+        "operation": 10,
         "description": "Dry cross-transfer within 300-line"
       },
       "325_425": {
@@ -624,7 +669,7 @@
           325,
           425
         ],
-        "type": 11,
+        "operation": 11,
         "description": "Wet cross-transfer between 300-line and 400-line",
         "group": 325
       },
@@ -633,7 +678,7 @@
           403,
           404
         ],
-        "type": 10,
+        "operation": 10,
         "description": "Dry cross-transfer within 400-line"
       }
     },
@@ -649,7 +694,7 @@
       "  - Type 11: Wet cross-transfer (liquid dripping, slower movement)",
       "  - Cross-transfer stations in same group (e.g., 325 & 425 in group 325)",
       "  - Treatment program lists one station per stage, CP-SAT selects correct station based on transporter",
-      "  - Example: Stage 15 (325) \u2192 300-line transporter uses 325, Stage 16 (415-424) \u2192 400-line transporter uses 425 from group 325",
+      "  - Example: Stage 15 (325) → 300-line transporter uses 325, Stage 16 (415-424) → 400-line transporter uses 425 from group 325",
       "IMPLEMENTATION: No code changes needed - current model handles cross-transfers via station groups"
     ]
   }

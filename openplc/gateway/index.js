@@ -50,11 +50,9 @@ function getCurrentCustomerPath() {
   return getCustomerPath(currentCustomer, currentPlant);
 }
 
-// --- Unit state/target mappings (INT ↔ string) ---
-const STATE_INT_TO_STR = { 0: 'empty', 1: 'full' };
+// --- Unit target mappings (INT ↔ string) ---
 const TARGET_INT_TO_STR = { 0: 'none', 1: 'to_loading', 2: 'to_buffer', 3: 'to_process', 4: 'to_unload', 5: 'to_avoid' };
 const BATCH_STATE_INT_TO_STR = { 0: 'not_processed', 1: 'in_process', 2: 'processed' };
-const STATE_STR_TO_INT = Object.fromEntries(Object.entries(STATE_INT_TO_STR).map(([k,v]) => [v, parseInt(k)]));
 const TARGET_STR_TO_INT = Object.fromEntries(Object.entries(TARGET_INT_TO_STR).map(([k,v]) => [v, parseInt(k)]));
 
 // --- Phase name mapping (matches server.js convention) ---
@@ -276,7 +274,7 @@ async function readPLCState() {
 
     // Transporters (3 × 12 fields in transporter_state block)
     const transporters = [];
-    const FIELDS_PER_T = 12; // fields per transporter in transporter_state
+    const FIELDS_PER_T = 13; // fields per transporter in transporter_state
     for (let i = 1; i <= 3; i++) {
       const base = BLOCKS.transporter_state.start + (i - 1) * FIELDS_PER_T;
       const tcfg = transporterConfig.transporters.find(t => t.id === i) || {};
@@ -285,11 +283,15 @@ async function readPLCState() {
         z_mm: toSigned(r[base + 1]),
         vel_x10: toSigned(r[base + 2]),
         phase: toSigned(r[base + 3]),
-        z_stage: toSigned(r[base + 4]),
-        cur_st: toSigned(r[base + 5]),
-        lift_tgt: toSigned(r[base + 6]),
-        sink_tgt: toSigned(r[base + 7]),
-        active: toSigned(r[base + 8]),
+        unit_id: toSigned(r[base + 4]),
+        z_stage: toSigned(r[base + 5]),
+        cur_st: toSigned(r[base + 6]),
+        lift_tgt: toSigned(r[base + 7]),
+        sink_tgt: toSigned(r[base + 8]),
+        active: toSigned(r[base + 9]),
+        status: toSigned(r[base + 10]),
+        task_id_hi: toSigned(r[base + 11]),
+        task_id_lo: toSigned(r[base + 12]),
       }));
     }
 
@@ -297,16 +299,16 @@ async function readPLCState() {
     plcMeta = {
       station_count: toSigned(r[REG.qw_plc_status_station_cnt]),
       init_done: toSigned(r[REG.qw_plc_status_init_done]) !== 0,
-      cycle_count: toSigned(r[REG.qw_plc_status_cycle_cnt])
+      cycle_count: toSigned(r[REG.qw_plc_status_cycle_cnt]),
+      production_queue: toSigned(r[REG.qw_plc_status_prod_queue])
     };
 
-    // Units (10 × 4 fields in unit_state block)
+    // Units (10 × 3 fields in unit_state block)
     plcUnits = [];
-    const UNIT_FIELDS = 4;
+    const UNIT_FIELDS = 3;
     for (let u = 0; u < 10; u++) {
       const base = BLOCKS.unit_state.start + u * UNIT_FIELDS;
-      const stateInt = toSigned(r[base + 2]);
-      const targetInt = toSigned(r[base + 3]);
+      const targetInt = toSigned(r[base + 2]);
       // Batch data (10 × 4 fields in batch_state block)
       const bBase = BLOCKS.batch_state.start + u * 4;
       const batchCode = toSigned(r[bBase]);
@@ -317,7 +319,6 @@ async function readPLCState() {
         unit_id: u + 1,
         location: toSigned(r[base]),
         status: toSigned(r[base + 1]),
-        state: STATE_INT_TO_STR[stateInt] || 'empty',
         target: TARGET_INT_TO_STR[targetInt] || 'none',
         batch_code: batchCode,
         batch_state: BATCH_STATE_INT_TO_STR[batchState] || 'not_processed',
@@ -726,15 +727,16 @@ app.post('/api/reset', async (req, res) => {
       const stNum = st.number; // e.g. 101..125
       if (stNum < 101 || stNum > 125) continue;
 
-      // Write data fields first (cfg d0..d6)
+      // Write data fields first (cfg d0..d7)
       await client.writeRegisters(CFG_BASE + 3, [
         st.tank || 0,                              // d0 = tank_id
         Math.round(st.x_position || 0),            // d1 = x_position mm
         Math.round(st.y_position || 0),            // d2 = y_position mm
         Math.round(st.z_position || 0),            // d3 = z_position mm
-        st.type || 0,                              // d4 = type
+        st.operation || 0,                         // d4 = operation
         Math.round((st.dropping_time || 0) * 10),  // d5 = dropping_time × 10
-        Math.round((st.device_delay || 0) * 10)    // d6 = device_delay × 10
+        Math.round((st.device_delay || 0) * 10),   // d6 = device_delay × 10
+        st.kind || 0                               // d7 = kind (0=dry, 1=wet)
       ]);
 
       // Write param (station number) and cmd
@@ -848,15 +850,13 @@ app.post('/api/reset', async (req, res) => {
         if (uid < 1 || uid > 10) continue;
 
         const statusInt = STATUS_MAP[u.status] ?? (typeof u.status === 'number' ? u.status : 0);
-        const stateInt  = STATE_STR_TO_INT[u.state]   ?? (typeof u.state  === 'number' ? u.state  : 0);
         const targetInt = TARGET_STR_TO_INT[u.target]  ?? (typeof u.target === 'number' ? u.target : 0);
         const location  = u.location || 0;
 
         await client.writeRegisters(UNIT_BASE + 1, [uid]);         
         await client.writeRegisters(UNIT_BASE + 2, [location]);    
         await client.writeRegisters(UNIT_BASE + 3, [statusInt]);   
-        await client.writeRegisters(UNIT_BASE + 4, [stateInt]);    
-        await client.writeRegisters(UNIT_BASE + 5, [targetInt]);   
+        await client.writeRegisters(UNIT_BASE + 4, [targetInt]);   
 
         unitWriteSeq = (unitWriteSeq % 30000) + 1;
         await client.writeRegisters(UNIT_BASE + 0, [unitWriteSeq]); 
@@ -892,9 +892,15 @@ app.post('/api/reset', async (req, res) => {
       console.warn(`[RESET] Could not notify simulator: ${simErr.message}`);
     }
 
-    // Reset simulation timer
+    // Reset simulation timer and production queue
     simRunning = true;
     simStartTime = Date.now();
+    try {
+      await client.writeRegisters(REG.iw_production_queue, [0]);
+      console.log('[RESET] production_queue set to 0');
+    } catch (e) {
+      console.warn(`[RESET] Could not clear production_queue: ${e.message}`);
+    }
 
     // Include layout_config if available
     let layoutConfig = null;
@@ -938,23 +944,21 @@ app.put('/api/units/:id', async (req, res) => {
     if (uid < 1 || uid > 10) return res.status(400).json({ error: 'unit_id must be 1..10' });
     if (!connected) return res.status(503).json({ error: 'PLC not connected' });
 
-    const { location, status, state, target } = req.body;
+    const { location, status, target } = req.body;
     const UNIT_BASE = BLOCKS.unit.start; // auto-generated base address
 
-    // Convert string state/target to INT if needed
-    const stateInt  = typeof state  === 'string' ? (STATE_STR_TO_INT[state]   ?? 0) : (state  || 0);
+    // Convert string target to INT if needed
     const targetInt = typeof target === 'string' ? (TARGET_STR_TO_INT[target]  ?? 0) : (target || 0);
 
     // Write data fields first
     await client.writeRegisters(UNIT_BASE + 1, [uid]);                     // unit_id
     await client.writeRegisters(UNIT_BASE + 2, [location || 0]);           // location
     await client.writeRegisters(UNIT_BASE + 3, [status || 0]);             // status
-    await client.writeRegisters(UNIT_BASE + 4, [stateInt]);                // state
-    await client.writeRegisters(UNIT_BASE + 5, [targetInt]);               // target
+    await client.writeRegisters(UNIT_BASE + 4, [targetInt]);               // target
 
     // Trigger with sequence number
     unitWriteSeq = (unitWriteSeq % 30000) + 1;
-    console.log(`[UNIT] Writing unit: seq=${unitWriteSeq}, id=${uid}, loc=${location||0}, status=${status||0}, state=${stateInt}, target=${targetInt}`);
+    console.log(`[UNIT] Writing unit: seq=${unitWriteSeq}, id=${uid}, loc=${location||0}, status=${status||0}, target=${targetInt}`);
     await client.writeRegisters(UNIT_BASE + 0, [unitWriteSeq]);           
 
     // Wait for PLC ack (unit_ack)
@@ -963,7 +967,7 @@ app.put('/api/units/:id', async (req, res) => {
       return res.status(504).json({ error: `PLC ack timeout for unit ${uid}` });
     }
 
-    console.log(`[UNIT] Written unit ${uid}: loc=${location}, status=${status}, state=${state}, target=${target}`);
+    console.log(`[UNIT] Written unit ${uid}: loc=${location}, status=${status}, target=${target}`);
     res.json({ ok: true });
   } catch (err) {
     console.error(`[UNIT] Write error: ${err.message}`);
@@ -1292,7 +1296,7 @@ app.post('/api/calibrate/save', async (req, res) => {
       for (const st of stations) {
         const idx = st.number - 100;
         if (idx < 1 || idx > 25) continue;
-        if (st.type === 1) {
+        if (st.kind === 1) {
           // Wet station
           liftS[st.number] = Math.round(cal.lift_wet * 100) / 100;
           sinkS[st.number] = Math.round(cal.sink_wet * 100) / 100;
@@ -1393,9 +1397,23 @@ app.get('/api/plc/status', (req, res) => {
     station_count: plcMeta.station_count,
     cycle_count: plcMeta.cycle_count,
     sim_running: simRunning,
+    production_queue: plcMeta.production_queue || 0,
     host: PLC_HOST,
     port: PLC_PORT
   });
+});
+
+// Production queue control — write g_production_queue to PLC
+app.post('/api/production-queue', async (req, res) => {
+  try {
+    if (!connected) return res.status(503).json({ error: 'PLC not connected' });
+    const value = parseInt(req.body.value) || 0;
+    await client.writeRegisters(REG.iw_production_queue, [value]);
+    console.log(`[PROD] production_queue set to ${value}`);
+    res.json({ success: true, production_queue: value });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // PLC Runtime control endpoints

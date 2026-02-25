@@ -33,6 +33,7 @@
         { "suffix": "z_mm",      "source": "g_transporter[{i}].z_mm",           "convert": "REAL_TO_INT", "api": "z_position",    "comment": "Z position mm" },
         { "suffix": "vel_x10",   "source": "g_transporter[{i}].vel_x * 10.0",  "convert": "REAL_TO_INT", "api": "velocity_x",    "api_scale": 0.1, "comment": "X velocity ×10" },
         { "suffix": "phase",     "source": "g_transporter[{i}].phase",          "convert": null,          "api": "phase",         "comment": "0=idle 1=to_lift 2=lifting 3=to_sink 4=sinking" },
+        { "suffix": "unit_id",   "source": "g_transporter[{i}].unit_id",        "convert": null,          "api": "unit_id",       "comment": "unit currently being transported, 0=none" },
         { "suffix": "z_stage",   "source": "g_transporter[{i}].z_stage",        "convert": null,          "api": "z_stage",       "comment": "Z motion sub-phase" },
         { "suffix": "cur_st",    "source": "g_transporter[{i}].current_station", "convert": null,         "api": "current_station", "comment": "nearest station" },
         { "suffix": "lift_tgt",  "source": "g_transporter[{i}].lift_station",   "convert": null,          "api": "lift_station_target", "comment": "pickup station" },
@@ -95,6 +96,7 @@
         { "suffix": "prog_ack",    "source": "last_prog_seq",        "convert": null,          "api": "prog_ack",      "comment": "last processed program stage seq" },
         { "suffix": "avoid_ack",   "source": "last_avoid_seq",       "convert": null,          "api": "avoid_ack",     "comment": "last processed avoid write seq" },
         { "suffix": "cal_active",  "source": "g_cal_active",         "convert": "BOOL_TO_INT", "api": "cal_active",    "comment": "1=calibration in progress" },
+        { "suffix": "prod_queue",  "source": "g_production_queue",   "convert": null,          "api": "production_queue", "comment": "1=batches in queue, 0=empty" },
         { "suffix": "time_hi",     "source": "g_time_s",             "convert": "LINT_HI",     "api": "_plc_time_hi",  "comment": "PLC unix time upper 16 bits", "type": "uint32_hi" },
         { "suffix": "time_lo",     "source": "g_time_s",             "convert": "LINT_LO",     "api": "_plc_time_lo",  "comment": "PLC unix time lower 16 bits", "type": "uint32_lo",
           "api_combine": { "name": "plc_time_s", "hi_suffix": "time_hi", "lo_suffix": "time_lo", "type": "uint32" }
@@ -110,7 +112,6 @@
       "fields": [
         { "suffix": "loc",    "source": "g_unit[{i}].location", "convert": null, "api": "location",  "comment": "station number" },
         { "suffix": "status", "source": "g_unit[{i}].status",   "convert": null, "api": "status",    "comment": "NOT_USED=0, USED=1" },
-        { "suffix": "state",  "source": "g_unit[{i}].state",    "convert": null, "api": "state",     "comment": "EMPTY=0, FULL=1" },
         { "suffix": "target", "source": "g_unit[{i}].target",   "convert": null, "api": "target",    "comment": "TO_NONE=0..TO_AVOID=5" }
       ]
     },
@@ -302,9 +303,10 @@
         { "suffix": "d1",    "api": "cfg_d1",    "comment": "x_position mm" },
         { "suffix": "d2",    "api": "cfg_d2",    "comment": "y_position mm" },
         { "suffix": "d3",    "api": "cfg_d3",    "comment": "z_position mm" },
-        { "suffix": "d4",    "api": "cfg_d4",    "comment": "type" },
+        { "suffix": "d4",    "api": "cfg_d4",    "comment": "operation" },
         { "suffix": "d5",    "api": "cfg_d5",    "comment": "dropping_time ×10" },
-        { "suffix": "d6",    "api": "cfg_d6",    "comment": "device_delay ×10" }
+        { "suffix": "d6",    "api": "cfg_d6",    "comment": "device_delay ×10" },
+        { "suffix": "d7",    "api": "cfg_d7",    "comment": "kind (0=dry, 1=wet)" }
       ]
     },
 
@@ -362,6 +364,15 @@
         { "suffix": "seq",     "api": "avoid_seq",     "comment": "sequence — triggers on change" },
         { "suffix": "station", "api": "avoid_station", "comment": "station number" },
         { "suffix": "value",   "api": "avoid_value",   "comment": "AVOID_NONE=0, PASS=1, BLOCK=2" }
+      ]
+    },
+
+    {
+      "name": "production",
+      "comment": "Production queue control — gateway writes, PLC reads",
+      "direction": "in",
+      "fields": [
+        { "suffix": "queue", "api": "production_queue", "comment": "1=batches in queue, 0=empty" }
       ]
     },
 

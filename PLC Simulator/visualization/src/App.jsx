@@ -21,6 +21,7 @@ export default function App() {
   const [config, setConfig] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [speed, setSpeed] = useState(1);
   const [avgCycleSec, setAvgCycleSec] = useState(0); // Keskimääräinen linjaanlähtöväli
@@ -78,6 +79,9 @@ export default function App() {
   // PLC Runtime state
   const [plcStatus, setPlcStatus] = useState({ runtime_status: 'unknown', plc_alive: false, connected: false, cycle_count: 0 });
   const [plcToggling, setPlcToggling] = useState(false);
+  const [productionQueue, setProductionQueue] = useState(0);
+  const [productionStartTime, setProductionStartTime] = useState(null);
+  const [productionDuration, setProductionDuration] = useState(0);
   // Layout config editor
   const [showConfig, setShowConfig] = useState(false);
   const [showCalibration, setShowCalibration] = useState(false);
@@ -115,7 +119,11 @@ export default function App() {
     const pollPlcStatus = async () => {
       try {
         const res = await fetch('/api/plc/status');
-        if (res.ok) setPlcStatus(await res.json());
+        if (res.ok) {
+          const data = await res.json();
+          setPlcStatus(data);
+          if (typeof data.production_queue === 'number') setProductionQueue(data.production_queue);
+        }
       } catch (err) { /* ignore */ }
     };
     pollPlcStatus();
@@ -485,6 +493,15 @@ export default function App() {
       clearInterval(id);
     };
   }, [isRunning]);
+
+  // Production duration timer — ticks every second while production is running
+  useEffect(() => {
+    if (!productionStartTime) return;
+    const id = setInterval(() => {
+      setProductionDuration(Date.now() - productionStartTime.getTime());
+    }, 1000);
+    return () => clearInterval(id);
+  }, [productionStartTime]);
 
   // Initialize task inputs per transporter when list is loaded
   useEffect(() => {
@@ -1025,52 +1042,33 @@ export default function App() {
     }
   };
 
-  const toggleRunning = async () => {
-    const next = !isRunning;
-    const frozenNow = elapsedMsRef.current;
-    if (!next) {
-      // Optimistically freeze UI clock immediately on pause
-      setIsRunning(false);
-      setElapsedMs(frozenNow);
-      lastTickRef.current = null;
-    }
+  const handleStart = async () => {
+    if (productionQueue === 1) return; // already running
     try {
-      const res = await fetch(`/api/sim/${next ? 'start' : 'pause'}`, { method: 'POST' });
-      const data = await res.json();
-      if (typeof data.simTimeMs === 'number') {
-        if (next) {
-          setElapsedMs(data.simTimeMs);
+      // Set production_queue = 1 on PLC
+      await fetch('/api/production-queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: 1 })
+      });
+      setProductionQueue(1);
+      setProductionStartTime(new Date());
+      // Also start sim clock if not running
+      if (!isRunning) {
+        const res = await fetch('/api/sim/start', { method: 'POST' });
+        const data = await res.json();
+        if (typeof data.simTimeMs === 'number') setElapsedMs(data.simTimeMs);
+        if (typeof data.speedMultiplier === 'number') setSpeed(data.speedMultiplier);
+        if (typeof data.running === 'boolean') {
+          setIsRunning(data.running);
+          lastTickRef.current = data.running ? Date.now() : null;
         } else {
-          // On pause, do not allow forward jump; prefer the frozen UI value
-          setElapsedMs((prev) => Math.min(prev, data.simTimeMs, frozenNow));
+          setIsRunning(true);
+          lastTickRef.current = Date.now();
         }
       }
-      if (typeof data.speedMultiplier === 'number') setSpeed(data.speedMultiplier);
-      if (typeof data.running === 'boolean') {
-        setIsRunning(data.running);
-        lastTickRef.current = data.running ? Date.now() : null;
-      } else {
-        setIsRunning(next);
-        lastTickRef.current = next ? Date.now() : null;
-      }
-      // Sync once more after pause to avoid UI drift
-      if (!next) {
-        setTimeout(async () => {
-          try {
-            const t = await fetch(`/api/sim/time`);
-            const d = await t.json();
-            if (typeof d.simTimeMs === 'number') setElapsedMs(d.simTimeMs);
-            if (typeof d.running === 'boolean') setIsRunning(d.running);
-            if (typeof d.speedMultiplier === 'number') setSpeed(d.speedMultiplier);
-          } catch (_) {
-            /* ignore */
-          }
-        }, 50);
-      }
     } catch (err) {
-      console.error('Error toggling simulation:', err);
-      setIsRunning(next);
-      lastTickRef.current = next ? Date.now() : null;
+      console.error('Failed to start production:', err);
     }
   };
 
@@ -1080,9 +1078,13 @@ export default function App() {
       return;
     }
 
+    setIsResetting(true);
     setIsRunning(false);
     setElapsedMs(0);
     setAvgCycleSec(0);
+    setProductionStartTime(null);
+    setProductionDuration(0);
+    setShowCustomer(false);
     lastTickRef.current = null;
 
     try {
@@ -1111,6 +1113,8 @@ export default function App() {
     } catch (error) {
       console.error('[RESET] Error:', error);
       alert(`Reset error: ${error.message}`);
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -1360,17 +1364,18 @@ export default function App() {
             </button>
             <button
               onClick={handleReset}
-              disabled={!selectedCustomer || !selectedPlant}
+              disabled={!selectedCustomer || !selectedPlant || isResetting}
               style={{
                 padding: '8px 16px', fontSize: '13px', fontWeight: 600,
                 border: 'none', borderRadius: '4px',
-                cursor: (!selectedCustomer || !selectedPlant) ? 'not-allowed' : 'pointer',
-                background: (!selectedCustomer || !selectedPlant) ? '#666' : '#f44336',
+                cursor: (!selectedCustomer || !selectedPlant || isResetting) ? 'not-allowed' : 'pointer',
+                background: isResetting ? '#b71c1c' : (!selectedCustomer || !selectedPlant) ? '#666' : '#f44336',
                 color: '#fff',
-                opacity: (!selectedCustomer || !selectedPlant) ? 0.5 : 1
+                opacity: (!selectedCustomer || !selectedPlant) ? 0.5 : 1,
+                transition: 'all 0.2s'
               }}
             >
-              RESET
+              {isResetting ? 'RESETTING…' : 'RESET'}
             </button>
           </div>
         </div>
@@ -1510,14 +1515,33 @@ export default function App() {
           {/* Divider */}
           <div style={{ width: 1, height: 32, background: '#ddd' }} />
 
-          {/* Customer / Plant */}
-          {selectedCustomer && selectedPlant && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#333' }}>{selectedCustomer}</span>
-              <span style={{ color: '#999', fontSize: 13 }}>/</span>
-              <span style={{ fontSize: 13, color: '#666' }}>{selectedPlant}</span>
-            </div>
-          )}
+          {/* Customer / Plant — card style, fixed min-width to prevent layout shift */}
+          <div style={{
+            minWidth: 280,
+            minHeight: 38,
+            display: 'flex',
+            alignItems: 'center'
+          }}>
+            {selectedCustomer && selectedPlant && (
+              <div style={{
+                padding: '6px 14px',
+                background: plantStatus?.isConfigured ? '#e8f5e9' : '#fff3e0',
+                border: `1px solid ${plantStatus?.isConfigured ? '#a5d6a7' : '#ffcc80'}`,
+                borderRadius: 4,
+                lineHeight: 1.4,
+                width: '100%'
+              }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#333' }}>
+                  {selectedCustomer} / {selectedPlant}
+                </div>
+                {plantStatus?.analysis?.summary && (
+                  <div style={{ fontSize: 12, color: '#2e7d32' }}>
+                    {plantStatus.analysis.summary}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -1707,39 +1731,63 @@ export default function App() {
           </button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          {/* Production time display — fixed width to prevent layout shift */}
+          <div style={{ width: 220, textAlign: 'right', fontFamily: 'monospace', fontSize: 12, lineHeight: '1.4' }}>
+            <div style={{ color: '#333', fontWeight: 600, whiteSpace: 'nowrap' }}>
+              {productionStartTime
+                ? `Start: ${productionStartTime.toLocaleString('fi-FI', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
+                : '\u00A0'}
+            </div>
+            <div style={{ color: '#333', fontWeight: 600, whiteSpace: 'nowrap' }}>
+              {productionStartTime
+                ? (() => {
+                    const s = Math.floor(productionDuration / 1000);
+                    const h = Math.floor(s / 3600);
+                    const m = Math.floor((s % 3600) / 60);
+                    const sec = s % 60;
+                    return `Elapsed: ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+                  })()
+                : '\u00A0'}
+            </div>
+          </div>
           <button
-            onClick={toggleRunning}
+            onClick={handleStart}
+            disabled={!!productionStartTime}
             style={{
-              padding: '8px 16px',
+              padding: '8px 0',
               fontSize: '13px',
               fontWeight: 600,
               border: 'none',
               borderRadius: '4px',
-              cursor: 'pointer',
-              background: isRunning ? '#ff9800' : '#4caf50',
+              cursor: productionStartTime ? 'default' : 'pointer',
+              background: '#4caf50',
               color: '#fff',
+              width: 100,
+              textAlign: 'center',
               transition: 'all 0.2s'
             }}
           >
-            {isRunning ? 'PAUSE' : 'START'}
+            {productionStartTime ? 'RUN' : 'START'}
           </button>
           <button
             onClick={handleReset}
-            disabled={!selectedCustomer || !selectedPlant}
+            disabled={!selectedCustomer || !selectedPlant || isResetting}
             style={{
-              padding: '8px 16px',
+              padding: '8px 0',
               fontSize: '13px',
               fontWeight: 600,
               border: 'none',
               borderRadius: '4px',
-              cursor: (!selectedCustomer || !selectedPlant) ? 'not-allowed' : 'pointer',
-              background: (!selectedCustomer || !selectedPlant) ? '#666' : '#f44336',
+              cursor: (!selectedCustomer || !selectedPlant || isResetting) ? 'not-allowed' : 'pointer',
+              background: isResetting ? '#b71c1c' : (!selectedCustomer || !selectedPlant) ? '#666' : '#f44336',
               color: '#fff',
               opacity: (!selectedCustomer || !selectedPlant) ? 0.5 : 1,
+              width: 100,
+              textAlign: 'center',
               transition: 'all 0.2s'
             }}
           >
-            RESET
+            {isResetting ? 'RESETTING…' : 'RESET'}
           </button>
         </div>
       </div>

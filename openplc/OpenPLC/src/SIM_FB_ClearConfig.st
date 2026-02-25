@@ -37,10 +37,12 @@ FOR i := STATION_ARRAY_START TO STATION_ARRAY_END DO
   g_station[i].x_position    := 0.0;
   g_station[i].y_position    := 0.0;
   g_station[i].z_position    := 0.0;
-  g_station[i].stn_type      := 0;
-  g_station[i].stn_function  := 0;
+  g_station[i].kind          := 0;
+  g_station[i].operation     := 0;
   g_station[i].dropping_time := 0.0;
   g_station[i].device_delay  := 0.0;
+  g_station[i].unit_id       := 0;
+  g_station[i].change_time   := 0;
 END_FOR;
 g_station_count := 0;
 
@@ -81,6 +83,7 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
   g_transporter[i].active          := FALSE;
   g_transporter[i].status          := 0;
   g_transporter[i].phase           := 0;
+  g_transporter[i].unit_id         := 0;
   g_transporter[i].task_id         := 0;
   g_transporter[i].running_task_id := 0;
   g_transporter[i].lift_station    := 0;
@@ -109,7 +112,6 @@ END_FOR;
 FOR i := 1 TO MAX_UNITS DO
   g_unit[i].location := 0;
   g_unit[i].status   := 0;
-  g_unit[i].state    := 0;
   g_unit[i].target   := 0;
 END_FOR;
 

@@ -213,23 +213,61 @@ curl -s -X POST http://localhost:3001/api/reset \
 
 ---
 
-## Modbus-rekisterikartta (nykytila)
+## Modbus-rekisterikartta (auto-generoitu)
 
-| Rekisterialue | AT-osoite | Suunta | Käyttö |
-|---------------|-----------|--------|--------|
-| QW0–QW8 | `%QW0`–`%QW8` | PLC → Gateway | Transporter 1 tila |
-| QW9–QW17 | `%QW9`–`%QW17` | PLC → Gateway | Transporter 2 tila |
-| QW18–QW20 | `%QW18`–`%QW20` | PLC → Gateway | Status (station_cnt, init_done, cycle_cnt) |
-| QW21 | `%QW21` | PLC → Gateway | Config upload ack |
-| QW22–QW71 | `%QW22`–`%QW71` | PLC → Gateway | Unit-tiedot (10 × 5 kenttää) |
-| QW72 | `%QW72` | PLC → Gateway | Unit write ack |
-| QW100–QW105 | `%QW100`–`%QW105` | Gateway → PLC | Transporter-komennot |
-| QW110–QW119 | `%QW110`–`%QW119` | Gateway → PLC | Config upload -protokolla |
-| QW120–QW126 | `%QW120`–`%QW126` | Gateway → PLC | Unit write -protokolla |
+Rekisterit generoidaan automaattisesti `modbus_map.json` → `generate_modbus.py`:
+
+```bash
+cd openplc && python3 generate_modbus.py
+```
+
+Tämä generoi kolme tiedostoa:
+1. **`OpenPLC/src/globals.st`** — `AT %QW` -deklaraatiot (BEGIN/END GENERATED MODBUS -merkkien väliin)
+2. **`OpenPLC/src/plc_prg.st`** — output write -lauseet (BEGIN/END GENERATED MODBUS -merkkien väliin)
+3. **`gateway/modbus_map.js`** — rekisteriosoitteet + decode/encode -apufunktiot
+
+> **Tärkeä: Älä muokkaa generoituja osia käsin!** Muokkaa aina `modbus_map.json`:ia
+> ja aja `generate_modbus.py` uudelleen.
+
+### Nykyiset rekisteriblokit
+
+| Alue | Reg | Suunta | Blokki | Kuvaus |
+|------|-----|--------|--------|--------|
+| QW0–QW38 | 39 | PLC → GW | `transporter_state` | Nostin tila: x/z, phase, unit_id, asema, jne. (×3) |
+| QW39–QW77 | 39 | PLC → GW | `transporter_extended` | Nostin lisätiedot: remaining_time, targets, jne. (×3) |
+| QW78–QW83 | 6 | PLC → GW | `twa_limits` | TWA-ajorajat (×3) |
+| QW84–QW94 | 11 | PLC → GW | `plc_status` | PLC tila: init_done, cycle, ack:t, aika |
+| QW95–QW134 | 40 | PLC → GW | `unit_state` | Unit sijainti/status/state/target (×10) |
+| QW135–QW174 | 40 | PLC → GW | `batch_state` | Erätiedot: code, state, prog, stage (×10) |
+| QW175–QW176 | 2 | PLC → GW | `calibration` | Kalibroinnin step/tid |
+| QW177–QW197 | 21 | PLC → GW | `calibration_results` | Kalibrointitulokset (×3) |
+| QW198–QW284 | 87 | PLC → GW | `transporter_config` | Nostin konfiguraatio + fysiikka + task-alueet (×3) |
+| QW285–QW314 | 30 | PLC → GW | `avoid_status` | Asemien avoid-tilat (×30) |
+| QW315–QW324 | 10 | PLC → GW | `schedule_summary` | Aikataulun stage_count (×10) |
+| QW325–QW657 | 333 | PLC → GW | `task_queue` | Tehtäväjonot: 10 slottia × 11 kenttää (×3) |
+| QW658–QW666 | 9 | PLC → GW | `dep_state` | Departure-schedulerin tila |
+| QW667–QW671 | 5 | PLC → GW | `dep_waiting` | Odottavat erät (×5) |
+| QW672–QW701 | 30 | PLC → GW | `dep_overlap` | Overlap-liput (×30) |
+| QW702–QW707 | 6 | GW → PLC | `cmd_transport` | Manuaaliset nostokomennot (×2) |
+| QW708–QW717 | 10 | GW → PLC | `cfg` | Asemakonfiguraation latausprotokolla |
+| QW718–QW723 | 6 | GW → PLC | `unit` | Unit-kirjoitusprotokolla |
+| QW724–QW728 | 5 | GW → PLC | `batch` | Eräkirjoitusprotokolla |
+| QW729–QW739 | 11 | GW → PLC | `prog` | Ohjelma-askelkirjoitusprotokolla |
+| QW740–QW742 | 3 | GW → PLC | `avoid` | Avoid-tilakirjoitusprotokolla |
+| QW743–QW744 | 2 | GW → PLC | `time` | Unix-aikasynd (hi/lo) |
+
+**Yhteensä: 745 rekisteriä** (QW0–QW744)
 
 > Kaikki rekisterit ovat `%QW` (holding registers) koska gateway tarvitsee
 > sekä lukea että kirjoittaa. Gateway-koodissa osoite = AT-numeron arvo
 > (esim. `%QW110` → `client.writeRegisters(110, [value])`).
+
+### Uuden Modbus-kentän lisääminen
+
+1. Lisää kenttä `modbus_map.json`:iin (oikeaan blokkiin)
+2. Aja `python3 generate_modbus.py` — osoitteet lasketaan automaattisesti
+3. Aja `python3 OpenPLC/build_plcxml.py` → `bash deploy_plc.sh`
+4. Jos gateway käyttää kenttää, päivitä `gateway/index.js`
 
 ---
 
@@ -279,8 +317,10 @@ curl -s -X POST http://localhost:3001/api/reset \
 
 1. Lisää `src/globals.st`:iin sopivaan VAR_GLOBAL-lohkoon
 2. Lisää VAR_EXTERNAL-lohkoon **jokaiseen** POU:hun joka tarvitsee sitä
-3. Jos Modbus AT-osoite, valitse vapaa `%QW`-numero (katso rekisterikartta yllä)
+3. **Jos Modbus-kenttä:** lisää `modbus_map.json`:iin ja aja `python3 generate_modbus.py`
+   (osoitteet generoidaan automaattisesti — ÄLÄ valitse QW-numeroa käsin)
 4. Jos gateway käyttää uutta rekisteriä, päivitä myös `gateway/index.js`
+5. Aja `python3 build_plcxml.py` → `bash deploy_plc.sh`
 
 ---
 
