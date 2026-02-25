@@ -10,7 +10,7 @@
       "z_position": 0,
       "dropping_time": 0,
       "kind": 0,
-      "operation": 0,
+      "operation": 40,
       "device_delay": 0.0,
       "start_station": true
     },
@@ -304,7 +304,7 @@
       "z_position": 0,
       "dropping_time": 10,
       "kind": 1,
-      "operation": 0,
+      "operation": 41,
       "device_delay": 0.0,
       "start_station": false
     }

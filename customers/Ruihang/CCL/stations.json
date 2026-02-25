@@ -10,7 +10,7 @@
       "z_position": 0,
       "dropping_time": 0,
       "kind": 0,
-      "operation": 0,
+      "operation": 42,
       "device_delay": 0.0,
       "start_station": true
     },

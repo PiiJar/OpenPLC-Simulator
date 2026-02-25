@@ -166,7 +166,7 @@
       "device_delay": 0.0,
       "start_station": true,
       "kind": 0,
-      "operation": 0
+      "operation": 42
     },
     {
       "number": 202,
@@ -180,7 +180,7 @@
       "device_delay": 0.0,
       "start_station": false,
       "kind": 0,
-      "operation": 0
+      "operation": 42
     },
     {
       "number": 203,
@@ -194,7 +194,7 @@
       "device_delay": 0.0,
       "start_station": false,
       "kind": 0,
-      "operation": 0
+      "operation": 42
     },
     {
       "number": 204,
@@ -208,7 +208,7 @@
       "device_delay": 0.0,
       "start_station": false,
       "kind": 0,
-      "operation": 0
+      "operation": 42
     },
     {
       "number": 205,
@@ -222,7 +222,7 @@
       "device_delay": 0.0,
       "start_station": false,
       "kind": 0,
-      "operation": 0
+      "operation": 42
     },
     {
       "number": 206,

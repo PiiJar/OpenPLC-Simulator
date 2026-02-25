@@ -9,7 +9,7 @@
       "y_position": 1350,
       "z_position": 0,
       "kind": 0,
-      "operation": 0,
+      "operation": 40,
       "dropping_time": 0.0,
       "device_delay": 0.0,
       "start_station": false
@@ -135,7 +135,7 @@
       "y_position": 1350,
       "z_position": 0,
       "kind": 0,
-      "operation": 0,
+      "operation": 41,
       "dropping_time": 0.0,
       "device_delay": 0.0,
       "start_station": false

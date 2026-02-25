@@ -45,6 +45,10 @@ VAR_GLOBAL CONSTANT
   (* Station kind *)
   KIND_DRY         : INT := 0;
   KIND_WET         : INT := 1;
+  (* Station operation — logistics *)
+  OP_LOADING           : INT := 40;
+  OP_UNLOADING         : INT := 41;
+  OP_LOADING_UNLOADING : INT := 42;
   (* Batch state *)
   NOT_PROCESSED    : INT := 0;
   IN_PROCESS       : INT := 1;
