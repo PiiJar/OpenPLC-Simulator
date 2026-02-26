@@ -1,9 +1,9 @@
 /**
  * Auto-generated Modbus register map — DO NOT EDIT
- * Generated from modbus_map.json (738 registers)
+ * Generated from modbus_map.json (737 registers)
  */
 
-const TOTAL_REGISTERS = 738;
+const TOTAL_REGISTERS = 737;
 
 // Block address ranges
 const BLOCKS = {
@@ -24,12 +24,12 @@ const BLOCKS = {
   dep_overlap: { start: 663, end: 692, count: 30, direction: 'out' },
   cmd_transport: { start: 693, end: 698, count: 6, direction: 'in' },
   cfg: { start: 699, end: 709, count: 11, direction: 'in' },
-  unit: { start: 710, end: 715, count: 6, direction: 'in' },
-  batch: { start: 716, end: 720, count: 5, direction: 'in' },
-  prog: { start: 721, end: 731, count: 11, direction: 'in' },
-  avoid: { start: 732, end: 734, count: 3, direction: 'in' },
-  production: { start: 735, end: 735, count: 1, direction: 'in' },
-  time: { start: 736, end: 737, count: 2, direction: 'in' },
+  unit: { start: 710, end: 714, count: 5, direction: 'in' },
+  batch: { start: 715, end: 719, count: 5, direction: 'in' },
+  prog: { start: 720, end: 730, count: 11, direction: 'in' },
+  avoid: { start: 731, end: 733, count: 3, direction: 'in' },
+  production: { start: 734, end: 734, count: 1, direction: 'in' },
+  time: { start: 735, end: 736, count: 2, direction: 'in' },
 };
 
 // Register addresses
@@ -748,30 +748,29 @@ const REG = {
   iw_unit_id: 711,  // unit number 1..10
   iw_unit_loc: 712,  // location (station number)
   iw_unit_status: 713,  // NOT_USED=0, USED=1
-  iw_unit_state: 714,  // EMPTY=0, FULL=1
-  iw_unit_target: 715,  // TO_NONE=0..TO_AVOID=5
-  iw_batch_seq: 716,  // sequence — triggers on change
-  iw_batch_unit: 717,  // unit index 1..10
-  iw_batch_code: 718,  // numeric batch code
-  iw_batch_state: 719,  // NOT_PROCESSED=0, IN_PROCESS=1, PROCESSED=2
-  iw_batch_prog_id: 720,  // treatment program ID
-  iw_prog_seq: 721,  // sequence — triggers on change
-  iw_prog_unit: 722,  // unit index 1..10
-  iw_prog_stage: 723,  // stage index 1..30
-  iw_prog_s1: 724,  // station 1 (0=unused)
-  iw_prog_s2: 725,  // station 2
-  iw_prog_s3: 726,  // station 3
-  iw_prog_s4: 727,  // station 4
-  iw_prog_s5: 728,  // station 5
-  iw_prog_min_time: 729,  // min processing time seconds
-  iw_prog_max_time: 730,  // max processing time seconds
-  iw_prog_cal_time: 731,  // calculated time seconds
-  iw_avoid_seq: 732,  // sequence — triggers on change
-  iw_avoid_station: 733,  // station number
-  iw_avoid_value: 734,  // AVOID_NONE=0, PASS=1, BLOCK=2
-  iw_production_queue: 735,  // 1=batches in queue, 0=empty
-  iw_time_hi: 736,  // unix seconds upper 16 bits
-  iw_time_lo: 737,  // unix seconds lower 16 bits
+  iw_unit_target: 714,  // TO_NONE=0..TO_AVOID=5
+  iw_batch_seq: 715,  // sequence — triggers on change
+  iw_batch_unit: 716,  // unit index 1..10
+  iw_batch_code: 717,  // numeric batch code
+  iw_batch_state: 718,  // NOT_PROCESSED=0, IN_PROCESS=1, PROCESSED=2
+  iw_batch_prog_id: 719,  // treatment program ID
+  iw_prog_seq: 720,  // sequence — triggers on change
+  iw_prog_unit: 721,  // unit index 1..10
+  iw_prog_stage: 722,  // stage index 1..30
+  iw_prog_s1: 723,  // station 1 (0=unused)
+  iw_prog_s2: 724,  // station 2
+  iw_prog_s3: 725,  // station 3
+  iw_prog_s4: 726,  // station 4
+  iw_prog_s5: 727,  // station 5
+  iw_prog_min_time: 728,  // min processing time seconds
+  iw_prog_max_time: 729,  // max processing time seconds
+  iw_prog_cal_time: 730,  // calculated time seconds
+  iw_avoid_seq: 731,  // sequence — triggers on change
+  iw_avoid_station: 732,  // station number
+  iw_avoid_value: 733,  // AVOID_NONE=0, PASS=1, BLOCK=2
+  iw_production_queue: 734,  // 1=batches in queue, 0=empty
+  iw_time_hi: 735,  // unix seconds upper 16 bits
+  iw_time_lo: 736,  // unix seconds lower 16 bits
 };
 
 // Convert unsigned 16-bit to signed
@@ -1789,30 +1788,29 @@ function getInputAddress(blockName, apiName, instance) {
     'iw_unit_id': 711,
     'iw_unit_loc': 712,
     'iw_unit_status': 713,
-    'iw_unit_state': 714,
-    'iw_unit_target': 715,
-    'iw_batch_seq': 716,
-    'iw_batch_unit': 717,
-    'iw_batch_code': 718,
-    'iw_batch_state': 719,
-    'iw_batch_prog_id': 720,
-    'iw_prog_seq': 721,
-    'iw_prog_unit': 722,
-    'iw_prog_stage': 723,
-    'iw_prog_s1': 724,
-    'iw_prog_s2': 725,
-    'iw_prog_s3': 726,
-    'iw_prog_s4': 727,
-    'iw_prog_s5': 728,
-    'iw_prog_min_time': 729,
-    'iw_prog_max_time': 730,
-    'iw_prog_cal_time': 731,
-    'iw_avoid_seq': 732,
-    'iw_avoid_station': 733,
-    'iw_avoid_value': 734,
-    'iw_production_queue': 735,
-    'iw_time_hi': 736,
-    'iw_time_lo': 737,
+    'iw_unit_target': 714,
+    'iw_batch_seq': 715,
+    'iw_batch_unit': 716,
+    'iw_batch_code': 717,
+    'iw_batch_state': 718,
+    'iw_batch_prog_id': 719,
+    'iw_prog_seq': 720,
+    'iw_prog_unit': 721,
+    'iw_prog_stage': 722,
+    'iw_prog_s1': 723,
+    'iw_prog_s2': 724,
+    'iw_prog_s3': 725,
+    'iw_prog_s4': 726,
+    'iw_prog_s5': 727,
+    'iw_prog_min_time': 728,
+    'iw_prog_max_time': 729,
+    'iw_prog_cal_time': 730,
+    'iw_avoid_seq': 731,
+    'iw_avoid_station': 732,
+    'iw_avoid_value': 733,
+    'iw_production_queue': 734,
+    'iw_time_hi': 735,
+    'iw_time_lo': 736,
   };
   // Try direct var name match
   const varName = `iw_${blockName}_${apiName}`;
@@ -1828,12 +1826,12 @@ function getInputAddress(blockName, apiName, instance) {
 const INPUT_BLOCKS = {
   cmd_transport: { start: 693, fields: ["cmd_start", "cmd_lift", "cmd_sink", "cmd_start", "cmd_lift", "cmd_sink"] },
   cfg: { start: 699, fields: ["cfg_seq", "cfg_cmd", "cfg_param", "cfg_d0", "cfg_d1", "cfg_d2", "cfg_d3", "cfg_d4", "cfg_d5", "cfg_d6", "cfg_d7"] },
-  unit: { start: 710, fields: ["unit_seq", "unit_id", "unit_loc", "unit_status", "unit_state", "unit_target"] },
-  batch: { start: 716, fields: ["batch_seq", "batch_unit", "batch_code", "batch_state", "batch_prog_id"] },
-  prog: { start: 721, fields: ["prog_seq", "prog_unit", "prog_stage", "prog_s1", "prog_s2", "prog_s3", "prog_s4", "prog_s5", "prog_min_time", "prog_max_time", "prog_cal_time"] },
-  avoid: { start: 732, fields: ["avoid_seq", "avoid_station", "avoid_value"] },
-  production: { start: 735, fields: ["production_queue"] },
-  time: { start: 736, fields: ["time_hi", "time_lo"] },
+  unit: { start: 710, fields: ["unit_seq", "unit_id", "unit_loc", "unit_status", "unit_target"] },
+  batch: { start: 715, fields: ["batch_seq", "batch_unit", "batch_code", "batch_state", "batch_prog_id"] },
+  prog: { start: 720, fields: ["prog_seq", "prog_unit", "prog_stage", "prog_s1", "prog_s2", "prog_s3", "prog_s4", "prog_s5", "prog_min_time", "prog_max_time", "prog_cal_time"] },
+  avoid: { start: 731, fields: ["avoid_seq", "avoid_station", "avoid_value"] },
+  production: { start: 734, fields: ["production_queue"] },
+  time: { start: 735, fields: ["time_hi", "time_lo"] },
 };
 
 module.exports = {

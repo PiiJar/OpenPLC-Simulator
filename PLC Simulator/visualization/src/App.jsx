@@ -106,7 +106,6 @@ export default function App() {
   const [unitLocationEdit, setUnitLocationEdit] = useState('');
   const [unitBatchEdit, setUnitBatchEdit] = useState(0);
   const [unitStatusEdit, setUnitStatusEdit] = useState(0);
-  const [unitStateEdit, setUnitStateEdit] = useState('empty');
   const [unitTargetEdit, setUnitTargetEdit] = useState('none');
   const [unitSaving, setUnitSaving] = useState(false);
   const lastTickRef = useRef(null);
@@ -758,7 +757,6 @@ export default function App() {
     setUnitLocationEdit('');
     setUnitBatchEdit(0);
     setUnitStatusEdit(0);
-    setUnitStateEdit('empty');
     setUnitTargetEdit('none');
   };
 
@@ -769,7 +767,6 @@ export default function App() {
       setUnitLocationEdit('');
       setUnitBatchEdit(0);
       setUnitStatusEdit(0);
-      setUnitStateEdit('empty');
       setUnitTargetEdit('none');
       return;
     }
@@ -779,7 +776,6 @@ export default function App() {
       setUnitLocationEdit(String(unit.location || 0));
       setUnitBatchEdit(unit.batch_id || 0);
       setUnitStatusEdit(unit.status || 0);
-      setUnitStateEdit(unit.state || 'empty');
       setUnitTargetEdit(unit.target || 'none');
     }
   };
@@ -800,7 +796,6 @@ export default function App() {
           batch_id: Number(unitBatchEdit) || 0,
           location: newLoc,
           status: Number(unitStatusEdit) || 0,
-          state: unitStateEdit || 'empty',
           target: unitTargetEdit || 'none'
         })
       });
@@ -825,13 +820,11 @@ export default function App() {
       setSelectedUnitId(String(unit.unit_id));
       setUnitLocationEdit(String(unit.location));
       setUnitStatusEdit(unit.status || 'used');
-      setUnitStateEdit(unit.state || 'empty');
       setUnitTargetEdit(unit.target || 'none');
     } else {
       setSelectedUnitId('');
       setUnitLocationEdit('');
       setUnitStatusEdit('used');
-      setUnitStateEdit('empty');
       setUnitTargetEdit('none');
     }
     setBatchForm({
@@ -1227,56 +1220,72 @@ export default function App() {
               <span style={{ fontSize: 10, fontWeight: 700, color: '#333', letterSpacing: 0.5 }}>OpenPLC_v3</span>
             </div>
 
-            {/* Start / Stop — IEC 60073 */}
-            <div style={{ display: 'flex', gap: 4 }}>
-              <button
-                disabled={plcToggling || plcStatus.runtime_status === 'running'}
-                onClick={async () => {
-                  setPlcToggling(true);
-                  try { await fetch('/api/plc/start', { method: 'POST' }); } catch {}
-                  setTimeout(async () => {
-                    try { const r = await fetch('/api/plc/status'); if (r.ok) setPlcStatus(await r.json()); } catch {}
-                    setPlcToggling(false);
-                  }, 2000);
-                }}
-                title="Start PLC"
+            {/* PLC status indicator + toggle button */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {/* Status dot */}
+              <span
+                title={plcStatus.runtime_status === 'running' ? 'PLC Running' : 'PLC Stopped'}
                 style={{
-                  width: 34, height: 34,
-                  border: plcStatus.runtime_status === 'running' ? '2px solid #2e7d32' : '1px solid #ccc',
-                  borderRadius: 6, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: plcStatus.runtime_status === 'running' ? '#e8f5e9' : '#f5f5f5',
-                  opacity: plcToggling ? 0.5 : 1
+                  width: 12, height: 12, borderRadius: '50%',
+                  background: plcStatus.runtime_status === 'running' ? '#4caf50' : '#f44336',
+                  boxShadow: `0 0 6px ${plcStatus.runtime_status === 'running' ? '#4caf50' : '#f44336'}`,
+                  flexShrink: 0
                 }}
-              >
-                <svg width="14" height="16" viewBox="0 0 14 16">
-                  <polygon points="1,0 14,8 1,16" fill={plcStatus.plc_alive && plcStatus.runtime_status === 'running' ? '#2e7d32' : '#bbb'} />
-                </svg>
-              </button>
-              <button
-                disabled={plcToggling || plcStatus.runtime_status === 'stopped'}
-                onClick={async () => {
-                  setPlcToggling(true);
-                  try { await fetch('/api/plc/stop', { method: 'POST' }); } catch {}
-                  setTimeout(async () => {
-                    try { const r = await fetch('/api/plc/status'); if (r.ok) setPlcStatus(await r.json()); } catch {}
-                    setPlcToggling(false);
-                  }, 3000);
-                }}
-                title="Stop PLC"
-                style={{
-                  width: 34, height: 34,
-                  border: plcStatus.runtime_status === 'stopped' ? '2px solid #c62828' : '1px solid #ccc',
-                  borderRadius: 6, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: plcStatus.runtime_status === 'stopped' ? '#ffebee' : '#f5f5f5',
-                  opacity: plcToggling ? 0.5 : 1
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 14 14">
-                  <circle cx="7" cy="7" r="7" fill={plcStatus.plc_alive && plcStatus.runtime_status !== 'running' ? '#c62828' : '#bbb'} />
-                </svg>
-              </button>
+              />
+              {/* Toggle button: shows the ACTION (what clicking will do) */}
+              {plcStatus.runtime_status === 'running' ? (
+                <button
+                  disabled={plcToggling}
+                  onClick={async () => {
+                    setPlcToggling(true);
+                    try { await fetch('/api/plc/stop', { method: 'POST' }); } catch {}
+                    setTimeout(async () => {
+                      try { const r = await fetch('/api/plc/status'); if (r.ok) setPlcStatus(await r.json()); } catch {}
+                      setPlcToggling(false);
+                    }, 3000);
+                  }}
+                  title="Stop PLC"
+                  style={{
+                    width: 34, height: 34,
+                    border: '2px solid #c62828',
+                    borderRadius: 6, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: '#ffebee',
+                    opacity: plcToggling ? 0.5 : 1,
+                    transition: 'background 0.2s'
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14">
+                    <rect x="1" y="1" width="12" height="12" rx="1" fill="#c62828" />
+                  </svg>
+                </button>
+              ) : (
+                <button
+                  disabled={plcToggling}
+                  onClick={async () => {
+                    setPlcToggling(true);
+                    try { await fetch('/api/plc/start', { method: 'POST' }); } catch {}
+                    setTimeout(async () => {
+                      try { const r = await fetch('/api/plc/status'); if (r.ok) setPlcStatus(await r.json()); } catch {}
+                      setPlcToggling(false);
+                    }, 2000);
+                  }}
+                  title="Start PLC"
+                  style={{
+                    width: 34, height: 34,
+                    border: '2px solid #2e7d32',
+                    borderRadius: 6, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: '#e8f5e9',
+                    opacity: plcToggling ? 0.5 : 1,
+                    transition: 'background 0.2s'
+                  }}
+                >
+                  <svg width="14" height="16" viewBox="0 0 14 16">
+                    <polygon points="1,0 14,8 1,16" fill="#2e7d32" />
+                  </svg>
+                </button>
+              )}
             </div>
 
             {/* Divider */}
@@ -1460,56 +1469,72 @@ export default function App() {
             <span style={{ fontSize: 10, fontWeight: 700, color: '#333', letterSpacing: 0.5 }}>OpenPLC_v3</span>
           </div>
 
-          {/* Start / Stop — IEC 60073 */}
-          <div style={{ display: 'flex', gap: 4 }}>
-            <button
-              disabled={plcToggling || plcStatus.runtime_status === 'running'}
-              onClick={async () => {
-                setPlcToggling(true);
-                try { await fetch('/api/plc/start', { method: 'POST' }); } catch {}
-                setTimeout(async () => {
-                  try { const r = await fetch('/api/plc/status'); if (r.ok) setPlcStatus(await r.json()); } catch {}
-                  setPlcToggling(false);
-                }, 2000);
-              }}
-              title="Start PLC"
+          {/* PLC status indicator + toggle button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Status dot */}
+            <span
+              title={plcStatus.runtime_status === 'running' ? 'PLC Running' : 'PLC Stopped'}
               style={{
-                width: 34, height: 34,
-                border: plcStatus.runtime_status === 'running' ? '2px solid #2e7d32' : '1px solid #ccc',
-                borderRadius: 6, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: plcStatus.runtime_status === 'running' ? '#e8f5e9' : '#f5f5f5',
-                opacity: plcToggling ? 0.5 : 1
+                width: 12, height: 12, borderRadius: '50%',
+                background: plcStatus.runtime_status === 'running' ? '#4caf50' : '#f44336',
+                boxShadow: `0 0 6px ${plcStatus.runtime_status === 'running' ? '#4caf50' : '#f44336'}`,
+                flexShrink: 0
               }}
-            >
-              <svg width="14" height="16" viewBox="0 0 14 16">
-                <polygon points="1,0 14,8 1,16" fill={plcStatus.plc_alive && plcStatus.runtime_status === 'running' ? '#2e7d32' : '#bbb'} />
-              </svg>
-            </button>
-            <button
-              disabled={plcToggling || plcStatus.runtime_status === 'stopped'}
-              onClick={async () => {
-                setPlcToggling(true);
-                try { await fetch('/api/plc/stop', { method: 'POST' }); } catch {}
-                setTimeout(async () => {
-                  try { const r = await fetch('/api/plc/status'); if (r.ok) setPlcStatus(await r.json()); } catch {}
-                  setPlcToggling(false);
-                }, 3000);
-              }}
-              title="Stop PLC"
-              style={{
-                width: 34, height: 34,
-                border: plcStatus.runtime_status === 'stopped' ? '2px solid #c62828' : '1px solid #ccc',
-                borderRadius: 6, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: plcStatus.runtime_status === 'stopped' ? '#ffebee' : '#f5f5f5',
-                opacity: plcToggling ? 0.5 : 1
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14">
-                <circle cx="7" cy="7" r="7" fill={plcStatus.plc_alive && plcStatus.runtime_status !== 'running' ? '#c62828' : '#bbb'} />
-              </svg>
-            </button>
+            />
+            {/* Toggle button: shows the ACTION (what clicking will do) */}
+            {plcStatus.runtime_status === 'running' ? (
+              <button
+                disabled={plcToggling}
+                onClick={async () => {
+                  setPlcToggling(true);
+                  try { await fetch('/api/plc/stop', { method: 'POST' }); } catch {}
+                  setTimeout(async () => {
+                    try { const r = await fetch('/api/plc/status'); if (r.ok) setPlcStatus(await r.json()); } catch {}
+                    setPlcToggling(false);
+                  }, 3000);
+                }}
+                title="Stop PLC"
+                style={{
+                  width: 34, height: 34,
+                  border: '2px solid #c62828',
+                  borderRadius: 6, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: '#ffebee',
+                  opacity: plcToggling ? 0.5 : 1,
+                  transition: 'background 0.2s'
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14">
+                  <rect x="1" y="1" width="12" height="12" rx="1" fill="#c62828" />
+                </svg>
+              </button>
+            ) : (
+              <button
+                disabled={plcToggling}
+                onClick={async () => {
+                  setPlcToggling(true);
+                  try { await fetch('/api/plc/start', { method: 'POST' }); } catch {}
+                  setTimeout(async () => {
+                    try { const r = await fetch('/api/plc/status'); if (r.ok) setPlcStatus(await r.json()); } catch {}
+                    setPlcToggling(false);
+                  }, 2000);
+                }}
+                title="Start PLC"
+                style={{
+                  width: 34, height: 34,
+                  border: '2px solid #2e7d32',
+                  borderRadius: 6, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: '#e8f5e9',
+                  opacity: plcToggling ? 0.5 : 1,
+                  transition: 'background 0.2s'
+                }}
+              >
+                <svg width="14" height="16" viewBox="0 0 14 16">
+                  <polygon points="1,0 14,8 1,16" fill="#2e7d32" />
+                </svg>
+              </button>
+            )}
           </div>
 
           {/* Divider */}
@@ -2708,7 +2733,6 @@ export default function App() {
                       <th style={{ padding: '3px 4px' }}>Unit</th>
                       <th style={{ padding: '3px 4px' }}>Loc</th>
                       <th style={{ padding: '3px 4px' }}>Status</th>
-                      <th style={{ padding: '3px 4px' }}>State</th>
                       <th style={{ padding: '3px 4px' }}>Target</th>
                       <th style={{ padding: '3px 4px', borderLeft: '2px solid #90caf9' }}>Batch</th>
                       <th style={{ padding: '3px 4px' }}>B.State</th>
@@ -2720,7 +2744,6 @@ export default function App() {
                   <tbody>
                     {units.map(u => {
                       const statusLabels = { 0: 'not_used', 1: 'used' };
-                      const stateLabels = { 'empty': 'empty', 'full': 'full', 0: 'empty', 1: 'full' };
                       const targetLabels = { 'none': 'none', 'to_loading': 'to_load', 'to_buffer': 'to_buf', 'to_process': 'to_proc', 'to_unload': 'to_unl', 'to_avoid': 'to_avoid', 0: 'none', 1: 'to_load', 2: 'to_buf', 3: 'to_proc', 4: 'to_unl', 5: 'to_avoid' };
                       const batchStateLabels = { 'not_processed': 'N/P', 'in_process': 'IN_P', 'processed': 'DONE' };
                       const isUsed = u.status === 1;
@@ -2730,7 +2753,6 @@ export default function App() {
                           <td style={{ padding: '3px 4px', fontWeight: 700 }}>U{u.unit_id}</td>
                           <td style={{ padding: '3px 4px' }}>{u.location || '—'}</td>
                           <td style={{ padding: '3px 4px' }}>{statusLabels[u.status] || u.status}</td>
-                          <td style={{ padding: '3px 4px' }}>{stateLabels[u.state] || u.state}</td>
                           <td style={{ padding: '3px 4px' }}>{targetLabels[u.target] || u.target}</td>
                           <td style={{ padding: '3px 4px', borderLeft: '2px solid #90caf9', color: hasBatch ? '#1565c0' : '#999', fontWeight: hasBatch ? 700 : 400 }}>{hasBatch ? u.batch_code : '—'}</td>
                           <td style={{ padding: '3px 4px', color: hasBatch ? '#333' : '#999' }}>{hasBatch ? (batchStateLabels[u.batch_state] || u.batch_state) : '—'}</td>
@@ -2748,7 +2770,7 @@ export default function App() {
                       );
                     })}
                     {units.length === 0 && (
-                      <tr><td colSpan={10} style={{ padding: 8, color: '#666', textAlign: 'center' }}>No units (PLC not connected?)</td></tr>
+                      <tr><td colSpan={9} style={{ padding: 8, color: '#666', textAlign: 'center' }}>No units (PLC not connected?)</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -2758,18 +2780,17 @@ export default function App() {
               {selectedUnitId !== '' && (
                 <div style={{ border: '1px solid #90caf9', borderRadius: 6, padding: 10, background: '#e3f2fd', display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ fontWeight: 700, fontSize: 14 }}>Edit Unit {selectedUnitId}</div>
-                  {/* Row 1: Batch ID, Location, Status */}
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, width: 90 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, width: 72 }}>
                       Batch ID
                       <input
                         type="number"
                         value={unitBatchEdit}
                         onChange={(e) => setUnitBatchEdit(Number(e.target.value) || 0)}
-                        style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #90caf9', background: '#fff', fontSize: 13 }}
+                        style={{ padding: '6px 8px', borderRadius: 4, border: '1px solid #90caf9', background: '#fff', fontSize: 12 }}
                       />
                     </label>
-                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, width: 90 }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, width: 64 }}>
                       Location
                       <input
                         type="text"
@@ -2777,40 +2798,26 @@ export default function App() {
                         pattern="[0-9]*"
                         value={unitLocationEdit}
                         onChange={(e) => { if (/^\d*$/.test(e.target.value)) setUnitLocationEdit(e.target.value); }}
-                        style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #90caf9', background: '#fff' }}
+                        style={{ padding: '6px 8px', borderRadius: 4, border: '1px solid #90caf9', background: '#fff', fontSize: 12 }}
                       />
                     </label>
-                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, flex: 1 }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, flex: 1 }}>
                       Status
                       <select
                         value={unitStatusEdit}
                         onChange={(e) => setUnitStatusEdit(Number(e.target.value))}
-                        style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #90caf9', background: '#fff', fontSize: 13 }}
+                        style={{ padding: '6px 8px', borderRadius: 4, border: '1px solid #90caf9', background: '#fff', fontSize: 12 }}
                       >
                         <option value={0}>NOT_USED (0)</option>
                         <option value={1}>USED (1)</option>
                       </select>
                     </label>
-                  </div>
-                  {/* Row 2: State, Target, Save */}
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, flex: 1 }}>
-                      State
-                      <select
-                        value={unitStateEdit}
-                        onChange={(e) => setUnitStateEdit(e.target.value)}
-                        style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #90caf9', background: '#fff', fontSize: 13 }}
-                      >
-                        <option value="empty">EMPTY (0)</option>
-                        <option value="full">FULL (1)</option>
-                      </select>
-                    </label>
-                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, flex: 1 }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, flex: 1 }}>
                       Target
                       <select
                         value={unitTargetEdit}
                         onChange={(e) => setUnitTargetEdit(e.target.value)}
-                        style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #90caf9', background: '#fff', fontSize: 13 }}
+                        style={{ padding: '6px 8px', borderRadius: 4, border: '1px solid #90caf9', background: '#fff', fontSize: 12 }}
                       >
                         <option value="none">TO_NONE (0)</option>
                         <option value="to_loading">TO_LOADING (1)</option>
@@ -2824,7 +2831,7 @@ export default function App() {
                       type="button"
                       disabled={unitSaving}
                       onClick={handleUnitSave}
-                      style={{ padding: '8px 14px', borderRadius: 4, border: '1px solid #1565c0', background: '#1565c0', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 12, whiteSpace: 'nowrap' }}
+                      style={{ padding: '6px 12px', borderRadius: 4, border: '1px solid #1565c0', background: '#1565c0', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 11, whiteSpace: 'nowrap' }}
                     >
                       {unitSaving ? '...' : 'Save to PLC'}
                     </button>

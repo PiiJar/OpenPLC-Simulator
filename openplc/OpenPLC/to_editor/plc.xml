@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-25T18:03:11"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-25T18:03:11">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-26T12:12:33"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-26T12:12:33">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -324,6 +324,48 @@
             </variable>
             <variable name="target">
               <type><INT/></type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
+      <dataType name="NTT_DEST_T">
+        <baseType>
+          <struct>
+            <variable name="stations">
+              <type>
+                <array>
+                  <dimension lower="1" upper="5"/>
+                  <baseType><INT/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="station_count">
+              <type><INT/></type>
+            </variable>
+            <variable name="fallback_stations">
+              <type>
+                <array>
+                  <dimension lower="1" upper="5"/>
+                  <baseType><INT/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="fallback_count">
+              <type><INT/></type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
+      <dataType name="NTT_TRANSPORTER_T">
+        <baseType>
+          <struct>
+            <variable name="target">
+              <type>
+                <array>
+                  <dimension lower="1" upper="5"/>
+                  <baseType><derived name="NTT_DEST_T"/></baseType>
+                </array>
+              </type>
             </variable>
           </struct>
         </baseType>
@@ -2010,6 +2052,9 @@ o_phase := phase;]]></xhtml:p>
             <variable name="g_unit">
               <type><derived name="ARRAY[1..MAX_UNITS] OF UNIT_T"/></type>
             </variable>
+            <variable name="g_ntt">
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF NTT_TRANSPORTER_T"/></type>
+            </variable>
             <variable name="g_batch">
               <type><derived name="ARRAY[1..MAX_UNITS] OF BATCH_T"/></type>
             </variable>
@@ -2117,6 +2162,18 @@ FOR i := 1 TO MAX_UNITS DO
   g_unit[i].location := 0;
   g_unit[i].status   := 0;
   g_unit[i].target   := 0;
+END_FOR;
+
+(* --- Clear NTT destinations --- *)
+FOR i := 1 TO MAX_TRANSPORTERS DO
+  FOR j := 1 TO 5 DO
+    g_ntt[i].target[j].station_count := 0;
+    g_ntt[i].target[j].fallback_count := 0;
+    FOR k := 1 TO MAX_PARALLELS DO
+      g_ntt[i].target[j].stations[k] := 0;
+      g_ntt[i].target[j].fallback_stations[k] := 0;
+    END_FOR;
+  END_FOR;
 END_FOR;
 
 (* --- Clear all batches --- *)
@@ -3521,6 +3578,289 @@ END_FOR;]]></xhtml:p>
           </ST>
         </body>
       </pou>
+      <pou name="STC_FB_DispatchTask" pouType="functionBlock">
+        <interface>
+          <externalVars>
+            <variable name="g_transporter">
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
+            </variable>
+            <variable name="g_task">
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
+            </variable>
+            <variable name="g_station">
+              <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T"/></type>
+            </variable>
+            <variable name="g_unit">
+              <type><derived name="ARRAY[1..MAX_UNITS] OF UNIT_T"/></type>
+            </variable>
+            <variable name="g_program">
+              <type><derived name="ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T"/></type>
+            </variable>
+            <variable name="g_ntt">
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF NTT_TRANSPORTER_T"/></type>
+            </variable>
+            <variable name="g_move">
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T"/></type>
+            </variable>
+            <variable name="g_time_s">
+              <type><LINT/></type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="ti">
+              <type><INT/></type>
+            </variable>
+            <variable name="t_unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="t_stage">
+              <type><INT/></type>
+            </variable>
+            <variable name="t_lift">
+              <type><INT/></type>
+            </variable>
+            <variable name="t_sink">
+              <type><INT/></type>
+            </variable>
+            <variable name="t_start">
+              <type><LINT/></type>
+            </variable>
+            <variable name="t_calc_time">
+              <type><REAL/></type>
+            </variable>
+            <variable name="travel_s">
+              <type><REAL/></type>
+            </variable>
+            <variable name="margin_s">
+              <type><LINT/></type>
+            </variable>
+            <variable name="from_idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="to_idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="sink_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="sink_free">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="best_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="best_change">
+              <type><LINT/></type>
+            </variable>
+            <variable name="si">
+              <type><INT/></type>
+            </variable>
+            <variable name="cand_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="cand_free">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="uj">
+              <type><INT/></type>
+            </variable>
+            <variable name="tgt">
+              <type><INT/></type>
+            </variable>
+            <variable name="ntt_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="ntt_fb_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="conflict">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="cj">
+              <type><INT/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[FOR ti := 1 TO MAX_TRANSPORTERS DO
+
+  (* ── 1. Skip if not idle or queue empty ── *)
+  IF g_transporter[ti].phase = 0 AND g_task[ti].count >= 1 THEN
+
+    (* Read task fields from queue position 1 *)
+    t_unit      := g_task[ti].queue[1].unit;
+    t_stage     := g_task[ti].queue[1].stage;
+    t_lift      := g_task[ti].queue[1].lift_station;
+    t_sink      := g_task[ti].queue[1].sink_station;
+    t_start     := g_task[ti].queue[1].start_time;
+    t_calc_time := g_task[ti].queue[1].calc_time;
+
+    (* ── 2. Time check ── *)
+    travel_s := 0.0;
+    IF g_transporter[ti].current_station > 0 AND t_lift > 0
+       AND g_transporter[ti].current_station <> t_lift THEN
+      from_idx := g_transporter[ti].current_station - 100;
+      to_idx   := t_lift - 100;
+      IF from_idx >= 1 AND from_idx <= 30 AND to_idx >= 1 AND to_idx <= 30 THEN
+        travel_s := g_move[ti].travel[from_idx].to_s[to_idx];
+      END_IF;
+    END_IF;
+
+    margin_s := t_start - g_time_s;
+
+    IF margin_s <= REAL_TO_LINT(travel_s) + 3 THEN
+
+      (* ── 3. Sink station free check ── *)
+      sink_stn := t_sink;
+      sink_free := FALSE;
+
+      IF sink_stn >= STATION_ARRAY_START AND sink_stn <= STATION_ARRAY_END THEN
+        sink_free := TRUE;
+        FOR uj := 1 TO MAX_UNITS DO
+          IF g_unit[uj].location = sink_stn AND g_unit[uj].status = 1 THEN
+            sink_free := FALSE;
+          END_IF;
+        END_FOR;
+      END_IF;
+
+      IF NOT sink_free THEN
+        (* Search alternative parallel stations *)
+        best_stn := 0;
+        best_change := LINT#2000000000;
+
+        IF t_stage >= 1 AND t_stage <= MAX_STAGES
+           AND t_unit >= 1 AND t_unit <= MAX_UNITS THEN
+          (* Treatment task — look in g_program for parallel stations *)
+          FOR si := 1 TO MAX_PARALLELS DO
+            cand_stn := g_program[t_unit].stages[t_stage].stations[si];
+            IF cand_stn > 0 AND cand_stn <> t_sink THEN
+              IF cand_stn >= STATION_ARRAY_START AND cand_stn <= STATION_ARRAY_END THEN
+                cand_free := TRUE;
+                FOR uj := 1 TO MAX_UNITS DO
+                  IF g_unit[uj].location = cand_stn AND g_unit[uj].status = 1 THEN
+                    cand_free := FALSE;
+                  END_IF;
+                END_FOR;
+                IF cand_free THEN
+                  IF g_station[cand_stn].change_time < best_change THEN
+                    best_change := g_station[cand_stn].change_time;
+                    best_stn := cand_stn;
+                  END_IF;
+                END_IF;
+              END_IF;
+            END_IF;
+          END_FOR;
+
+        ELSIF t_stage = 0 AND t_unit >= 1 AND t_unit <= MAX_UNITS THEN
+          (* No-treatment task — look in g_ntt for alternatives *)
+          tgt := g_unit[t_unit].target;
+          IF tgt >= 1 AND tgt <= 5 THEN
+            (* Check primary stations *)
+            ntt_cnt := g_ntt[ti].target[tgt].station_count;
+            FOR si := 1 TO ntt_cnt DO
+              IF si <= MAX_PARALLELS THEN
+                cand_stn := g_ntt[ti].target[tgt].stations[si];
+                IF cand_stn > 0 AND cand_stn <> t_sink THEN
+                  IF cand_stn >= STATION_ARRAY_START AND cand_stn <= STATION_ARRAY_END THEN
+                    cand_free := TRUE;
+                    FOR uj := 1 TO MAX_UNITS DO
+                      IF g_unit[uj].location = cand_stn AND g_unit[uj].status = 1 THEN
+                        cand_free := FALSE;
+                      END_IF;
+                    END_FOR;
+                    IF cand_free THEN
+                      IF g_station[cand_stn].change_time < best_change THEN
+                        best_change := g_station[cand_stn].change_time;
+                        best_stn := cand_stn;
+                      END_IF;
+                    END_IF;
+                  END_IF;
+                END_IF;
+              END_IF;
+            END_FOR;
+            (* Check fallback stations *)
+            ntt_fb_cnt := g_ntt[ti].target[tgt].fallback_count;
+            FOR si := 1 TO ntt_fb_cnt DO
+              IF si <= MAX_PARALLELS THEN
+                cand_stn := g_ntt[ti].target[tgt].fallback_stations[si];
+                IF cand_stn > 0 AND cand_stn <> t_sink THEN
+                  IF cand_stn >= STATION_ARRAY_START AND cand_stn <= STATION_ARRAY_END THEN
+                    cand_free := TRUE;
+                    FOR uj := 1 TO MAX_UNITS DO
+                      IF g_unit[uj].location = cand_stn AND g_unit[uj].status = 1 THEN
+                        cand_free := FALSE;
+                      END_IF;
+                    END_FOR;
+                    IF cand_free THEN
+                      IF g_station[cand_stn].change_time < best_change THEN
+                        best_change := g_station[cand_stn].change_time;
+                        best_stn := cand_stn;
+                      END_IF;
+                    END_IF;
+                  END_IF;
+                END_IF;
+              END_IF;
+            END_FOR;
+          END_IF;
+        END_IF;
+
+        IF best_stn > 0 THEN
+          sink_stn := best_stn;
+          sink_free := TRUE;
+        END_IF;
+      END_IF;  (* NOT sink_free *)
+
+      IF sink_free THEN
+
+        (* ── 4. Conflict check: no other transporter using same stations ── *)
+        conflict := FALSE;
+        FOR cj := 1 TO MAX_TRANSPORTERS DO
+          IF cj <> ti AND g_transporter[cj].phase > 0 THEN
+            IF g_transporter[cj].lift_station = t_lift THEN
+              conflict := TRUE;
+            END_IF;
+            IF g_transporter[cj].sink_station = t_lift THEN
+              conflict := TRUE;
+            END_IF;
+            IF g_transporter[cj].lift_station = sink_stn THEN
+              conflict := TRUE;
+            END_IF;
+            IF g_transporter[cj].sink_station = sink_stn THEN
+              conflict := TRUE;
+            END_IF;
+          END_IF;
+        END_FOR;
+
+        IF NOT conflict THEN
+          (* ── 5. Dispatch: assign task to transporter ── *)
+          g_transporter[ti].task_id      := t_start;
+          g_transporter[ti].lift_station := t_lift;
+          g_transporter[ti].sink_station := sink_stn;
+          g_transporter[ti].unit_id      := t_unit;
+          g_transporter[ti].treatment_time := t_calc_time;
+          g_transporter[ti].remaining_time := t_calc_time;
+
+          (* Copy station-specific timing from config *)
+          IF t_lift >= STATION_ARRAY_START AND t_lift <= STATION_ARRAY_END THEN
+            g_transporter[ti].dropping_time := g_station[t_lift].dropping_time;
+            g_transporter[ti].lift_device_delay := g_station[t_lift].device_delay;
+          END_IF;
+          IF sink_stn >= STATION_ARRAY_START AND sink_stn <= STATION_ARRAY_END THEN
+            g_transporter[ti].sink_device_delay := g_station[sink_stn].device_delay;
+          END_IF;
+        END_IF;  (* NOT conflict *)
+
+      END_IF;  (* sink_free *)
+
+    END_IF;  (* time check *)
+
+  END_IF;  (* idle + queue *)
+
+END_FOR;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
       <pou name="STC_FB_FindStation" pouType="functionBlock">
         <interface>
           <inputVars>
@@ -3693,6 +4033,9 @@ END_FOR;]]></xhtml:p>
             <variable name="dep_sched">
               <type><derived name="DEP_FB_Scheduler"/></type>
             </variable>
+            <variable name="dispatch">
+              <type><derived name="STC_FB_DispatchTask"/></type>
+            </variable>
             <variable name="turn">
               <type><INT/></type>
               <initialValue><simpleValue value="0"/></initialValue>
@@ -3728,6 +4071,9 @@ IF g_cal_active THEN
   turn := 0;
   RETURN;
 END_IF;
+
+(* ── Dispatch tasks to idle transporters (every scan) ── *)
+dispatch();
 
 (* ── Determine this cycle's turn ── *)
 IF turn = 0 THEN
@@ -4867,27 +5213,18 @@ END_FOR;]]></xhtml:p>
             <variable name="g_unit">
               <type><derived name="ARRAY[1..MAX_UNITS] OF UNIT_T"/></type>
             </variable>
+            <variable name="g_ntt">
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF NTT_TRANSPORTER_T"/></type>
+            </variable>
             <variable name="g_transporter">
               <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
-            </variable>
-            <variable name="g_cfg">
-              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
             </variable>
             <variable name="g_task">
               <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
-            <variable name="g_station">
-              <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T"/></type>
-            </variable>
-            <variable name="g_station_count">
-              <type><INT/></type>
-            </variable>
           </externalVars>
           <localVars>
             <variable name="ui">
-              <type><INT/></type>
-            </variable>
-            <variable name="ai">
               <type><INT/></type>
             </variable>
             <variable name="qi">
@@ -4902,8 +5239,8 @@ END_FOR;]]></xhtml:p>
             <variable name="cov_t">
               <type><INT/></type>
             </variable>
-            <variable name="area">
-              <type><derived name="TASK_AREA_T"/></type>
+            <variable name="dest">
+              <type><derived name="NTT_DEST_T"/></type>
             </variable>
             <variable name="dest_stn">
               <type><INT/></type>
@@ -4911,11 +5248,14 @@ END_FOR;]]></xhtml:p>
             <variable name="si">
               <type><INT/></type>
             </variable>
+            <variable name="stn">
+              <type><INT/></type>
+            </variable>
             <variable name="stn_free">
               <type><BOOL/></type>
             </variable>
-            <variable name="stn_ok">
-              <type><BOOL/></type>
+            <variable name="uj">
+              <type><INT/></type>
             </variable>
             <variable name="xfer_s">
               <type><REAL/></type>
@@ -4941,38 +5281,56 @@ END_FOR;]]></xhtml:p>
   loc := g_unit[ui].location;
 
   (* Skip: no target, target is process (handled by schedule), not on station *)
-  IF tgt <> 0 AND tgt <> 3 AND loc >= 100 THEN
+  IF tgt >= 1 AND tgt <= 5 AND tgt <> 3 AND loc >= 100 THEN
     (* Find covering transporter *)
     fb_find(i_lift_stn := loc, i_sink_stn := 0);
     cov_t := fb_find.o_trans_id;
 
-    IF cov_t >= 1 AND cov_t <= 3 THEN
+    IF cov_t >= 1 AND cov_t <= MAX_TRANSPORTERS THEN
       (* Check transporter is idle: phase=0, active *)
       IF g_transporter[cov_t].phase = 0 AND g_transporter[cov_t].active THEN
 
-        (* Find destination station: first available in transporter area *)
+        (* Get destination descriptor for this target + transporter *)
+        dest := g_ntt[cov_t].target[tgt];
         dest_stn := 0;
-        FOR ai := 1 TO 4 DO
+
+        (* 1. Search primary stations *)
+        FOR si := 1 TO dest.station_count DO
           IF dest_stn = 0 THEN
-            area := g_cfg[cov_t].task_area[ai];
-            IF area.min_sink > 0 THEN
-              FOR si := area.min_sink TO area.max_sink DO
-                IF dest_stn = 0 AND si <> loc AND si >= STATION_ARRAY_START AND si <= STATION_ARRAY_END THEN
-                  (* Check station is free: no unit there *)
-                  stn_free := TRUE;
-                  FOR qi := 1 TO MAX_UNITS DO
-                    IF g_unit[qi].location = si AND g_unit[qi].status = 1 THEN
-                      stn_free := FALSE;
-                    END_IF;
-                  END_FOR;
-                  IF stn_free THEN
-                    dest_stn := si;
-                  END_IF;
+            stn := dest.stations[si];
+            IF stn <> loc AND stn >= STATION_ARRAY_START AND stn <= STATION_ARRAY_END THEN
+              stn_free := TRUE;
+              FOR uj := 1 TO MAX_UNITS DO
+                IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
+                  stn_free := FALSE;
                 END_IF;
               END_FOR;
+              IF stn_free THEN
+                dest_stn := stn;
+              END_IF;
             END_IF;
           END_IF;
         END_FOR;
+
+        (* 2. Search fallback stations if no primary found *)
+        IF dest_stn = 0 THEN
+          FOR si := 1 TO dest.fallback_count DO
+            IF dest_stn = 0 THEN
+              stn := dest.fallback_stations[si];
+              IF stn <> loc AND stn >= STATION_ARRAY_START AND stn <= STATION_ARRAY_END THEN
+                stn_free := TRUE;
+                FOR uj := 1 TO MAX_UNITS DO
+                  IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
+                    stn_free := FALSE;
+                  END_IF;
+                END_FOR;
+                IF stn_free THEN
+                  dest_stn := stn;
+                END_IF;
+              END_IF;
+            END_IF;
+          END_FOR;
+        END_IF;
 
         IF dest_stn > 0 THEN
           (* Calculate timing *)
@@ -5428,8 +5786,8 @@ ELSIF phase = 1 THEN
   conflict_iter := 0;
 
   IF batch_count = 0 THEN
-    (* No active batches — go to READY directly *)
-    next_phase := 10000;
+    (* No active batches — still run no-treatment tasks *)
+    next_phase := 2204;
   ELSE
     next_phase := 2;
   END_IF;
@@ -6225,6 +6583,9 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
             </variable>
             <variable name="g_unit">
               <type><derived name="ARRAY[1..MAX_UNITS] OF UNIT_T"/></type>
+            </variable>
+            <variable name="g_ntt">
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF NTT_TRANSPORTER_T"/></type>
             </variable>
             <variable name="g_batch">
               <type><derived name="ARRAY[1..MAX_UNITS] OF BATCH_T"/></type>
@@ -8401,6 +8762,9 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
             <variable name="iw_cfg_d6">
               <type><INT/></type>
             </variable>
+            <variable name="iw_cfg_d7">
+              <type><INT/></type>
+            </variable>
             <variable name="iw_unit_seq">
               <type><INT/></type>
             </variable>
@@ -8411,9 +8775,6 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="iw_unit_status">
-              <type><INT/></type>
-            </variable>
-            <variable name="iw_unit_state">
               <type><INT/></type>
             </variable>
             <variable name="iw_unit_target">
@@ -8596,11 +8957,7 @@ IF iw_cfg_seq <> last_cfg_seq THEN
       g_station[iw_cfg_param].y_position    := INT_TO_REAL(iw_cfg_d2);
       g_station[iw_cfg_param].z_position    := INT_TO_REAL(iw_cfg_d3);
       g_station[iw_cfg_param].operation     := iw_cfg_d4;
-      IF (iw_cfg_d4 = 1) OR (iw_cfg_d4 = 11) THEN
-        g_station[iw_cfg_param].kind := 1;       (* wet *)
-      ELSE
-        g_station[iw_cfg_param].kind := 0;       (* dry *)
-      END_IF;
+      g_station[iw_cfg_param].kind            := iw_cfg_d7;
       g_station[iw_cfg_param].dropping_time := INT_TO_REAL(iw_cfg_d5) / 10.0;
       g_station[iw_cfg_param].device_delay  := INT_TO_REAL(iw_cfg_d6) / 10.0;
     END_IF;
@@ -8670,6 +9027,39 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     (* --- Calibration control --- *)
     (* param: 1=start, 2=calculate, 3=abort *)
     cal_cmd := iw_cfg_param;
+
+  ELSIF iw_cfg_cmd = 9 THEN
+    (* --- Write NTT primary stations --- *)
+    (* param = transporter_id × 100 + target_code × 10 + station_count
+       e.g. 112 = transporter 1, TO_LOADING(1), 2 stations
+       d0..d4 = stations[1..5] *)
+    j := iw_cfg_param / 100;             (* transporter *)
+    k := (iw_cfg_param / 10) MOD 10;     (* target code 1..5 *)
+    i := iw_cfg_param MOD 10;            (* station_count *)
+    IF (j >= 1) AND (j <= MAX_TRANSPORTERS) AND (k >= 1) AND (k <= 5) AND (i >= 0) AND (i <= MAX_PARALLELS) THEN
+      g_ntt[j].target[k].station_count := i;
+      g_ntt[j].target[k].stations[1] := iw_cfg_d0;
+      g_ntt[j].target[k].stations[2] := iw_cfg_d1;
+      g_ntt[j].target[k].stations[3] := iw_cfg_d2;
+      g_ntt[j].target[k].stations[4] := iw_cfg_d3;
+      g_ntt[j].target[k].stations[5] := iw_cfg_d4;
+    END_IF;
+
+  ELSIF iw_cfg_cmd = 10 THEN
+    (* --- Write NTT fallback stations --- *)
+    (* param = transporter_id × 100 + target_code × 10 + fallback_count
+       d0..d4 = fallback_stations[1..5] *)
+    j := iw_cfg_param / 100;             (* transporter *)
+    k := (iw_cfg_param / 10) MOD 10;     (* target code 1..5 *)
+    i := iw_cfg_param MOD 10;            (* fallback_count *)
+    IF (j >= 1) AND (j <= MAX_TRANSPORTERS) AND (k >= 1) AND (k <= 5) AND (i >= 0) AND (i <= MAX_PARALLELS) THEN
+      g_ntt[j].target[k].fallback_count := i;
+      g_ntt[j].target[k].fallback_stations[1] := iw_cfg_d0;
+      g_ntt[j].target[k].fallback_stations[2] := iw_cfg_d1;
+      g_ntt[j].target[k].fallback_stations[3] := iw_cfg_d2;
+      g_ntt[j].target[k].fallback_stations[4] := iw_cfg_d3;
+      g_ntt[j].target[k].fallback_stations[5] := iw_cfg_d4;
+    END_IF;
 
   ELSIF iw_cfg_cmd = 2 THEN
     (* --- Finish init: all config uploaded, init transporter states --- *)
@@ -9671,6 +10061,18 @@ IF g_dep_overlap.flags[130] THEN qw_ov_s130_flag := 1; ELSE qw_ov_s130_flag := 0
             <type><INT/></type>
             <initialValue><simpleValue value="1"/></initialValue>
           </variable>
+          <variable name="OP_LOADING">
+            <type><INT/></type>
+            <initialValue><simpleValue value="40"/></initialValue>
+          </variable>
+          <variable name="OP_UNLOADING">
+            <type><INT/></type>
+            <initialValue><simpleValue value="41"/></initialValue>
+          </variable>
+          <variable name="OP_LOADING_UNLOADING">
+            <type><INT/></type>
+            <initialValue><simpleValue value="42"/></initialValue>
+          </variable>
           <variable name="NOT_PROCESSED">
             <type><INT/></type>
             <initialValue><simpleValue value="0"/></initialValue>
@@ -9710,6 +10112,9 @@ IF g_dep_overlap.flags[130] THEN qw_ov_s130_flag := 1; ELSE qw_ov_s130_flag := 0
           </variable>
           <variable name="g_unit">
             <type><derived name="ARRAY[1..MAX_UNITS] OF UNIT_T"/></type>
+          </variable>
+          <variable name="g_ntt">
+            <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF NTT_TRANSPORTER_T"/></type>
           </variable>
           <variable name="g_batch">
             <type><derived name="ARRAY[1..MAX_UNITS] OF BATCH_T"/></type>
@@ -11892,19 +12297,19 @@ IF g_dep_overlap.flags[130] THEN qw_ov_s130_flag := 1; ELSE qw_ov_s130_flag := 0
           <variable name="iw_cfg_d6" address="%QW708">
             <type><INT/></type>
           </variable>
-          <variable name="iw_unit_seq" address="%QW709">
+          <variable name="iw_cfg_d7" address="%QW709">
             <type><INT/></type>
           </variable>
-          <variable name="iw_unit_id" address="%QW710">
+          <variable name="iw_unit_seq" address="%QW710">
             <type><INT/></type>
           </variable>
-          <variable name="iw_unit_loc" address="%QW711">
+          <variable name="iw_unit_id" address="%QW711">
             <type><INT/></type>
           </variable>
-          <variable name="iw_unit_status" address="%QW712">
+          <variable name="iw_unit_loc" address="%QW712">
             <type><INT/></type>
           </variable>
-          <variable name="iw_unit_state" address="%QW713">
+          <variable name="iw_unit_status" address="%QW713">
             <type><INT/></type>
           </variable>
           <variable name="iw_unit_target" address="%QW714">

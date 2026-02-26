@@ -112,8 +112,8 @@ ELSIF phase = 1 THEN
   conflict_iter := 0;
 
   IF batch_count = 0 THEN
-    (* No active batches — go to READY directly *)
-    next_phase := 10000;
+    (* No active batches — still run no-treatment tasks *)
+    next_phase := 2204;
   ELSE
     next_phase := 2;
   END_IF;

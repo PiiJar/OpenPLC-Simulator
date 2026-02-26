@@ -48,6 +48,7 @@ END_VAR
 VAR
   tsk_sched    : TSK_FB_Scheduler;
   dep_sched    : DEP_FB_Scheduler;
+  dispatch     : STC_FB_DispatchTask;
   turn         : INT := 0;   (* 0=init, 1=TSK, 2=DEP *)
   skip_cnt     : INT := 0;
   tsk_phase    : INT := 0;
@@ -72,6 +73,9 @@ IF g_cal_active THEN
   turn := 0;
   RETURN;
 END_IF;
+
+(* ── Dispatch tasks to idle transporters (every scan) ── *)
+dispatch();
 
 (* ── Determine this cycle's turn ── *)
 IF turn = 0 THEN

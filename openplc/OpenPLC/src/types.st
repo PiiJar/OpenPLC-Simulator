@@ -138,6 +138,26 @@ STRUCT
 END_STRUCT;
 END_TYPE
 
+(* ── No-Treatment Task destination types (NTT_) ─────────────────── *)
+(* Per target per transporter: which stations a unit can be moved to  *)
+(* Mirrors no_treatment_tasks.json structure                          *)
+
+TYPE NTT_DEST_T :
+STRUCT
+  stations          : ARRAY[1..5] OF INT;   (* primary stations, up to MAX_PARALLELS *)
+  station_count     : INT;                   (* how many primary stations are valid *)
+  fallback_stations : ARRAY[1..5] OF INT;   (* fallback stations, up to MAX_PARALLELS *)
+  fallback_count    : INT;                   (* how many fallback stations are valid *)
+END_STRUCT;
+END_TYPE
+
+TYPE NTT_TRANSPORTER_T :
+STRUCT
+  (* Index = target code: 1=TO_LOADING, 2=TO_BUFFER, 3=TO_PROCESS, 4=TO_UNLOAD, 5=TO_AVOID *)
+  target : ARRAY[1..5] OF NTT_DEST_T;
+END_STRUCT;
+END_TYPE
+
 (* ── Task Scheduler types (TSK_) ─────────────────────────────────── *)
 (* Calculated batch schedule — one per unit, stages indexed 1..30       *)
 (* Times are absolute epoch-offset seconds (g_time_s reference frame)   *)

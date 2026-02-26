@@ -822,6 +822,60 @@ app.post('/api/reset', async (req, res) => {
       console.log(`[RESET] Uploaded transporter ${tid} config to PLC`);
     }
 
+    // --- Step 3b: Upload NTT destinations from no_treatment_tasks.json (cmd=9,10) ---
+    const nttFile = path.join(plantPath, 'no_treatment_tasks.json');
+    if (fs.existsSync(nttFile)) {
+      const nttData = JSON.parse(fs.readFileSync(nttFile, 'utf8'));
+      const TARGET_MAP = {
+        'to_loading': 1, 'to_buffer': 2, 'to_process': 3, 'to_unload': 4, 'to_avoid': 5
+      };
+      const MAX_PARALLELS = 5;
+      const targets = nttData.targets || {};
+
+      for (const [targetName, targetDef] of Object.entries(targets)) {
+        const tgtCode = TARGET_MAP[targetName];
+        if (!tgtCode) continue;
+        const trDefs = targetDef.transporters || {};
+
+        for (const [trIdStr, dest] of Object.entries(trDefs)) {
+          const trId = parseInt(trIdStr, 10);
+          if (trId < 1 || trId > 3) continue;
+
+          const stns = (dest.stations || []).slice(0, MAX_PARALLELS);
+          const fb = (dest.fallback_stations || []).slice(0, MAX_PARALLELS);
+
+          // cmd=9: primary stations
+          const d9 = [0, 0, 0, 0, 0, 0, 0];
+          for (let si = 0; si < stns.length; si++) d9[si] = stns[si];
+          const param9 = trId * 100 + tgtCode * 10 + stns.length;
+          await client.writeRegisters(CFG_BASE + 3, d9);
+          await client.writeRegisters(CFG_BASE + 2, [param9]);
+          await client.writeRegisters(CFG_BASE + 1, [9]);
+          await client.writeRegisters(CFG_BASE + 0, [seq]);
+          if (!await waitForCfgAck(seq, 2000)) {
+            return res.status(504).json({ success: false, error: `PLC ack timeout for NTT cmd=9 t${trId} tgt=${tgtCode} (seq=${seq})` });
+          }
+          seq++;
+
+          // cmd=10: fallback stations (only if there are any)
+          if (fb.length > 0) {
+            const d10 = [0, 0, 0, 0, 0, 0, 0];
+            for (let si = 0; si < fb.length; si++) d10[si] = fb[si];
+            const param10 = trId * 100 + tgtCode * 10 + fb.length;
+            await client.writeRegisters(CFG_BASE + 3, d10);
+            await client.writeRegisters(CFG_BASE + 2, [param10]);
+            await client.writeRegisters(CFG_BASE + 1, [10]);
+            await client.writeRegisters(CFG_BASE + 0, [seq]);
+            if (!await waitForCfgAck(seq, 2000)) {
+              return res.status(504).json({ success: false, error: `PLC ack timeout for NTT cmd=10 t${trId} tgt=${tgtCode} (seq=${seq})` });
+            }
+            seq++;
+          }
+        }
+      }
+      console.log(`[RESET] Uploaded NTT destinations to PLC`);
+    }
+
     // --- Step 4: Send init command (cmd=2, param=station_count) ---
     await client.writeRegisters(CFG_BASE + 2, [stations.length]); 
     await client.writeRegisters(CFG_BASE + 1, [2]);               

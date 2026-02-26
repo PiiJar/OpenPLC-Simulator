@@ -575,6 +575,38 @@ ELSE
 END_CASE;
 ```
 
+### ❌ EI TOIMI: Tyhjä IF/ELSIF-haara (pelkkä kommentti)
+
+```iecst
+(* VIRHE: "no statement defined after 'THEN'" + "invalid statement list" *)
+IF condition_a THEN
+  (* skip *)
+ELSIF condition_b THEN
+  (* skip this too *)
+ELSE
+  do_something();
+END_IF;
+```
+
+matiec vaatii vähintään yhden lausekkeen (statement) jokaisen `THEN` / `ELSE`
+jälkeen. Pelkkä kommentti `(* ... *)` ei riitä.
+
+**Kiertotapa:** Käännä ehdot ympäri niin, ettei tyhjiä haaroja synny:
+
+```iecst
+(* ✅ TOIMII: ehdot käännetty — tyhjät haarat eliminoitu *)
+IF condition_a = FALSE AND condition_b = FALSE THEN
+  do_something();
+END_IF;
+
+(* Tai sisäkkäisinä: *)
+IF NOT condition_a THEN
+  IF NOT condition_b THEN
+    do_something();
+  END_IF;
+END_IF;
+```
+
 ### ✅ Toimii: RETURN
 
 ```iecst
@@ -646,6 +678,7 @@ Seuraavat ovat IEC 61131-3 varattuja sanoja joita **EI voi käyttää** muuttuja
 DT          → käytä: delta_t
 DATE        → käytä: date_val
 TIME        → käytä: time_val
+TASK        → käytä: tsk, job tms.  (CONFIGURATION TASK -avainsana)
 IN          → käytä: input_val
 AT          → käytä: at_pos
 ON          → käytä: on_flag
@@ -802,7 +835,9 @@ END_CONFIGURATION
 | 4 | Globaalit eivät näy ilman `VAR_EXTERNAL` | Lisää `VAR_EXTERNAL`-lohko jokaiseen POU:hun |
 | 5 | `dt` on varattu sana (DATE_AND_TIME) | Käytä `delta_t` |
 | 5b | `step` on varattu sana (SFC STEP/END_STEP) | Käytä `cal_step`, `phase` tms. |
+| 5c | `task` on varattu sana (CONFIGURATION TASK) | Käytä `tsk`, `job` tms. |
 | 6 | `END_IF` jne. vaatii puolipisteen | iec2c-wrapper hoitaa automaattisesti |
+| 6b | Tyhjä IF/ELSIF-haara (pelkkä kommentti) ei sallittu | Käännä ehto ympäri tai yhdistä ehdot |
 | 7 | Tyhjä `VAR_INPUT END_VAR` ei sallittu | Poista tyhjä lohko kokonaan |
 | 8 | `VAR_GLOBAL` erillään flat .st:ssä | Siirrä `CONFIGURATION`-osion sisään |
 | 9 | `%IW` read-only Modbus-masterilta | Käytä `%QW` jos gateway kirjoittaa |

@@ -9,6 +9,7 @@
 FUNCTION_BLOCK SIM_FB_ClearConfig
 VAR_EXTERNAL CONSTANT
     MAX_TRANSPORTERS    : INT;
+    MAX_PARALLELS       : INT;
     STATION_ARRAY_START : INT;
     STATION_ARRAY_END   : INT;
     MAX_UNITS           : INT;
@@ -20,6 +21,7 @@ VAR_EXTERNAL
   g_cfg              : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
   g_transporter      : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
   g_unit            : ARRAY[1..MAX_UNITS] OF UNIT_T;
+  g_ntt             : ARRAY[1..MAX_TRANSPORTERS] OF NTT_TRANSPORTER_T;
   g_batch          : ARRAY[1..MAX_UNITS] OF BATCH_T;
   g_program         : ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T;
   g_avoid_status     : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF INT;
@@ -113,6 +115,18 @@ FOR i := 1 TO MAX_UNITS DO
   g_unit[i].location := 0;
   g_unit[i].status   := 0;
   g_unit[i].target   := 0;
+END_FOR;
+
+(* --- Clear NTT destinations --- *)
+FOR i := 1 TO MAX_TRANSPORTERS DO
+  FOR j := 1 TO 5 DO
+    g_ntt[i].target[j].station_count := 0;
+    g_ntt[i].target[j].fallback_count := 0;
+    FOR k := 1 TO MAX_PARALLELS DO
+      g_ntt[i].target[j].stations[k] := 0;
+      g_ntt[i].target[j].fallback_stations[k] := 0;
+    END_FOR;
+  END_FOR;
 END_FOR;
 
 (* --- Clear all batches --- *)

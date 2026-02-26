@@ -95,8 +95,12 @@ TYPES_PATCHES = [
     (r'(task_area\s*:\s*ARRAY\[1\.\.)\d+(\]\s*OF\s*TASK_AREA_T)',
      r'\g<1>{MAX_TRANSPORTERS_PER_LINE}\2'),
 
-    # PROGRAM_STAGE_T.stations ARRAY[1..N]
+    # PROGRAM_STAGE_T.stations ARRAY[1..N]  (also matches NTT_DEST_T.stations)
     (r'(stations\s*:\s*ARRAY\[1\.\.)\d+(\]\s*OF\s*INT)',
+     r'\g<1>{MAX_PARALLELS}\2'),
+
+    # NTT_DEST_T.fallback_stations ARRAY[1..N]
+    (r'(fallback_stations\s*:\s*ARRAY\[1\.\.)\d+(\]\s*OF\s*INT)',
      r'\g<1>{MAX_PARALLELS}\2'),
 
     # TREATMENT_PROGRAM_T.stages ARRAY[1..N] OF PROGRAM_STAGE_T

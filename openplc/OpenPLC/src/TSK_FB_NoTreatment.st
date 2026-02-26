@@ -1,17 +1,20 @@
 (* ============================================================
    TSK_FB_NoTreatment — Create no-treatment transfer tasks
    ============================================================
-   Ported from taskScheduler.js TASKS_NO_TREATMENT phase (2204)
+   Scans units that have a target (TO_LOADING, TO_UNLOAD,
+   TO_BUFFER, TO_AVOID, etc.) and creates transfer tasks using
+   the g_ntt destination table (per target, per transporter).
 
-   After the task list is stable (no conflicts), scans units
-   that have a target (TO_UNLOAD, TO_BUFFER, TO_AVOID, etc.)
-   and creates transfer tasks that fit into transporter idle slots.
+   Destination lookup:
+     1. Search primary stations (g_ntt[trans].target[tgt].stations)
+     2. If all occupied → search fallback stations
+     3. First free station wins
 
    Conditions for creating a task:
      - Unit has target <> TO_NONE and <> TO_PROCESS
      - Unit is on a station (location >= 100)
-     - Covering transporter is idle (phase = 0, status = 3)
-     - Transfer fits within transporter idle gap
+     - Covering transporter is idle (phase = 0, active)
+     - A free destination station exists in g_ntt
    ============================================================ *)
 
 FUNCTION_BLOCK TSK_FB_NoTreatment
@@ -20,34 +23,33 @@ VAR_INPUT
 END_VAR
 VAR_EXTERNAL CONSTANT
     MAX_TRANSPORTERS    : INT;
+    MAX_PARALLELS       : INT;
     STATION_ARRAY_START : INT;
     STATION_ARRAY_END   : INT;
     MAX_UNITS           : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_unit    : ARRAY[1..MAX_UNITS] OF UNIT_T;
+  g_unit        : ARRAY[1..MAX_UNITS] OF UNIT_T;
+  g_ntt         : ARRAY[1..MAX_TRANSPORTERS] OF NTT_TRANSPORTER_T;
   g_transporter : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
-  g_cfg      : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
-  g_task    : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
-  g_station : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
-  g_station_count : INT;
+  g_task        : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
 END_VAR
 VAR
-  ui     : INT;     (* unit loop *)
-  ai     : INT;     (* task area loop *)
-  qi     : INT;     (* queue index *)
-  loc    : INT;     (* unit location station *)
-  tgt    : INT;     (* unit target *)
-  cov_t  : INT;     (* covering transporter *)
-  area   : TASK_AREA_T;
+  ui       : INT;     (* unit loop *)
+  qi       : INT;     (* queue index *)
+  loc      : INT;     (* unit location station *)
+  tgt      : INT;     (* unit target *)
+  cov_t    : INT;     (* covering transporter *)
+  dest     : NTT_DEST_T;  (* destination descriptor for this target+transporter *)
   (* Destination search *)
-  dest_stn : INT;   (* destination station *)
-  si       : INT;   (* station loop *)
+  dest_stn : INT;     (* destination station *)
+  si       : INT;     (* station loop *)
+  stn      : INT;     (* candidate station *)
   stn_free : BOOL;
-  stn_ok   : BOOL;
+  uj       : INT;     (* inner unit loop for free check *)
   (* Timing *)
-  xfer_s   : REAL;  (* total transfer time *)
+  xfer_s   : REAL;    (* total transfer time *)
   task_start : LINT;
   task_end   : LINT;
   (* Shared FB instances *)
@@ -60,38 +62,56 @@ FOR ui := 1 TO MAX_UNITS DO
   loc := g_unit[ui].location;
 
   (* Skip: no target, target is process (handled by schedule), not on station *)
-  IF tgt <> 0 AND tgt <> 3 AND loc >= 100 THEN
+  IF tgt >= 1 AND tgt <= 5 AND tgt <> 3 AND loc >= 100 THEN
     (* Find covering transporter *)
     fb_find(i_lift_stn := loc, i_sink_stn := 0);
     cov_t := fb_find.o_trans_id;
 
-    IF cov_t >= 1 AND cov_t <= 3 THEN
+    IF cov_t >= 1 AND cov_t <= MAX_TRANSPORTERS THEN
       (* Check transporter is idle: phase=0, active *)
       IF g_transporter[cov_t].phase = 0 AND g_transporter[cov_t].active THEN
 
-        (* Find destination station: first available in transporter area *)
+        (* Get destination descriptor for this target + transporter *)
+        dest := g_ntt[cov_t].target[tgt];
         dest_stn := 0;
-        FOR ai := 1 TO 4 DO
+
+        (* 1. Search primary stations *)
+        FOR si := 1 TO dest.station_count DO
           IF dest_stn = 0 THEN
-            area := g_cfg[cov_t].task_area[ai];
-            IF area.min_sink > 0 THEN
-              FOR si := area.min_sink TO area.max_sink DO
-                IF dest_stn = 0 AND si <> loc AND si >= STATION_ARRAY_START AND si <= STATION_ARRAY_END THEN
-                  (* Check station is free: no unit there *)
-                  stn_free := TRUE;
-                  FOR qi := 1 TO MAX_UNITS DO
-                    IF g_unit[qi].location = si AND g_unit[qi].status = 1 THEN
-                      stn_free := FALSE;
-                    END_IF;
-                  END_FOR;
-                  IF stn_free THEN
-                    dest_stn := si;
-                  END_IF;
+            stn := dest.stations[si];
+            IF stn <> loc AND stn >= STATION_ARRAY_START AND stn <= STATION_ARRAY_END THEN
+              stn_free := TRUE;
+              FOR uj := 1 TO MAX_UNITS DO
+                IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
+                  stn_free := FALSE;
                 END_IF;
               END_FOR;
+              IF stn_free THEN
+                dest_stn := stn;
+              END_IF;
             END_IF;
           END_IF;
         END_FOR;
+
+        (* 2. Search fallback stations if no primary found *)
+        IF dest_stn = 0 THEN
+          FOR si := 1 TO dest.fallback_count DO
+            IF dest_stn = 0 THEN
+              stn := dest.fallback_stations[si];
+              IF stn <> loc AND stn >= STATION_ARRAY_START AND stn <= STATION_ARRAY_END THEN
+                stn_free := TRUE;
+                FOR uj := 1 TO MAX_UNITS DO
+                  IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
+                    stn_free := FALSE;
+                  END_IF;
+                END_FOR;
+                IF stn_free THEN
+                  dest_stn := stn;
+                END_IF;
+              END_IF;
+            END_IF;
+          END_FOR;
+        END_IF;
 
         IF dest_stn > 0 THEN
           (* Calculate timing *)

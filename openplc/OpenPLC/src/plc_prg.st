@@ -5,6 +5,7 @@
 PROGRAM PLC_PRG
 VAR_EXTERNAL CONSTANT
     MAX_TRANSPORTERS    : INT;
+    MAX_PARALLELS       : INT;
     STATION_ARRAY_START : INT;
     STATION_ARRAY_END   : INT;
     MAX_UNITS           : INT;
@@ -18,6 +19,7 @@ VAR_EXTERNAL
   g_cfg              : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
   g_transporter      : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
   g_unit            : ARRAY[1..MAX_UNITS] OF UNIT_T;
+  g_ntt             : ARRAY[1..MAX_TRANSPORTERS] OF NTT_TRANSPORTER_T;
   g_batch          : ARRAY[1..MAX_UNITS] OF BATCH_T;
   g_program         : ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T;
   g_avoid_status     : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF INT;
@@ -753,7 +755,6 @@ VAR_EXTERNAL
   iw_unit_id                     : INT;
   iw_unit_loc                    : INT;
   iw_unit_status                 : INT;
-  iw_unit_state                  : INT;
   iw_unit_target                 : INT;
   iw_batch_seq                   : INT;
   iw_batch_unit                  : INT;
@@ -778,6 +779,8 @@ VAR_EXTERNAL
   iw_time_hi                     : INT;
   iw_time_lo                     : INT;
   (* --- END GENERATED MODBUS EXTERNALS --- *)
+
+
 
 
 
@@ -906,6 +909,39 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     (* --- Calibration control --- *)
     (* param: 1=start, 2=calculate, 3=abort *)
     cal_cmd := iw_cfg_param;
+
+  ELSIF iw_cfg_cmd = 9 THEN
+    (* --- Write NTT primary stations --- *)
+    (* param = transporter_id × 100 + target_code × 10 + station_count
+       e.g. 112 = transporter 1, TO_LOADING(1), 2 stations
+       d0..d4 = stations[1..5] *)
+    j := iw_cfg_param / 100;             (* transporter *)
+    k := (iw_cfg_param / 10) MOD 10;     (* target code 1..5 *)
+    i := iw_cfg_param MOD 10;            (* station_count *)
+    IF (j >= 1) AND (j <= MAX_TRANSPORTERS) AND (k >= 1) AND (k <= 5) AND (i >= 0) AND (i <= MAX_PARALLELS) THEN
+      g_ntt[j].target[k].station_count := i;
+      g_ntt[j].target[k].stations[1] := iw_cfg_d0;
+      g_ntt[j].target[k].stations[2] := iw_cfg_d1;
+      g_ntt[j].target[k].stations[3] := iw_cfg_d2;
+      g_ntt[j].target[k].stations[4] := iw_cfg_d3;
+      g_ntt[j].target[k].stations[5] := iw_cfg_d4;
+    END_IF;
+
+  ELSIF iw_cfg_cmd = 10 THEN
+    (* --- Write NTT fallback stations --- *)
+    (* param = transporter_id × 100 + target_code × 10 + fallback_count
+       d0..d4 = fallback_stations[1..5] *)
+    j := iw_cfg_param / 100;             (* transporter *)
+    k := (iw_cfg_param / 10) MOD 10;     (* target code 1..5 *)
+    i := iw_cfg_param MOD 10;            (* fallback_count *)
+    IF (j >= 1) AND (j <= MAX_TRANSPORTERS) AND (k >= 1) AND (k <= 5) AND (i >= 0) AND (i <= MAX_PARALLELS) THEN
+      g_ntt[j].target[k].fallback_count := i;
+      g_ntt[j].target[k].fallback_stations[1] := iw_cfg_d0;
+      g_ntt[j].target[k].fallback_stations[2] := iw_cfg_d1;
+      g_ntt[j].target[k].fallback_stations[3] := iw_cfg_d2;
+      g_ntt[j].target[k].fallback_stations[4] := iw_cfg_d3;
+      g_ntt[j].target[k].fallback_stations[5] := iw_cfg_d4;
+    END_IF;
 
   ELSIF iw_cfg_cmd = 2 THEN
     (* --- Finish init: all config uploaded, init transporter states --- *)
@@ -1793,6 +1829,8 @@ IF g_dep_overlap.flags[129] THEN qw_ov_s129_flag := 1; ELSE qw_ov_s129_flag := 0
 IF g_dep_overlap.flags[130] THEN qw_ov_s130_flag := 1; ELSE qw_ov_s130_flag := 0; END_IF;
 
 (* --- END GENERATED MODBUS OUTPUT --- *)
+
+
 
 
 

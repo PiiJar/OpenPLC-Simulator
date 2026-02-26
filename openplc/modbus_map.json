@@ -319,7 +319,6 @@
         { "suffix": "id",     "api": "unit_id",     "comment": "unit number 1..10" },
         { "suffix": "loc",    "api": "unit_loc",    "comment": "location (station number)" },
         { "suffix": "status", "api": "unit_status", "comment": "NOT_USED=0, USED=1" },
-        { "suffix": "state",  "api": "unit_state",  "comment": "EMPTY=0, FULL=1" },
         { "suffix": "target", "api": "unit_target", "comment": "TO_NONE=0..TO_AVOID=5" }
       ]
     },
