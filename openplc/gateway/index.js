@@ -827,7 +827,8 @@ app.post('/api/reset', async (req, res) => {
     if (fs.existsSync(nttFile)) {
       const nttData = JSON.parse(fs.readFileSync(nttFile, 'utf8'));
       const TARGET_MAP = {
-        'to_loading': 1, 'to_buffer': 2, 'to_process': 3, 'to_unload': 4, 'to_avoid': 5
+        'to_loading': 1, 'to_buffer': 2, 'to_process': 3, 'to_unload': 4, 'to_unloading': 4, 'to_avoid': 5,
+        'to_empty_buffer': 6, 'to_loaded_buffer': 7, 'to_processed_buffer': 8
       };
       const MAX_PARALLELS = 5;
       const targets = nttData.targets || {};

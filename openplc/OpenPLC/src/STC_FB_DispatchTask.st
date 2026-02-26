@@ -69,6 +69,8 @@ VAR
   (* Conflict check *)
   conflict     : BOOL;
   cj           : INT;
+  (* Shift-down after dispatch *)
+  sh           : INT;
 END_VAR
 
 FOR ti := 1 TO MAX_TRANSPORTERS DO
@@ -237,6 +239,23 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
           IF sink_stn >= STATION_ARRAY_START AND sink_stn <= STATION_ARRAY_END THEN
             g_transporter[ti].sink_device_delay := g_station[sink_stn].device_delay;
           END_IF;
+
+          (* Shift queue: remove position 1, move rest up *)
+          FOR sh := 2 TO g_task[ti].count DO
+            g_task[ti].queue[sh - 1] := g_task[ti].queue[sh];
+          END_FOR;
+          (* Clear last slot *)
+          g_task[ti].queue[g_task[ti].count].unit := 0;
+          g_task[ti].queue[g_task[ti].count].stage := 0;
+          g_task[ti].queue[g_task[ti].count].lift_station := 0;
+          g_task[ti].queue[g_task[ti].count].sink_station := 0;
+          g_task[ti].queue[g_task[ti].count].start_time := 0;
+          g_task[ti].queue[g_task[ti].count].finish_time := 0;
+          g_task[ti].queue[g_task[ti].count].calc_time := 0.0;
+          g_task[ti].queue[g_task[ti].count].min_time := 0.0;
+          g_task[ti].queue[g_task[ti].count].max_time := 0.0;
+          g_task[ti].count := g_task[ti].count - 1;
+
         END_IF;  (* NOT conflict *)
 
       END_IF;  (* sink_free *)

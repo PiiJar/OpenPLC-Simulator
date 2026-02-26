@@ -916,9 +916,9 @@ IF iw_cfg_seq <> last_cfg_seq THEN
        e.g. 112 = transporter 1, TO_LOADING(1), 2 stations
        d0..d4 = stations[1..5] *)
     j := iw_cfg_param / 100;             (* transporter *)
-    k := (iw_cfg_param / 10) MOD 10;     (* target code 1..5 *)
+    k := (iw_cfg_param / 10) MOD 10;     (* target code 1..8 *)
     i := iw_cfg_param MOD 10;            (* station_count *)
-    IF (j >= 1) AND (j <= MAX_TRANSPORTERS) AND (k >= 1) AND (k <= 5) AND (i >= 0) AND (i <= MAX_PARALLELS) THEN
+    IF (j >= 1) AND (j <= MAX_TRANSPORTERS) AND (k >= 1) AND (k <= 8) AND (i >= 0) AND (i <= MAX_PARALLELS) THEN
       g_ntt[j].target[k].station_count := i;
       g_ntt[j].target[k].stations[1] := iw_cfg_d0;
       g_ntt[j].target[k].stations[2] := iw_cfg_d1;
@@ -932,9 +932,9 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     (* param = transporter_id × 100 + target_code × 10 + fallback_count
        d0..d4 = fallback_stations[1..5] *)
     j := iw_cfg_param / 100;             (* transporter *)
-    k := (iw_cfg_param / 10) MOD 10;     (* target code 1..5 *)
+    k := (iw_cfg_param / 10) MOD 10;     (* target code 1..8 *)
     i := iw_cfg_param MOD 10;            (* fallback_count *)
-    IF (j >= 1) AND (j <= MAX_TRANSPORTERS) AND (k >= 1) AND (k <= 5) AND (i >= 0) AND (i <= MAX_PARALLELS) THEN
+    IF (j >= 1) AND (j <= MAX_TRANSPORTERS) AND (k >= 1) AND (k <= 8) AND (i >= 0) AND (i <= MAX_PARALLELS) THEN
       g_ntt[j].target[k].fallback_count := i;
       g_ntt[j].target[k].fallback_stations[1] := iw_cfg_d0;
       g_ntt[j].target[k].fallback_stations[2] := iw_cfg_d1;

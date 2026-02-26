@@ -74,8 +74,8 @@
           "fallback_stations": []
         },
         "2": {
-          "stations": [114],
-          "fallback_stations": [119, 120]
+          "stations": [119, 120],
+          "fallback_stations": []
         }
       }
     }

@@ -119,7 +119,7 @@ END_FOR;
 
 (* --- Clear NTT destinations --- *)
 FOR i := 1 TO MAX_TRANSPORTERS DO
-  FOR j := 1 TO 5 DO
+  FOR j := 1 TO 8 DO
     g_ntt[i].target[j].station_count := 0;
     g_ntt[i].target[j].fallback_count := 0;
     FOR k := 1 TO MAX_PARALLELS DO

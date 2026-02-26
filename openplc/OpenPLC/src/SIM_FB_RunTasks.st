@@ -375,6 +375,7 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
 
       g_transporter[i].phase := 0;
       g_transporter[i].status := 3;  (* auto_idle *)
+
     END_IF;
   END_IF;  (* ELSIF chain: phases 0→1→2→3→4 *)
 
