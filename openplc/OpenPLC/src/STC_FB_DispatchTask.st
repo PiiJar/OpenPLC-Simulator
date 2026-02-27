@@ -37,6 +37,7 @@ VAR_EXTERNAL
   g_unit        : ARRAY[1..MAX_UNITS] OF UNIT_T;
   g_program     : ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T;
   g_ntt         : ARRAY[1..MAX_TRANSPORTERS] OF NTT_TRANSPORTER_T;
+  g_batch       : ARRAY[1..MAX_UNITS] OF BATCH_T;
   g_move        : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
   g_time_s      : LINT;
 END_VAR
@@ -64,11 +65,14 @@ VAR
   cand_free    : BOOL;
   uj           : INT;
   tgt          : INT;
+  ntt_idx      : INT;     (* resolved NTT index (buffer 6/7/8) *)
   ntt_cnt      : INT;
   ntt_fb_cnt   : INT;
   (* Conflict check *)
   conflict     : BOOL;
   cj           : INT;
+  task_min     : INT;     (* min station of our proposed task *)
+  task_max     : INT;     (* max station of our proposed task *)
   (* Shift-down after dispatch *)
   sh           : INT;
 END_VAR
@@ -146,11 +150,23 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
           (* No-treatment task — look in g_ntt for alternatives *)
           tgt := g_unit[t_unit].target;
           IF tgt >= 1 AND tgt <= 5 THEN
+            (* Resolve buffer NTT index like NoTreatment does *)
+            IF tgt = 2 THEN
+              IF g_batch[t_unit].batch_code = 0 THEN
+                ntt_idx := 6;
+              ELSIF g_batch[t_unit].state = 2 THEN
+                ntt_idx := 8;
+              ELSE
+                ntt_idx := 7;
+              END_IF;
+            ELSE
+              ntt_idx := tgt;
+            END_IF;
             (* Check primary stations *)
-            ntt_cnt := g_ntt[ti].target[tgt].station_count;
+            ntt_cnt := g_ntt[ti].target[ntt_idx].station_count;
             FOR si := 1 TO ntt_cnt DO
               IF si <= MAX_PARALLELS THEN
-                cand_stn := g_ntt[ti].target[tgt].stations[si];
+                cand_stn := g_ntt[ti].target[ntt_idx].stations[si];
                 IF cand_stn > 0 AND cand_stn <> t_sink THEN
                   IF cand_stn >= STATION_ARRAY_START AND cand_stn <= STATION_ARRAY_END THEN
                     cand_free := TRUE;
@@ -170,10 +186,10 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
               END_IF;
             END_FOR;
             (* Check fallback stations *)
-            ntt_fb_cnt := g_ntt[ti].target[tgt].fallback_count;
+            ntt_fb_cnt := g_ntt[ti].target[ntt_idx].fallback_count;
             FOR si := 1 TO ntt_fb_cnt DO
               IF si <= MAX_PARALLELS THEN
-                cand_stn := g_ntt[ti].target[tgt].fallback_stations[si];
+                cand_stn := g_ntt[ti].target[ntt_idx].fallback_stations[si];
                 IF cand_stn > 0 AND cand_stn <> t_sink THEN
                   IF cand_stn >= STATION_ARRAY_START AND cand_stn <= STATION_ARRAY_END THEN
                     cand_free := TRUE;
@@ -203,22 +219,44 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
 
       IF sink_free THEN
 
-        (* ── 4. Conflict check: no other transporter using same stations ── *)
+        (* ── 4. Conflict check ── *)
+        (* Check against other transporters' ACTIVE tasks (phase>0).
+           Two rules:
+           a) T2's entire task (lift AND sink) is inside our task
+              range [task_min..task_max] → conflict.
+              Example: our 114→101 range [101,114]
+                T2 114→113: both in [101,114] → conflict
+                T2 114→117: 117 outside     → no conflict (going away)
+           b) T2 delivers (sink) to one of our exact stations
+              from outside our range → conflict.
+              Example: T2 120→114, 114 is our lift → conflict *)
         conflict := FALSE;
+
+        IF t_lift <= sink_stn THEN
+          task_min := t_lift;
+          task_max := sink_stn;
+        ELSE
+          task_min := sink_stn;
+          task_max := t_lift;
+        END_IF;
+
         FOR cj := 1 TO MAX_TRANSPORTERS DO
           IF cj <> ti AND g_transporter[cj].phase > 0 THEN
-            IF g_transporter[cj].lift_station = t_lift THEN
+
+            (* a) T2's entire active task inside our range → conflict *)
+            IF g_transporter[cj].lift_station >= task_min
+               AND g_transporter[cj].lift_station <= task_max
+               AND g_transporter[cj].sink_station >= task_min
+               AND g_transporter[cj].sink_station <= task_max THEN
               conflict := TRUE;
             END_IF;
-            IF g_transporter[cj].sink_station = t_lift THEN
+
+            (* b) T2 delivers to one of our exact stations → conflict *)
+            IF g_transporter[cj].sink_station = t_lift
+               OR g_transporter[cj].sink_station = sink_stn THEN
               conflict := TRUE;
             END_IF;
-            IF g_transporter[cj].lift_station = sink_stn THEN
-              conflict := TRUE;
-            END_IF;
-            IF g_transporter[cj].sink_station = sink_stn THEN
-              conflict := TRUE;
-            END_IF;
+
           END_IF;
         END_FOR;
 

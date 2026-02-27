@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-26T21:13:33"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-26T21:13:33">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-27T09:34:00"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-27T09:34:00">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -3600,6 +3600,9 @@ END_FOR;]]></xhtml:p>
             <variable name="g_ntt">
               <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF NTT_TRANSPORTER_T"/></type>
             </variable>
+            <variable name="g_batch">
+              <type><derived name="ARRAY[1..MAX_UNITS] OF BATCH_T"/></type>
+            </variable>
             <variable name="g_move">
               <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T"/></type>
             </variable>
@@ -3668,6 +3671,9 @@ END_FOR;]]></xhtml:p>
             <variable name="tgt">
               <type><INT/></type>
             </variable>
+            <variable name="ntt_idx">
+              <type><INT/></type>
+            </variable>
             <variable name="ntt_cnt">
               <type><INT/></type>
             </variable>
@@ -3678,6 +3684,12 @@ END_FOR;]]></xhtml:p>
               <type><BOOL/></type>
             </variable>
             <variable name="cj">
+              <type><INT/></type>
+            </variable>
+            <variable name="task_min">
+              <type><INT/></type>
+            </variable>
+            <variable name="task_max">
               <type><INT/></type>
             </variable>
             <variable name="sh">
@@ -3760,11 +3772,23 @@ END_FOR;]]></xhtml:p>
           (* No-treatment task — look in g_ntt for alternatives *)
           tgt := g_unit[t_unit].target;
           IF tgt >= 1 AND tgt <= 5 THEN
+            (* Resolve buffer NTT index like NoTreatment does *)
+            IF tgt = 2 THEN
+              IF g_batch[t_unit].batch_code = 0 THEN
+                ntt_idx := 6;
+              ELSIF g_batch[t_unit].state = 2 THEN
+                ntt_idx := 8;
+              ELSE
+                ntt_idx := 7;
+              END_IF;
+            ELSE
+              ntt_idx := tgt;
+            END_IF;
             (* Check primary stations *)
-            ntt_cnt := g_ntt[ti].target[tgt].station_count;
+            ntt_cnt := g_ntt[ti].target[ntt_idx].station_count;
             FOR si := 1 TO ntt_cnt DO
               IF si <= MAX_PARALLELS THEN
-                cand_stn := g_ntt[ti].target[tgt].stations[si];
+                cand_stn := g_ntt[ti].target[ntt_idx].stations[si];
                 IF cand_stn > 0 AND cand_stn <> t_sink THEN
                   IF cand_stn >= STATION_ARRAY_START AND cand_stn <= STATION_ARRAY_END THEN
                     cand_free := TRUE;
@@ -3784,10 +3808,10 @@ END_FOR;]]></xhtml:p>
               END_IF;
             END_FOR;
             (* Check fallback stations *)
-            ntt_fb_cnt := g_ntt[ti].target[tgt].fallback_count;
+            ntt_fb_cnt := g_ntt[ti].target[ntt_idx].fallback_count;
             FOR si := 1 TO ntt_fb_cnt DO
               IF si <= MAX_PARALLELS THEN
-                cand_stn := g_ntt[ti].target[tgt].fallback_stations[si];
+                cand_stn := g_ntt[ti].target[ntt_idx].fallback_stations[si];
                 IF cand_stn > 0 AND cand_stn <> t_sink THEN
                   IF cand_stn >= STATION_ARRAY_START AND cand_stn <= STATION_ARRAY_END THEN
                     cand_free := TRUE;
@@ -3817,22 +3841,44 @@ END_FOR;]]></xhtml:p>
 
       IF sink_free THEN
 
-        (* ── 4. Conflict check: no other transporter using same stations ── *)
+        (* ── 4. Conflict check ── *)
+        (* Check against other transporters' ACTIVE tasks (phase>0).
+           Two rules:
+           a) T2's entire task (lift AND sink) is inside our task
+              range [task_min..task_max] → conflict.
+              Example: our 114→101 range [101,114]
+                T2 114→113: both in [101,114] → conflict
+                T2 114→117: 117 outside     → no conflict (going away)
+           b) T2 delivers (sink) to one of our exact stations
+              from outside our range → conflict.
+              Example: T2 120→114, 114 is our lift → conflict *)
         conflict := FALSE;
+
+        IF t_lift <= sink_stn THEN
+          task_min := t_lift;
+          task_max := sink_stn;
+        ELSE
+          task_min := sink_stn;
+          task_max := t_lift;
+        END_IF;
+
         FOR cj := 1 TO MAX_TRANSPORTERS DO
           IF cj <> ti AND g_transporter[cj].phase > 0 THEN
-            IF g_transporter[cj].lift_station = t_lift THEN
+
+            (* a) T2's entire active task inside our range → conflict *)
+            IF g_transporter[cj].lift_station >= task_min
+               AND g_transporter[cj].lift_station <= task_max
+               AND g_transporter[cj].sink_station >= task_min
+               AND g_transporter[cj].sink_station <= task_max THEN
               conflict := TRUE;
             END_IF;
-            IF g_transporter[cj].sink_station = t_lift THEN
+
+            (* b) T2 delivers to one of our exact stations → conflict *)
+            IF g_transporter[cj].sink_station = t_lift
+               OR g_transporter[cj].sink_station = sink_stn THEN
               conflict := TRUE;
             END_IF;
-            IF g_transporter[cj].lift_station = sink_stn THEN
-              conflict := TRUE;
-            END_IF;
-            IF g_transporter[cj].sink_station = sink_stn THEN
-              conflict := TRUE;
-            END_IF;
+
           END_IF;
         END_FOR;
 
@@ -5308,15 +5354,6 @@ END_FOR;]]></xhtml:p>
             <variable name="ti">
               <type><INT/></type>
             </variable>
-            <variable name="clearing">
-              <type><BOOL/></type>
-            </variable>
-            <variable name="sink_in_area">
-              <type><BOOL/></type>
-            </variable>
-            <variable name="ai2">
-              <type><INT/></type>
-            </variable>
             <variable name="already">
               <type><BOOL/></type>
             </variable>
@@ -5429,29 +5466,7 @@ END_FOR;]]></xhtml:p>
               stn_free := TRUE;
               FOR uj := 1 TO MAX_UNITS DO
                 IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
-                  (* Check if another transporter is clearing this station away from us *)
-                  clearing := FALSE;
-                  FOR ti := 1 TO MAX_TRANSPORTERS DO
-                    IF ti <> cov_t AND g_transporter[ti].phase > 0
-                       AND g_transporter[ti].lift_station = stn THEN
-                      sink_in_area := FALSE;
-                      FOR ai2 := 1 TO 4 DO
-                        IF g_cfg[cov_t].task_area[ai2].min_lift > 0
-                           OR g_cfg[cov_t].task_area[ai2].max_lift > 0 THEN
-                          IF g_transporter[ti].sink_station >= g_cfg[cov_t].task_area[ai2].min_lift
-                             AND g_transporter[ti].sink_station <= g_cfg[cov_t].task_area[ai2].max_lift THEN
-                            sink_in_area := TRUE;
-                          END_IF;
-                        END_IF;
-                      END_FOR;
-                      IF NOT sink_in_area THEN
-                        clearing := TRUE;
-                      END_IF;
-                    END_IF;
-                  END_FOR;
-                  IF NOT clearing THEN
-                    stn_free := FALSE;
-                  END_IF;
+                  stn_free := FALSE;
                 END_IF;
               END_FOR;
               IF stn_free THEN
@@ -5474,28 +5489,7 @@ END_FOR;]]></xhtml:p>
                   stn_free := TRUE;
                   FOR uj := 1 TO MAX_UNITS DO
                     IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
-                      clearing := FALSE;
-                      FOR ti := 1 TO MAX_TRANSPORTERS DO
-                        IF ti <> cov_t AND g_transporter[ti].phase > 0
-                           AND g_transporter[ti].lift_station = stn THEN
-                          sink_in_area := FALSE;
-                          FOR ai2 := 1 TO 4 DO
-                            IF g_cfg[cov_t].task_area[ai2].min_lift > 0
-                               OR g_cfg[cov_t].task_area[ai2].max_lift > 0 THEN
-                              IF g_transporter[ti].sink_station >= g_cfg[cov_t].task_area[ai2].min_lift
-                                 AND g_transporter[ti].sink_station <= g_cfg[cov_t].task_area[ai2].max_lift THEN
-                                sink_in_area := TRUE;
-                              END_IF;
-                            END_IF;
-                          END_FOR;
-                          IF NOT sink_in_area THEN
-                            clearing := TRUE;
-                          END_IF;
-                        END_IF;
-                      END_FOR;
-                      IF NOT clearing THEN
-                        stn_free := FALSE;
-                      END_IF;
+                      stn_free := FALSE;
                     END_IF;
                   END_FOR;
                   IF stn_free THEN
@@ -5513,28 +5507,7 @@ END_FOR;]]></xhtml:p>
                   stn_free := TRUE;
                   FOR uj := 1 TO MAX_UNITS DO
                     IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
-                      clearing := FALSE;
-                      FOR ti := 1 TO MAX_TRANSPORTERS DO
-                        IF ti <> cov_t AND g_transporter[ti].phase > 0
-                           AND g_transporter[ti].lift_station = stn THEN
-                          sink_in_area := FALSE;
-                          FOR ai2 := 1 TO 4 DO
-                            IF g_cfg[cov_t].task_area[ai2].min_lift > 0
-                               OR g_cfg[cov_t].task_area[ai2].max_lift > 0 THEN
-                              IF g_transporter[ti].sink_station >= g_cfg[cov_t].task_area[ai2].min_lift
-                                 AND g_transporter[ti].sink_station <= g_cfg[cov_t].task_area[ai2].max_lift THEN
-                                sink_in_area := TRUE;
-                              END_IF;
-                            END_IF;
-                          END_FOR;
-                          IF NOT sink_in_area THEN
-                            clearing := TRUE;
-                          END_IF;
-                        END_IF;
-                      END_FOR;
-                      IF NOT clearing THEN
-                        stn_free := FALSE;
-                      END_IF;
+                      stn_free := FALSE;
                     END_IF;
                   END_FOR;
                   IF stn_free THEN
@@ -5552,28 +5525,7 @@ END_FOR;]]></xhtml:p>
                     stn_free := TRUE;
                     FOR uj := 1 TO MAX_UNITS DO
                       IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
-                        clearing := FALSE;
-                        FOR ti := 1 TO MAX_TRANSPORTERS DO
-                          IF ti <> cov_t AND g_transporter[ti].phase > 0
-                             AND g_transporter[ti].lift_station = stn THEN
-                            sink_in_area := FALSE;
-                            FOR ai2 := 1 TO 4 DO
-                              IF g_cfg[cov_t].task_area[ai2].min_lift > 0
-                                 OR g_cfg[cov_t].task_area[ai2].max_lift > 0 THEN
-                                IF g_transporter[ti].sink_station >= g_cfg[cov_t].task_area[ai2].min_lift
-                                   AND g_transporter[ti].sink_station <= g_cfg[cov_t].task_area[ai2].max_lift THEN
-                                  sink_in_area := TRUE;
-                                END_IF;
-                              END_IF;
-                            END_FOR;
-                            IF NOT sink_in_area THEN
-                              clearing := TRUE;
-                            END_IF;
-                          END_IF;
-                        END_FOR;
-                        IF NOT clearing THEN
-                          stn_free := FALSE;
-                        END_IF;
+                        stn_free := FALSE;
                       END_IF;
                     END_FOR;
                     IF stn_free THEN

@@ -15,6 +15,7 @@
      - Unit is on a station (location >= 100)
      - Covering transporter is idle (phase = 0, active)
      - A free destination station exists in g_ntt
+     - Destination station MUST be actually free (no unit present)
    ============================================================ *)
 
 FUNCTION_BLOCK TSK_FB_NoTreatment
@@ -58,14 +59,10 @@ VAR
   stn      : INT;     (* candidate station *)
   stn_free : BOOL;
   uj       : INT;     (* inner unit loop for free check *)
-  (* Clearing check — station being vacated by another transporter *)
-  ti           : INT;     (* inner transporter loop *)
-  clearing     : BOOL;    (* another transporter is clearing the station *)
-  sink_in_area : BOOL;    (* sink station inside our task_area *)
-  ai2          : INT;     (* inner task_area loop *)
   (* Duplicate check *)
-  already      : BOOL;    (* unit already queued or being transported *)
-  qi2          : INT;     (* queue scan index *)
+  ti       : INT;     (* inner transporter loop *)
+  already  : BOOL;    (* unit already queued or being transported *)
+  qi2      : INT;     (* queue scan index *)
   (* Timing *)
   xfer_s   : REAL;    (* total transfer time *)
   task_start : LINT;
@@ -164,29 +161,7 @@ FOR ui := 1 TO MAX_UNITS DO
               stn_free := TRUE;
               FOR uj := 1 TO MAX_UNITS DO
                 IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
-                  (* Check if another transporter is clearing this station away from us *)
-                  clearing := FALSE;
-                  FOR ti := 1 TO MAX_TRANSPORTERS DO
-                    IF ti <> cov_t AND g_transporter[ti].phase > 0
-                       AND g_transporter[ti].lift_station = stn THEN
-                      sink_in_area := FALSE;
-                      FOR ai2 := 1 TO 4 DO
-                        IF g_cfg[cov_t].task_area[ai2].min_lift > 0
-                           OR g_cfg[cov_t].task_area[ai2].max_lift > 0 THEN
-                          IF g_transporter[ti].sink_station >= g_cfg[cov_t].task_area[ai2].min_lift
-                             AND g_transporter[ti].sink_station <= g_cfg[cov_t].task_area[ai2].max_lift THEN
-                            sink_in_area := TRUE;
-                          END_IF;
-                        END_IF;
-                      END_FOR;
-                      IF NOT sink_in_area THEN
-                        clearing := TRUE;
-                      END_IF;
-                    END_IF;
-                  END_FOR;
-                  IF NOT clearing THEN
-                    stn_free := FALSE;
-                  END_IF;
+                  stn_free := FALSE;
                 END_IF;
               END_FOR;
               IF stn_free THEN
@@ -209,28 +184,7 @@ FOR ui := 1 TO MAX_UNITS DO
                   stn_free := TRUE;
                   FOR uj := 1 TO MAX_UNITS DO
                     IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
-                      clearing := FALSE;
-                      FOR ti := 1 TO MAX_TRANSPORTERS DO
-                        IF ti <> cov_t AND g_transporter[ti].phase > 0
-                           AND g_transporter[ti].lift_station = stn THEN
-                          sink_in_area := FALSE;
-                          FOR ai2 := 1 TO 4 DO
-                            IF g_cfg[cov_t].task_area[ai2].min_lift > 0
-                               OR g_cfg[cov_t].task_area[ai2].max_lift > 0 THEN
-                              IF g_transporter[ti].sink_station >= g_cfg[cov_t].task_area[ai2].min_lift
-                                 AND g_transporter[ti].sink_station <= g_cfg[cov_t].task_area[ai2].max_lift THEN
-                                sink_in_area := TRUE;
-                              END_IF;
-                            END_IF;
-                          END_FOR;
-                          IF NOT sink_in_area THEN
-                            clearing := TRUE;
-                          END_IF;
-                        END_IF;
-                      END_FOR;
-                      IF NOT clearing THEN
-                        stn_free := FALSE;
-                      END_IF;
+                      stn_free := FALSE;
                     END_IF;
                   END_FOR;
                   IF stn_free THEN
@@ -248,28 +202,7 @@ FOR ui := 1 TO MAX_UNITS DO
                   stn_free := TRUE;
                   FOR uj := 1 TO MAX_UNITS DO
                     IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
-                      clearing := FALSE;
-                      FOR ti := 1 TO MAX_TRANSPORTERS DO
-                        IF ti <> cov_t AND g_transporter[ti].phase > 0
-                           AND g_transporter[ti].lift_station = stn THEN
-                          sink_in_area := FALSE;
-                          FOR ai2 := 1 TO 4 DO
-                            IF g_cfg[cov_t].task_area[ai2].min_lift > 0
-                               OR g_cfg[cov_t].task_area[ai2].max_lift > 0 THEN
-                              IF g_transporter[ti].sink_station >= g_cfg[cov_t].task_area[ai2].min_lift
-                                 AND g_transporter[ti].sink_station <= g_cfg[cov_t].task_area[ai2].max_lift THEN
-                                sink_in_area := TRUE;
-                              END_IF;
-                            END_IF;
-                          END_FOR;
-                          IF NOT sink_in_area THEN
-                            clearing := TRUE;
-                          END_IF;
-                        END_IF;
-                      END_FOR;
-                      IF NOT clearing THEN
-                        stn_free := FALSE;
-                      END_IF;
+                      stn_free := FALSE;
                     END_IF;
                   END_FOR;
                   IF stn_free THEN
@@ -287,28 +220,7 @@ FOR ui := 1 TO MAX_UNITS DO
                     stn_free := TRUE;
                     FOR uj := 1 TO MAX_UNITS DO
                       IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
-                        clearing := FALSE;
-                        FOR ti := 1 TO MAX_TRANSPORTERS DO
-                          IF ti <> cov_t AND g_transporter[ti].phase > 0
-                             AND g_transporter[ti].lift_station = stn THEN
-                            sink_in_area := FALSE;
-                            FOR ai2 := 1 TO 4 DO
-                              IF g_cfg[cov_t].task_area[ai2].min_lift > 0
-                                 OR g_cfg[cov_t].task_area[ai2].max_lift > 0 THEN
-                                IF g_transporter[ti].sink_station >= g_cfg[cov_t].task_area[ai2].min_lift
-                                   AND g_transporter[ti].sink_station <= g_cfg[cov_t].task_area[ai2].max_lift THEN
-                                  sink_in_area := TRUE;
-                                END_IF;
-                              END_IF;
-                            END_FOR;
-                            IF NOT sink_in_area THEN
-                              clearing := TRUE;
-                            END_IF;
-                          END_IF;
-                        END_FOR;
-                        IF NOT clearing THEN
-                          stn_free := FALSE;
-                        END_IF;
+                        stn_free := FALSE;
                       END_IF;
                     END_FOR;
                     IF stn_free THEN
