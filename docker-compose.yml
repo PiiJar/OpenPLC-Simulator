@@ -21,10 +21,35 @@ services:
       - PLC_API_PASS=!T0s1v41k33!
       - API_PORT=3001
       - POLL_MS=100
+      - DB_HOST=plc_db
+      - DB_PORT=5432
+      - DB_USER=plc
+      - DB_PASS=plc_pass
+      - DB_NAME=plc_events
+      - CUSTOMERS_ROOT=/data/customers
+      - PLANT_TEMPLATES_ROOT=/data/plant_templates
+      - RUNTIME_ROOT=/data/runtime
     volumes:
       - ./customers:/data/customers
+      - ./plant_templates:/data/plant_templates
+      - ./runtime:/data/runtime
     depends_on:
       - openplc
+      - plc_db
+    restart: unless-stopped
+
+  plc_db:
+    image: postgres:16-alpine
+    container_name: plc_db
+    environment:
+      - POSTGRES_USER=plc
+      - POSTGRES_PASSWORD=plc_pass
+      - POSTGRES_DB=plc_events
+    ports:
+      - "5432:5432"
+    volumes:
+      - plc_db_data:/var/lib/postgresql/data
+      - ./openplc/db/init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: unless-stopped
 
   visualization:
@@ -34,21 +59,7 @@ services:
       - "5173:80"
     depends_on:
       - gateway
-      - simulator
     restart: unless-stopped
 
-  simulator:
-    build:
-      context: ./PLC Simulator
-      dockerfile: containers/simulator/Dockerfile
-    container_name: plc_simulator
-    ports:
-      - "3002:3002"
-    environment:
-      - PORT=3002
-      - PLANT_TEMPLATES_DIR=/data/plant_templates
-      - CUSTOMERS_DIR=/data/customers
-    volumes:
-      - ./customers:/data/customers
-      - ./plant_templates:/data/plant_templates
-    restart: unless-stopped
+volumes:
+  plc_db_data:

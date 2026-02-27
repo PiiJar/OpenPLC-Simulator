@@ -1,9 +1,9 @@
 /**
  * Auto-generated Modbus register map — DO NOT EDIT
- * Generated from modbus_map.json (737 registers)
+ * Generated from modbus_map.json (755 registers)
  */
 
-const TOTAL_REGISTERS = 737;
+const TOTAL_REGISTERS = 755;
 
 // Block address ranges
 const BLOCKS = {
@@ -30,6 +30,8 @@ const BLOCKS = {
   avoid: { start: 731, end: 733, count: 3, direction: 'in' },
   production: { start: 734, end: 734, count: 1, direction: 'in' },
   time: { start: 735, end: 736, count: 2, direction: 'in' },
+  event_out: { start: 737, end: 753, count: 17, direction: 'out' },
+  event_ack: { start: 754, end: 754, count: 1, direction: 'in' },
 };
 
 // Register addresses
@@ -771,6 +773,24 @@ const REG = {
   iw_production_queue: 734,  // 1=batches in queue, 0=empty
   iw_time_hi: 735,  // unix seconds upper 16 bits
   iw_time_lo: 736,  // unix seconds lower 16 bits
+  qw_event_out_count: 737,  // messages in queue (0..10)
+  qw_event_out_seq: 738,  // head message sequence number
+  qw_event_out_type: 739,  // message type (1=task,2=lift,...)
+  qw_event_out_ts_hi: 740,  // timestamp upper 16 bits
+  qw_event_out_ts_lo: 741,  // timestamp lower 16 bits
+  qw_event_out_f1: 742,  // payload field 1
+  qw_event_out_f2: 743,  // payload field 2
+  qw_event_out_f3: 744,  // payload field 3
+  qw_event_out_f4: 745,  // payload field 4
+  qw_event_out_f5: 746,  // payload field 5
+  qw_event_out_f6: 747,  // payload field 6
+  qw_event_out_f7: 748,  // payload field 7
+  qw_event_out_f8: 749,  // payload field 8
+  qw_event_out_f9: 750,  // payload field 9
+  qw_event_out_f10: 751,  // payload field 10
+  qw_event_out_f11: 752,  // payload field 11
+  qw_event_out_f12: 753,  // payload field 12
+  iw_event_ack_seq: 754,  // last consumed sequence number
 };
 
 // Convert unsigned 16-bit to signed
@@ -1752,6 +1772,25 @@ function decodeRegisters(r) {
   state.dep_overlap[129].overlap_flag = toSigned(r[691]);
   state.dep_overlap[130] = {};
   state.dep_overlap[130].overlap_flag = toSigned(r[692]);
+  // --- event_out ---
+  state.event_out = {};
+  state.event_out.evt_count = toSigned(r[737]);
+  state.event_out.evt_seq = toSigned(r[738]);
+  state.event_out.evt_type = toSigned(r[739]);
+  state.event_out.evt_ts_hi = toSigned(r[740]);
+  state.event_out.evt_ts_lo = toSigned(r[741]);
+  state.event_out.evt_f1 = toSigned(r[742]);
+  state.event_out.evt_f2 = toSigned(r[743]);
+  state.event_out.evt_f3 = toSigned(r[744]);
+  state.event_out.evt_f4 = toSigned(r[745]);
+  state.event_out.evt_f5 = toSigned(r[746]);
+  state.event_out.evt_f6 = toSigned(r[747]);
+  state.event_out.evt_f7 = toSigned(r[748]);
+  state.event_out.evt_f8 = toSigned(r[749]);
+  state.event_out.evt_f9 = toSigned(r[750]);
+  state.event_out.evt_f10 = toSigned(r[751]);
+  state.event_out.evt_f11 = toSigned(r[752]);
+  state.event_out.evt_f12 = toSigned(r[753]);
 
   return state;
 }
@@ -1811,6 +1850,7 @@ function getInputAddress(blockName, apiName, instance) {
     'iw_production_queue': 734,
     'iw_time_hi': 735,
     'iw_time_lo': 736,
+    'iw_event_ack_seq': 754,
   };
   // Try direct var name match
   const varName = `iw_${blockName}_${apiName}`;
@@ -1832,6 +1872,7 @@ const INPUT_BLOCKS = {
   avoid: { start: 731, fields: ["avoid_seq", "avoid_station", "avoid_value"] },
   production: { start: 734, fields: ["production_queue"] },
   time: { start: 735, fields: ["time_hi", "time_lo"] },
+  event_ack: { start: 754, fields: ["evt_ack_seq"] },
 };
 
 module.exports = {

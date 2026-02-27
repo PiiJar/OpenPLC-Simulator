@@ -40,6 +40,10 @@ VAR_EXTERNAL
   g_production_queue : INT;
   (* --- Time --- *)
   g_time_s           : LINT;
+  (* --- Event queue --- *)
+  g_event                : EVENT_QUEUE_T;
+  g_event_pending        : EVENT_MSG_T;
+  g_event_pending_valid  : BOOL;
   (* --- BEGIN GENERATED MODBUS EXTERNALS --- *)
   qw_t1_x_mm                     : INT;
   qw_t1_z_mm                     : INT;
@@ -778,7 +782,26 @@ VAR_EXTERNAL
   iw_production_queue            : INT;
   iw_time_hi                     : INT;
   iw_time_lo                     : INT;
+  qw_event_out_count             : INT;
+  qw_event_out_seq               : INT;
+  qw_event_out_type              : INT;
+  qw_event_out_ts_hi             : INT;
+  qw_event_out_ts_lo             : INT;
+  qw_event_out_f1                : INT;
+  qw_event_out_f2                : INT;
+  qw_event_out_f3                : INT;
+  qw_event_out_f4                : INT;
+  qw_event_out_f5                : INT;
+  qw_event_out_f6                : INT;
+  qw_event_out_f7                : INT;
+  qw_event_out_f8                : INT;
+  qw_event_out_f9                : INT;
+  qw_event_out_f10               : INT;
+  qw_event_out_f11               : INT;
+  qw_event_out_f12               : INT;
+  iw_event_ack_seq               : INT;
   (* --- END GENERATED MODBUS EXTERNALS --- *)
+
 
 
 
@@ -808,6 +831,7 @@ VAR
   main_sched   : STC_FB_MainScheduler;
   run_tasks    : SIM_FB_RunTasks;
   calibrate    : STC_FB_Calibrate;
+  evt_queue    : STC_FB_EventQueue;
   cal_cmd      : INT := 0;
   (* Time-keeping vars *)
   time_hi        : LINT;
@@ -970,6 +994,11 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     END_FOR;
 
     init_done := TRUE;
+
+    (* Init event queue *)
+    g_event.head := 1;
+    g_event.next_seq := 1;
+    g_event.count := 0;
   END_IF;
 END_IF;
 
@@ -1023,6 +1052,9 @@ cal_cmd := 0;   (* consumed after one cycle *)
 g_cal_active := calibrate.o_active;
 
 END_IF;  (* init_done *)
+
+(* ── Event queue — always runs, not gated by init_done ── *)
+evt_queue();
 
 (* ============================================================
    UNIT WRITE HANDLER — gateway writes one unit at a time
@@ -1117,7 +1149,7 @@ cycle_count := cycle_count + 1;
 IF cycle_count > 30000 THEN cycle_count := 0; END_IF;
 
 (* --- BEGIN GENERATED MODBUS OUTPUT --- *)
-(* Auto-generated from modbus_map.json — 693 output registers *)
+(* Auto-generated from modbus_map.json — 710 output registers *)
 
 (* === Per-transporter live state — PLC writes, gateway reads === *)
 qw_t1_x_mm := REAL_TO_INT(g_transporter[1].x_mm);
@@ -1827,8 +1859,27 @@ IF g_dep_overlap.flags[127] THEN qw_ov_s127_flag := 1; ELSE qw_ov_s127_flag := 0
 IF g_dep_overlap.flags[128] THEN qw_ov_s128_flag := 1; ELSE qw_ov_s128_flag := 0; END_IF;
 IF g_dep_overlap.flags[129] THEN qw_ov_s129_flag := 1; ELSE qw_ov_s129_flag := 0; END_IF;
 IF g_dep_overlap.flags[130] THEN qw_ov_s130_flag := 1; ELSE qw_ov_s130_flag := 0; END_IF;
+(* === Event queue head — PLC writes, gateway reads (17 regs) === *)
+(* qw_event_out_count — no source (manual) *)
+(* qw_event_out_seq — no source (manual) *)
+(* qw_event_out_type — no source (manual) *)
+(* qw_event_out_ts_hi — no source (manual) *)
+(* qw_event_out_ts_lo — no source (manual) *)
+(* qw_event_out_f1 — no source (manual) *)
+(* qw_event_out_f2 — no source (manual) *)
+(* qw_event_out_f3 — no source (manual) *)
+(* qw_event_out_f4 — no source (manual) *)
+(* qw_event_out_f5 — no source (manual) *)
+(* qw_event_out_f6 — no source (manual) *)
+(* qw_event_out_f7 — no source (manual) *)
+(* qw_event_out_f8 — no source (manual) *)
+(* qw_event_out_f9 — no source (manual) *)
+(* qw_event_out_f10 — no source (manual) *)
+(* qw_event_out_f11 — no source (manual) *)
+(* qw_event_out_f12 — no source (manual) *)
 
 (* --- END GENERATED MODBUS OUTPUT --- *)
+
 
 
 

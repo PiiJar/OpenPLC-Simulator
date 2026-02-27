@@ -18,6 +18,16 @@ const https = require('https');
 // Auto-generated Modbus register map (addresses, decoder, input blocks)
 const { TOTAL_REGISTERS, BLOCKS, REG, toSigned: mbSigned, INPUT_BLOCKS } = require('./modbus_map');
 
+// Event consumer + PostgreSQL
+const dbPool = require('./db');
+const { processEvents, checkDb } = require('./event_consumer');
+
+// File-based routes (customer/plant mgmt, batch CRUD, production, etc.)
+const fileRoutes = require('./file_routes');
+
+// Legacy stub endpoints (sim control, scheduler, etc.)
+const legacyStubs = require('./legacy_stubs');
+
 // --- Configuration ---
 const PLC_HOST = process.env.PLC_HOST || 'localhost';
 const PLC_PORT = parseInt(process.env.PLC_PORT || '502');
@@ -37,6 +47,18 @@ const CUSTOMERS_ROOT = process.env.CUSTOMERS_ROOT ||
   (fs.existsSync('/data/customers') 
     ? '/data/customers'
     : path.join(__dirname, '..', '..', 'customers'));
+
+// Plant templates root directory
+const PLANT_TEMPLATES_ROOT = process.env.PLANT_TEMPLATES_ROOT ||
+  (fs.existsSync('/data/plant_templates')
+    ? '/data/plant_templates'
+    : path.join(__dirname, '..', '..', 'plant_templates'));
+
+// Runtime directory for file-based state (batches, production setup, etc.)
+const RUNTIME_ROOT = process.env.RUNTIME_ROOT ||
+  (fs.existsSync('/data/runtime')
+    ? '/data/runtime'
+    : path.join(__dirname, '..', '..', 'runtime'));
 
 // Current selection — empty on startup, set by user via RESET
 let currentCustomer = '';
@@ -491,6 +513,8 @@ function startPolling() {
       lastTimeSyncMs = now;
     }
     await readPLCState();
+    // Process PLC event queue (read event → insert DB → ack)
+    await processEvents(client, dbPool);
   }, POLL_MS);
 }
 
@@ -498,6 +522,22 @@ function startPolling() {
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// ── Initialize & mount file-based routes ──
+fileRoutes.init({
+  getCurrentSelection: () => ({ customer: currentCustomer, plant: currentPlant }),
+  setCurrentSelection: (c, p) => { currentCustomer = c; currentPlant = p; loadConfigs(); }
+});
+app.use('/api', fileRoutes.router);
+
+// ── Initialize & mount legacy stub routes ──
+legacyStubs.init({
+  getSimTime: () => ({
+    elapsed_s: simRunning ? Math.floor((Date.now() - simStartTime) / 1000) : 0,
+    running: simRunning
+  })
+});
+app.use('/api', legacyStubs.router);
 
 // Serve static config files from current customer/plant
 app.get('/api/config/:filename', (req, res) => {
@@ -581,17 +621,6 @@ app.post('/api/avoid-statuses', async (req, res) => {
 
     // Update in-memory cache
     avoidStatuses[stationNumber] = { avoid_status };
-
-    // Forward to simulator for file persistence (fire-and-forget)
-    try {
-      await fetch(`http://simulator:3002/api/avoid-statuses`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stationNumber, avoid_status })
-      });
-    } catch (_) {
-      // Simulator persistence is secondary — PLC is the source of truth
-    }
 
     console.log(`[AVOID] Station ${stnNum} avoid_status=${avoid_status} written to PLC`);
     res.json({ success: true, stationNumber: stnNum, avoid_status });
@@ -934,17 +963,25 @@ app.post('/api/reset', async (req, res) => {
     currentPlant = plant;
     loadConfigs();
 
-    // Notify simulator of customer/plant selection
+    // Copy customer plant files to runtime (simulation_purpose, movement_times)
     try {
-      const simRes = await fetch('http://simulator:3002/api/copy-customer-plant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customer, plant })
-      });
-      const simData = await simRes.json();
-      console.log(`[RESET] Simulator notified: ${simData.success ? 'OK' : simData.error}`);
-    } catch (simErr) {
-      console.warn(`[RESET] Could not notify simulator: ${simErr.message}`);
+      const simPurposeSrc = path.join(plantPath, 'simulation_purpose.json');
+      if (fs.existsSync(simPurposeSrc)) {
+        const spData = JSON.parse(fs.readFileSync(simPurposeSrc, 'utf8'));
+        spData.customer = customer;
+        if (!spData.plant) spData.plant = {};
+        spData.plant.name = plant;
+        spData.updated_at = new Date().toISOString();
+        const runtimeSpPath = path.join(RUNTIME_ROOT, 'simulation_purpose.json');
+        fs.mkdirSync(RUNTIME_ROOT, { recursive: true });
+        fs.writeFileSync(runtimeSpPath, JSON.stringify(spData, null, 2));
+      }
+      const mtSrc = path.join(plantPath, 'movement_times.json');
+      if (fs.existsSync(mtSrc)) {
+        fs.copyFileSync(mtSrc, path.join(RUNTIME_ROOT, 'movement_times.json'));
+      }
+    } catch (cpErr) {
+      console.warn(`[RESET] Could not copy plant files to runtime: ${cpErr.message}`);
     }
 
     // Reset simulation timer and production queue
@@ -1530,12 +1567,16 @@ async function main() {
   await plcApiLogin();
   startPlcStatusPolling();
   
+  // Check DB connectivity
+  checkDb(dbPool);
+
   startPolling();
   
   app.listen(API_PORT, () => {
     console.log(`[GATEWAY] REST API on http://localhost:${API_PORT}`);
     console.log(`[GATEWAY] PLC polling every ${POLL_MS}ms`);
     console.log(`[GATEWAY] PLC Runtime API: https://${PLC_API_HOST}:${PLC_API_PORT}`);
+    console.log(`[GATEWAY] Event DB: ${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '5432'}/${process.env.DB_NAME || 'plc_events'}`);
     console.log(`[GATEWAY] Customers root: ${CUSTOMERS_ROOT}`);
     console.log(`[GATEWAY] No customer/plant selected — waiting for RESET`);
   });

@@ -37,6 +37,8 @@ VAR_EXTERNAL
   g_unit         : ARRAY[1..MAX_UNITS] OF UNIT_T;
   g_batch        : ARRAY[1..MAX_UNITS] OF BATCH_T;
   g_time_s       : LINT;
+  g_event_pending       : EVENT_MSG_T;
+  g_event_pending_valid : BOOL;
 END_VAR
 VAR
   i            : INT;
@@ -76,6 +78,9 @@ VAR
   upd_loc1     : STC_FB_UpdateUnitLocation;
   upd_loc2     : STC_FB_UpdateUnitLocation;
   upd_loc3     : STC_FB_UpdateUnitLocation;
+  (* Event helpers *)
+  evt_unit     : INT;
+  evt_diff     : LINT;
 END_VAR
 
 IF NOT i_run THEN
@@ -154,6 +159,32 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
       g_transporter[i].z_timer_s := device_delay + drop_time;
       g_transporter[i].z_stage := 1;
       g_transporter[i].phase := 2;
+
+      (* ── Emit LIFT event (msg_type=2) ── *)
+      evt_unit := g_station[g_transporter[i].lift_station].unit_id;
+      IF NOT g_event_pending_valid AND evt_unit >= 1 THEN
+        g_event_pending.msg_type := 2;
+        g_event_pending.ts_hi := LINT_TO_INT(g_time_s / LINT#65536);
+        g_event_pending.ts_lo := LINT_TO_INT(g_time_s MOD LINT#65536);
+        g_event_pending.f[1]  := i;
+        g_event_pending.f[2]  := evt_unit;
+        g_event_pending.f[3]  := g_transporter[i].lift_station;
+        g_event_pending.f[4]  := g_batch[evt_unit].batch_code;
+        g_event_pending.f[5]  := g_batch[evt_unit].state;
+        g_event_pending.f[6]  := g_batch[evt_unit].prog_id;
+        g_event_pending.f[7]  := g_batch[evt_unit].cur_stage;
+        evt_diff := g_time_s - g_station[g_transporter[i].lift_station].change_time;
+        IF evt_diff > LINT#3200 THEN
+          g_event_pending.f[8] := 32000;
+        ELSE
+          g_event_pending.f[8] := LINT_TO_INT(evt_diff * LINT#10);
+        END_IF;
+        g_event_pending.f[9]  := REAL_TO_INT(g_transporter[i].treatment_time * 10.0);
+        g_event_pending.f[10] := REAL_TO_INT(g_transporter[i].min_time * 10.0);
+        g_event_pending.f[11] := REAL_TO_INT(g_transporter[i].max_time * 10.0);
+        g_event_pending.f[12] := 0;
+        g_event_pending_valid := TRUE;
+      END_IF;
 
       (* Unit moves from lift station → transporter *)
       pick_unit_id := g_station[g_transporter[i].lift_station].unit_id;

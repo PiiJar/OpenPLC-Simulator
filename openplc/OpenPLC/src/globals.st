@@ -91,8 +91,12 @@ VAR_GLOBAL
   (* g_time_s = absolute unix time in seconds (LINT)                       *)
   (* Gateway writes upper/lower 16-bit halves to QW160/QW161 every tick   *)
   g_time_s           : LINT;          (* absolute time in unix seconds *)
+  (* --- Event queue --- *)
+  g_event                : EVENT_QUEUE_T;   (* circular event buffer *)
+  g_event_pending        : EVENT_MSG_T;     (* staging slot — written by other FBs *)
+  g_event_pending_valid  : BOOL;            (* TRUE = pending message ready to enqueue *)
   (* --- BEGIN GENERATED MODBUS --- *)
-  (* Total registers: 737 (QW0..QW736) *)
+  (* Total registers: 755 (QW0..QW754) *)
 
   (* --- Per-transporter live state — PLC writes, gateway reads --- *)
   qw_t1_x_mm                     AT %QW0    : INT;  (* X position mm *)
@@ -854,8 +858,29 @@ VAR_GLOBAL
   (* --- Unix time sync — gateway writes 32-bit unix seconds as hi/lo pair, PLC reads --- *)
   iw_time_hi                     AT %QW735  : INT;  (* unix seconds upper 16 bits *)
   iw_time_lo                     AT %QW736  : INT;  (* unix seconds lower 16 bits *)
+  (* --- Event queue head — PLC writes, gateway reads (17 regs) --- *)
+  qw_event_out_count             AT %QW737  : INT;  (* messages in queue (0..10) *)
+  qw_event_out_seq               AT %QW738  : INT;  (* head message sequence number *)
+  qw_event_out_type              AT %QW739  : INT;  (* message type (1=task,2=lift,...) *)
+  qw_event_out_ts_hi             AT %QW740  : INT;  (* timestamp upper 16 bits *)
+  qw_event_out_ts_lo             AT %QW741  : INT;  (* timestamp lower 16 bits *)
+  qw_event_out_f1                AT %QW742  : INT;  (* payload field 1 *)
+  qw_event_out_f2                AT %QW743  : INT;  (* payload field 2 *)
+  qw_event_out_f3                AT %QW744  : INT;  (* payload field 3 *)
+  qw_event_out_f4                AT %QW745  : INT;  (* payload field 4 *)
+  qw_event_out_f5                AT %QW746  : INT;  (* payload field 5 *)
+  qw_event_out_f6                AT %QW747  : INT;  (* payload field 6 *)
+  qw_event_out_f7                AT %QW748  : INT;  (* payload field 7 *)
+  qw_event_out_f8                AT %QW749  : INT;  (* payload field 8 *)
+  qw_event_out_f9                AT %QW750  : INT;  (* payload field 9 *)
+  qw_event_out_f10               AT %QW751  : INT;  (* payload field 10 *)
+  qw_event_out_f11               AT %QW752  : INT;  (* payload field 11 *)
+  qw_event_out_f12               AT %QW753  : INT;  (* payload field 12 *)
+  (* --- Event queue ack — gateway writes, PLC reads (1 reg) --- *)
+  iw_event_ack_seq               AT %QW754  : INT;  (* last consumed sequence number *)
 
   (* --- END GENERATED MODBUS --- *)
+
 
 
 

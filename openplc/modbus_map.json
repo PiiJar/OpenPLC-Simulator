@@ -385,6 +385,40 @@
           "api_combine": { "name": "time_s", "hi_suffix": "hi", "lo_suffix": "lo", "type": "uint32" }
         }
       ]
+    },
+
+    {
+      "name": "event_out",
+      "comment": "Event queue head — PLC writes, gateway reads (17 regs)",
+      "direction": "out",
+      "fields": [
+        { "suffix": "count",  "source": null, "convert": null, "api": "evt_count",  "comment": "messages in queue (0..10)" },
+        { "suffix": "seq",    "source": null, "convert": null, "api": "evt_seq",    "comment": "head message sequence number" },
+        { "suffix": "type",   "source": null, "convert": null, "api": "evt_type",   "comment": "message type (1=task,2=lift,...)" },
+        { "suffix": "ts_hi",  "source": null, "convert": null, "api": "evt_ts_hi",  "comment": "timestamp upper 16 bits" },
+        { "suffix": "ts_lo",  "source": null, "convert": null, "api": "evt_ts_lo",  "comment": "timestamp lower 16 bits" },
+        { "suffix": "f1",     "source": null, "convert": null, "api": "evt_f1",     "comment": "payload field 1" },
+        { "suffix": "f2",     "source": null, "convert": null, "api": "evt_f2",     "comment": "payload field 2" },
+        { "suffix": "f3",     "source": null, "convert": null, "api": "evt_f3",     "comment": "payload field 3" },
+        { "suffix": "f4",     "source": null, "convert": null, "api": "evt_f4",     "comment": "payload field 4" },
+        { "suffix": "f5",     "source": null, "convert": null, "api": "evt_f5",     "comment": "payload field 5" },
+        { "suffix": "f6",     "source": null, "convert": null, "api": "evt_f6",     "comment": "payload field 6" },
+        { "suffix": "f7",     "source": null, "convert": null, "api": "evt_f7",     "comment": "payload field 7" },
+        { "suffix": "f8",     "source": null, "convert": null, "api": "evt_f8",     "comment": "payload field 8" },
+        { "suffix": "f9",     "source": null, "convert": null, "api": "evt_f9",     "comment": "payload field 9" },
+        { "suffix": "f10",    "source": null, "convert": null, "api": "evt_f10",    "comment": "payload field 10" },
+        { "suffix": "f11",    "source": null, "convert": null, "api": "evt_f11",    "comment": "payload field 11" },
+        { "suffix": "f12",    "source": null, "convert": null, "api": "evt_f12",    "comment": "payload field 12" }
+      ]
+    },
+
+    {
+      "name": "event_ack",
+      "comment": "Event queue ack — gateway writes, PLC reads (1 reg)",
+      "direction": "in",
+      "fields": [
+        { "suffix": "seq", "api": "evt_ack_seq", "comment": "last consumed sequence number" }
+      ]
     }
   ]
 }

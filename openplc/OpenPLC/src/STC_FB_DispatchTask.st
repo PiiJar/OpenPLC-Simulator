@@ -40,6 +40,8 @@ VAR_EXTERNAL
   g_batch       : ARRAY[1..MAX_UNITS] OF BATCH_T;
   g_move        : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
   g_time_s      : LINT;
+  g_event_pending       : EVENT_MSG_T;
+  g_event_pending_valid : BOOL;
 END_VAR
 VAR
   ti           : INT;     (* transporter loop *)
@@ -267,7 +269,29 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
           g_transporter[ti].sink_station := sink_stn;
           g_transporter[ti].unit_id      := t_unit;
           g_transporter[ti].treatment_time := t_calc_time;
+          g_transporter[ti].min_time := g_task[ti].queue[1].min_time;
+          g_transporter[ti].max_time := g_task[ti].queue[1].max_time;
           g_transporter[ti].remaining_time := t_calc_time;
+
+          (* ── Emit TASK_DISPATCHED event (msg_type=1) ── *)
+          IF NOT g_event_pending_valid THEN
+            g_event_pending.msg_type := 1;
+            g_event_pending.ts_hi := LINT_TO_INT(g_time_s / LINT#65536);
+            g_event_pending.ts_lo := LINT_TO_INT(g_time_s MOD LINT#65536);
+            g_event_pending.f[1]  := ti;
+            g_event_pending.f[2]  := t_unit;
+            g_event_pending.f[3]  := t_lift;
+            g_event_pending.f[4]  := sink_stn;
+            g_event_pending.f[5]  := t_stage;
+            g_event_pending.f[6]  := g_batch[t_unit].batch_code;
+            g_event_pending.f[7]  := g_batch[t_unit].state;
+            g_event_pending.f[8]  := g_batch[t_unit].prog_id;
+            g_event_pending.f[9]  := g_unit[t_unit].target;
+            g_event_pending.f[10] := REAL_TO_INT(t_calc_time * 10.0);
+            g_event_pending.f[11] := REAL_TO_INT(g_task[ti].queue[1].min_time * 10.0);
+            g_event_pending.f[12] := REAL_TO_INT(g_task[ti].queue[1].max_time * 10.0);
+            g_event_pending_valid := TRUE;
+          END_IF;
 
           (* Copy station-specific timing from config *)
           IF t_lift >= STATION_ARRAY_START AND t_lift <= STATION_ARRAY_END THEN

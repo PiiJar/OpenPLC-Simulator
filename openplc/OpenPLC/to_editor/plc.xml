@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-27T09:34:00"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-27T09:34:00">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-27T18:19:21"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-27T18:19:21">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -184,6 +184,12 @@
               <type><INT/></type>
             </variable>
             <variable name="treatment_time">
+              <type><REAL/></type>
+            </variable>
+            <variable name="min_time">
+              <type><REAL/></type>
+            </variable>
+            <variable name="max_time">
               <type><REAL/></type>
             </variable>
             <variable name="lift_device_delay">
@@ -742,6 +748,55 @@
             </variable>
             <variable name="x_max_mm_s">
               <type><REAL/></type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
+      <dataType name="EVENT_MSG_T">
+        <baseType>
+          <struct>
+            <variable name="seq">
+              <type><INT/></type>
+            </variable>
+            <variable name="msg_type">
+              <type><INT/></type>
+            </variable>
+            <variable name="ts_hi">
+              <type><INT/></type>
+            </variable>
+            <variable name="ts_lo">
+              <type><INT/></type>
+            </variable>
+            <variable name="f">
+              <type>
+                <array>
+                  <dimension lower="1" upper="12"/>
+                  <baseType><INT/></baseType>
+                </array>
+              </type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
+      <dataType name="EVENT_QUEUE_T">
+        <baseType>
+          <struct>
+            <variable name="count">
+              <type><INT/></type>
+            </variable>
+            <variable name="head">
+              <type><INT/></type>
+            </variable>
+            <variable name="next_seq">
+              <type><INT/></type>
+            </variable>
+            <variable name="buf">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="EVENT_MSG_T"/></baseType>
+                </array>
+              </type>
             </variable>
           </struct>
         </baseType>
@@ -2228,6 +2283,12 @@ END_FOR;]]></xhtml:p>
             <variable name="g_time_s">
               <type><LINT/></type>
             </variable>
+            <variable name="g_event_pending">
+              <type><derived name="EVENT_MSG_T"/></type>
+            </variable>
+            <variable name="g_event_pending_valid">
+              <type><BOOL/></type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="i">
@@ -2323,6 +2384,12 @@ END_FOR;]]></xhtml:p>
             <variable name="upd_loc3">
               <type><derived name="STC_FB_UpdateUnitLocation"/></type>
             </variable>
+            <variable name="evt_unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="evt_diff">
+              <type><LINT/></type>
+            </variable>
           </localVars>
         </interface>
         <body>
@@ -2403,6 +2470,32 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
       g_transporter[i].z_timer_s := device_delay + drop_time;
       g_transporter[i].z_stage := 1;
       g_transporter[i].phase := 2;
+
+      (* ── Emit LIFT event (msg_type=2) ── *)
+      evt_unit := g_station[g_transporter[i].lift_station].unit_id;
+      IF NOT g_event_pending_valid AND evt_unit >= 1 THEN
+        g_event_pending.msg_type := 2;
+        g_event_pending.ts_hi := LINT_TO_INT(g_time_s / LINT#65536);
+        g_event_pending.ts_lo := LINT_TO_INT(g_time_s MOD LINT#65536);
+        g_event_pending.f[1]  := i;
+        g_event_pending.f[2]  := evt_unit;
+        g_event_pending.f[3]  := g_transporter[i].lift_station;
+        g_event_pending.f[4]  := g_batch[evt_unit].batch_code;
+        g_event_pending.f[5]  := g_batch[evt_unit].state;
+        g_event_pending.f[6]  := g_batch[evt_unit].prog_id;
+        g_event_pending.f[7]  := g_batch[evt_unit].cur_stage;
+        evt_diff := g_time_s - g_station[g_transporter[i].lift_station].change_time;
+        IF evt_diff > LINT#3200 THEN
+          g_event_pending.f[8] := 32000;
+        ELSE
+          g_event_pending.f[8] := LINT_TO_INT(evt_diff * LINT#10);
+        END_IF;
+        g_event_pending.f[9]  := REAL_TO_INT(g_transporter[i].treatment_time * 10.0);
+        g_event_pending.f[10] := REAL_TO_INT(g_transporter[i].min_time * 10.0);
+        g_event_pending.f[11] := REAL_TO_INT(g_transporter[i].max_time * 10.0);
+        g_event_pending.f[12] := 0;
+        g_event_pending_valid := TRUE;
+      END_IF;
 
       (* Unit moves from lift station → transporter *)
       pick_unit_id := g_station[g_transporter[i].lift_station].unit_id;
@@ -3609,6 +3702,12 @@ END_FOR;]]></xhtml:p>
             <variable name="g_time_s">
               <type><LINT/></type>
             </variable>
+            <variable name="g_event_pending">
+              <type><derived name="EVENT_MSG_T"/></type>
+            </variable>
+            <variable name="g_event_pending_valid">
+              <type><BOOL/></type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="ti">
@@ -3889,7 +3988,29 @@ END_FOR;]]></xhtml:p>
           g_transporter[ti].sink_station := sink_stn;
           g_transporter[ti].unit_id      := t_unit;
           g_transporter[ti].treatment_time := t_calc_time;
+          g_transporter[ti].min_time := g_task[ti].queue[1].min_time;
+          g_transporter[ti].max_time := g_task[ti].queue[1].max_time;
           g_transporter[ti].remaining_time := t_calc_time;
+
+          (* ── Emit TASK_DISPATCHED event (msg_type=1) ── *)
+          IF NOT g_event_pending_valid THEN
+            g_event_pending.msg_type := 1;
+            g_event_pending.ts_hi := LINT_TO_INT(g_time_s / LINT#65536);
+            g_event_pending.ts_lo := LINT_TO_INT(g_time_s MOD LINT#65536);
+            g_event_pending.f[1]  := ti;
+            g_event_pending.f[2]  := t_unit;
+            g_event_pending.f[3]  := t_lift;
+            g_event_pending.f[4]  := sink_stn;
+            g_event_pending.f[5]  := t_stage;
+            g_event_pending.f[6]  := g_batch[t_unit].batch_code;
+            g_event_pending.f[7]  := g_batch[t_unit].state;
+            g_event_pending.f[8]  := g_batch[t_unit].prog_id;
+            g_event_pending.f[9]  := g_unit[t_unit].target;
+            g_event_pending.f[10] := REAL_TO_INT(t_calc_time * 10.0);
+            g_event_pending.f[11] := REAL_TO_INT(g_task[ti].queue[1].min_time * 10.0);
+            g_event_pending.f[12] := REAL_TO_INT(g_task[ti].queue[1].max_time * 10.0);
+            g_event_pending_valid := TRUE;
+          END_IF;
 
           (* Copy station-specific timing from config *)
           IF t_lift >= STATION_ARRAY_START AND t_lift <= STATION_ARRAY_END THEN
@@ -3925,6 +4046,152 @@ END_FOR;]]></xhtml:p>
   END_IF;  (* idle + queue *)
 
 END_FOR;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
+      <pou name="STC_FB_EventQueue" pouType="functionBlock">
+        <interface>
+          <externalVars>
+            <variable name="g_event">
+              <type><derived name="EVENT_QUEUE_T"/></type>
+            </variable>
+            <variable name="g_event_pending">
+              <type><derived name="EVENT_MSG_T"/></type>
+            </variable>
+            <variable name="g_event_pending_valid">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="qw_event_out_count">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_seq">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_type">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_ts_hi">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_ts_lo">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f1">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f2">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f3">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f4">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f5">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f6">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f7">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f8">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f9">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f10">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f11">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f12">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_event_ack_seq">
+              <type><INT/></type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="tail">
+              <type><INT/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[(* ── 1. Enqueue: pick up pending message if queue not full ── *)
+IF g_event_pending_valid AND g_event.count < 10 THEN
+  (* Calculate tail position in circular buffer *)
+  tail := ((g_event.head - 1 + g_event.count) MOD 10) + 1;
+
+  (* Assign sequence number *)
+  g_event_pending.seq := g_event.next_seq;
+  g_event.next_seq := g_event.next_seq + 1;
+  IF g_event.next_seq > 32000 THEN
+    g_event.next_seq := 1;  (* wrap to avoid INT overflow *)
+  END_IF;
+
+  (* Store in buffer *)
+  g_event.buf[tail] := g_event_pending;
+  g_event.count := g_event.count + 1;
+
+  (* Clear pending flag *)
+  g_event_pending_valid := FALSE;
+END_IF;
+
+(* ── 2. Dequeue: check gateway ack for head message ── *)
+IF g_event.count > 0 THEN
+  IF iw_event_ack_seq = g_event.buf[g_event.head].seq THEN
+    (* Gateway consumed this message — advance head *)
+    g_event.head := (g_event.head MOD 10) + 1;
+    g_event.count := g_event.count - 1;
+  END_IF;
+END_IF;
+
+(* ── 3. Publish: copy head message to Modbus QW registers ── *)
+qw_event_out_count := g_event.count;
+
+IF g_event.count > 0 THEN
+  qw_event_out_seq    := g_event.buf[g_event.head].seq;
+  qw_event_out_type   := g_event.buf[g_event.head].msg_type;
+  qw_event_out_ts_hi  := g_event.buf[g_event.head].ts_hi;
+  qw_event_out_ts_lo  := g_event.buf[g_event.head].ts_lo;
+  qw_event_out_f1     := g_event.buf[g_event.head].f[1];
+  qw_event_out_f2     := g_event.buf[g_event.head].f[2];
+  qw_event_out_f3     := g_event.buf[g_event.head].f[3];
+  qw_event_out_f4     := g_event.buf[g_event.head].f[4];
+  qw_event_out_f5     := g_event.buf[g_event.head].f[5];
+  qw_event_out_f6     := g_event.buf[g_event.head].f[6];
+  qw_event_out_f7     := g_event.buf[g_event.head].f[7];
+  qw_event_out_f8     := g_event.buf[g_event.head].f[8];
+  qw_event_out_f9     := g_event.buf[g_event.head].f[9];
+  qw_event_out_f10    := g_event.buf[g_event.head].f[10];
+  qw_event_out_f11    := g_event.buf[g_event.head].f[11];
+  qw_event_out_f12    := g_event.buf[g_event.head].f[12];
+ELSE
+  (* Queue empty — clear output *)
+  qw_event_out_seq    := 0;
+  qw_event_out_type   := 0;
+  qw_event_out_ts_hi  := 0;
+  qw_event_out_ts_lo  := 0;
+  qw_event_out_f1     := 0;
+  qw_event_out_f2     := 0;
+  qw_event_out_f3     := 0;
+  qw_event_out_f4     := 0;
+  qw_event_out_f5     := 0;
+  qw_event_out_f6     := 0;
+  qw_event_out_f7     := 0;
+  qw_event_out_f8     := 0;
+  qw_event_out_f9     := 0;
+  qw_event_out_f10    := 0;
+  qw_event_out_f11    := 0;
+  qw_event_out_f12    := 0;
+END_IF;]]></xhtml:p>
           </ST>
         </body>
       </pou>
@@ -6848,6 +7115,15 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
             <variable name="g_time_s">
               <type><LINT/></type>
             </variable>
+            <variable name="g_event">
+              <type><derived name="EVENT_QUEUE_T"/></type>
+            </variable>
+            <variable name="g_event_pending">
+              <type><derived name="EVENT_MSG_T"/></type>
+            </variable>
+            <variable name="g_event_pending_valid">
+              <type><BOOL/></type>
+            </variable>
             <variable name="qw_t1_x_mm">
               <type><INT/></type>
             </variable>
@@ -9059,6 +9335,60 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
             <variable name="iw_time_lo">
               <type><INT/></type>
             </variable>
+            <variable name="qw_event_out_count">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_seq">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_type">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_ts_hi">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_ts_lo">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f1">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f2">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f3">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f4">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f5">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f6">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f7">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f8">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f9">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f10">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f11">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_event_out_f12">
+              <type><INT/></type>
+            </variable>
+            <variable name="iw_event_ack_seq">
+              <type><INT/></type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="init_done">
@@ -9120,6 +9450,9 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
             </variable>
             <variable name="calibrate">
               <type><derived name="STC_FB_Calibrate"/></type>
+            </variable>
+            <variable name="evt_queue">
+              <type><derived name="STC_FB_EventQueue"/></type>
             </variable>
             <variable name="cal_cmd">
               <type><INT/></type>
@@ -9301,6 +9634,11 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     END_FOR;
 
     init_done := TRUE;
+
+    (* Init event queue *)
+    g_event.head := 1;
+    g_event.next_seq := 1;
+    g_event.count := 0;
   END_IF;
 END_IF;
 
@@ -9354,6 +9692,9 @@ cal_cmd := 0;   (* consumed after one cycle *)
 g_cal_active := calibrate.o_active;
 
 END_IF;  (* init_done *)
+
+(* ── Event queue — always runs, not gated by init_done ── *)
+evt_queue();
 
 (* ============================================================
    UNIT WRITE HANDLER — gateway writes one unit at a time
@@ -9448,7 +9789,7 @@ cycle_count := cycle_count + 1;
 IF cycle_count > 30000 THEN cycle_count := 0; END_IF;
 
 (* --- BEGIN GENERATED MODBUS OUTPUT --- *)
-(* Auto-generated from modbus_map.json — 693 output registers *)
+(* Auto-generated from modbus_map.json — 710 output registers *)
 
 (* === Per-transporter live state — PLC writes, gateway reads === *)
 qw_t1_x_mm := REAL_TO_INT(g_transporter[1].x_mm);
@@ -10158,6 +10499,24 @@ IF g_dep_overlap.flags[127] THEN qw_ov_s127_flag := 1; ELSE qw_ov_s127_flag := 0
 IF g_dep_overlap.flags[128] THEN qw_ov_s128_flag := 1; ELSE qw_ov_s128_flag := 0; END_IF;
 IF g_dep_overlap.flags[129] THEN qw_ov_s129_flag := 1; ELSE qw_ov_s129_flag := 0; END_IF;
 IF g_dep_overlap.flags[130] THEN qw_ov_s130_flag := 1; ELSE qw_ov_s130_flag := 0; END_IF;
+(* === Event queue head — PLC writes, gateway reads (17 regs) === *)
+(* qw_event_out_count — no source (manual) *)
+(* qw_event_out_seq — no source (manual) *)
+(* qw_event_out_type — no source (manual) *)
+(* qw_event_out_ts_hi — no source (manual) *)
+(* qw_event_out_ts_lo — no source (manual) *)
+(* qw_event_out_f1 — no source (manual) *)
+(* qw_event_out_f2 — no source (manual) *)
+(* qw_event_out_f3 — no source (manual) *)
+(* qw_event_out_f4 — no source (manual) *)
+(* qw_event_out_f5 — no source (manual) *)
+(* qw_event_out_f6 — no source (manual) *)
+(* qw_event_out_f7 — no source (manual) *)
+(* qw_event_out_f8 — no source (manual) *)
+(* qw_event_out_f9 — no source (manual) *)
+(* qw_event_out_f10 — no source (manual) *)
+(* qw_event_out_f11 — no source (manual) *)
+(* qw_event_out_f12 — no source (manual) *)
 
 (* --- END GENERATED MODBUS OUTPUT --- *)]]></xhtml:p>
           </ST>
@@ -10382,6 +10741,15 @@ IF g_dep_overlap.flags[130] THEN qw_ov_s130_flag := 1; ELSE qw_ov_s130_flag := 0
           </variable>
           <variable name="g_time_s">
             <type><LINT/></type>
+          </variable>
+          <variable name="g_event">
+            <type><derived name="EVENT_QUEUE_T"/></type>
+          </variable>
+          <variable name="g_event_pending">
+            <type><derived name="EVENT_MSG_T"/></type>
+          </variable>
+          <variable name="g_event_pending_valid">
+            <type><BOOL/></type>
           </variable>
           <variable name="qw_t1_x_mm" address="%QW0">
             <type><INT/></type>
@@ -12592,6 +12960,60 @@ IF g_dep_overlap.flags[130] THEN qw_ov_s130_flag := 1; ELSE qw_ov_s130_flag := 0
             <type><INT/></type>
           </variable>
           <variable name="iw_time_lo" address="%QW736">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_count" address="%QW737">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_seq" address="%QW738">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_type" address="%QW739">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_ts_hi" address="%QW740">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_ts_lo" address="%QW741">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_f1" address="%QW742">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_f2" address="%QW743">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_f3" address="%QW744">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_f4" address="%QW745">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_f5" address="%QW746">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_f6" address="%QW747">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_f7" address="%QW748">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_f8" address="%QW749">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_f9" address="%QW750">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_f10" address="%QW751">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_f11" address="%QW752">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_f12" address="%QW753">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_event_ack_seq" address="%QW754">
             <type><INT/></type>
           </variable>
         </globalVars>
