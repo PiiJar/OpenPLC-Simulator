@@ -59,6 +59,8 @@ VAR
   best_delay  : REAL;
   best_slot   : INT;
   found       : BOOL;
+  overflow_best_delay : REAL;   (* best delay among flex-overflow slots *)
+  overflow_best_slot  : INT;
 END_VAR
 
 (* Initialize output *)
@@ -69,7 +71,7 @@ o_result.task_end_s   := 0;
 o_result.slot_idx     := 0;
 o_result.trans_id     := i_trans_id;
 
-IF i_trans_id < 1 OR i_trans_id > 3 THEN
+IF i_trans_id < 1 OR i_trans_id > MAX_TRANSPORTERS THEN
   RETURN;
 END_IF;
 
@@ -82,6 +84,8 @@ slot_cnt   := g_dep_idle_slot[i_trans_id].count;
 best_delay := 1.0E9;
 best_slot  := 0;
 found      := FALSE;
+overflow_best_delay := 1.0E9;
+overflow_best_slot  := 0;
 
 FOR si := 1 TO DEP_MAX_IDLE_SLOTS DO
   IF si > slot_cnt THEN
@@ -134,6 +138,12 @@ FOR si := 1 TO DEP_MAX_IDLE_SLOTS DO
         best_slot  := si;
         found      := TRUE;
       END_IF;
+    ELSE
+      (* Flex overflow — track separately for backward chaining *)
+      IF delay < overflow_best_delay THEN
+        overflow_best_delay := delay;
+        overflow_best_slot  := si;
+      END_IF;
     END_IF;
   END_IF;
 END_FOR;
@@ -146,15 +156,17 @@ IF found THEN
   o_result.need_extra_s := 0.0;
 ELSE
   (* Report how much extra is needed for backward chaining *)
-  (* Use the best near-miss: smallest overshoot beyond capped_flex *)
   o_result.fits := FALSE;
-  IF best_delay < 1.0E8 THEN
-    o_result.need_extra_s := best_delay - capped_flex;
+  IF overflow_best_delay < 1.0E8 THEN
+    (* Overflow slot found — report shortfall beyond capped flex *)
+    o_result.delay_s      := overflow_best_delay;
+    o_result.need_extra_s := overflow_best_delay - capped_flex;
     IF o_result.need_extra_s < 0.0 THEN
       o_result.need_extra_s := 0.0;
     END_IF;
   ELSE
-    o_result.need_extra_s := 0.0;  (* no slot at all *)
+    (* No slot at all *)
+    o_result.need_extra_s := 0.0;
   END_IF;
 END_IF;
 

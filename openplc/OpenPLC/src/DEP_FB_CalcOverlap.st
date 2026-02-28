@@ -33,6 +33,11 @@ END_VAR
 
 g_dep_overlap.count := 0;
 
+(* G09: Clear full 0..200 domain first *)
+FOR stn := 0 TO 200 DO
+  g_dep_overlap.flags[stn] := FALSE;
+END_FOR;
+
 FOR stn := STATION_ARRAY_START TO STATION_ARRAY_END DO
   cover_count := 0;
 

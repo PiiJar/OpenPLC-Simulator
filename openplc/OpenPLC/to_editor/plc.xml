@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-28T20:12:43"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-28T20:12:43">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-28T21:00:43"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-28T21:00:43">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -275,6 +275,9 @@
             </variable>
             <variable name="cur_stage">
               <type><INT/></type>
+            </variable>
+            <variable name="start_time">
+              <type><LINT/></type>
             </variable>
           </struct>
         </baseType>
@@ -881,6 +884,9 @@ END_IF;]]></xhtml:p>
             <variable name="g_dep_idle_slot">
               <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T"/></type>
             </variable>
+            <variable name="g_transporter">
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="qi">
@@ -913,7 +919,7 @@ END_IF;]]></xhtml:p>
         <body>
           <ST>
             <xhtml:p><![CDATA[(* Guard *)
-IF i_trans < 1 OR i_trans > 3 THEN
+IF i_trans < 1 OR i_trans > MAX_TRANSPORTERS THEN
   RETURN;
 END_IF;
 
@@ -923,7 +929,8 @@ si := 0;
 cnt := g_task[i_trans].count;
 
 prev_end  := i_time_s;
-prev_sink := 0;
+(* G05: Use transporter's current station as first-slot anchor *)
+prev_sink := g_transporter[i_trans].current_station;
 
 FOR qi := 1 TO MAX_UNITS DO
   IF qi > cnt THEN
@@ -995,6 +1002,11 @@ g_dep_idle_slot[i_trans].count := si;]]></xhtml:p>
         <body>
           <ST>
             <xhtml:p><![CDATA[g_dep_overlap.count := 0;
+
+(* G09: Clear full 0..200 domain first *)
+FOR stn := 0 TO 200 DO
+  g_dep_overlap.flags[stn] := FALSE;
+END_FOR;
 
 FOR stn := STATION_ARRAY_START TO STATION_ARRAY_END DO
   cover_count := 0;
@@ -1128,6 +1140,12 @@ END_FOR;]]></xhtml:p>
             <variable name="found">
               <type><BOOL/></type>
             </variable>
+            <variable name="overflow_best_delay">
+              <type><REAL/></type>
+            </variable>
+            <variable name="overflow_best_slot">
+              <type><INT/></type>
+            </variable>
           </localVars>
         </interface>
         <body>
@@ -1140,7 +1158,7 @@ o_result.task_end_s   := 0;
 o_result.slot_idx     := 0;
 o_result.trans_id     := i_trans_id;
 
-IF i_trans_id < 1 OR i_trans_id > 3 THEN
+IF i_trans_id < 1 OR i_trans_id > MAX_TRANSPORTERS THEN
   RETURN;
 END_IF;
 
@@ -1153,6 +1171,8 @@ slot_cnt   := g_dep_idle_slot[i_trans_id].count;
 best_delay := 1.0E9;
 best_slot  := 0;
 found      := FALSE;
+overflow_best_delay := 1.0E9;
+overflow_best_slot  := 0;
 
 FOR si := 1 TO DEP_MAX_IDLE_SLOTS DO
   IF si > slot_cnt THEN
@@ -1205,6 +1225,12 @@ FOR si := 1 TO DEP_MAX_IDLE_SLOTS DO
         best_slot  := si;
         found      := TRUE;
       END_IF;
+    ELSE
+      (* Flex overflow — track separately for backward chaining *)
+      IF delay < overflow_best_delay THEN
+        overflow_best_delay := delay;
+        overflow_best_slot  := si;
+      END_IF;
     END_IF;
   END_IF;
 END_FOR;
@@ -1217,15 +1243,17 @@ IF found THEN
   o_result.need_extra_s := 0.0;
 ELSE
   (* Report how much extra is needed for backward chaining *)
-  (* Use the best near-miss: smallest overshoot beyond capped_flex *)
   o_result.fits := FALSE;
-  IF best_delay < 1.0E8 THEN
-    o_result.need_extra_s := best_delay - capped_flex;
+  IF overflow_best_delay < 1.0E8 THEN
+    (* Overflow slot found — report shortfall beyond capped flex *)
+    o_result.delay_s      := overflow_best_delay;
+    o_result.need_extra_s := overflow_best_delay - capped_flex;
     IF o_result.need_extra_s < 0.0 THEN
       o_result.need_extra_s := 0.0;
     END_IF;
   ELSE
-    o_result.need_extra_s := 0.0;  (* no slot at all *)
+    (* No slot at all *)
+    o_result.need_extra_s := 0.0;
   END_IF;
 END_IF;]]></xhtml:p>
           </ST>
@@ -1315,13 +1343,13 @@ END_IF;]]></xhtml:p>
           <ST>
             <xhtml:p><![CDATA[o_delay_s := 0.0;
 
-(* Check if lift/sink are in overlap zone *)
-IF i_lift_stn >= STATION_ARRAY_START AND i_lift_stn <= STATION_ARRAY_END THEN
+(* Check if lift/sink are in overlap zone — G09: domain 0..200 *)
+IF i_lift_stn >= 0 AND i_lift_stn <= 200 THEN
   lift_is_overlap := g_dep_overlap.flags[i_lift_stn];
 ELSE
   lift_is_overlap := FALSE;
 END_IF;
-IF i_sink_stn >= STATION_ARRAY_START AND i_sink_stn <= STATION_ARRAY_END THEN
+IF i_sink_stn >= 0 AND i_sink_stn <= 200 THEN
   sink_is_overlap := g_dep_overlap.flags[i_sink_stn];
 ELSE
   sink_is_overlap := FALSE;
@@ -1351,13 +1379,17 @@ FOR round := 1 TO DEP_MAX_DELAY_ACTS DO
         e_start := g_task[ti].queue[qi].start_time;
         e_end   := g_task[ti].queue[qi].finish_time;
 
-        (* Does existing task share an overlap station? *)
+        (* ★ G08: Zone membership — does existing task use ANY overlap station? *)
         has_ovlp := FALSE;
-        IF lift_is_overlap AND (e_lift = i_lift_stn OR e_sink = i_lift_stn) THEN
-          has_ovlp := TRUE;
+        IF e_lift >= 0 AND e_lift <= 200 THEN
+          IF g_dep_overlap.flags[e_lift] THEN
+            has_ovlp := TRUE;
+          END_IF;
         END_IF;
-        IF sink_is_overlap AND (e_lift = i_sink_stn OR e_sink = i_sink_stn) THEN
-          has_ovlp := TRUE;
+        IF NOT has_ovlp AND e_sink >= 0 AND e_sink <= 200 THEN
+          IF g_dep_overlap.flags[e_sink] THEN
+            has_ovlp := TRUE;
+          END_IF;
         END_IF;
 
         IF has_ovlp THEN
@@ -1493,6 +1525,9 @@ END_IF;]]></xhtml:p>
             </variable>
             <variable name="g_cfg">
               <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
+            </variable>
+            <variable name="g_transporter">
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T"/></type>
             </variable>
             <variable name="g_dep_sandbox">
               <type><derived name="DEP_SANDBOX_T"/></type>
@@ -1672,6 +1707,12 @@ END_IF;]]></xhtml:p>
             <variable name="stage0_delay">
               <type><REAL/></type>
             </variable>
+            <variable name="stage0_ovlp">
+              <type><REAL/></type>
+            </variable>
+            <variable name="stage0_pending_delay">
+              <type><REAL/></type>
+            </variable>
             <variable name="ovlp_delay_s">
               <type><REAL/></type>
             </variable>
@@ -1688,6 +1729,47 @@ END_IF;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="max_cal">
+              <type><INT/></type>
+            </variable>
+            <variable name="remaining_need">
+              <type><REAL/></type>
+            </variable>
+            <variable name="chain_delays">
+              <type>
+                <array>
+                  <dimension lower="1" upper="10"/>
+                  <baseType><derived name="DEP_DELAY_ACTION_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="chain_delay_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="chain_ok">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="prev_flex_up">
+              <type><REAL/></type>
+            </variable>
+            <variable name="prev_capped">
+              <type><REAL/></type>
+            </variable>
+            <variable name="use_delay">
+              <type><REAL/></type>
+            </variable>
+            <variable name="bk">
+              <type><INT/></type>
+            </variable>
+            <variable name="ci">
+              <type><INT/></type>
+            </variable>
+            <variable name="tmp_unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="tmp_key">
+              <type><LINT/></type>
+            </variable>
+            <variable name="ji">
               <type><INT/></type>
             </variable>
           </localVars>
@@ -1752,8 +1834,29 @@ ELSIF phase = 100 THEN
     next_phase := 1;
   ELSE
     cur_wait_idx := 1;
-    next_phase := 200;
+    next_phase := 150;
   END_IF;
+
+(* ════════════════════════════════════════════════════════════ *)
+(* PHASE 150: SORT_WAITING — FIFO sort by start_time (G06)     *)
+(* ════════════════════════════════════════════════════════════ *)
+ELSIF phase = 150 THEN
+  (* Insertion sort waiting list by g_batch[unit].start_time ascending *)
+  FOR si := 2 TO waiting_cnt DO
+    tmp_unit := waiting_list[si];
+    tmp_key  := g_batch[tmp_unit].start_time;
+    ji := si - 1;
+    WHILE ji >= 1 DO
+      IF g_batch[waiting_list[ji]].start_time > tmp_key THEN
+        waiting_list[ji + 1] := waiting_list[ji];
+        ji := ji - 1;
+      ELSE
+        EXIT;
+      END_IF;
+    END_WHILE;
+    waiting_list[ji + 1] := tmp_unit;
+  END_FOR;
+  next_phase := 200;
 
 (* ════════════════════════════════════════════════════════════ *)
 (* PHASE 200: CALC_OVERLAP — compute overlap stations          *)
@@ -1874,19 +1977,51 @@ ELSIF phase = 2000 THEN
     first_stn := g_schedule[cur_wait_unit].stages[1].station;
   END_IF;
 
-  IF first_stn = 0 OR loading_stn < 100 THEN
-    (* No valid schedule or batch not on station → reject *)
+  IF first_stn = 0 THEN
+    (* No valid schedule → reject *)
     next_phase := 9000;
+  ELSIF loading_stn < 100 THEN
+    (* ★ G07: Batch is on transporter — use transporter's current_station *)
+    IF loading_stn >= 1 AND loading_stn <= MAX_TRANSPORTERS THEN
+      sched_trans := loading_stn;
+      loading_stn := g_transporter[loading_stn].current_station;
+      IF loading_stn < 100 THEN
+        (* Transporter has no valid station → reject *)
+        next_phase := 9000;
+      END_IF;
+    ELSE
+      next_phase := 9000;
+    END_IF;
+    IF next_phase <> 9000 THEN
+      fb_find_trans(i_lift_stn := loading_stn, i_sink_stn := first_stn);
+      IF fb_find_trans.o_trans_id > 0 THEN
+        sched_trans := fb_find_trans.o_trans_id;
+      END_IF;
+    END_IF;
   ELSE
     (* Find transporter for pickup *)
     fb_find_trans(i_lift_stn := loading_stn, i_sink_stn := first_stn);
     sched_trans := fb_find_trans.o_trans_id;
     IF sched_trans = 0 THEN sched_trans := 1; END_IF;
+  END_IF;
 
+  (* Common path: if not rejected, calculate xfer/overlap/fit *)
+  IF next_phase <> 9000 THEN
     (* Calculate transfer time for pickup *)
     fb_xfer(i_from_stn := loading_stn, i_to_stn := first_stn, i_trans := sched_trans);
     xfer_dur := fb_xfer.o_total_s;
     IF xfer_dur < 1.0 THEN xfer_dur := 1.0; END_IF;
+
+    (* ★ G10: Stage 0 overlap check — same as JS *)
+    fb_ovlp_delay(
+      i_lift_stn   := loading_stn,
+      i_sink_stn   := first_stn,
+      i_trans_id   := sched_trans,
+      i_task_start := sched_base_time,
+      i_task_end   := sched_base_time + REAL_TO_LINT(xfer_dur),
+      i_margin_s   := CONFLICT_MARGIN_S
+    );
+    stage0_ovlp := fb_ovlp_delay.o_delay_s;
 
     (* Try fitting pickup into idle slots *)
     fb_fit(
@@ -1895,7 +2030,7 @@ ELSIF phase = 2000 THEN
       i_trans_id     := sched_trans,
       i_task_start   := sched_base_time,
       i_task_end     := sched_base_time + REAL_TO_LINT(xfer_dur),
-      i_shift_s      := 0.0,
+      i_shift_s      := stage0_ovlp,
       i_calc_time_s  := 0.0,
       i_max_time_s   := 2.0 * MAX_INIT_WAIT_S,
       i_flex_factor  := FLEX_FACTOR,
@@ -1903,26 +2038,36 @@ ELSIF phase = 2000 THEN
     );
 
     IF fb_fit.o_result.fits THEN
-      stage0_delay := fb_fit.o_result.delay_s;
+      (* ★ G11: Trim idle slot after successful stage 0 fit *)
+      IF fb_fit.o_result.slot_idx >= 1 AND fb_fit.o_result.slot_idx <= DEP_MAX_IDLE_SLOTS THEN
+        g_dep_idle_slot[sched_trans].slots[fb_fit.o_result.slot_idx].start_time :=
+          fb_fit.o_result.task_end_s;
+      END_IF;
 
+      stage0_delay := fb_fit.o_result.delay_s + stage0_ovlp;
+
+      (* ★ G04: Record stage 0 delay but CONTINUE to stage 1+ (like JS) *)
       IF stage0_delay > MARGIN_S THEN
-        (* Stage 0 needs delay — shift base time and recalculate *)
+        stage0_pending_delay := stage0_delay;
         sched_base_time := sched_base_time + REAL_TO_LINT(stage0_delay);
-        fit_round := fit_round + 1;
-        IF fit_round > MAX_FIT_ROUNDS THEN
-          next_phase := 9000;
+      ELSE
+        stage0_pending_delay := 0.0;
+      END_IF;
+
+      (* Proceed to stage 1+ regardless of stage 0 delay *)
+      IF w_task_cnt = 0 THEN
+        IF stage0_pending_delay > MARGIN_S THEN
+          (* Only stage 0 delay, no more tasks → apply delay and recalc *)
+          delay_stage  := 0;
+          delay_amount := stage0_pending_delay;
+          delay_target := 0;
+          next_phase   := 3000;
         ELSE
-          (* Recalculate schedule with shifted base time *)
-          next_phase := 1010;
+          next_phase := 8000;  (* No more tasks → ACTIVATE *)
         END_IF;
       ELSE
-        (* Stage 0 fits → proceed to stage 1+ tasks *)
-        IF w_task_cnt = 0 THEN
-          next_phase := 8000;  (* No more tasks → ACTIVATE *)
-        ELSE
-          cur_task_idx := 1;
-          next_phase := 2001;
-        END_IF;
+        cur_task_idx := 1;
+        next_phase := 2001;    (* Continue to stage 1+ fit *)
       END_IF;
     ELSE
       (* Stage 0 doesn't fit → REJECT this batch *)
@@ -1935,8 +2080,16 @@ ELSIF phase = 2000 THEN
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 2001 THEN
   IF cur_task_idx > w_task_cnt THEN
-    (* All tasks fit → ACTIVATE *)
-    next_phase := 8000;
+    (* ★ G04: All stage 1+ tasks fit — check if stage 0 delay is pending *)
+    IF stage0_pending_delay > MARGIN_S THEN
+      (* Stage 0 delay recorded, no stage 1+ delays → apply and RECALC *)
+      delay_stage  := 0;
+      delay_amount := stage0_pending_delay;
+      delay_target := 0;
+      next_phase   := 3000;
+    ELSE
+      next_phase := 8000;  (* All fit → ACTIVATE *)
+    END_IF;
   ELSE
     (* Get current task data *)
     si := w_tasks[cur_task_idx].stage;
@@ -1970,6 +2123,12 @@ ELSIF phase = 2001 THEN
     total_delay_s := ovlp_delay_s + fb_fit.o_result.delay_s;
 
     IF fb_fit.o_result.fits THEN
+      (* ★ G11: Trim idle slot after successful stage 1+ fit *)
+      IF fb_fit.o_result.slot_idx >= 1 AND fb_fit.o_result.slot_idx <= DEP_MAX_IDLE_SLOTS THEN
+        g_dep_idle_slot[ti].slots[fb_fit.o_result.slot_idx].start_time :=
+          fb_fit.o_result.task_end_s;
+      END_IF;
+
       IF total_delay_s <= MARGIN_S THEN
         (* Fits with negligible delay → next task *)
         cur_task_idx := cur_task_idx + 1;
@@ -1982,8 +2141,83 @@ ELSIF phase = 2001 THEN
         next_phase   := 3000;
       END_IF;
     ELSE
-      (* Does not fit → REJECT (simplified: no backward chaining) *)
-      next_phase := 9000;
+      (* ★ G02: Does not fit → try backward chaining *)
+      IF fb_fit.o_result.need_extra_s <= 0.0 THEN
+        (* No slot at all → reject *)
+        next_phase := 9000;
+      ELSE
+        (* Walk backward through w_tasks, accumulate flex *)
+        remaining_need := fb_fit.o_result.need_extra_s;
+        chain_delay_cnt := 0;
+        chain_ok := FALSE;
+
+        bk := cur_task_idx - 1;
+        WHILE bk >= 1 AND remaining_need > MARGIN_S DO
+          prev_flex_up := w_tasks[bk].max_time - w_tasks[bk].calc_time;
+          IF prev_flex_up < 0.0 THEN prev_flex_up := 0.0; END_IF;
+          prev_capped := prev_flex_up * FLEX_FACTOR;
+          use_delay := prev_capped;
+          IF use_delay > remaining_need THEN use_delay := remaining_need; END_IF;
+
+          IF use_delay > MARGIN_S THEN
+            chain_delay_cnt := chain_delay_cnt + 1;
+            IF chain_delay_cnt <= 10 THEN
+              chain_delays[chain_delay_cnt].stage   := w_tasks[bk].stage;
+              chain_delays[chain_delay_cnt].delay_s := use_delay;
+              IF w_tasks[bk].stage = 0 THEN
+                chain_delays[chain_delay_cnt].target := 0;  (* batch *)
+              ELSE
+                chain_delays[chain_delay_cnt].target := 1;  (* program stage *)
+              END_IF;
+              chain_delays[chain_delay_cnt].valid := TRUE;
+            END_IF;
+            remaining_need := remaining_need - use_delay;
+          END_IF;
+          bk := bk - 1;
+        END_WHILE;
+
+        IF remaining_need <= MARGIN_S THEN chain_ok := TRUE; END_IF;
+
+        IF chain_ok THEN
+          (* Apply chain delays *)
+          FOR ci := 1 TO chain_delay_cnt DO
+            IF chain_delays[ci].valid THEN
+              IF chain_delays[ci].target = 0 THEN
+                (* Stage 0 / batch delay: shift base time *)
+                sched_base_time := sched_base_time + REAL_TO_LINT(chain_delays[ci].delay_s);
+              ELSIF chain_delays[ci].target = 1 THEN
+                prog_idx := chain_delays[ci].stage;
+                IF prog_idx >= 1 AND prog_idx <= 30 THEN
+                  old_cal := g_program[cur_wait_unit].stages[prog_idx].cal_time;
+                  max_cal := g_program[cur_wait_unit].stages[prog_idx].max_time;
+                  new_cal := old_cal + REAL_TO_INT(chain_delays[ci].delay_s);
+                  IF new_cal > max_cal AND max_cal > 0 THEN
+                    new_cal := max_cal;
+                  END_IF;
+                  g_program[cur_wait_unit].stages[prog_idx].cal_time := new_cal;
+                END_IF;
+              END_IF;
+            END_IF;
+          END_FOR;
+
+          (* Also apply the current task's total delay *)
+          IF total_delay_s > MARGIN_S THEN
+            delay_stage  := si;
+            delay_amount := total_delay_s;
+            delay_target := 1;
+          END_IF;
+
+          fit_round := fit_round + 1;
+          IF fit_round > MAX_FIT_ROUNDS THEN
+            next_phase := 9000;
+          ELSE
+            next_phase := 1010;  (* RECALC *)
+          END_IF;
+        ELSE
+          (* Backward chaining insufficient → REJECT *)
+          next_phase := 9000;
+        END_IF;
+      END_IF;
     END_IF;
   END_IF;
 
@@ -6905,9 +7139,10 @@ ELSIF phase = 10000 THEN
 (* ══════════════════════════════════════════════════════════════ *)
 ELSIF phase = 10100 THEN
   IF g_dep_pending.valid THEN
-    (* Apply DEP’s pending data: programs + stage change *)
+    (* Apply DEP's pending data: programs + schedules + stage change *)
     FOR ui := 1 TO MAX_UNITS DO
-      g_program[ui] := g_dep_pending.programs[ui];
+      g_program[ui]  := g_dep_pending.programs[ui];
+      g_schedule[ui] := g_dep_pending.schedule[ui];
     END_FOR;
     IF g_dep_pending.batch_unit >= 1 AND g_dep_pending.batch_unit <= MAX_UNITS THEN
       g_batch[g_dep_pending.batch_unit].cur_stage := g_dep_pending.batch_stage;

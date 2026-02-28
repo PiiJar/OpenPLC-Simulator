@@ -27,6 +27,7 @@ END_VAR
 VAR_EXTERNAL
   g_task          : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
   g_dep_idle_slot : ARRAY[1..MAX_TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T;
+  g_transporter   : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
 END_VAR
 VAR
   qi       : INT;      (* queue index *)
@@ -40,7 +41,7 @@ VAR
 END_VAR
 
 (* Guard *)
-IF i_trans < 1 OR i_trans > 3 THEN
+IF i_trans < 1 OR i_trans > MAX_TRANSPORTERS THEN
   RETURN;
 END_IF;
 
@@ -50,7 +51,8 @@ si := 0;
 cnt := g_task[i_trans].count;
 
 prev_end  := i_time_s;
-prev_sink := 0;
+(* G05: Use transporter's current station as first-slot anchor *)
+prev_sink := g_transporter[i_trans].current_station;
 
 FOR qi := 1 TO MAX_UNITS DO
   IF qi > cnt THEN

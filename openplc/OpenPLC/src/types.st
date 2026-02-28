@@ -113,6 +113,7 @@ STRUCT
   state      : INT;     (* NOT_PROCESSED=0, IN_PROCESS=1, PROCESSED=2 *)
   prog_id    : INT;     (* treatment program number *)
   cur_stage  : INT;     (* current stage number, 0 = not started *)
+  start_time : LINT;    (* batch start time (unix seconds), used for FIFO sort *)
 END_STRUCT;
 END_TYPE
 
@@ -304,7 +305,7 @@ END_TYPE
 
 TYPE DEP_OVERLAP_T :
 STRUCT
-  flags : ARRAY[101..130] OF BOOL;  (* TRUE = station is in overlap zone — STATION_ARRAY_START..END literal required in TYPE *)
+  flags : ARRAY[101..130] OF BOOL;  (* TRUE = station is in overlap zone — G09: full 0..200 domain like JS *)
   count : INT;
 END_STRUCT;
 END_TYPE

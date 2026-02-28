@@ -56,13 +56,13 @@ END_VAR
 
 o_delay_s := 0.0;
 
-(* Check if lift/sink are in overlap zone *)
-IF i_lift_stn >= STATION_ARRAY_START AND i_lift_stn <= STATION_ARRAY_END THEN
+(* Check if lift/sink are in overlap zone — G09: domain 0..200 *)
+IF i_lift_stn >= 0 AND i_lift_stn <= 200 THEN
   lift_is_overlap := g_dep_overlap.flags[i_lift_stn];
 ELSE
   lift_is_overlap := FALSE;
 END_IF;
-IF i_sink_stn >= STATION_ARRAY_START AND i_sink_stn <= STATION_ARRAY_END THEN
+IF i_sink_stn >= 0 AND i_sink_stn <= 200 THEN
   sink_is_overlap := g_dep_overlap.flags[i_sink_stn];
 ELSE
   sink_is_overlap := FALSE;
@@ -92,13 +92,17 @@ FOR round := 1 TO DEP_MAX_DELAY_ACTS DO
         e_start := g_task[ti].queue[qi].start_time;
         e_end   := g_task[ti].queue[qi].finish_time;
 
-        (* Does existing task share an overlap station? *)
+        (* ★ G08: Zone membership — does existing task use ANY overlap station? *)
         has_ovlp := FALSE;
-        IF lift_is_overlap AND (e_lift = i_lift_stn OR e_sink = i_lift_stn) THEN
-          has_ovlp := TRUE;
+        IF e_lift >= 0 AND e_lift <= 200 THEN
+          IF g_dep_overlap.flags[e_lift] THEN
+            has_ovlp := TRUE;
+          END_IF;
         END_IF;
-        IF sink_is_overlap AND (e_lift = i_sink_stn OR e_sink = i_sink_stn) THEN
-          has_ovlp := TRUE;
+        IF NOT has_ovlp AND e_sink >= 0 AND e_sink <= 200 THEN
+          IF g_dep_overlap.flags[e_sink] THEN
+            has_ovlp := TRUE;
+          END_IF;
         END_IF;
 
         IF has_ovlp THEN

@@ -281,9 +281,10 @@ ELSIF phase = 10000 THEN
 (* ══════════════════════════════════════════════════════════════ *)
 ELSIF phase = 10100 THEN
   IF g_dep_pending.valid THEN
-    (* Apply DEP’s pending data: programs + stage change *)
+    (* Apply DEP's pending data: programs + schedules + stage change *)
     FOR ui := 1 TO MAX_UNITS DO
-      g_program[ui] := g_dep_pending.programs[ui];
+      g_program[ui]  := g_dep_pending.programs[ui];
+      g_schedule[ui] := g_dep_pending.schedule[ui];
     END_FOR;
     IF g_dep_pending.batch_unit >= 1 AND g_dep_pending.batch_unit <= MAX_UNITS THEN
       g_batch[g_dep_pending.batch_unit].cur_stage := g_dep_pending.batch_stage;
