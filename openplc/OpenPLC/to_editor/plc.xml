@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-28T08:11:40"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-28T08:11:40">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-28T20:12:43"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-28T20:12:43">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -372,6 +372,21 @@
                   <baseType><derived name="NTT_DEST_T"/></baseType>
                 </array>
               </type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
+      <dataType name="TSK_LOCK_T">
+        <baseType>
+          <struct>
+            <variable name="unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="stage">
+              <type><INT/></type>
+            </variable>
+            <variable name="direction">
+              <type><INT/></type>
             </variable>
           </struct>
         </baseType>
@@ -4911,55 +4926,16 @@ END_IF;]]></xhtml:p>
             </variable>
           </externalVars>
           <localVars>
-            <variable name="sorted">
-              <type>
-                <array>
-                  <dimension lower="1" upper="30"/>
-                  <baseType><derived name="TSK_TASK_T"/></baseType>
-                </array>
-              </type>
-            </variable>
-            <variable name="sorted_trans">
-              <type>
-                <array>
-                  <dimension lower="1" upper="30"/>
-                  <baseType><INT/></baseType>
-                </array>
-              </type>
-            </variable>
-            <variable name="sorted_cnt">
-              <type><INT/></type>
-            </variable>
-            <variable name="chk">
-              <type>
-                <array>
-                  <dimension lower="1" upper="30"/>
-                  <baseType><derived name="TSK_CHECKED_T"/></baseType>
-                </array>
-              </type>
-            </variable>
-            <variable name="chk_cnt">
-              <type><INT/></type>
-            </variable>
             <variable name="ti">
+              <type><INT/></type>
+            </variable>
+            <variable name="tj">
               <type><INT/></type>
             </variable>
             <variable name="qi">
               <type><INT/></type>
             </variable>
-            <variable name="si">
-              <type><INT/></type>
-            </variable>
-            <variable name="ins">
-              <type><INT/></type>
-            </variable>
-            <variable name="ci">
-              <type><INT/></type>
-            </variable>
-            <variable name="tmp_task">
-              <type><derived name="TSK_TASK_T"/></type>
-            </variable>
-            <variable name="tmp_tid">
+            <variable name="qj">
               <type><INT/></type>
             </variable>
             <variable name="prev_sink">
@@ -4977,19 +4953,10 @@ END_IF;]]></xhtml:p>
             <variable name="deficit_s">
               <type><REAL/></type>
             </variable>
-            <variable name="calc_t">
+            <variable name="lift_x">
               <type><REAL/></type>
             </variable>
-            <variable name="min_t">
-              <type><REAL/></type>
-            </variable>
-            <variable name="max_t">
-              <type><REAL/></type>
-            </variable>
-            <variable name="f_down">
-              <type><REAL/></type>
-            </variable>
-            <variable name="f_up">
+            <variable name="sink_x">
               <type><REAL/></type>
             </variable>
             <variable name="x1_min">
@@ -5016,16 +4983,55 @@ END_IF;]]></xhtml:p>
             <variable name="to_end">
               <type><LINT/></type>
             </variable>
-            <variable name="lift_x">
-              <type><REAL/></type>
-            </variable>
-            <variable name="sink_x">
-              <type><REAL/></type>
-            </variable>
             <variable name="l_idx">
               <type><INT/></type>
             </variable>
             <variable name="s_idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="lift_x2">
+              <type><REAL/></type>
+            </variable>
+            <variable name="sink_x2">
+              <type><REAL/></type>
+            </variable>
+            <variable name="l_idx2">
+              <type><INT/></type>
+            </variable>
+            <variable name="s_idx2">
+              <type><INT/></type>
+            </variable>
+            <variable name="cur_unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="cur_stage">
+              <type><INT/></type>
+            </variable>
+            <variable name="found_next">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="recv_prev_end">
+              <type><LINT/></type>
+            </variable>
+            <variable name="recv_prev_sink">
+              <type><INT/></type>
+            </variable>
+            <variable name="has_recv_prev">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="rk">
+              <type><INT/></type>
+            </variable>
+            <variable name="recv_travel">
+              <type><REAL/></type>
+            </variable>
+            <variable name="recv_earliest">
+              <type><LINT/></type>
+            </variable>
+            <variable name="handoff_deficit">
+              <type><REAL/></type>
+            </variable>
+            <variable name="total_tasks">
               <type><INT/></type>
             </variable>
             <variable name="DEFICIT_TOL">
@@ -5043,166 +5049,228 @@ END_IF;]]></xhtml:p>
 o_conf_type    := 0;
 o_deficit      := 0.0;
 checked_count  := 0;
-chk_cnt        := 0;
 
-(* ══════ Step 1: Merge all queues into sorted[] by start_time (insertion sort) ══════ *)
-sorted_cnt := 0;
+(* Count total tasks *)
+total_tasks := 0;
 FOR ti := 1 TO MAX_TRANSPORTERS DO
-  FOR qi := 1 TO g_task[ti].count DO
-    IF g_task[ti].queue[qi].unit > 0 THEN
-      (* Insert into sorted position *)
-      sorted_cnt := sorted_cnt + 1;
-      IF sorted_cnt <= 30 THEN
-        sorted[sorted_cnt] := g_task[ti].queue[qi];
-        sorted_trans[sorted_cnt] := ti;
-        (* Insertion sort: bubble up *)
-        ins := sorted_cnt;
-        WHILE ins > 1 DO
-          IF sorted[ins].start_time < sorted[ins - 1].start_time THEN
-            tmp_task := sorted[ins];
-            tmp_tid  := sorted_trans[ins];
-            sorted[ins] := sorted[ins - 1];
-            sorted_trans[ins] := sorted_trans[ins - 1];
-            sorted[ins - 1] := tmp_task;
-            sorted_trans[ins - 1] := tmp_tid;
-            ins := ins - 1;
-          ELSE
-            ins := 0; (* break *)
-          END_IF;
-        END_WHILE;
-      END_IF;
-    END_IF;
-  END_FOR;
+  total_tasks := total_tasks + g_task[ti].count;
 END_FOR;
+IF total_tasks = 0 THEN RETURN; END_IF;
 
-IF sorted_cnt = 0 THEN RETURN; END_IF;
+(* ══════════════════════════════════════════════════════════════════════ *)
+(* CHECK 1: TASK_SEQUENCE — per-transporter queue order (SWAP-safe)    *)
+(* Iterates g_task[ti].queue[] in queue order, NOT sorted by time.     *)
+(* ══════════════════════════════════════════════════════════════════════ *)
+FOR ti := 1 TO MAX_TRANSPORTERS DO
+  FOR qi := 1 TO g_task[ti].count - 1 DO
+    IF g_task[ti].queue[qi].unit > 0 AND g_task[ti].queue[qi + 1].unit > 0 THEN
 
-(* ══════ Step 2: Walk sorted list, build checked[], detect conflicts ══════ *)
-FOR si := 1 TO sorted_cnt DO
+      prev_sink := g_task[ti].queue[qi].sink_station;
+      next_lift := g_task[ti].queue[qi + 1].lift_station;
 
-  (* Calculate flex for this task *)
-  calc_t := sorted[si].calc_time;
-  min_t  := sorted[si].min_time;
-  max_t  := sorted[si].max_time;
-  f_down := calc_t - min_t;
-  IF f_down < 0.0 THEN f_down := 0.0; END_IF;
-  f_up := max_t - calc_t;
-  IF f_up < 0.0 THEN f_up := 0.0; END_IF;
-
-  (* Get X range for this task *)
-  l_idx := sorted[si].lift_station - 100;
-  s_idx := sorted[si].sink_station - 100;
-  IF l_idx >= 1 AND l_idx <= 25 THEN
-    lift_x := g_station[sorted[si].lift_station].x_position;
-  ELSE
-    lift_x := 0.0;
-  END_IF;
-  IF s_idx >= 1 AND s_idx <= 25 THEN
-    sink_x := g_station[sorted[si].sink_station].x_position;
-  ELSE
-    sink_x := 0.0;
-  END_IF;
-  IF lift_x < sink_x THEN
-    x1_min := lift_x;
-    x1_max := sink_x;
-  ELSE
-    x1_min := sink_x;
-    x1_max := lift_x;
-  END_IF;
-
-  (* Add to checked list *)
-  chk_cnt := chk_cnt + 1;
-  IF chk_cnt <= 30 THEN
-    chk[chk_cnt].unit        := sorted[si].unit;
-    chk[chk_cnt].stage       := sorted[si].stage;
-    chk[chk_cnt].transporter := sorted_trans[si];
-    chk[chk_cnt].start_time  := sorted[si].start_time;
-    chk[chk_cnt].end_time    := sorted[si].finish_time;
-    chk[chk_cnt].flex_down   := f_down;
-    chk[chk_cnt].flex_up     := f_up;
-    chk[chk_cnt].x_min       := x1_min;
-    chk[chk_cnt].x_max       := x1_max;
-    chk[chk_cnt].is_conflict := FALSE;
-  END_IF;
-
-  (* ─── Check TASK_SEQUENCE: same transporter, previous task ─── *)
-  (* Find the previous task for this transporter in sorted order *)
-  FOR ci := si - 1 TO 1 BY -1 DO
-    IF sorted_trans[ci] = sorted_trans[si] THEN
-      (* Found previous task on same transporter *)
-      prev_sink := sorted[ci].sink_station;
-      next_lift := sorted[si].lift_station;
-
-      fb_travel(i_from_stn := prev_sink, i_to_stn := next_lift, i_trans := sorted_trans[si]);
+      fb_travel(i_from_stn := prev_sink, i_to_stn := next_lift, i_trans := ti);
       travel_s := fb_travel.o_travel_s;
 
-      gap_s := LINT_TO_REAL(sorted[si].start_time - sorted[ci].finish_time);
+      gap_s := LINT_TO_REAL(
+        g_task[ti].queue[qi + 1].start_time - g_task[ti].queue[qi].finish_time
+      );
       deficit_s := travel_s - gap_s;
 
       IF deficit_s > DEFICIT_TOL THEN
-        (* TASK_SEQUENCE conflict! *)
         o_has_conflict  := TRUE;
-        o_conf_type     := 1;
-        o_conf_unit     := sorted[si].unit;
-        o_conf_stage    := sorted[si].stage;
-        o_conf_trans    := sorted_trans[si];
-        o_blocked_unit  := sorted[ci].unit;
-        o_blocked_stage := sorted[ci].stage;
+        o_conf_type     := 1;  (* TASK_SEQUENCE *)
+        o_conf_unit     := g_task[ti].queue[qi + 1].unit;
+        o_conf_stage    := g_task[ti].queue[qi + 1].stage;
+        o_conf_trans    := ti;
+        o_blocked_unit  := g_task[ti].queue[qi].unit;
+        o_blocked_stage := g_task[ti].queue[qi].stage;
         o_deficit       := deficit_s;
-        IF chk_cnt <= 30 THEN
-          chk[chk_cnt].is_conflict := TRUE;
-        END_IF;
-        checked_count := chk_cnt;
+        checked_count   := total_tasks;
         RETURN;
       END_IF;
 
-      EXIT; (* only check immediate predecessor *)
     END_IF;
   END_FOR;
+END_FOR;
 
-  (* ─── Check TRANSPORTER_COLLISION: different transporter, X+time overlap ─── *)
-  FOR ci := 1 TO chk_cnt - 1 DO
-    IF chk[ci].transporter <> sorted_trans[si] THEN
-      (* X overlap *)
-      x2_min := chk[ci].x_min;
-      x2_max := chk[ci].x_max;
-      xo_start := x1_min;
-      IF x2_min > xo_start THEN xo_start := x2_min; END_IF;
-      xo_end := x1_max;
-      IF x2_max < xo_end THEN xo_end := x2_max; END_IF;
+(* ══════════════════════════════════════════════════════════════════════ *)
+(* CHECK 2: TRANSPORTER_COLLISION — X+time overlap, different trans.   *)
+(* Compares every task pair across different transporters.              *)
+(* ══════════════════════════════════════════════════════════════════════ *)
+FOR ti := 1 TO MAX_TRANSPORTERS DO
+  FOR qi := 1 TO g_task[ti].count DO
+    IF g_task[ti].queue[qi].unit > 0 THEN
 
-      IF xo_start < xo_end THEN
-        (* Time overlap *)
-        to_start := sorted[si].start_time;
-        IF chk[ci].start_time > to_start THEN to_start := chk[ci].start_time; END_IF;
-        to_end := sorted[si].finish_time;
-        IF chk[ci].end_time < to_end THEN to_end := chk[ci].end_time; END_IF;
-
-        IF to_start < to_end THEN
-          (* TRANSPORTER_COLLISION conflict! *)
-          deficit_s := LINT_TO_REAL(to_end - to_start) + 2.0; (* +2s margin *)
-          o_has_conflict  := TRUE;
-          o_conf_type     := 2;
-          o_conf_unit     := sorted[si].unit;
-          o_conf_stage    := sorted[si].stage;
-          o_conf_trans    := sorted_trans[si];
-          o_blocked_unit  := chk[ci].unit;
-          o_blocked_stage := chk[ci].stage;
-          o_deficit       := deficit_s;
-          IF chk_cnt <= 30 THEN
-            chk[chk_cnt].is_conflict := TRUE;
-          END_IF;
-          checked_count := chk_cnt;
-          RETURN;
-        END_IF;
+      (* X range for task A *)
+      l_idx := g_task[ti].queue[qi].lift_station - 100;
+      s_idx := g_task[ti].queue[qi].sink_station - 100;
+      IF l_idx >= 1 AND l_idx <= 30 THEN
+        lift_x := g_station[g_task[ti].queue[qi].lift_station].x_position;
+      ELSE
+        lift_x := 0.0;
       END_IF;
+      IF s_idx >= 1 AND s_idx <= 30 THEN
+        sink_x := g_station[g_task[ti].queue[qi].sink_station].x_position;
+      ELSE
+        sink_x := 0.0;
+      END_IF;
+      IF lift_x < sink_x THEN
+        x1_min := lift_x;
+        x1_max := sink_x;
+      ELSE
+        x1_min := sink_x;
+        x1_max := lift_x;
+      END_IF;
+
+      FOR tj := ti + 1 TO MAX_TRANSPORTERS DO
+        FOR qj := 1 TO g_task[tj].count DO
+          IF g_task[tj].queue[qj].unit > 0 THEN
+
+            (* X range for task B *)
+            l_idx2 := g_task[tj].queue[qj].lift_station - 100;
+            s_idx2 := g_task[tj].queue[qj].sink_station - 100;
+            IF l_idx2 >= 1 AND l_idx2 <= 30 THEN
+              lift_x2 := g_station[g_task[tj].queue[qj].lift_station].x_position;
+            ELSE
+              lift_x2 := 0.0;
+            END_IF;
+            IF s_idx2 >= 1 AND s_idx2 <= 30 THEN
+              sink_x2 := g_station[g_task[tj].queue[qj].sink_station].x_position;
+            ELSE
+              sink_x2 := 0.0;
+            END_IF;
+            IF lift_x2 < sink_x2 THEN
+              x2_min := lift_x2;
+              x2_max := sink_x2;
+            ELSE
+              x2_min := sink_x2;
+              x2_max := lift_x2;
+            END_IF;
+
+            (* X overlap *)
+            xo_start := x1_min;
+            IF x2_min > xo_start THEN xo_start := x2_min; END_IF;
+            xo_end := x1_max;
+            IF x2_max < xo_end THEN xo_end := x2_max; END_IF;
+
+            IF xo_start < xo_end THEN
+              (* Time overlap *)
+              to_start := g_task[ti].queue[qi].start_time;
+              IF g_task[tj].queue[qj].start_time > to_start THEN
+                to_start := g_task[tj].queue[qj].start_time;
+              END_IF;
+              to_end := g_task[ti].queue[qi].finish_time;
+              IF g_task[tj].queue[qj].finish_time < to_end THEN
+                to_end := g_task[tj].queue[qj].finish_time;
+              END_IF;
+
+              IF to_start < to_end THEN
+                deficit_s := LINT_TO_REAL(to_end - to_start) + 2.0;
+                o_has_conflict  := TRUE;
+                o_conf_type     := 2;  (* TRANSPORTER_COLLISION *)
+                o_conf_unit     := g_task[tj].queue[qj].unit;
+                o_conf_stage    := g_task[tj].queue[qj].stage;
+                o_conf_trans    := tj;
+                o_blocked_unit  := g_task[ti].queue[qi].unit;
+                o_blocked_stage := g_task[ti].queue[qi].stage;
+                o_deficit       := deficit_s;
+                checked_count   := total_tasks;
+                RETURN;
+              END_IF;
+            END_IF;
+
+          END_IF;
+        END_FOR;
+      END_FOR;
+
     END_IF;
   END_FOR;
+END_FOR;
 
+(* ══════════════════════════════════════════════════════════════════════ *)
+(* CHECK 3: CROSS_TRANSPORTER_HANDOFF                                  *)
+(* Same batch, consecutive stages on different transporters.           *)
+(* Does the receiving transporter have time to reach handoff station?  *)
+(*                                                                      *)
+(* Conflict targets the DELIVERING task (current transporter);         *)
+(* resolver will delay the preceding stage so the batch waits longer   *)
+(* on the delivering transporter's side.                               *)
+(* ══════════════════════════════════════════════════════════════════════ *)
+FOR ti := 1 TO MAX_TRANSPORTERS DO
+  FOR qi := 1 TO g_task[ti].count DO
+    cur_unit  := g_task[ti].queue[qi].unit;
+    cur_stage := g_task[ti].queue[qi].stage;
+    IF cur_unit > 0 THEN
+
+      (* Find next stage of same batch in a different transporter *)
+      found_next := FALSE;
+      FOR tj := 1 TO MAX_TRANSPORTERS DO
+        IF tj <> ti AND NOT found_next THEN
+          FOR qj := 1 TO g_task[tj].count DO
+            IF NOT found_next THEN
+              IF g_task[tj].queue[qj].unit = cur_unit
+                 AND g_task[tj].queue[qj].stage = cur_stage + 1 THEN
+                found_next := TRUE;
+
+                (* Found handoff pair: ti delivers to sink, tj picks up *)
+                (* Find receiver's (tj) previous task — latest finish before next task start *)
+                has_recv_prev := FALSE;
+                recv_prev_end  := 0;
+                recv_prev_sink := 0;
+                FOR rk := 1 TO g_task[tj].count DO
+                  IF rk <> qj THEN
+                    IF g_task[tj].queue[rk].finish_time <= g_task[tj].queue[qj].start_time THEN
+                      IF NOT has_recv_prev OR g_task[tj].queue[rk].finish_time > recv_prev_end THEN
+                        has_recv_prev := TRUE;
+                        recv_prev_end  := g_task[tj].queue[rk].finish_time;
+                        recv_prev_sink := g_task[tj].queue[rk].sink_station;
+                      END_IF;
+                    END_IF;
+                  END_IF;
+                END_FOR;
+
+                IF has_recv_prev THEN
+                  (* Travel from receiver's prev sink to handoff station (= ti's current sink) *)
+                  fb_travel(
+                    i_from_stn := recv_prev_sink,
+                    i_to_stn   := g_task[ti].queue[qi].sink_station,
+                    i_trans    := tj
+                  );
+                  recv_travel := fb_travel.o_travel_s;
+                  recv_earliest := recv_prev_end + REAL_TO_LINT(recv_travel);
+                  handoff_deficit := LINT_TO_REAL(
+                    recv_earliest - g_task[ti].queue[qi].finish_time
+                  );
+
+                  IF handoff_deficit > DEFICIT_TOL THEN
+                    o_has_conflict  := TRUE;
+                    o_conf_type     := 3;  (* CROSS_TRANSPORTER_HANDOFF *)
+                    (* Conflict on delivering task *)
+                    o_conf_unit     := g_task[ti].queue[qi].unit;
+                    o_conf_stage    := g_task[ti].queue[qi].stage;
+                    o_conf_trans    := ti;
+                    (* Blocked by receiver's previous task *)
+                    o_blocked_unit  := g_task[tj].queue[rk].unit;
+                    o_blocked_stage := g_task[tj].queue[rk].stage;
+                    o_deficit       := handoff_deficit;
+                    checked_count   := total_tasks;
+                    RETURN;
+                  END_IF;
+                END_IF;
+                (* If no recv prev task, receiver is idle → no handoff conflict *)
+
+              END_IF;
+            END_IF;
+          END_FOR;
+        END_IF;
+      END_FOR;
+
+    END_IF;
+  END_FOR;
 END_FOR;
 
 (* No conflict found *)
-checked_count := chk_cnt;]]></xhtml:p>
+checked_count := total_tasks;]]></xhtml:p>
           </ST>
         </body>
       </pou>
@@ -5300,6 +5368,54 @@ checked_count := chk_cnt;]]></xhtml:p>
             <variable name="fb_xfer">
               <type><derived name="STC_FB_CalcTransferTime"/></type>
             </variable>
+            <variable name="cand_arr">
+              <type>
+                <array>
+                  <dimension lower="1" upper="5"/>
+                  <baseType><INT/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="cand_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="sched_occupied">
+              <type>
+                <array>
+                  <dimension lower="1" upper="5"/>
+                  <baseType><BOOL/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="phys_occupied">
+              <type>
+                <array>
+                  <dimension lower="1" upper="5"/>
+                  <baseType><BOOL/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="best_change_time">
+              <type><LINT/></type>
+            </variable>
+            <variable name="my_entry">
+              <type><LINT/></type>
+            </variable>
+            <variable name="my_exit">
+              <type><LINT/></type>
+            </variable>
+            <variable name="ov_start">
+              <type><LINT/></type>
+            </variable>
+            <variable name="ov_end">
+              <type><LINT/></type>
+            </variable>
+            <variable name="uj">
+              <type><INT/></type>
+            </variable>
+            <variable name="sj">
+              <type><INT/></type>
+            </variable>
           </localVars>
         </interface>
         <body>
@@ -5370,17 +5486,91 @@ is_first := TRUE;
    ============================================================ *)
 FOR st := start_st TO 30 DO
 
-  (* Check if stage has a valid station *)
-  chosen_stn := 0;
+  (* Check if stage has valid stations — parallel selection *)
+  cand_cnt := 0;
   FOR p := 1 TO 5 DO
-    IF g_program[i_unit].stages[st].stations[p] > 0 AND chosen_stn = 0 THEN
-      chosen_stn := g_program[i_unit].stages[st].stations[p];
+    IF g_program[i_unit].stages[st].stations[p] > 0 THEN
+      cand_cnt := cand_cnt + 1;
+      cand_arr[cand_cnt] := g_program[i_unit].stages[st].stations[p];
+      sched_occupied[cand_cnt] := FALSE;
+      phys_occupied[cand_cnt] := FALSE;
     END_IF;
   END_FOR;
 
   (* No station means end of program *)
-  IF chosen_stn = 0 THEN
+  IF cand_cnt = 0 THEN
     EXIT;
+  END_IF;
+
+  IF cand_cnt = 1 THEN
+    chosen_stn := cand_arr[1];
+  ELSE
+    (* Read treatment times early — needed for time window estimate *)
+    calc_s := INT_TO_REAL(g_program[i_unit].stages[st].cal_time);
+
+    (* Estimate this stage's time window *)
+    fb_xfer(i_from_stn := prev_stn, i_to_stn := cand_arr[1], i_trans := i_trans);
+    xfer_t := fb_xfer.o_total_s;
+    my_entry := exit_t + REAL_TO_LINT(xfer_t);
+    my_exit  := my_entry + REAL_TO_LINT(calc_s);
+
+    (* Check schedule overlap + physical occupation for each candidate *)
+    FOR p := 1 TO cand_cnt DO
+      FOR uj := 1 TO MAX_UNITS DO
+        IF uj <> i_unit AND g_schedule[uj].stage_count > 0 THEN
+          FOR sj := 1 TO g_schedule[uj].stage_count DO
+            IF g_schedule[uj].stages[sj].station = cand_arr[p] THEN
+              ov_start := my_entry;
+              IF g_schedule[uj].stages[sj].entry_time > ov_start THEN
+                ov_start := g_schedule[uj].stages[sj].entry_time;
+              END_IF;
+              ov_end := my_exit;
+              IF g_schedule[uj].stages[sj].exit_time < ov_end THEN
+                ov_end := g_schedule[uj].stages[sj].exit_time;
+              END_IF;
+              IF ov_end > ov_start THEN
+                sched_occupied[p] := TRUE;
+              END_IF;
+            END_IF;
+          END_FOR;
+        END_IF;
+      END_FOR;
+
+      (* Physical occupation *)
+      FOR uj := 1 TO MAX_UNITS DO
+        IF g_unit[uj].location = cand_arr[p] AND g_unit[uj].status = 1 THEN
+          phys_occupied[p] := TRUE;
+        END_IF;
+      END_FOR;
+    END_FOR;
+
+    (* Select best free station: longest idle = smallest change_time *)
+    chosen_stn := 0;
+    best_change_time := LINT#9999999999;
+    FOR p := 1 TO cand_cnt DO
+      IF NOT sched_occupied[p] AND NOT phys_occupied[p] THEN
+        IF cand_arr[p] >= STATION_ARRAY_START AND cand_arr[p] <= STATION_ARRAY_END THEN
+          IF g_station[cand_arr[p]].change_time < best_change_time THEN
+            best_change_time := g_station[cand_arr[p]].change_time;
+            chosen_stn := cand_arr[p];
+          END_IF;
+        END_IF;
+      END_IF;
+    END_FOR;
+
+    (* Fallback: schedule-free only *)
+    IF chosen_stn = 0 THEN
+      FOR p := 1 TO cand_cnt DO
+        IF NOT sched_occupied[p] AND chosen_stn = 0 THEN
+          chosen_stn := cand_arr[p];
+        END_IF;
+      END_FOR;
+    END_IF;
+
+    (* Ultimate fallback: first candidate *)
+    IF chosen_stn = 0 THEN
+      chosen_stn := cand_arr[1];
+    END_IF;
   END_IF;
 
   stn_num := chosen_stn;
@@ -5636,6 +5826,54 @@ END_FOR;]]></xhtml:p>
             <variable name="task_end">
               <type><LINT/></type>
             </variable>
+            <variable name="has_overlap">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="ntt_start">
+              <type><LINT/></type>
+            </variable>
+            <variable name="ntt_end">
+              <type><LINT/></type>
+            </variable>
+            <variable name="ov_s">
+              <type><LINT/></type>
+            </variable>
+            <variable name="ov_e">
+              <type><LINT/></type>
+            </variable>
+            <variable name="margin_travel">
+              <type><REAL/></type>
+            </variable>
+            <variable name="slot_start">
+              <type><LINT/></type>
+            </variable>
+            <variable name="slot_end">
+              <type><LINT/></type>
+            </variable>
+            <variable name="earliest_start">
+              <type><LINT/></type>
+            </variable>
+            <variable name="latest_end">
+              <type><LINT/></type>
+            </variable>
+            <variable name="travel_to_lift">
+              <type><REAL/></type>
+            </variable>
+            <variable name="travel_from_sink">
+              <type><REAL/></type>
+            </variable>
+            <variable name="ntt_duration">
+              <type><LINT/></type>
+            </variable>
+            <variable name="qi3">
+              <type><INT/></type>
+            </variable>
+            <variable name="slot_ok">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="fb_ht_margin">
+              <type><derived name="STC_FB_CalcHorizontalTravel"/></type>
+            </variable>
             <variable name="fb_xfer">
               <type><derived name="STC_FB_CalcTransferTime"/></type>
             </variable>
@@ -5811,7 +6049,99 @@ END_FOR;]]></xhtml:p>
 
             task_start := i_time_s;
             task_end   := task_start + REAL_TO_LINT(xfer_s);
+            ntt_duration := task_end - task_start;
 
+            (* ── Idle-slot check: does NTT task fit in transporter's schedule? ── *)
+            (* Build idle slots from existing queue and check fit *)
+            slot_ok := FALSE;
+
+            IF g_task[cov_t].count = 0 THEN
+              (* No existing tasks → NTT always fits *)
+              slot_ok := TRUE;
+            ELSE
+              (* Check slot BEFORE first queued task *)
+              IF NOT slot_ok AND g_task[cov_t].queue[1].start_time > task_start THEN
+                slot_start := task_start;
+                slot_end   := g_task[cov_t].queue[1].start_time;
+                (* Travel from NTT sink to first task's lift *)
+                fb_ht_margin(
+                  i_from_stn := dest_stn,
+                  i_to_stn   := g_task[cov_t].queue[1].lift_station,
+                  i_trans    := cov_t
+                );
+                travel_from_sink := fb_ht_margin.o_travel_s;
+                latest_end := slot_end - REAL_TO_LINT(travel_from_sink) - 1;
+                IF task_start >= slot_start AND task_end <= latest_end THEN
+                  slot_ok := TRUE;
+                END_IF;
+              END_IF;
+
+              (* Check slots BETWEEN queued tasks *)
+              FOR qi3 := 1 TO g_task[cov_t].count - 1 DO
+                IF NOT slot_ok THEN
+                  slot_start := g_task[cov_t].queue[qi3].finish_time;
+                  slot_end   := g_task[cov_t].queue[qi3 + 1].start_time;
+                  IF slot_end > slot_start THEN
+                    (* Travel from prev task's sink to NTT lift *)
+                    fb_ht_margin(
+                      i_from_stn := g_task[cov_t].queue[qi3].sink_station,
+                      i_to_stn   := loc,
+                      i_trans    := cov_t
+                    );
+                    travel_to_lift := fb_ht_margin.o_travel_s;
+                    earliest_start := slot_start + REAL_TO_LINT(travel_to_lift) + 1;
+
+                    (* Travel from NTT sink to next task's lift *)
+                    fb_ht_margin(
+                      i_from_stn := dest_stn,
+                      i_to_stn   := g_task[cov_t].queue[qi3 + 1].lift_station,
+                      i_trans    := cov_t
+                    );
+                    travel_from_sink := fb_ht_margin.o_travel_s;
+                    latest_end := slot_end - REAL_TO_LINT(travel_from_sink) - 1;
+
+                    ntt_start := earliest_start;
+                    IF task_start > ntt_start THEN ntt_start := task_start; END_IF;
+                    ntt_end := ntt_start + ntt_duration;
+
+                    IF ntt_start >= earliest_start AND ntt_end <= latest_end THEN
+                      slot_ok := TRUE;
+                    END_IF;
+                  END_IF;
+                END_IF;
+              END_FOR;
+
+              (* Check slot AFTER last queued task *)
+              IF NOT slot_ok THEN
+                slot_start := g_task[cov_t].queue[g_task[cov_t].count].finish_time;
+                (* Travel from last task's sink to NTT lift *)
+                fb_ht_margin(
+                  i_from_stn := g_task[cov_t].queue[g_task[cov_t].count].sink_station,
+                  i_to_stn   := loc,
+                  i_trans    := cov_t
+                );
+                travel_to_lift := fb_ht_margin.o_travel_s;
+                earliest_start := slot_start + REAL_TO_LINT(travel_to_lift) + 1;
+
+                ntt_start := earliest_start;
+                IF task_start > ntt_start THEN ntt_start := task_start; END_IF;
+                ntt_end := ntt_start + ntt_duration;
+
+                (* Open-ended slot → always fits after last task if start is valid *)
+                IF ntt_start >= earliest_start THEN
+                  slot_ok := TRUE;
+                  task_start := ntt_start;
+                  task_end := ntt_end;
+                END_IF;
+              END_IF;
+            END_IF;
+
+            IF NOT slot_ok THEN
+              dest_stn := 0;  (* NTT doesn't fit → skip *)
+            END_IF;
+          END_IF;
+
+          IF dest_stn > 0 THEN
             (* Append to queue *)
             qi := g_task[cov_t].count + 1;
             IF qi <= MAX_UNITS THEN
@@ -5876,6 +6206,19 @@ END_FOR;]]></xhtml:p>
               <type><REAL/></type>
             </variable>
           </outputVars>
+          <inOutVars>
+            <variable name="io_locks">
+              <type>
+                <array>
+                  <dimension lower="1" upper="50"/>
+                  <baseType><derived name="TSK_LOCK_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="io_lock_cnt">
+              <type><INT/></type>
+            </variable>
+          </inOutVars>
           <externalVars>
             <variable name="g_task">
               <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
@@ -5906,41 +6249,52 @@ END_FOR;]]></xhtml:p>
             <variable name="sc">
               <type><INT/></type>
             </variable>
-            <variable name="locks">
-              <type>
-                <array>
-                  <dimension lower="1" upper="50"/>
-                  <baseType><INT/></baseType>
-                </array>
-              </type>
+            <variable name="chain_flex_down">
+              <type><REAL/></type>
             </variable>
-            <variable name="lock_dir">
-              <type>
-                <array>
-                  <dimension lower="1" upper="50"/>
-                  <baseType><INT/></baseType>
-                </array>
-              </type>
+            <variable name="chain_flex_up">
+              <type><REAL/></type>
             </variable>
-            <variable name="lock_cnt">
-              <type><INT/></type>
+            <variable name="stage_flex">
+              <type><REAL/></type>
             </variable>
-            <variable name="lock_key">
-              <type><INT/></type>
+            <variable name="is_locked_adv">
+              <type><BOOL/></type>
             </variable>
-            <variable name="is_locked">
+            <variable name="is_locked_del">
               <type><BOOL/></type>
             </variable>
             <variable name="lock_i">
               <type><INT/></type>
             </variable>
-            <variable name="prev_flex">
+            <variable name="walk_remain">
               <type><REAL/></type>
             </variable>
-            <variable name="next_flex">
+            <variable name="walk_flex">
               <type><REAL/></type>
             </variable>
-            <variable name="prev_stage_flex">
+            <variable name="walk_amount">
+              <type><REAL/></type>
+            </variable>
+            <variable name="walk_cap">
+              <type><REAL/></type>
+            </variable>
+            <variable name="use_adv">
+              <type><REAL/></type>
+            </variable>
+            <variable name="use_del">
+              <type><REAL/></type>
+            </variable>
+            <variable name="can_advance">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="can_delay">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="eff_adv">
+              <type><REAL/></type>
+            </variable>
+            <variable name="eff_del">
               <type><REAL/></type>
             </variable>
             <variable name="fb_shift">
@@ -5960,152 +6314,256 @@ IF remain <= 0.1 THEN
   RETURN;
 END_IF;
 
-(* ══════ Phase 1: ADVANCE prev batch (blocked_unit, blocked_stage) ══════ *)
-(* Reduce treatment time toward min_time = flex_down *)
+(* ══════ Lock check: is blocked stage locked DELAY? (cannot ADVANCE) ══════ *)
+is_locked_adv := FALSE;
+FOR lock_i := 1 TO io_lock_cnt DO
+  IF io_locks[lock_i].unit = i_blocked_unit
+     AND io_locks[lock_i].stage = i_blocked_stage
+     AND io_locks[lock_i].direction = 2 THEN  (* 2=DELAY *)
+    is_locked_adv := TRUE;
+  END_IF;
+END_FOR;
 
-(* Find flex_down for blocked stage in schedule *)
-prev_flex := 0.0;
-IF i_blocked_unit >= 1 AND i_blocked_unit <= MAX_UNITS THEN
+(* ══════ Lock check: is conf stage locked ADVANCE? (cannot DELAY) ══════ *)
+is_locked_del := FALSE;
+FOR lock_i := 1 TO io_lock_cnt DO
+  IF io_locks[lock_i].unit = i_conf_unit
+     AND io_locks[lock_i].stage = i_conf_stage
+     AND io_locks[lock_i].direction = 1 THEN  (* 1=ADVANCE *)
+    is_locked_del := TRUE;
+  END_IF;
+END_FOR;
+
+can_advance := NOT is_locked_adv;
+can_delay   := NOT is_locked_del;
+
+(* ══════ Calculate chain flex DOWN for blocked batch ══════ *)
+(* Sum of flex_down (calc_time - min_time) from stage 1 to blocked_stage *)
+chain_flex_down := 0.0;
+IF can_advance AND i_blocked_unit >= 1 AND i_blocked_unit <= MAX_UNITS THEN
   sc := g_schedule[i_blocked_unit].stage_count;
   FOR si := 1 TO sc DO
-    IF si = i_blocked_stage THEN
-      prev_flex := g_schedule[i_blocked_unit].stages[si].calc_time
-                 - g_schedule[i_blocked_unit].stages[si].min_time;
-      IF prev_flex < 0.0 THEN prev_flex := 0.0; END_IF;
+    IF si <= i_blocked_stage THEN
+      stage_flex := g_schedule[i_blocked_unit].stages[si].calc_time
+                  - g_schedule[i_blocked_unit].stages[si].min_time;
+      IF stage_flex > 0.0 THEN
+        chain_flex_down := chain_flex_down + stage_flex;
+      END_IF;
     END_IF;
   END_FOR;
 END_IF;
 
-IF prev_flex > 0.1 THEN
-  (* Cap: 90% if batch is on this stage, 50% otherwise *)
-  IF g_batch[i_blocked_unit].cur_stage = i_blocked_stage THEN
-    cap := 0.9;
-  ELSE
-    cap := 0.5;
-  END_IF;
-  amount := prev_flex * cap;
-  IF amount > remain THEN amount := remain; END_IF;
-
-  (* Apply: shift blocked batch's stage exit earlier + propagate *)
-  IF i_blocked_stage >= 1 AND i_blocked_stage <= 30 THEN
-    g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time :=
-      g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time - amount;
-    g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time :=
-      g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time - REAL_TO_LINT(amount);
-    fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := -amount);
-  END_IF;
-
-  remain := remain - amount;
-  o_total_adv := o_total_adv + amount;
-END_IF;
-
-IF remain <= 0.1 THEN
-  o_solved := TRUE;
-  RETURN;
-END_IF;
-
-(* ══════ Phase 2: DELAY next batch conflict stage (conf_unit, conf_stage) ══════ *)
-(* Increase treatment time toward max_time = flex_up *)
-next_flex := 0.0;
-IF i_conf_unit >= 1 AND i_conf_unit <= MAX_UNITS AND i_conf_stage >= 1 AND i_conf_stage <= 30 THEN
-  next_flex := g_schedule[i_conf_unit].stages[i_conf_stage].max_time
-             - g_schedule[i_conf_unit].stages[i_conf_stage].calc_time;
-  IF next_flex < 0.0 THEN next_flex := 0.0; END_IF;
-END_IF;
-
-IF next_flex > 0.1 THEN
-  IF g_batch[i_conf_unit].cur_stage = i_conf_stage THEN
-    cap := 0.9;
-  ELSE
-    cap := 0.5;
-  END_IF;
-  amount := next_flex * cap;
-  IF amount > remain THEN amount := remain; END_IF;
-
-  (* Apply: extend conflict stage + shift later stages forward *)
-  g_schedule[i_conf_unit].stages[i_conf_stage].calc_time :=
-    g_schedule[i_conf_unit].stages[i_conf_stage].calc_time + amount;
-  g_schedule[i_conf_unit].stages[i_conf_stage].exit_time :=
-    g_schedule[i_conf_unit].stages[i_conf_stage].exit_time + REAL_TO_LINT(amount);
-  fb_shift(i_unit := i_conf_unit, i_from_stage := i_conf_stage + 1, i_amount := amount);
-
-  remain := remain - amount;
-  o_total_delay := o_total_delay + amount;
-END_IF;
-
-IF remain <= 0.1 THEN
-  o_solved := TRUE;
-  RETURN;
-END_IF;
-
-(* ══════ Phase 3: DELAY next batch previous stage (conf_stage - 1) ══════ *)
-IF i_conf_stage > 1 THEN
-  prev_stage_flex := 0.0;
-  IF i_conf_unit >= 1 AND i_conf_unit <= MAX_UNITS AND (i_conf_stage - 1) >= 1 THEN
-    prev_stage_flex := g_schedule[i_conf_unit].stages[i_conf_stage - 1].max_time
-                     - g_schedule[i_conf_unit].stages[i_conf_stage - 1].calc_time;
-    IF prev_stage_flex < 0.0 THEN prev_stage_flex := 0.0; END_IF;
-  END_IF;
-
-  IF prev_stage_flex > 0.1 THEN
-    IF g_batch[i_conf_unit].cur_stage = (i_conf_stage - 1) THEN
-      cap := 0.9;
-    ELSE
-      cap := 0.5;
+(* ══════ Calculate chain flex UP for conflict batch ══════ *)
+(* Sum of flex_up (max_time - calc_time) from stage 1 to conf_stage *)
+chain_flex_up := 0.0;
+IF can_delay AND i_conf_unit >= 1 AND i_conf_unit <= MAX_UNITS THEN
+  sc := g_schedule[i_conf_unit].stage_count;
+  FOR si := 1 TO sc DO
+    IF si <= i_conf_stage THEN
+      stage_flex := g_schedule[i_conf_unit].stages[si].max_time
+                  - g_schedule[i_conf_unit].stages[si].calc_time;
+      IF stage_flex > 0.0 THEN
+        chain_flex_up := chain_flex_up + stage_flex;
+      END_IF;
     END_IF;
-    amount := prev_stage_flex * cap;
-    IF amount > remain THEN amount := remain; END_IF;
+  END_FOR;
+END_IF;
 
-    (* Apply: extend previous stage + propagate from conf_stage onward *)
-    g_schedule[i_conf_unit].stages[i_conf_stage - 1].calc_time :=
-      g_schedule[i_conf_unit].stages[i_conf_stage - 1].calc_time + amount;
-    g_schedule[i_conf_unit].stages[i_conf_stage - 1].exit_time :=
-      g_schedule[i_conf_unit].stages[i_conf_stage - 1].exit_time + REAL_TO_LINT(amount);
-    fb_shift(i_unit := i_conf_unit, i_from_stage := i_conf_stage, i_amount := amount);
+(* Effective flex considering locks *)
+IF can_advance THEN eff_adv := chain_flex_down; ELSE eff_adv := 0.0; END_IF;
+IF can_delay   THEN eff_del := chain_flex_up;   ELSE eff_del := 0.0; END_IF;
 
-    remain := remain - amount;
-    o_total_delay := o_total_delay + amount;
+(* ══════════════════════════════════════════════════════════════ *)
+(* PRIORITY 1: CHAIN_BACKWARD — advance blocked batch           *)
+(* Walk backward from blocked_stage, reduce calc_time per stage *)
+(* ══════════════════════════════════════════════════════════════ *)
+IF can_advance AND chain_flex_down >= remain THEN
+  walk_remain := remain;
+  sc := g_schedule[i_blocked_unit].stage_count;
+
+  (* Walk from blocked_stage backward to stage 1 *)
+  FOR si := i_blocked_stage TO 1 BY -1 DO
+    IF si >= 1 AND si <= sc AND walk_remain > 0.1 THEN
+      walk_flex := g_schedule[i_blocked_unit].stages[si].calc_time
+                 - g_schedule[i_blocked_unit].stages[si].min_time;
+      IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
+
+      IF walk_flex > 0.1 THEN
+        (* Cap: 90% if on stage, 50% otherwise *)
+        IF g_batch[i_blocked_unit].cur_stage = si THEN
+          walk_cap := 0.9;
+        ELSE
+          walk_cap := 0.5;
+        END_IF;
+        walk_amount := walk_flex * walk_cap;
+        IF walk_amount > walk_remain THEN walk_amount := walk_remain; END_IF;
+
+        (* Apply: reduce calc_time + shift subsequent stages *)
+        g_schedule[i_blocked_unit].stages[si].calc_time :=
+          g_schedule[i_blocked_unit].stages[si].calc_time - walk_amount;
+        g_schedule[i_blocked_unit].stages[si].exit_time :=
+          g_schedule[i_blocked_unit].stages[si].exit_time - REAL_TO_LINT(walk_amount);
+        fb_shift(i_unit := i_blocked_unit, i_from_stage := si + 1, i_amount := -walk_amount);
+
+        walk_remain := walk_remain - walk_amount;
+        o_total_adv := o_total_adv + walk_amount;
+      END_IF;
+    END_IF;
+  END_FOR;
+
+  remain := remain - o_total_adv;
+
+  (* Record lock: ADVANCE on blocked stage *)
+  IF io_lock_cnt < 50 THEN
+    io_lock_cnt := io_lock_cnt + 1;
+    io_locks[io_lock_cnt].unit := i_blocked_unit;
+    io_locks[io_lock_cnt].stage := i_blocked_stage;
+    io_locks[io_lock_cnt].direction := 1;  (* 1=ADVANCE *)
+  END_IF;
+
+  IF remain <= 0.1 THEN
+    o_solved := TRUE;
+    RETURN;
   END_IF;
 END_IF;
 
-IF remain <= 0.1 THEN
-  o_solved := TRUE;
-  RETURN;
-END_IF;
+(* ══════════════════════════════════════════════════════════════ *)
+(* PRIORITY 2: CHAIN_FORWARD — delay conflict batch             *)
+(* Walk backward from conf_stage, increase calc_time per stage  *)
+(* ══════════════════════════════════════════════════════════════ *)
+IF can_delay AND chain_flex_up >= remain THEN
+  walk_remain := remain;
+  sc := g_schedule[i_conf_unit].stage_count;
 
-(* ══════ Phase 4: DELAY prev past next (forced reorder) ══════ *)
-(* Delay blocked_unit's stage to push it past conflict *)
-prev_flex := 0.0;
-IF i_blocked_unit >= 1 AND i_blocked_unit <= MAX_UNITS AND i_blocked_stage >= 1 AND i_blocked_stage <= 30 THEN
-  prev_flex := g_schedule[i_blocked_unit].stages[i_blocked_stage].max_time
-             - g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time;
-  IF prev_flex < 0.0 THEN prev_flex := 0.0; END_IF;
-END_IF;
+  FOR si := i_conf_stage TO 1 BY -1 DO
+    IF si >= 1 AND si <= sc AND walk_remain > 0.1 THEN
+      walk_flex := g_schedule[i_conf_unit].stages[si].max_time
+                 - g_schedule[i_conf_unit].stages[si].calc_time;
+      IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
 
-IF prev_flex > 0.1 THEN
-  IF g_batch[i_blocked_unit].cur_stage = i_blocked_stage THEN
-    cap := 0.9;
-  ELSE
-    cap := 0.5;
+      IF walk_flex > 0.1 THEN
+        IF g_batch[i_conf_unit].cur_stage = si THEN
+          walk_cap := 0.9;
+        ELSE
+          walk_cap := 0.5;
+        END_IF;
+        walk_amount := walk_flex * walk_cap;
+        IF walk_amount > walk_remain THEN walk_amount := walk_remain; END_IF;
+
+        g_schedule[i_conf_unit].stages[si].calc_time :=
+          g_schedule[i_conf_unit].stages[si].calc_time + walk_amount;
+        g_schedule[i_conf_unit].stages[si].exit_time :=
+          g_schedule[i_conf_unit].stages[si].exit_time + REAL_TO_LINT(walk_amount);
+        fb_shift(i_unit := i_conf_unit, i_from_stage := si + 1, i_amount := walk_amount);
+
+        walk_remain := walk_remain - walk_amount;
+        o_total_delay := o_total_delay + walk_amount;
+      END_IF;
+    END_IF;
+  END_FOR;
+
+  remain := remain - o_total_delay;
+
+  (* Record lock: DELAY on conf stage *)
+  IF io_lock_cnt < 50 THEN
+    io_lock_cnt := io_lock_cnt + 1;
+    io_locks[io_lock_cnt].unit := i_conf_unit;
+    io_locks[io_lock_cnt].stage := i_conf_stage;
+    io_locks[io_lock_cnt].direction := 2;  (* 2=DELAY *)
   END_IF;
-  amount := prev_flex * cap;
-  IF amount > remain THEN amount := remain; END_IF;
 
-  g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time :=
-    g_schedule[i_blocked_unit].stages[i_blocked_stage].calc_time + amount;
-  g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time :=
-    g_schedule[i_blocked_unit].stages[i_blocked_stage].exit_time + REAL_TO_LINT(amount);
-  fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := amount);
-
-  remain := remain - amount;
-  o_total_delay := o_total_delay + amount;
+  IF remain <= 0.1 THEN
+    o_solved := TRUE;
+    RETURN;
+  END_IF;
 END_IF;
 
-IF remain <= 0.1 THEN
-  o_solved := TRUE;
+(* ══════════════════════════════════════════════════════════════ *)
+(* PRIORITY 3: CHAIN_COMBINED — use both backward + forward     *)
+(* First consume advance flex, then delay flex for the rest     *)
+(* ══════════════════════════════════════════════════════════════ *)
+IF eff_adv + eff_del >= remain THEN
+  (* Distribute: advance first, delay for remainder *)
+  use_adv := eff_adv;
+  IF use_adv > remain THEN use_adv := remain; END_IF;
+  use_del := remain - use_adv;
+  IF use_del > eff_del THEN
+    use_del := eff_del;
+    use_adv := remain - use_del;
+  END_IF;
+
+  (* Apply ADVANCE portion *)
+  IF can_advance AND use_adv > 0.1 THEN
+    walk_remain := use_adv;
+    sc := g_schedule[i_blocked_unit].stage_count;
+    FOR si := i_blocked_stage TO 1 BY -1 DO
+      IF si >= 1 AND si <= sc AND walk_remain > 0.1 THEN
+        walk_flex := g_schedule[i_blocked_unit].stages[si].calc_time
+                   - g_schedule[i_blocked_unit].stages[si].min_time;
+        IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
+        IF walk_flex > 0.1 THEN
+          IF g_batch[i_blocked_unit].cur_stage = si THEN walk_cap := 0.9; ELSE walk_cap := 0.5; END_IF;
+          walk_amount := walk_flex * walk_cap;
+          IF walk_amount > walk_remain THEN walk_amount := walk_remain; END_IF;
+          g_schedule[i_blocked_unit].stages[si].calc_time :=
+            g_schedule[i_blocked_unit].stages[si].calc_time - walk_amount;
+          g_schedule[i_blocked_unit].stages[si].exit_time :=
+            g_schedule[i_blocked_unit].stages[si].exit_time - REAL_TO_LINT(walk_amount);
+          fb_shift(i_unit := i_blocked_unit, i_from_stage := si + 1, i_amount := -walk_amount);
+          walk_remain := walk_remain - walk_amount;
+          o_total_adv := o_total_adv + walk_amount;
+        END_IF;
+      END_IF;
+    END_FOR;
+
+    IF io_lock_cnt < 50 THEN
+      io_lock_cnt := io_lock_cnt + 1;
+      io_locks[io_lock_cnt].unit := i_blocked_unit;
+      io_locks[io_lock_cnt].stage := i_blocked_stage;
+      io_locks[io_lock_cnt].direction := 1;
+    END_IF;
+  END_IF;
+
+  (* Apply DELAY portion *)
+  IF can_delay AND use_del > 0.1 THEN
+    walk_remain := use_del;
+    sc := g_schedule[i_conf_unit].stage_count;
+    FOR si := i_conf_stage TO 1 BY -1 DO
+      IF si >= 1 AND si <= sc AND walk_remain > 0.1 THEN
+        walk_flex := g_schedule[i_conf_unit].stages[si].max_time
+                   - g_schedule[i_conf_unit].stages[si].calc_time;
+        IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
+        IF walk_flex > 0.1 THEN
+          IF g_batch[i_conf_unit].cur_stage = si THEN walk_cap := 0.9; ELSE walk_cap := 0.5; END_IF;
+          walk_amount := walk_flex * walk_cap;
+          IF walk_amount > walk_remain THEN walk_amount := walk_remain; END_IF;
+          g_schedule[i_conf_unit].stages[si].calc_time :=
+            g_schedule[i_conf_unit].stages[si].calc_time + walk_amount;
+          g_schedule[i_conf_unit].stages[si].exit_time :=
+            g_schedule[i_conf_unit].stages[si].exit_time + REAL_TO_LINT(walk_amount);
+          fb_shift(i_unit := i_conf_unit, i_from_stage := si + 1, i_amount := walk_amount);
+          walk_remain := walk_remain - walk_amount;
+          o_total_delay := o_total_delay + walk_amount;
+        END_IF;
+      END_IF;
+    END_FOR;
+
+    IF io_lock_cnt < 50 THEN
+      io_lock_cnt := io_lock_cnt + 1;
+      io_locks[io_lock_cnt].unit := i_conf_unit;
+      io_locks[io_lock_cnt].stage := i_conf_stage;
+      io_locks[io_lock_cnt].direction := 2;
+    END_IF;
+  END_IF;
+
+  remain := remain - o_total_adv - o_total_delay;
+  IF remain <= 0.1 THEN
+    o_solved := TRUE;
+    RETURN;
+  END_IF;
 END_IF;
 
-(* If not solved, partial resolution was still applied *)]]></xhtml:p>
+(* If not solved, partial resolution was applied *)]]></xhtml:p>
           </ST>
         </body>
       </pou>
@@ -6216,6 +6674,22 @@ END_IF;
             <variable name="sched_trans">
               <type><INT/></type>
             </variable>
+            <variable name="locks">
+              <type>
+                <array>
+                  <dimension lower="1" upper="50"/>
+                  <baseType><derived name="TSK_LOCK_T"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="lock_cnt">
+              <type><INT/></type>
+              <initialValue><simpleValue value="0"/></initialValue>
+            </variable>
+            <variable name="locks_initialized">
+              <type><BOOL/></type>
+              <initialValue><simpleValue value="FALSE"/></initialValue>
+            </variable>
             <variable name="bi">
               <type><INT/></type>
             </variable>
@@ -6264,6 +6738,7 @@ ELSIF phase = 1 THEN
   END_FOR;
   o_batch_cnt := batch_count;
   conflict_iter := 0;
+  locks_initialized := FALSE;
 
   IF batch_count = 0 THEN
     (* No active batches — still run no-treatment tasks *)
@@ -6346,6 +6821,16 @@ ELSIF phase >= 2001 AND phase <= 2000 + MAX_UNITS THEN
 (* ══════════════════════════════════════════════════════════════ *)
 ELSIF phase = 2200 THEN
   fb_sort(i_trans := 0);
+  (* Initialize locks once per scheduler cycle *)
+  IF NOT locks_initialized THEN
+    lock_cnt := 0;
+    FOR bi := 1 TO 50 DO
+      locks[bi].unit := 0;
+      locks[bi].stage := 0;
+      locks[bi].direction := 0;
+    END_FOR;
+    locks_initialized := TRUE;
+  END_IF;
   next_phase := 2201;
 
 (* ══════════════════════════════════════════════════════════════ *)
@@ -6378,7 +6863,9 @@ ELSIF phase = 2203 THEN
     i_conf_trans    := fb_analyze.o_conf_trans,
     i_blocked_unit  := fb_analyze.o_blocked_unit,
     i_blocked_stage := fb_analyze.o_blocked_stage,
-    i_deficit       := fb_analyze.o_deficit
+    i_deficit       := fb_analyze.o_deficit,
+    io_locks        := locks,
+    io_lock_cnt     := lock_cnt
   );
 
   conflict_iter := conflict_iter + 1;

@@ -76,6 +76,10 @@ VAR
   fb_notrt_st : STC_FB_NoTreatmentStates;  (* non-treatment state updates *)
   (* Transporter assignment for schedule calculation *)
   sched_trans : INT;
+  (* Locked stages — prevents oscillation in resolve loop *)
+  locks           : ARRAY[1..50] OF TSK_LOCK_T;
+  lock_cnt        : INT := 0;
+  locks_initialized : BOOL := FALSE;
   (* Temp *)
   bi         : INT;
   ti         : INT;
@@ -110,6 +114,7 @@ ELSIF phase = 1 THEN
   END_FOR;
   o_batch_cnt := batch_count;
   conflict_iter := 0;
+  locks_initialized := FALSE;
 
   IF batch_count = 0 THEN
     (* No active batches — still run no-treatment tasks *)
@@ -192,6 +197,16 @@ ELSIF phase >= 2001 AND phase <= 2000 + MAX_UNITS THEN
 (* ══════════════════════════════════════════════════════════════ *)
 ELSIF phase = 2200 THEN
   fb_sort(i_trans := 0);
+  (* Initialize locks once per scheduler cycle *)
+  IF NOT locks_initialized THEN
+    lock_cnt := 0;
+    FOR bi := 1 TO 50 DO
+      locks[bi].unit := 0;
+      locks[bi].stage := 0;
+      locks[bi].direction := 0;
+    END_FOR;
+    locks_initialized := TRUE;
+  END_IF;
   next_phase := 2201;
 
 (* ══════════════════════════════════════════════════════════════ *)
@@ -224,7 +239,9 @@ ELSIF phase = 2203 THEN
     i_conf_trans    := fb_analyze.o_conf_trans,
     i_blocked_unit  := fb_analyze.o_blocked_unit,
     i_blocked_stage := fb_analyze.o_blocked_stage,
-    i_deficit       := fb_analyze.o_deficit
+    i_deficit       := fb_analyze.o_deficit,
+    io_locks        := locks,
+    io_lock_cnt     := lock_cnt
   );
 
   conflict_iter := conflict_iter + 1;

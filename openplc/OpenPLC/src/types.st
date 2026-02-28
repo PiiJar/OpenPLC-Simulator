@@ -162,6 +162,17 @@ END_STRUCT;
 END_TYPE
 
 (* ── Task Scheduler types (TSK_) ─────────────────────────────────── *)
+
+(* Oscillation lock: prevents resolve from advancing&delaying same stage *)
+(* Used by TSK_FB_Resolve via VAR_IN_OUT from TSK_FB_Scheduler          *)
+TYPE TSK_LOCK_T :
+STRUCT
+  unit      : INT;     (* batch unit index, 0 = empty slot *)
+  stage     : INT;     (* program stage *)
+  direction : INT;     (* 1=ADVANCE, 2=DELAY *)
+END_STRUCT;
+END_TYPE
+
 (* Calculated batch schedule — one per unit, stages indexed 1..30       *)
 (* Times are absolute epoch-offset seconds (g_time_s reference frame)   *)
 (* Access: g_schedule[unit].stages[stage].entry_time                    *)

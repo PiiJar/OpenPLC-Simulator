@@ -3,29 +3,35 @@
    ============================================================
    Ported from transporterTaskScheduler.js analyzeTaskConflicts()
 
-   Flattens all transporter queues into one global list sorted
-   by start_time (insertion sort). Then checks:
-   1. TASK_SEQUENCE: same transporter consecutive pair — does
-      the transporter have time to travel from prev.sink to
-      next.lift? Uses g_move precomputed travel times.
+   Three conflict checks, each stops at first hit:
+
+   1. TASK_SEQUENCE: per-transporter queue order (preserves SWAP).
+      Does the transporter have time to travel from prev.sink
+      to next.lift?
+
    2. TRANSPORTER_COLLISION: different transporters — do their
       X-ranges and time-ranges overlap?
 
-   Stops at first conflict found (one conflict per cycle).
+   3. CROSS_TRANSPORTER_HANDOFF: same batch, consecutive stages
+      on different transporters — does the receiving transporter
+      have time to reach the handoff station?
+
+   NOTE: TASK_SEQUENCE iterates g_task[ti].queue[] directly
+   (not a merged sorted list) so SWAP ordering is preserved.
 
    Outputs:
      o_has_conflict — TRUE if conflict found
      o_conf_unit, o_conf_stage — which task is blocked
      o_blocked_unit, o_blocked_stage — which task blocks it
      o_deficit — how many seconds short
-     o_conf_type — 1=TASK_SEQUENCE, 2=TRANSPORTER_COLLISION
-     checked — internal array for resolve phase
-     checked_count — how many tasks were checked
+     o_conf_type — 1=TASK_SEQUENCE, 2=COLLISION, 3=HANDOFF
+     checked_count — total tasks inspected
    ============================================================ *)
 
 FUNCTION_BLOCK TSK_FB_Analyze
 VAR_EXTERNAL CONSTANT
     MAX_TRANSPORTERS    : INT;
+    MAX_UNITS           : INT;
     STATION_ARRAY_START : INT;
     STATION_ARRAY_END   : INT;
 END_VAR
@@ -36,7 +42,7 @@ VAR_EXTERNAL
 END_VAR
 VAR_OUTPUT
   o_has_conflict  : BOOL;
-  o_conf_type     : INT;     (* 1=TASK_SEQUENCE, 2=COLLISION *)
+  o_conf_type     : INT;     (* 1=TASK_SEQUENCE, 2=COLLISION, 3=HANDOFF *)
   o_conf_unit     : INT;     (* conflict task: unit *)
   o_conf_stage    : INT;     (* conflict task: stage *)
   o_conf_trans    : INT;     (* conflict task: transporter *)
@@ -46,35 +52,20 @@ VAR_OUTPUT
   checked_count   : INT;     (* tasks checked before conflict *)
 END_VAR
 VAR
-  (* Merged sorted task list — max 3 transporters x 10 tasks = 30 *)
-  sorted       : ARRAY[1..30] OF TSK_TASK_T;
-  sorted_trans : ARRAY[1..30] OF INT;    (* transporter id for each sorted task *)
-  sorted_cnt   : INT;
-  (* Checked tasks with flex info *)
-  chk          : ARRAY[1..30] OF TSK_CHECKED_T;
-  chk_cnt      : INT;
   (* Loop variables *)
-  ti       : INT;
-  qi       : INT;
-  si       : INT;
-  ins      : INT;
-  ci       : INT;
-  (* Temp *)
-  tmp_task : TSK_TASK_T;
-  tmp_tid  : INT;
-  (* Conflict check vars *)
+  ti       : INT;    (* transporter outer *)
+  tj       : INT;    (* transporter inner *)
+  qi       : INT;    (* queue index outer *)
+  qj       : INT;    (* queue index inner *)
+  (* TASK_SEQUENCE *)
   prev_sink : INT;
   next_lift : INT;
   travel_s  : REAL;
   gap_s     : REAL;
   deficit_s : REAL;
-  (* Flex calculation *)
-  calc_t   : REAL;
-  min_t    : REAL;
-  max_t    : REAL;
-  f_down   : REAL;
-  f_up     : REAL;
-  (* X overlap check *)
+  (* TRANSPORTER_COLLISION: X range per task *)
+  lift_x   : REAL;
+  sink_x   : REAL;
   x1_min   : REAL;
   x1_max   : REAL;
   x2_min   : REAL;
@@ -83,177 +74,254 @@ VAR
   xo_end   : REAL;
   to_start : LINT;
   to_end   : LINT;
-  lift_x   : REAL;
-  sink_x   : REAL;
   l_idx    : INT;
   s_idx    : INT;
+  lift_x2  : REAL;
+  sink_x2  : REAL;
+  l_idx2   : INT;
+  s_idx2   : INT;
+  (* CROSS_TRANSPORTER_HANDOFF *)
+  cur_unit    : INT;
+  cur_stage   : INT;
+  found_next  : BOOL;
+  recv_prev_end  : LINT;
+  recv_prev_sink : INT;
+  has_recv_prev  : BOOL;
+  rk       : INT;     (* receiver prev search *)
+  recv_travel    : REAL;
+  recv_earliest  : LINT;
+  handoff_deficit : REAL;
+  (* Counter *)
+  total_tasks : INT;
   DEFICIT_TOL : REAL := 1.0;
-  fb_travel : STC_FB_CalcHorizontalTravel;  (* shared horizontal travel calc *)
+  fb_travel : STC_FB_CalcHorizontalTravel;
 END_VAR
 
 o_has_conflict := FALSE;
 o_conf_type    := 0;
 o_deficit      := 0.0;
 checked_count  := 0;
-chk_cnt        := 0;
 
-(* ══════ Step 1: Merge all queues into sorted[] by start_time (insertion sort) ══════ *)
-sorted_cnt := 0;
+(* Count total tasks *)
+total_tasks := 0;
 FOR ti := 1 TO MAX_TRANSPORTERS DO
-  FOR qi := 1 TO g_task[ti].count DO
-    IF g_task[ti].queue[qi].unit > 0 THEN
-      (* Insert into sorted position *)
-      sorted_cnt := sorted_cnt + 1;
-      IF sorted_cnt <= 30 THEN
-        sorted[sorted_cnt] := g_task[ti].queue[qi];
-        sorted_trans[sorted_cnt] := ti;
-        (* Insertion sort: bubble up *)
-        ins := sorted_cnt;
-        WHILE ins > 1 DO
-          IF sorted[ins].start_time < sorted[ins - 1].start_time THEN
-            tmp_task := sorted[ins];
-            tmp_tid  := sorted_trans[ins];
-            sorted[ins] := sorted[ins - 1];
-            sorted_trans[ins] := sorted_trans[ins - 1];
-            sorted[ins - 1] := tmp_task;
-            sorted_trans[ins - 1] := tmp_tid;
-            ins := ins - 1;
-          ELSE
-            ins := 0; (* break *)
-          END_IF;
-        END_WHILE;
-      END_IF;
-    END_IF;
-  END_FOR;
+  total_tasks := total_tasks + g_task[ti].count;
 END_FOR;
+IF total_tasks = 0 THEN RETURN; END_IF;
 
-IF sorted_cnt = 0 THEN RETURN; END_IF;
+(* ══════════════════════════════════════════════════════════════════════ *)
+(* CHECK 1: TASK_SEQUENCE — per-transporter queue order (SWAP-safe)    *)
+(* Iterates g_task[ti].queue[] in queue order, NOT sorted by time.     *)
+(* ══════════════════════════════════════════════════════════════════════ *)
+FOR ti := 1 TO MAX_TRANSPORTERS DO
+  FOR qi := 1 TO g_task[ti].count - 1 DO
+    IF g_task[ti].queue[qi].unit > 0 AND g_task[ti].queue[qi + 1].unit > 0 THEN
 
-(* ══════ Step 2: Walk sorted list, build checked[], detect conflicts ══════ *)
-FOR si := 1 TO sorted_cnt DO
+      prev_sink := g_task[ti].queue[qi].sink_station;
+      next_lift := g_task[ti].queue[qi + 1].lift_station;
 
-  (* Calculate flex for this task *)
-  calc_t := sorted[si].calc_time;
-  min_t  := sorted[si].min_time;
-  max_t  := sorted[si].max_time;
-  f_down := calc_t - min_t;
-  IF f_down < 0.0 THEN f_down := 0.0; END_IF;
-  f_up := max_t - calc_t;
-  IF f_up < 0.0 THEN f_up := 0.0; END_IF;
-
-  (* Get X range for this task *)
-  l_idx := sorted[si].lift_station - 100;
-  s_idx := sorted[si].sink_station - 100;
-  IF l_idx >= 1 AND l_idx <= 25 THEN
-    lift_x := g_station[sorted[si].lift_station].x_position;
-  ELSE
-    lift_x := 0.0;
-  END_IF;
-  IF s_idx >= 1 AND s_idx <= 25 THEN
-    sink_x := g_station[sorted[si].sink_station].x_position;
-  ELSE
-    sink_x := 0.0;
-  END_IF;
-  IF lift_x < sink_x THEN
-    x1_min := lift_x;
-    x1_max := sink_x;
-  ELSE
-    x1_min := sink_x;
-    x1_max := lift_x;
-  END_IF;
-
-  (* Add to checked list *)
-  chk_cnt := chk_cnt + 1;
-  IF chk_cnt <= 30 THEN
-    chk[chk_cnt].unit        := sorted[si].unit;
-    chk[chk_cnt].stage       := sorted[si].stage;
-    chk[chk_cnt].transporter := sorted_trans[si];
-    chk[chk_cnt].start_time  := sorted[si].start_time;
-    chk[chk_cnt].end_time    := sorted[si].finish_time;
-    chk[chk_cnt].flex_down   := f_down;
-    chk[chk_cnt].flex_up     := f_up;
-    chk[chk_cnt].x_min       := x1_min;
-    chk[chk_cnt].x_max       := x1_max;
-    chk[chk_cnt].is_conflict := FALSE;
-  END_IF;
-
-  (* ─── Check TASK_SEQUENCE: same transporter, previous task ─── *)
-  (* Find the previous task for this transporter in sorted order *)
-  FOR ci := si - 1 TO 1 BY -1 DO
-    IF sorted_trans[ci] = sorted_trans[si] THEN
-      (* Found previous task on same transporter *)
-      prev_sink := sorted[ci].sink_station;
-      next_lift := sorted[si].lift_station;
-
-      fb_travel(i_from_stn := prev_sink, i_to_stn := next_lift, i_trans := sorted_trans[si]);
+      fb_travel(i_from_stn := prev_sink, i_to_stn := next_lift, i_trans := ti);
       travel_s := fb_travel.o_travel_s;
 
-      gap_s := LINT_TO_REAL(sorted[si].start_time - sorted[ci].finish_time);
+      gap_s := LINT_TO_REAL(
+        g_task[ti].queue[qi + 1].start_time - g_task[ti].queue[qi].finish_time
+      );
       deficit_s := travel_s - gap_s;
 
       IF deficit_s > DEFICIT_TOL THEN
-        (* TASK_SEQUENCE conflict! *)
         o_has_conflict  := TRUE;
-        o_conf_type     := 1;
-        o_conf_unit     := sorted[si].unit;
-        o_conf_stage    := sorted[si].stage;
-        o_conf_trans    := sorted_trans[si];
-        o_blocked_unit  := sorted[ci].unit;
-        o_blocked_stage := sorted[ci].stage;
+        o_conf_type     := 1;  (* TASK_SEQUENCE *)
+        o_conf_unit     := g_task[ti].queue[qi + 1].unit;
+        o_conf_stage    := g_task[ti].queue[qi + 1].stage;
+        o_conf_trans    := ti;
+        o_blocked_unit  := g_task[ti].queue[qi].unit;
+        o_blocked_stage := g_task[ti].queue[qi].stage;
         o_deficit       := deficit_s;
-        IF chk_cnt <= 30 THEN
-          chk[chk_cnt].is_conflict := TRUE;
-        END_IF;
-        checked_count := chk_cnt;
+        checked_count   := total_tasks;
         RETURN;
       END_IF;
 
-      EXIT; (* only check immediate predecessor *)
     END_IF;
   END_FOR;
+END_FOR;
 
-  (* ─── Check TRANSPORTER_COLLISION: different transporter, X+time overlap ─── *)
-  FOR ci := 1 TO chk_cnt - 1 DO
-    IF chk[ci].transporter <> sorted_trans[si] THEN
-      (* X overlap *)
-      x2_min := chk[ci].x_min;
-      x2_max := chk[ci].x_max;
-      xo_start := x1_min;
-      IF x2_min > xo_start THEN xo_start := x2_min; END_IF;
-      xo_end := x1_max;
-      IF x2_max < xo_end THEN xo_end := x2_max; END_IF;
+(* ══════════════════════════════════════════════════════════════════════ *)
+(* CHECK 2: TRANSPORTER_COLLISION — X+time overlap, different trans.   *)
+(* Compares every task pair across different transporters.              *)
+(* ══════════════════════════════════════════════════════════════════════ *)
+FOR ti := 1 TO MAX_TRANSPORTERS DO
+  FOR qi := 1 TO g_task[ti].count DO
+    IF g_task[ti].queue[qi].unit > 0 THEN
 
-      IF xo_start < xo_end THEN
-        (* Time overlap *)
-        to_start := sorted[si].start_time;
-        IF chk[ci].start_time > to_start THEN to_start := chk[ci].start_time; END_IF;
-        to_end := sorted[si].finish_time;
-        IF chk[ci].end_time < to_end THEN to_end := chk[ci].end_time; END_IF;
-
-        IF to_start < to_end THEN
-          (* TRANSPORTER_COLLISION conflict! *)
-          deficit_s := LINT_TO_REAL(to_end - to_start) + 2.0; (* +2s margin *)
-          o_has_conflict  := TRUE;
-          o_conf_type     := 2;
-          o_conf_unit     := sorted[si].unit;
-          o_conf_stage    := sorted[si].stage;
-          o_conf_trans    := sorted_trans[si];
-          o_blocked_unit  := chk[ci].unit;
-          o_blocked_stage := chk[ci].stage;
-          o_deficit       := deficit_s;
-          IF chk_cnt <= 30 THEN
-            chk[chk_cnt].is_conflict := TRUE;
-          END_IF;
-          checked_count := chk_cnt;
-          RETURN;
-        END_IF;
+      (* X range for task A *)
+      l_idx := g_task[ti].queue[qi].lift_station - 100;
+      s_idx := g_task[ti].queue[qi].sink_station - 100;
+      IF l_idx >= 1 AND l_idx <= 30 THEN
+        lift_x := g_station[g_task[ti].queue[qi].lift_station].x_position;
+      ELSE
+        lift_x := 0.0;
       END_IF;
+      IF s_idx >= 1 AND s_idx <= 30 THEN
+        sink_x := g_station[g_task[ti].queue[qi].sink_station].x_position;
+      ELSE
+        sink_x := 0.0;
+      END_IF;
+      IF lift_x < sink_x THEN
+        x1_min := lift_x;
+        x1_max := sink_x;
+      ELSE
+        x1_min := sink_x;
+        x1_max := lift_x;
+      END_IF;
+
+      FOR tj := ti + 1 TO MAX_TRANSPORTERS DO
+        FOR qj := 1 TO g_task[tj].count DO
+          IF g_task[tj].queue[qj].unit > 0 THEN
+
+            (* X range for task B *)
+            l_idx2 := g_task[tj].queue[qj].lift_station - 100;
+            s_idx2 := g_task[tj].queue[qj].sink_station - 100;
+            IF l_idx2 >= 1 AND l_idx2 <= 30 THEN
+              lift_x2 := g_station[g_task[tj].queue[qj].lift_station].x_position;
+            ELSE
+              lift_x2 := 0.0;
+            END_IF;
+            IF s_idx2 >= 1 AND s_idx2 <= 30 THEN
+              sink_x2 := g_station[g_task[tj].queue[qj].sink_station].x_position;
+            ELSE
+              sink_x2 := 0.0;
+            END_IF;
+            IF lift_x2 < sink_x2 THEN
+              x2_min := lift_x2;
+              x2_max := sink_x2;
+            ELSE
+              x2_min := sink_x2;
+              x2_max := lift_x2;
+            END_IF;
+
+            (* X overlap *)
+            xo_start := x1_min;
+            IF x2_min > xo_start THEN xo_start := x2_min; END_IF;
+            xo_end := x1_max;
+            IF x2_max < xo_end THEN xo_end := x2_max; END_IF;
+
+            IF xo_start < xo_end THEN
+              (* Time overlap *)
+              to_start := g_task[ti].queue[qi].start_time;
+              IF g_task[tj].queue[qj].start_time > to_start THEN
+                to_start := g_task[tj].queue[qj].start_time;
+              END_IF;
+              to_end := g_task[ti].queue[qi].finish_time;
+              IF g_task[tj].queue[qj].finish_time < to_end THEN
+                to_end := g_task[tj].queue[qj].finish_time;
+              END_IF;
+
+              IF to_start < to_end THEN
+                deficit_s := LINT_TO_REAL(to_end - to_start) + 2.0;
+                o_has_conflict  := TRUE;
+                o_conf_type     := 2;  (* TRANSPORTER_COLLISION *)
+                o_conf_unit     := g_task[tj].queue[qj].unit;
+                o_conf_stage    := g_task[tj].queue[qj].stage;
+                o_conf_trans    := tj;
+                o_blocked_unit  := g_task[ti].queue[qi].unit;
+                o_blocked_stage := g_task[ti].queue[qi].stage;
+                o_deficit       := deficit_s;
+                checked_count   := total_tasks;
+                RETURN;
+              END_IF;
+            END_IF;
+
+          END_IF;
+        END_FOR;
+      END_FOR;
+
     END_IF;
   END_FOR;
+END_FOR;
 
+(* ══════════════════════════════════════════════════════════════════════ *)
+(* CHECK 3: CROSS_TRANSPORTER_HANDOFF                                  *)
+(* Same batch, consecutive stages on different transporters.           *)
+(* Does the receiving transporter have time to reach handoff station?  *)
+(*                                                                      *)
+(* Conflict targets the DELIVERING task (current transporter);         *)
+(* resolver will delay the preceding stage so the batch waits longer   *)
+(* on the delivering transporter's side.                               *)
+(* ══════════════════════════════════════════════════════════════════════ *)
+FOR ti := 1 TO MAX_TRANSPORTERS DO
+  FOR qi := 1 TO g_task[ti].count DO
+    cur_unit  := g_task[ti].queue[qi].unit;
+    cur_stage := g_task[ti].queue[qi].stage;
+    IF cur_unit > 0 THEN
+
+      (* Find next stage of same batch in a different transporter *)
+      found_next := FALSE;
+      FOR tj := 1 TO MAX_TRANSPORTERS DO
+        IF tj <> ti AND NOT found_next THEN
+          FOR qj := 1 TO g_task[tj].count DO
+            IF NOT found_next THEN
+              IF g_task[tj].queue[qj].unit = cur_unit
+                 AND g_task[tj].queue[qj].stage = cur_stage + 1 THEN
+                found_next := TRUE;
+
+                (* Found handoff pair: ti delivers to sink, tj picks up *)
+                (* Find receiver's (tj) previous task — latest finish before next task start *)
+                has_recv_prev := FALSE;
+                recv_prev_end  := 0;
+                recv_prev_sink := 0;
+                FOR rk := 1 TO g_task[tj].count DO
+                  IF rk <> qj THEN
+                    IF g_task[tj].queue[rk].finish_time <= g_task[tj].queue[qj].start_time THEN
+                      IF NOT has_recv_prev OR g_task[tj].queue[rk].finish_time > recv_prev_end THEN
+                        has_recv_prev := TRUE;
+                        recv_prev_end  := g_task[tj].queue[rk].finish_time;
+                        recv_prev_sink := g_task[tj].queue[rk].sink_station;
+                      END_IF;
+                    END_IF;
+                  END_IF;
+                END_FOR;
+
+                IF has_recv_prev THEN
+                  (* Travel from receiver's prev sink to handoff station (= ti's current sink) *)
+                  fb_travel(
+                    i_from_stn := recv_prev_sink,
+                    i_to_stn   := g_task[ti].queue[qi].sink_station,
+                    i_trans    := tj
+                  );
+                  recv_travel := fb_travel.o_travel_s;
+                  recv_earliest := recv_prev_end + REAL_TO_LINT(recv_travel);
+                  handoff_deficit := LINT_TO_REAL(
+                    recv_earliest - g_task[ti].queue[qi].finish_time
+                  );
+
+                  IF handoff_deficit > DEFICIT_TOL THEN
+                    o_has_conflict  := TRUE;
+                    o_conf_type     := 3;  (* CROSS_TRANSPORTER_HANDOFF *)
+                    (* Conflict on delivering task *)
+                    o_conf_unit     := g_task[ti].queue[qi].unit;
+                    o_conf_stage    := g_task[ti].queue[qi].stage;
+                    o_conf_trans    := ti;
+                    (* Blocked by receiver's previous task *)
+                    o_blocked_unit  := g_task[tj].queue[rk].unit;
+                    o_blocked_stage := g_task[tj].queue[rk].stage;
+                    o_deficit       := handoff_deficit;
+                    checked_count   := total_tasks;
+                    RETURN;
+                  END_IF;
+                END_IF;
+                (* If no recv prev task, receiver is idle → no handoff conflict *)
+
+              END_IF;
+            END_IF;
+          END_FOR;
+        END_IF;
+      END_FOR;
+
+    END_IF;
+  END_FOR;
 END_FOR;
 
 (* No conflict found *)
-checked_count := chk_cnt;
+checked_count := total_tasks;
 
 END_FUNCTION_BLOCK
