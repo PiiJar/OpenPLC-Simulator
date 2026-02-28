@@ -233,20 +233,27 @@ class ProductionDispatcher {
       return;
     }
 
-    // Start or continue loading timer
-    if (this.loadingUnitId !== candidate.unit_id) {
-      this.loadingUnitId = candidate.unit_id;
-      this.loadingStartMs = Date.now();
-      console.log(
-        `[DISPATCH] Unit ${candidate.unit_id} at station ${startStation}` +
-        ` — loading timer started (${loadingTimeS}s)`
-      );
-      return;
-    }
+    // First batch dispatches immediately (no loading wait)
+    const isFirstBatch = this.queue.pointer === 0 && this.queue.dispatched.length === 0;
 
-    // Check elapsed
-    const elapsedS = (Date.now() - this.loadingStartMs) / 1000;
-    if (elapsedS < loadingTimeS) return;
+    if (!isFirstBatch) {
+      // Start or continue loading timer
+      if (this.loadingUnitId !== candidate.unit_id) {
+        this.loadingUnitId = candidate.unit_id;
+        this.loadingStartMs = Date.now();
+        console.log(
+          `[DISPATCH] Unit ${candidate.unit_id} at station ${startStation}` +
+          ` — loading timer started (${loadingTimeS}s)`
+        );
+        return;
+      }
+
+      // Check elapsed
+      const elapsedS = (Date.now() - this.loadingStartMs) / 1000;
+      if (elapsedS < loadingTimeS) return;
+    } else {
+      console.log(`[DISPATCH] First batch — dispatching immediately to Unit ${candidate.unit_id}`);
+    }
 
     // ═══════════════  DISPATCH  ═══════════════
     this.dispatching = true;

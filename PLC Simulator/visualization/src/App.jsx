@@ -2719,7 +2719,7 @@ export default function App() {
           )}
 
         {showBatches && (
-          <DraggablePanel title="Units" onClose={() => { setShowBatches(false); resetBatchForm(); }} width={720}>
+          <DraggablePanel title="Units" onClose={() => { setShowBatches(false); resetBatchForm(); }} width={880}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {batchError && (
                 <div style={{ color: '#c62828', fontWeight: 600, fontSize: 13 }}>{batchError}</div>

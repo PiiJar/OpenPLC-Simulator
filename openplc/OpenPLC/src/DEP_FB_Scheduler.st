@@ -18,7 +18,10 @@
      200    CALC_OVERLAP      (compute overlap stations)
      1000   BATCH_START       (prepare current waiting batch)
      1010   CALC_SCHED        (calculate waiting batch schedule)
-     1020   REBUILD_TASKS     (rebuild all task queues, sort, swap)
+     1020   CLEAR_TASKS       (clear all task queues)
+     1021   CREATE_TASKS      (create tasks, one batch per scan)
+     1022   SORT_TASKS        (sort all queues)
+     1023   SWAP_TASKS        (swap same-station pairs)
      1030   EXTRACT_WAIT      (extract waiting batch tasks)
      1040   CALC_IDLE         (calculate idle slots)
      2000   FIT_STAGE0        (check pickup fits in idle slot)
@@ -79,6 +82,7 @@ VAR
   (* ── Active batch list for rebuild ── *)
   batch_list    : ARRAY[1..MAX_UNITS] OF INT;
   batch_count   : INT;
+  create_idx    : INT;    (* index into batch_list for per-scan create *)
 
   (* ── Extracted waiting batch tasks ── *)
   w_tasks       : ARRAY[1..30] OF TSK_TASK_T;
@@ -280,24 +284,37 @@ ELSIF phase = 1010 THEN
   next_phase := 1020;
 
 (* ════════════════════════════════════════════════════════════ *)
-(* PHASE 1020: REBUILD_TASKS — rebuild all task queues         *)
-(* Clear, create for all active batches, sort, swap — one tick *)
+(* PHASE 1020: CLEAR_TASKS — clear all task queues             *)
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 1020 THEN
-  (* Clear all task queues *)
   fb_clear();
+  create_idx := 1;
+  next_phase := 1021;
 
-  (* Create tasks for ALL active batches *)
-  FOR bi := 1 TO batch_count DO
-    fb_create_tasks(i_unit := batch_list[bi]);
-  END_FOR;
+(* ════════════════════════════════════════════════════════════ *)
+(* PHASE 1021: CREATE_TASKS — one batch per scan               *)
+(* ════════════════════════════════════════════════════════════ *)
+ELSIF phase = 1021 THEN
+  IF create_idx <= batch_count THEN
+    fb_create_tasks(i_unit := batch_list[create_idx]);
+    create_idx := create_idx + 1;
+    next_phase := 1021;   (* stay until all batches done *)
+  ELSE
+    next_phase := 1022;   (* all batches created → sort *)
+  END_IF;
 
-  (* Sort each queue by start_time *)
+(* ════════════════════════════════════════════════════════════ *)
+(* PHASE 1022: SORT_TASKS — sort all queues by start_time      *)
+(* ════════════════════════════════════════════════════════════ *)
+ELSIF phase = 1022 THEN
   fb_sort(i_trans := 0);
+  next_phase := 1023;
 
-  (* Swap same-station pairs *)
+(* ════════════════════════════════════════════════════════════ *)
+(* PHASE 1023: SWAP_TASKS — swap same-station pairs            *)
+(* ════════════════════════════════════════════════════════════ *)
+ELSIF phase = 1023 THEN
   fb_swap_tasks();
-
   next_phase := 1030;
 
 (* ════════════════════════════════════════════════════════════ *)

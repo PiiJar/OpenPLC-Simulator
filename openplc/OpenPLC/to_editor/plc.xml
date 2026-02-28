@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-28T21:00:43"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-28T21:00:43">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-02-28T21:18:42"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-02-28T21:18:42">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -1580,6 +1580,9 @@ END_IF;]]></xhtml:p>
             <variable name="batch_count">
               <type><INT/></type>
             </variable>
+            <variable name="create_idx">
+              <type><INT/></type>
+            </variable>
             <variable name="w_tasks">
               <type>
                 <array>
@@ -1900,24 +1903,37 @@ ELSIF phase = 1010 THEN
   next_phase := 1020;
 
 (* ════════════════════════════════════════════════════════════ *)
-(* PHASE 1020: REBUILD_TASKS — rebuild all task queues         *)
-(* Clear, create for all active batches, sort, swap — one tick *)
+(* PHASE 1020: CLEAR_TASKS — clear all task queues             *)
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 1020 THEN
-  (* Clear all task queues *)
   fb_clear();
+  create_idx := 1;
+  next_phase := 1021;
 
-  (* Create tasks for ALL active batches *)
-  FOR bi := 1 TO batch_count DO
-    fb_create_tasks(i_unit := batch_list[bi]);
-  END_FOR;
+(* ════════════════════════════════════════════════════════════ *)
+(* PHASE 1021: CREATE_TASKS — one batch per scan               *)
+(* ════════════════════════════════════════════════════════════ *)
+ELSIF phase = 1021 THEN
+  IF create_idx <= batch_count THEN
+    fb_create_tasks(i_unit := batch_list[create_idx]);
+    create_idx := create_idx + 1;
+    next_phase := 1021;   (* stay until all batches done *)
+  ELSE
+    next_phase := 1022;   (* all batches created → sort *)
+  END_IF;
 
-  (* Sort each queue by start_time *)
+(* ════════════════════════════════════════════════════════════ *)
+(* PHASE 1022: SORT_TASKS — sort all queues by start_time      *)
+(* ════════════════════════════════════════════════════════════ *)
+ELSIF phase = 1022 THEN
   fb_sort(i_trans := 0);
+  next_phase := 1023;
 
-  (* Swap same-station pairs *)
+(* ════════════════════════════════════════════════════════════ *)
+(* PHASE 1023: SWAP_TASKS — swap same-station pairs            *)
+(* ════════════════════════════════════════════════════════════ *)
+ELSIF phase = 1023 THEN
   fb_swap_tasks();
-
   next_phase := 1030;
 
 (* ════════════════════════════════════════════════════════════ *)
