@@ -174,14 +174,14 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
         g_event_pending.f[6]  := g_batch[evt_unit].prog_id;
         g_event_pending.f[7]  := g_batch[evt_unit].cur_stage;
         evt_diff := g_time_s - g_station[g_transporter[i].lift_station].change_time;
-        IF evt_diff > LINT#3200 THEN
+        IF evt_diff > LINT#32000 THEN
           g_event_pending.f[8] := 32000;
         ELSE
-          g_event_pending.f[8] := LINT_TO_INT(evt_diff * LINT#10);
+          g_event_pending.f[8] := LINT_TO_INT(evt_diff);
         END_IF;
-        g_event_pending.f[9]  := REAL_TO_INT(g_transporter[i].treatment_time * 10.0);
-        g_event_pending.f[10] := REAL_TO_INT(g_transporter[i].min_time * 10.0);
-        g_event_pending.f[11] := REAL_TO_INT(g_transporter[i].max_time * 10.0);
+        g_event_pending.f[9]  := REAL_TO_INT(g_transporter[i].treatment_time);
+        g_event_pending.f[10] := REAL_TO_INT(g_transporter[i].min_time);
+        g_event_pending.f[11] := REAL_TO_INT(g_transporter[i].max_time);
         g_event_pending.f[12] := 0;
         g_event_pending_valid := TRUE;
       END_IF;

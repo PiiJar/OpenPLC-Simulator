@@ -37,9 +37,9 @@ SELECT
   f7              AS batch_state,      -- 0=not_processed, 1=in_process, 2=processed
   f8              AS batch_program,
   f9              AS target,           -- 0=none,1=loading,2=buffer,3=process,4=unload,5=avoid
-  f10 / 10.0      AS calc_time_s,
-  f11 / 10.0      AS min_time_s,
-  f12 / 10.0      AS max_time_s
+  f10             AS calc_time_s,
+  f11             AS min_time_s,
+  f12             AS max_time_s
 FROM events
 WHERE msg_type = 1;
 
@@ -57,9 +57,26 @@ SELECT
   f5              AS batch_state,
   f6              AS batch_program,
   f7              AS stage,
-  f8 / 10.0       AS actual_time_s,   -- how long unit was at station
-  f9 / 10.0       AS calc_time_s,
-  f10 / 10.0      AS min_time_s,
-  f11 / 10.0      AS max_time_s
+  f8              AS actual_time_s,   -- how long unit was at station (seconds)
+  f9              AS calc_time_s,
+  f10             AS min_time_s,
+  f11             AS max_time_s
 FROM events
 WHERE msg_type = 2;
+
+-- ============================================================
+-- TABLE: sim_log
+-- Simulation lifecycle log (reset, start, stop, etc.)
+-- Used to correlate PLC events with production runs.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS sim_log (
+  id          SERIAL PRIMARY KEY,
+  event       TEXT NOT NULL,           -- 'RESET', 'PRODUCTION_START', 'PRODUCTION_STOP', ...
+  customer    TEXT,
+  plant       TEXT,
+  detail      JSONB,                   -- optional extra data (e.g. queue status)
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_sim_log_created ON sim_log (created_at);
+CREATE INDEX IF NOT EXISTS idx_sim_log_event   ON sim_log (event);

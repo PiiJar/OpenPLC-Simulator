@@ -287,9 +287,9 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
             g_event_pending.f[7]  := g_batch[t_unit].state;
             g_event_pending.f[8]  := g_batch[t_unit].prog_id;
             g_event_pending.f[9]  := g_unit[t_unit].target;
-            g_event_pending.f[10] := REAL_TO_INT(t_calc_time * 10.0);
-            g_event_pending.f[11] := REAL_TO_INT(g_task[ti].queue[1].min_time * 10.0);
-            g_event_pending.f[12] := REAL_TO_INT(g_task[ti].queue[1].max_time * 10.0);
+            g_event_pending.f[10] := REAL_TO_INT(t_calc_time);
+            g_event_pending.f[11] := REAL_TO_INT(g_task[ti].queue[1].min_time);
+            g_event_pending.f[12] := REAL_TO_INT(g_task[ti].queue[1].max_time);
             g_event_pending_valid := TRUE;
           END_IF;
 

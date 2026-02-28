@@ -73,6 +73,7 @@ const PATHS = {
   batches:           () => runtimePath('batches.json'),
   units:             () => runtimePath('units.json'),
   productionSetup:   () => runtimePath('production_setup.json'),
+  productionQueue:   () => runtimePath('production_queue.json'),
   simulationPurpose: () => runtimePath('simulation_purpose.json'),
   movementTimes:     () => runtimePath('movement_times.json'),
 };
@@ -770,6 +771,33 @@ router.post('/production', async (req, res) => {
         simPurpose.updated_at = new Date().toISOString();
         await fs.writeFile(PATHS.simulationPurpose(), JSON.stringify(simPurpose, null, 2), 'utf8');
       } catch { /* non-fatal */ }
+
+      // Build production_queue.json for the dispatcher
+      try {
+        const setup = await readJsonSafe(PATHS.productionSetup(), {});
+        const productionQueue = {
+          start_station: setup.start_station || null,
+          finish_station: setup.finish_station || null,
+          loading_time_s: setup.loading_time_s || 60,
+          batches: created.map(c => ({
+            batch_number: c.batch,
+            program_id: c.program,
+            csv_file: c.file,
+          })),
+          pointer: 0,
+          active: false,
+          dispatched: [],
+          created_at: new Date().toISOString(),
+        };
+        await fs.writeFile(
+          PATHS.productionQueue(),
+          JSON.stringify(productionQueue, null, 2),
+          'utf8'
+        );
+        console.log(`[FILE] production_queue.json created: ${created.length} batches`);
+      } catch (e) {
+        console.error('[FILE] Failed to write production_queue.json:', e);
+      }
 
       res.json({ success: true, createdCount: created.length, created, deletedCount });
     } catch (err) {

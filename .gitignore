@@ -23,3 +23,6 @@ __pycache__/
 
 # Logs
 *.log
+
+# Runtime data (generated during simulation)
+runtime/

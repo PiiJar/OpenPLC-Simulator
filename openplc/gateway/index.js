@@ -28,6 +28,22 @@ const fileRoutes = require('./file_routes');
 // Legacy stub endpoints (sim control, scheduler, etc.)
 const legacyStubs = require('./legacy_stubs');
 
+// Production queue dispatcher
+const dispatcher = require('./production_dispatcher');
+
+// ── Simulation log helper ─────────────────────────────────────────
+async function simLog(event, detail = null) {
+  try {
+    await dbPool.query(
+      `INSERT INTO sim_log (event, customer, plant, detail) VALUES ($1, $2, $3, $4)`,
+      [event, currentCustomer || null, currentPlant || null, detail ? JSON.stringify(detail) : null]
+    );
+    console.log(`[SIM-LOG] ${event} — ${currentCustomer}/${currentPlant}`);
+  } catch (err) {
+    console.error(`[SIM-LOG] Failed to log '${event}': ${err.message}`);
+  }
+}
+
 // --- Configuration ---
 const PLC_HOST = process.env.PLC_HOST || 'localhost';
 const PLC_PORT = parseInt(process.env.PLC_PORT || '502');
@@ -513,6 +529,8 @@ function startPolling() {
       lastTimeSyncMs = now;
     }
     await readPLCState();
+    // Production queue dispatcher — check if next batch should be loaded
+    await dispatcher.tick(plcUnits);
     // Process PLC event queue (read event → insert DB → ack)
     await processEvents(client, dbPool);
   }, POLL_MS);
@@ -1003,6 +1021,13 @@ app.post('/api/reset', async (req, res) => {
     }
 
     res.json({ success: true, stations, tanks, transporters, units, layoutConfig });
+
+    // Log reset event (fire-and-forget, after response)
+    simLog('RESET', {
+      stations_count: stations.length,
+      transporters_count: transporters.length,
+      units_count: units.length,
+    });
   } catch (err) {
     console.error(`[RESET] Error: ${err.message}`);
     res.status(500).json({ success: false, error: err.message });
@@ -1495,17 +1520,48 @@ app.get('/api/plc/status', (req, res) => {
   });
 });
 
-// Production queue control — write g_production_queue to PLC
+// Production queue control — activate/deactivate dispatcher + PLC flag
 app.post('/api/production-queue', async (req, res) => {
   try {
     if (!connected) return res.status(503).json({ error: 'PLC not connected' });
     const value = parseInt(req.body.value) || 0;
+
+    if (value === 1) {
+      // Activate dispatcher — loads queue from production_queue.json
+      const ok = await dispatcher.activate();
+      if (!ok) {
+        return res.status(400).json({ error: 'No production queue found — create production first' });
+      }
+      // Log production start
+      const qs = dispatcher.getStatus();
+      simLog('PRODUCTION_START', {
+        total_batches: qs.total,
+        start_station: qs.start_station,
+        finish_station: qs.finish_station,
+        loading_time_s: qs.loading_time_s,
+      });
+    } else {
+      // Deactivate dispatcher
+      await dispatcher.deactivate();
+      // Log production stop
+      const qs = dispatcher.getStatus();
+      simLog('PRODUCTION_STOP', {
+        dispatched_count: qs.dispatched.length,
+        remaining: qs.remaining,
+      });
+    }
+
     await client.writeRegisters(REG.iw_production_queue, [value]);
     console.log(`[PROD] production_queue set to ${value}`);
     res.json({ success: true, production_queue: value });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Production queue status
+app.get('/api/production-queue/status', (req, res) => {
+  res.json(dispatcher.getStatus());
 });
 
 // PLC Runtime control endpoints
@@ -1569,6 +1625,15 @@ async function main() {
   
   // Check DB connectivity
   checkDb(dbPool);
+
+  // Initialize production dispatcher
+  dispatcher.init({
+    runtimeDir: RUNTIME_ROOT,
+    writeBatchToPLC,
+    writeProgramStageToPLC,
+  });
+  // Try to load existing queue (in case gateway restarts mid-production)
+  await dispatcher.loadQueue();
 
   startPolling();
   
