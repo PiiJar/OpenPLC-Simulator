@@ -395,13 +395,6 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
         ELSIF i = 3 THEN
           upd_loc3(i_unit := sink_unit_id, i_location := g_transporter[i].sink_station);
         END_IF;
-
-        (* Advance batch stage if unit has an active batch *)
-        IF (g_batch[sink_unit_id].batch_code <> 0)
-           AND (g_batch[sink_unit_id].state = IN_PROCESS)
-           AND (g_batch[sink_unit_id].cur_stage < MAX_STAGES) THEN
-          g_batch[sink_unit_id].cur_stage := g_batch[sink_unit_id].cur_stage + 1;
-        END_IF;
       END_IF;
 
       g_transporter[i].phase := 0;

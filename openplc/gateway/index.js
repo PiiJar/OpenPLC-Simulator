@@ -76,6 +76,19 @@ const RUNTIME_ROOT = process.env.RUNTIME_ROOT ||
     ? '/data/runtime'
     : path.join(__dirname, '..', '..', 'runtime'));
 
+// ── Modbus concurrency guard ─────────────────────────────────────
+// modbus-serial does NOT support concurrent calls on the same TCP
+// connection. This simple async-mutex ensures only one operation
+// chain runs at a time. Use: await modbusMutex(async () => { … })
+let _modbusChain = Promise.resolve();
+function modbusMutex(fn) {
+  let release;
+  const ticket = new Promise(res => { release = res; });
+  const prev = _modbusChain;
+  _modbusChain = ticket;
+  return prev.then(() => fn().finally(release));
+}
+
 // Current selection — empty on startup, set by user via RESET
 let currentCustomer = '';
 let currentPlant = '';
@@ -515,24 +528,43 @@ async function writeTimeToPLC() {
 }
 
 // --- Polling loop ---
+// CRITICAL: modbus-serial does NOT support concurrent calls on the same
+// client.  setInterval can fire overlapping ticks when dispatch writes
+// take longer than POLL_MS (e.g. 12 stages × ack = ~1200 ms vs 100 ms
+// interval).  'polling' guard prevents tick stacking; modbusMutex
+// prevents Express-route operations from overlapping with poll ticks.
 let pollTimer = null;
+let polling = false;
+let pausePolling = false;   // set by RESET / other bulk Modbus operations
 function startPolling() {
   pollTimer = setInterval(async () => {
-    if (!connected) {
-      await connectModbus();
-      return;
+    if (polling || pausePolling) return;   // skip if busy or paused
+    polling = true;
+    try {
+      await modbusMutex(async () => {
+        if (!connected) {
+          await connectModbus();
+          return;
+        }
+        // Periodic time sync (default every 60 s, also on first connection)
+        const now = Date.now();
+        if (now - lastTimeSyncMs >= TIME_SYNC_MS) {
+          await writeTimeToPLC();
+          lastTimeSyncMs = now;
+        }
+        await readPLCState();
+        // Production queue dispatcher — only tick when PLC is initialized
+        if (plcMeta.init_done) {
+          await dispatcher.tick(plcUnits);
+        }
+        // Process PLC event queue (read event → insert DB → ack)
+        await processEvents(client, dbPool);
+      });
+    } catch (err) {
+      console.error(`[POLL] tick error: ${err.message}`);
+    } finally {
+      polling = false;
     }
-    // Periodic time sync (default every 60 s, also on first connection)
-    const now = Date.now();
-    if (now - lastTimeSyncMs >= TIME_SYNC_MS) {
-      await writeTimeToPLC();
-      lastTimeSyncMs = now;
-    }
-    await readPLCState();
-    // Production queue dispatcher — check if next batch should be loaded
-    await dispatcher.tick(plcUnits);
-    // Process PLC event queue (read event → insert DB → ack)
-    await processEvents(client, dbPool);
   }, POLL_MS);
 }
 
@@ -754,6 +786,12 @@ app.post('/api/reset', async (req, res) => {
       return res.status(503).json({ success: false, error: 'PLC not connected' });
     }
 
+    // Pause poll loop for the duration of RESET — prevents concurrent
+    // Modbus operations (modbus-serial doesn't support concurrency).
+    pausePolling = true;
+    // Wait for any in-flight poll tick to finish
+    while (polling) await new Promise(r => setTimeout(r, 10));
+
     // --- Step 1: Send clear_all command (cmd=3) ---
     let seq = 1;
     const CFG_BASE = BLOCKS.cfg.start; // auto-generated base address
@@ -924,19 +962,9 @@ app.post('/api/reset', async (req, res) => {
       console.log(`[RESET] Uploaded NTT destinations to PLC`);
     }
 
-    // --- Step 4: Send init command (cmd=2, param=station_count) ---
-    await client.writeRegisters(CFG_BASE + 2, [stations.length]); 
-    await client.writeRegisters(CFG_BASE + 1, [2]);               
-    await client.writeRegisters(CFG_BASE + 0, [seq]);             
-
-    const initAck = await waitForCfgAck(seq, 3000);
-    if (!initAck) {
-      return res.status(504).json({ success: false, error: 'PLC ack timeout for init command' });
-    }
-
     console.log(`[RESET] Uploaded ${stations.length} stations + ${transporters.length} transporters to PLC for ${customer}/${plant}`);
 
-    // --- Step 4: Upload units from unit_setup.json (if exists) ---
+    // --- Step 4: Upload units BEFORE init (state machines still stopped) ---
     const unitSetupFile = path.join(plantPath, 'unit_setup.json');
     let units = [];
     if (fs.existsSync(unitSetupFile)) {
@@ -976,6 +1004,18 @@ app.post('/api/reset', async (req, res) => {
       console.log(`[RESET] No unit_setup.json found, skipping unit upload`);
     }
 
+    // --- Step 5: Send init command LAST (cmd=2, param=station_count) ---
+    // All config + units are in place — only now enable state machines
+    await client.writeRegisters(CFG_BASE + 2, [stations.length]); 
+    await client.writeRegisters(CFG_BASE + 1, [2]);               
+    await client.writeRegisters(CFG_BASE + 0, [seq]);             
+
+    const initAck = await waitForCfgAck(seq, 3000);
+    if (!initAck) {
+      return res.status(504).json({ success: false, error: 'PLC ack timeout for init command' });
+    }
+    console.log(`[RESET] Init done — state machines enabled`);
+
     // Update current selection
     currentCustomer = customer;
     currentPlant = plant;
@@ -1007,7 +1047,14 @@ app.post('/api/reset', async (req, res) => {
     simStartTime = Date.now();
     try {
       await client.writeRegisters(REG.iw_production_queue, [0]);
-      console.log('[RESET] production_queue set to 0');
+      // Deactivate dispatcher and reset queue pointer so next Start re-dispatches
+      await dispatcher.deactivate();
+      if (dispatcher.queue) {
+        dispatcher.queue.pointer = 0;
+        dispatcher.queue.dispatched = [];
+        await dispatcher.saveState();
+      }
+      console.log('[RESET] production_queue set to 0, dispatcher reset');
     } catch (e) {
       console.warn(`[RESET] Could not clear production_queue: ${e.message}`);
     }
@@ -1031,6 +1078,8 @@ app.post('/api/reset', async (req, res) => {
   } catch (err) {
     console.error(`[RESET] Error: ${err.message}`);
     res.status(500).json({ success: false, error: err.message });
+  } finally {
+    pausePolling = false;   // always resume poll loop
   }
 });
 
@@ -1062,33 +1111,26 @@ app.put('/api/units/:id', async (req, res) => {
     if (!connected) return res.status(503).json({ error: 'PLC not connected' });
 
     const { location, status, target } = req.body;
-    const UNIT_BASE = BLOCKS.unit.start; // auto-generated base address
 
-    // Convert string target to INT if needed
-    const targetInt = typeof target === 'string' ? (TARGET_STR_TO_INT[target]  ?? 0) : (target || 0);
+    await modbusMutex(async () => {
+      const UNIT_BASE = BLOCKS.unit.start;
+      const targetInt = typeof target === 'string' ? (TARGET_STR_TO_INT[target]  ?? 0) : (target || 0);
+      await client.writeRegisters(UNIT_BASE + 1, [uid]);
+      await client.writeRegisters(UNIT_BASE + 2, [location || 0]);
+      await client.writeRegisters(UNIT_BASE + 3, [status || 0]);
+      await client.writeRegisters(UNIT_BASE + 4, [targetInt]);
+      unitWriteSeq = (unitWriteSeq % 30000) + 1;
+      console.log(`[UNIT] Writing unit: seq=${unitWriteSeq}, id=${uid}, loc=${location||0}, status=${status||0}, target=${targetInt}`);
+      await client.writeRegisters(UNIT_BASE + 0, [unitWriteSeq]);
+      const ackOk = await waitForUnitAck(unitWriteSeq, 3000);
+      if (!ackOk) throw new Error(`PLC ack timeout for unit ${uid}`);
+      console.log(`[UNIT] Written unit ${uid}: loc=${location}, status=${status}, target=${target}`);
+    });
 
-    // Write data fields first
-    await client.writeRegisters(UNIT_BASE + 1, [uid]);                     // unit_id
-    await client.writeRegisters(UNIT_BASE + 2, [location || 0]);           // location
-    await client.writeRegisters(UNIT_BASE + 3, [status || 0]);             // status
-    await client.writeRegisters(UNIT_BASE + 4, [targetInt]);               // target
-
-    // Trigger with sequence number
-    unitWriteSeq = (unitWriteSeq % 30000) + 1;
-    console.log(`[UNIT] Writing unit: seq=${unitWriteSeq}, id=${uid}, loc=${location||0}, status=${status||0}, target=${targetInt}`);
-    await client.writeRegisters(UNIT_BASE + 0, [unitWriteSeq]);           
-
-    // Wait for PLC ack (unit_ack)
-    const ackOk = await waitForUnitAck(unitWriteSeq, 3000);
-    if (!ackOk) {
-      return res.status(504).json({ error: `PLC ack timeout for unit ${uid}` });
-    }
-
-    console.log(`[UNIT] Written unit ${uid}: loc=${location}, status=${status}, target=${target}`);
     res.json({ ok: true });
   } catch (err) {
     console.error(`[UNIT] Write error: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    res.status(err.message.includes('ack timeout') ? 504 : 500).json({ error: err.message });
   }
 });
 
@@ -1145,6 +1187,30 @@ async function waitForProgAck(expectedSeq, timeoutMs) {
   }
   console.log(`[PROG-ACK] TIMEOUT expecting seq=${expectedSeq}`);
   return false;
+}
+
+/**
+ * Write unit fields to PLC (location, status, target).
+ * @param {number} unitId - 1..10
+ * @param {number} location - station number
+ * @param {number} status - 0=NOT_USED, 1=USED
+ * @param {number|string} target - target enum (int or string like 'to_process')
+ */
+async function writeUnitToPLC(unitId, location, status, target) {
+  const UNIT_BASE = BLOCKS.unit.start;
+  const targetInt = typeof target === 'string' ? (TARGET_STR_TO_INT[target] ?? 0) : (target || 0);
+
+  await client.writeRegisters(UNIT_BASE + 1, [unitId]);
+  await client.writeRegisters(UNIT_BASE + 2, [location || 0]);
+  await client.writeRegisters(UNIT_BASE + 3, [status || 0]);
+  await client.writeRegisters(UNIT_BASE + 4, [targetInt]);
+
+  unitWriteSeq = (unitWriteSeq % 30000) + 1;
+  await client.writeRegisters(UNIT_BASE + 0, [unitWriteSeq]);
+
+  const ack = await waitForUnitAck(unitWriteSeq, 3000);
+  if (!ack) throw new Error(`PLC unit ack timeout (unit=${unitId}, seq=${unitWriteSeq})`);
+  console.log(`[UNIT] Written unit=${unitId}: loc=${location}, status=${status}, target=${targetInt}`);
 }
 
 /**
@@ -1217,23 +1283,25 @@ app.post('/api/batch', async (req, res) => {
       return res.status(400).json({ error: 'unitIndex must be 1..10' });
     }
 
-    // Step 1: Write batch data + program_id (clears all stages)
-    await writeBatchToPLC(unitIndex, batchCode || 0, batchState || 0, programId || 0);
+    await modbusMutex(async () => {
+      // Step 1: Write batch data + program_id (clears all stages)
+      await writeBatchToPLC(unitIndex, batchCode || 0, batchState || 0, programId || 0);
 
-    // Step 2: Write each stage
-    if (Array.isArray(stages)) {
-      for (let i = 0; i < stages.length && i < 30; i++) {
-        const st = stages[i];
-        await writeProgramStageToPLC(
-          unitIndex,
-          i + 1,
-          st.stations || [],
-          st.minTime || 0,
-          st.maxTime || 0,
-          st.calTime || 0
-        );
+      // Step 2: Write each stage
+      if (Array.isArray(stages)) {
+        for (let i = 0; i < stages.length && i < 30; i++) {
+          const st = stages[i];
+          await writeProgramStageToPLC(
+            unitIndex,
+            i + 1,
+            st.stations || [],
+            st.minTime || 0,
+            st.maxTime || 0,
+            st.calTime || 0
+          );
+        }
       }
-    }
+    });
 
     console.log(`[BATCH] Complete: unit=${unitIndex}, prog=${programId}, ${(stages || []).length} stages`);
     res.json({ ok: true, stagesWritten: (stages || []).length });
@@ -1527,6 +1595,10 @@ app.post('/api/production-queue', async (req, res) => {
     const value = parseInt(req.body.value) || 0;
 
     if (value === 1) {
+      // Guard: PLC must be initialized before starting production
+      if (!plcMeta.init_done) {
+        return res.status(409).json({ error: 'PLC not initialized — run RESET first' });
+      }
       // Activate dispatcher — loads queue from production_queue.json
       const ok = await dispatcher.activate();
       if (!ok) {
@@ -1631,6 +1703,7 @@ async function main() {
     runtimeDir: RUNTIME_ROOT,
     writeBatchToPLC,
     writeProgramStageToPLC,
+    writeUnitToPLC,
   });
   // Try to load existing queue (in case gateway restarts mid-production)
   await dispatcher.loadQueue();

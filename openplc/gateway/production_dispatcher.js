@@ -25,6 +25,7 @@ class ProductionDispatcher {
     this.runtimeDir = null;
     this._writeBatch = null;   // writeBatchToPLC(unitIndex, batchCode, batchState, programId)
     this._writeStage = null;   // writeProgramStageToPLC(unitIndex, stageIndex, stations[], min, max, cal)
+    this._writeUnit  = null;   // writeUnitToPLC(unitId, location, status, target)
 
     // Queue state (loaded from / persisted to production_queue.json)
     this.queue = null;
@@ -44,10 +45,11 @@ class ProductionDispatcher {
   /**
    * Inject dependencies. Called once at gateway startup.
    */
-  init({ runtimeDir, writeBatchToPLC, writeProgramStageToPLC }) {
+  init({ runtimeDir, writeBatchToPLC, writeProgramStageToPLC, writeUnitToPLC }) {
     this.runtimeDir = runtimeDir;
     this._writeBatch = writeBatchToPLC;
     this._writeStage = writeProgramStageToPLC;
+    this._writeUnit  = writeUnitToPLC;
   }
 
   // ── Queue persistence ──────────────────────────────────────────
@@ -274,6 +276,14 @@ class ProductionDispatcher {
         batch.batch_number,
         0,                       // NOT_PROCESSED
         batch.program_id
+      );
+
+      // 1b) Set unit target to TO_PROCESS (3)
+      await this._writeUnit(
+        candidate.unit_id,
+        candidate.location,      // keep current location
+        1,                       // USED
+        3                        // TO_PROCESS
       );
 
       // 2) Write every treatment program stage

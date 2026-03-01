@@ -11,7 +11,9 @@
      3. First free station wins
 
    Conditions for creating a task:
-     - Unit has target <> TO_NONE and <> TO_PROCESS
+     - Unit has target <> TO_NONE
+     - TO_PROCESS handled only when batch state = NOT_PROCESSED
+       (routes to loaded-buffer via NTT index 7)
      - Unit is on a station (location >= 100)
      - Covering transporter is idle (phase = 0, active)
      - A free destination station exists in g_ntt
@@ -92,8 +94,15 @@ FOR ui := 1 TO MAX_UNITS DO
   tgt := g_unit[ui].target;
   loc := g_unit[ui].location;
 
-  (* Skip: no target, target is process (handled by schedule), not on station *)
-  IF tgt >= 1 AND tgt <= 5 AND tgt <> 3 AND loc >= 100 THEN
+  (* Skip: no target, not on station.
+     TO_PROCESS(3) is only handled here when batch state = NOT_PROCESSED
+     (loaded unit waiting for processing → route to loaded-buffer). *)
+  IF tgt >= 1 AND tgt <= 5 AND loc >= 100 THEN
+
+    (* TO_PROCESS with batch already IN_PROCESS or later → skip (handled by schedule) *)
+    IF tgt = 3 AND (g_batch[ui].batch_code = 0 OR g_batch[ui].state <> 0) THEN
+      CONTINUE;
+    END_IF;
 
     (* Skip if unit already has a pending task in any queue or is being transported *)
     already := FALSE;
@@ -137,6 +146,7 @@ FOR ui := 1 TO MAX_UNITS DO
 
         (* ── Resolve NTT index ── *)
         (* TO_BUFFER(2) maps to 6/7/8 depending on batch state *)
+        (* TO_PROCESS(3) with NOT_PROCESSED batch → loaded buffer (7) *)
         IF tgt = 2 THEN
           IF g_batch[ui].batch_code = 0 THEN
             ntt_idx := 6;  (* empty buffer — no batch *)
@@ -145,6 +155,8 @@ FOR ui := 1 TO MAX_UNITS DO
           ELSE
             ntt_idx := 7;  (* loaded buffer — batch NOT_PROCESSED or IN_PROCESS *)
           END_IF;
+        ELSIF tgt = 3 THEN
+          ntt_idx := 7;    (* TO_PROCESS + NOT_PROCESSED → loaded buffer *)
         ELSE
           ntt_idx := tgt;  (* other targets use their code directly *)
         END_IF;
