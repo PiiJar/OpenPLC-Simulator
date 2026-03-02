@@ -49,8 +49,8 @@ CSRF=$(curl -s -c /tmp/deploy_cookies.txt http://localhost:8080/login \
   | grep -oP "value='\K[^']+(?='  name='csrf_token')")
 curl -s -b /tmp/deploy_cookies.txt -c /tmp/deploy_cookies.txt \
   -X POST http://localhost:8080/login \
-  --data-urlencode "username=PiiJar" \
-  --data-urlencode "password=!T0s1v41k33!" \
+  --data-urlencode "username=${PLC_WEB_USER:-openplc}" \
+  --data-urlencode "password=${PLC_WEB_PASS:-openplc}" \
   --data-urlencode "csrf_token=$CSRF" \
   -o /dev/null -D /tmp/deploy_headers.txt
 

@@ -17,8 +17,8 @@ services:
       - PLC_PORT=502
       - PLC_API_HOST=openplc
       - PLC_API_PORT=8443
-      - PLC_API_USER=PiiJar
-      - PLC_API_PASS=!T0s1v41k33!
+      - PLC_API_USER=openplc
+      - PLC_API_PASS=openplc
       - API_PORT=3001
       - POLL_MS=100
       - DB_HOST=plc_db
