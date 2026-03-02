@@ -109,11 +109,14 @@ END_TYPE
 
 TYPE BATCH_T :
 STRUCT
-  batch_code : INT;     (* numeric batch code, e.g. 1, 2, 3 *)
-  state      : INT;     (* NOT_PROCESSED=0, IN_PROCESS=1, PROCESSED=2 *)
-  prog_id    : INT;     (* treatment program number *)
-  cur_stage  : INT;     (* current stage number, 0 = not started *)
-  start_time : LINT;    (* batch start time (unix seconds), used for FIFO sort *)
+  batch_code  : INT;     (* numeric batch code — JS: batch_id *)
+  cur_stage   : INT;     (* current stage number, 0 = not started — JS: stage *)
+  state       : INT;     (* NOT_PROCESSED=0, IN_PROCESS=1, PROCESSED=2 *)
+  prog_id     : INT;     (* treatment program number — JS: treatment_program *)
+  start_time  : LINT;    (* batch start time (unix seconds) — JS: start_time *)
+  min_time    : INT;     (* stage 0 minimum time (seconds) *)
+  max_time    : INT;     (* stage 0 maximum time (seconds) *)
+  cal_time    : INT;     (* stage 0 calculated / target time (seconds) *)
 END_STRUCT;
 END_TYPE
 
@@ -329,9 +332,13 @@ STRUCT
   valid      : BOOL;
   programs   : ARRAY[1..10] OF TREATMENT_PROGRAM_T;    (* MAX_UNITS *)
   schedule   : ARRAY[1..10] OF TSK_SCHEDULE_T;          (* MAX_UNITS *)
-  batch_unit : INT;     (* activated batch: unit index *)
-  batch_stage : INT;    (* activated batch: new stage *)
-  time_s     : LINT;    (* activation time (s), unix seconds *)
+  batch_unit       : INT;     (* activated batch: unit index *)
+  batch_stage      : INT;     (* activated batch: new cur_stage *)
+  batch_state      : INT;     (* activated batch: new state (IN_PROCESS=1) *)
+  batch_min_time   : INT;     (* stage 0 min_time for activated batch *)
+  batch_max_time   : INT;     (* stage 0 max_time for activated batch *)
+  batch_cal_time   : INT;     (* stage 0 cal_time for activated batch *)
+  time_s           : LINT;    (* activation time (s), unix seconds *)
 END_STRUCT;
 END_TYPE
 

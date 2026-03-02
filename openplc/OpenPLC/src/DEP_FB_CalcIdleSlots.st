@@ -37,7 +37,7 @@ VAR
   prev_sink : INT;     (* sink station of previous task *)
   gap_start : LINT;
   gap_end   : LINT;
-  HORIZON  : LINT := 1000000000;   (* open-ended future *)
+  HORIZON  : LINT := 9999999999;   (* open-ended future — must exceed max unix timestamp *)
 END_VAR
 
 (* Guard *)

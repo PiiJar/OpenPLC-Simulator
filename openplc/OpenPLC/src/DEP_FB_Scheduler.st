@@ -3,8 +3,8 @@
    ============================================================
    Ported from departureScheduler.js tick()
 
-   Controls batch activation: waiting batches (stage=90) are
-   checked against idle slots to see if their tasks fit into
+   Controls batch activation: waiting batches (state=NOT_PROCESSED)
+   are checked against idle slots to see if their tasks fit into
    the existing transporter schedule without conflicts.
 
    Uses the "wrapper approach": works directly on globals while
@@ -74,7 +74,7 @@ VAR
   next_phase  : INT;
 
   (* ── Waiting batch management ── *)
-  waiting_list  : ARRAY[1..MAX_UNITS] OF INT;  (* unit indices with stage=90 *)
+  waiting_list  : ARRAY[1..MAX_UNITS] OF INT;  (* unit indices with state=NOT_PROCESSED *)
   waiting_cnt   : INT;
   cur_wait_idx  : INT;
   cur_wait_unit : INT;
@@ -125,6 +125,8 @@ VAR
   fb_sort         : STC_FB_SortTaskQueue;
   fb_collect_all  : STC_FB_CollectActiveBatches;
   fb_collect_wait : STC_FB_CollectActiveBatches;
+  fb_travel_s0_to   : STC_FB_CalcHorizontalTravel;  (* stage 0: prev sink → pickup *)
+  fb_travel_s0_from : STC_FB_CalcHorizontalTravel;  (* stage 0: sink → next lift *)
 
   (* ── Temp variables ── *)
   ti : INT;  qi : INT;  bi : INT;  ui : INT;  si : INT;
@@ -142,6 +144,19 @@ VAR
   old_cal       : INT;
   new_cal       : INT;
   max_cal       : INT;
+
+  (* ── Stage 0 inline fit variables (matches JS inline code) ── *)
+  s0_slot_si       : INT;
+  s0_slot_cnt      : INT;
+  s0_slot_start    : LINT;
+  s0_slot_end      : LINT;
+  s0_travel_to     : REAL;     (* travel time: prev sink → pickup *)
+  s0_travel_from   : REAL;     (* travel time: sink → next lift *)
+  s0_earliest      : LINT;     (* earliest pickup = max(slot.start, now) + travel *)
+  s0_task_dur      : LINT;
+  s0_slot_fitted   : BOOL;
+  s0_from_stn      : INT;
+  s0_to_stn        : INT;
 
   (* ── G02: Backward chaining variables ── *)
   remaining_need   : REAL;
@@ -192,7 +207,7 @@ ELSIF phase = 100 THEN
   (* Snapshot globals → sandbox (backup for rollback) *)
   fb_sandbox(i_cmd := 1);
 
-  (* Find waiting batches (cur_stage = 90) *)
+  (* Find waiting batches (state = NOT_PROCESSED) *)
   fb_collect_wait(i_mode := 1);
   waiting_cnt := fb_collect_wait.o_count;
   FOR ui := 1 TO waiting_cnt DO
@@ -362,8 +377,11 @@ ELSIF phase = 1040 THEN
   next_phase := 2000;
 
 (* ════════════════════════════════════════════════════════════ *)
-(* PHASE 2000: FIT_STAGE0 — check pickup from loading station *)
-(* Uses DEP_FB_FitTaskToSlot to fit the virtual pickup task    *)
+(* PHASE 2000: FIT_STAGE0 — inline idle-slot fit for pickup    *)
+(* Matches JS departureScheduler.js stage 0 inline code:       *)
+(*   earliestPickup = max(slot.start, currentTimeSec) + travel  *)
+(*   NO margin in earliest (unlike fb_fit which adds margin).   *)
+(*   Stage 0 delay NEVER triggers RECALC — only stage 1+ does. *)
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 2000 THEN
   loading_stn := g_unit[cur_wait_unit].location;
@@ -375,7 +393,6 @@ ELSIF phase = 2000 THEN
   END_IF;
 
   IF first_stn = 0 THEN
-    (* No valid schedule → reject *)
     next_phase := 9000;
   ELSIF loading_stn < 100 THEN
     (* ★ G07: Batch is on transporter — use transporter's current_station *)
@@ -383,7 +400,6 @@ ELSIF phase = 2000 THEN
       sched_trans := loading_stn;
       loading_stn := g_transporter[loading_stn].current_station;
       IF loading_stn < 100 THEN
-        (* Transporter has no valid station → reject *)
         next_phase := 9000;
       END_IF;
     ELSE
@@ -396,79 +412,110 @@ ELSIF phase = 2000 THEN
       END_IF;
     END_IF;
   ELSE
-    (* Find transporter for pickup *)
     fb_find_trans(i_lift_stn := loading_stn, i_sink_stn := first_stn);
     sched_trans := fb_find_trans.o_trans_id;
     IF sched_trans = 0 THEN sched_trans := 1; END_IF;
   END_IF;
 
-  (* Common path: if not rejected, calculate xfer/overlap/fit *)
   IF next_phase <> 9000 THEN
     (* Calculate transfer time for pickup *)
     fb_xfer(i_from_stn := loading_stn, i_to_stn := first_stn, i_trans := sched_trans);
     xfer_dur := fb_xfer.o_total_s;
     IF xfer_dur < 1.0 THEN xfer_dur := 1.0; END_IF;
 
-    (* ★ G10: Stage 0 overlap check — same as JS *)
-    fb_ovlp_delay(
-      i_lift_stn   := loading_stn,
-      i_sink_stn   := first_stn,
-      i_trans_id   := sched_trans,
-      i_task_start := sched_base_time,
-      i_task_end   := sched_base_time + REAL_TO_LINT(xfer_dur),
-      i_margin_s   := CONFLICT_MARGIN_S
-    );
-    stage0_ovlp := fb_ovlp_delay.o_delay_s;
+    s0_task_dur := REAL_TO_LINT(xfer_dur);
+    s0_slot_fitted := FALSE;
+    s0_slot_cnt := g_dep_idle_slot[sched_trans].count;
+    stage0_delay := 0.0;
 
-    (* Try fitting pickup into idle slots *)
-    fb_fit(
-      i_lift_stn     := loading_stn,
-      i_sink_stn     := first_stn,
-      i_trans_id     := sched_trans,
-      i_task_start   := sched_base_time,
-      i_task_end     := sched_base_time + REAL_TO_LINT(xfer_dur),
-      i_shift_s      := stage0_ovlp,
-      i_calc_time_s  := 0.0,
-      i_max_time_s   := 2.0 * MAX_INIT_WAIT_S,
-      i_flex_factor  := FLEX_FACTOR,
-      i_margin_s     := MARGIN_S
-    );
+    (* ── Inline idle-slot scan (matches JS stage 0 logic) ── *)
+    FOR s0_slot_si := 1 TO DEP_MAX_IDLE_SLOTS DO
+      IF s0_slot_si > s0_slot_cnt THEN EXIT; END_IF;
 
-    IF fb_fit.o_result.fits THEN
-      (* ★ G11: Trim idle slot after successful stage 0 fit *)
-      IF fb_fit.o_result.slot_idx >= 1 AND fb_fit.o_result.slot_idx <= DEP_MAX_IDLE_SLOTS THEN
-        g_dep_idle_slot[sched_trans].slots[fb_fit.o_result.slot_idx].start_time :=
-          fb_fit.o_result.task_end_s;
-      END_IF;
-
-      stage0_delay := fb_fit.o_result.delay_s + stage0_ovlp;
-
-      (* ★ G04: Record stage 0 delay but CONTINUE to stage 1+ (like JS) *)
-      IF stage0_delay > MARGIN_S THEN
-        stage0_pending_delay := stage0_delay;
-        sched_base_time := sched_base_time + REAL_TO_LINT(stage0_delay);
-      ELSE
-        stage0_pending_delay := 0.0;
-      END_IF;
-
-      (* Proceed to stage 1+ regardless of stage 0 delay *)
-      IF w_task_cnt = 0 THEN
-        IF stage0_pending_delay > MARGIN_S THEN
-          (* Only stage 0 delay, no more tasks → apply delay and recalc *)
-          delay_stage  := 0;
-          delay_amount := stage0_pending_delay;
-          delay_target := 0;
-          next_phase   := 3000;
-        ELSE
-          next_phase := 8000;  (* No more tasks → ACTIVATE *)
+      s0_slot_start := g_dep_idle_slot[sched_trans].slots[s0_slot_si].start_time;
+      s0_slot_end   := g_dep_idle_slot[sched_trans].slots[s0_slot_si].end_time;
+      IF s0_slot_end > i_time_s THEN
+        (* Travel: prev task sink → pickup station (JS: travelToPickup) *)
+        s0_from_stn := g_dep_idle_slot[sched_trans].slots[s0_slot_si].lift_station;
+        s0_travel_to := 0.0;
+        IF s0_from_stn > 0 AND s0_from_stn <> loading_stn THEN
+          fb_travel_s0_to(i_from_stn := s0_from_stn, i_to_stn := loading_stn, i_trans := sched_trans);
+          s0_travel_to := fb_travel_s0_to.o_travel_s;
         END_IF;
+
+        (* JS: earliestPickup = max(slot.start, currentTimeSec) + travelToPickup *)
+        IF s0_slot_start > i_time_s THEN
+          s0_earliest := s0_slot_start + REAL_TO_LINT(s0_travel_to);
+        ELSE
+          s0_earliest := i_time_s + REAL_TO_LINT(s0_travel_to);
+        END_IF;
+
+        (* Travel: sink → next task lift (JS: travelFromSink) *)
+        s0_to_stn := g_dep_idle_slot[sched_trans].slots[s0_slot_si].sink_station;
+        s0_travel_from := 0.0;
+        IF s0_to_stn > 0 AND s0_to_stn <> first_stn THEN
+          fb_travel_s0_from(i_from_stn := first_stn, i_to_stn := s0_to_stn, i_trans := sched_trans);
+          s0_travel_from := fb_travel_s0_from.o_travel_s;
+        END_IF;
+
+        (* JS: slotEnd = slot.nextTask ? slot.end - travelFromSink - conflictMargin : slot.end *)
+        IF s0_to_stn > 0 THEN
+          s0_slot_end := s0_slot_end - REAL_TO_LINT(s0_travel_from + CONFLICT_MARGIN_S);
+        END_IF;
+
+        (* ★ G10: Overlap check for stage 0 *)
+        fb_ovlp_delay(
+          i_lift_stn   := loading_stn,
+          i_sink_stn   := first_stn,
+          i_trans_id   := sched_trans,
+          i_task_start := s0_earliest,
+          i_task_end   := s0_earliest + s0_task_dur,
+          i_margin_s   := CONFLICT_MARGIN_S
+        );
+        IF fb_ovlp_delay.o_delay_s > 0.0 THEN
+          s0_earliest := s0_earliest + REAL_TO_LINT(fb_ovlp_delay.o_delay_s);
+        END_IF;
+
+        (* Does the task fit? *)
+        IF s0_earliest + s0_task_dur <= s0_slot_end THEN
+          (* JS: stage0Delay = effectiveStart - task.task_start_time *)
+          stage0_delay := LINT_TO_REAL(s0_earliest - sched_base_time);
+          IF stage0_delay < 0.0 THEN stage0_delay := 0.0; END_IF;
+
+          (* maxInitialWaitS check *)
+          IF stage0_delay <= MAX_INIT_WAIT_S THEN
+            s0_slot_fitted := TRUE;
+
+            (* ★ G11: Trim idle slot *)
+            g_dep_idle_slot[sched_trans].slots[s0_slot_si].start_time :=
+              s0_earliest + s0_task_dur;
+
+            (* Record stage 0 delay — shift sched_base_time for stage 1+ *)
+            IF stage0_delay > MARGIN_S THEN
+              stage0_pending_delay := stage0_delay;
+              sched_base_time := sched_base_time + REAL_TO_LINT(stage0_delay);
+            ELSE
+              stage0_pending_delay := 0.0;
+            END_IF;
+
+            EXIT;  (* Found a fitting slot *)
+          END_IF;
+        END_IF;
+      END_IF;
+    END_FOR;
+
+    IF NOT s0_slot_fitted THEN
+      (* Stage 0 doesn't fit any slot → REJECT *)
+      next_phase := 9000;
+    ELSE
+      (* JS: stage 0 delay NEVER triggers RECALC alone.
+         continue → proceed to stage 1+ tasks. *)
+      IF w_task_cnt = 0 THEN
+        next_phase := 8000;    (* No stage 1+ → ACTIVATE *)
       ELSE
         cur_task_idx := 1;
         next_phase := 2001;    (* Continue to stage 1+ fit *)
       END_IF;
-    ELSE
-      (* Stage 0 doesn't fit → REJECT this batch *)
-      next_phase := 9000;
     END_IF;
   END_IF;
 
@@ -477,16 +524,10 @@ ELSIF phase = 2000 THEN
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 2001 THEN
   IF cur_task_idx > w_task_cnt THEN
-    (* ★ G04: All stage 1+ tasks fit — check if stage 0 delay is pending *)
-    IF stage0_pending_delay > MARGIN_S THEN
-      (* Stage 0 delay recorded, no stage 1+ delays → apply and RECALC *)
-      delay_stage  := 0;
-      delay_amount := stage0_pending_delay;
-      delay_target := 0;
-      next_phase   := 3000;
-    ELSE
-      next_phase := 8000;  (* All fit → ACTIVATE *)
-    END_IF;
+    (* All stage 1+ tasks fit → ACTIVATE.
+       Stage 0 delay (if any) was already applied to sched_base_time
+       in phase 2000. TSK will recalculate after activation. *)
+    next_phase := 8000;
   ELSE
     (* Get current task data *)
     si := w_tasks[cur_task_idx].stage;
@@ -626,10 +667,7 @@ ELSIF phase = 3000 THEN
   IF fit_round > MAX_FIT_ROUNDS THEN
     next_phase := 9000;
   ELSE
-    IF delay_target = 0 THEN
-      (* Stage 0 delay: shift base time (handled in FIT_STAGE0, shouldn't reach here) *)
-      sched_base_time := sched_base_time + REAL_TO_LINT(delay_amount);
-    ELSIF delay_target = 1 THEN
+    IF delay_target = 1 THEN
       (* Program stage delay: increase cal_time *)
       prog_idx := delay_stage;
       IF prog_idx >= 1 AND prog_idx <= 30 THEN
@@ -656,7 +694,15 @@ ELSIF phase = 8000 THEN
     g_dep_pending.schedule[ui] := g_schedule[ui];
   END_FOR;
   g_dep_pending.batch_unit  := cur_wait_unit;
-  g_dep_pending.batch_stage := 0;    (* 90 → 0 *)
+  g_dep_pending.batch_stage := 0;    (* cur_stage = 0, JS: batch.stage = 0 *)
+  g_dep_pending.batch_state := 1;    (* NOT_PROCESSED → IN_PROCESS *)
+  (* Stage 0 times — same naming as PROGRAM_STAGE_T: min_time, max_time, cal_time *)
+  g_dep_pending.batch_cal_time  := REAL_TO_INT(stage0_pending_delay);
+  g_dep_pending.batch_min_time  := REAL_TO_INT(stage0_pending_delay);
+  g_dep_pending.batch_max_time  := REAL_TO_INT(2.0 * stage0_pending_delay);
+  IF g_dep_pending.batch_max_time < g_dep_pending.batch_cal_time THEN
+    g_dep_pending.batch_max_time := g_dep_pending.batch_cal_time;
+  END_IF;
   g_dep_pending.time_s      := i_time_s;
   g_dep_pending.valid        := TRUE;
 

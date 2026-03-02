@@ -831,8 +831,10 @@ VAR
   main_sched   : STC_FB_MainScheduler;
   run_tasks    : SIM_FB_RunTasks;
   calibrate    : STC_FB_Calibrate;
+  calc_move    : STC_FB_CalcMoveTimes;
   evt_queue    : STC_FB_EventQueue;
   cal_cmd      : INT := 0;
+  cal_load_run : BOOL := FALSE;  (* one-shot trigger for calc_move *)
   (* Time-keeping vars *)
   time_hi        : LINT;
   time_lo        : LINT;
@@ -967,6 +969,29 @@ IF iw_cfg_seq <> last_cfg_seq THEN
       g_ntt[j].target[k].fallback_stations[5] := iw_cfg_d4;
     END_IF;
 
+  ELSIF iw_cfg_cmd = 11 THEN
+    (* --- Load kinematic params for one transporter into g_cal --- *)
+    (* param = tid (1..3)
+       d0 = lift_wet_s × 100   d1 = sink_wet_s × 100
+       d2 = lift_dry_s × 100   d3 = sink_dry_s × 100
+       d4 = x_accel_s × 100    d5 = x_decel_s × 100
+       d6 = x_max_mm_s (integer, mm/s) *)
+    j := iw_cfg_param;
+    IF (j >= 1) AND (j <= 3) THEN
+      g_cal[j].lift_wet_s := INT_TO_REAL(iw_cfg_d0) / 100.0;
+      g_cal[j].sink_wet_s := INT_TO_REAL(iw_cfg_d1) / 100.0;
+      g_cal[j].lift_dry_s := INT_TO_REAL(iw_cfg_d2) / 100.0;
+      g_cal[j].sink_dry_s := INT_TO_REAL(iw_cfg_d3) / 100.0;
+      g_cal[j].x_accel_s  := INT_TO_REAL(iw_cfg_d4) / 100.0;
+      g_cal[j].x_decel_s  := INT_TO_REAL(iw_cfg_d5) / 100.0;
+      g_cal[j].x_max_mm_s := INT_TO_REAL(iw_cfg_d6);
+    END_IF;
+
+  ELSIF iw_cfg_cmd = 12 THEN
+    (* --- Compute g_move from loaded g_cal kinematic params --- *)
+    (* No params needed — computes for all transporters with valid g_cal *)
+    cal_load_run := TRUE;
+
   ELSIF iw_cfg_cmd = 2 THEN
     (* --- Finish init: all config uploaded, init transporter states --- *)
     g_station_count := iw_cfg_param;
@@ -1006,6 +1031,12 @@ END_IF;
    MAIN TRANSPORT CYCLE — only runs when init_done
    ============================================================ *)
 IF init_done THEN
+
+(* ── Compute g_move from loaded kinematic params (one-shot) ── *)
+calc_move(i_run := cal_load_run);
+IF cal_load_run THEN
+  cal_load_run := FALSE;
+END_IF;
 
 (* Calculate transporter working areas (X-limits) every cycle *)
 twa_calc();
@@ -1474,10 +1505,11 @@ qw_sched_u3_stage_cnt := g_schedule[3].stage_count;
 qw_sched_u4_stage_cnt := g_schedule[4].stage_count;
 qw_sched_u5_stage_cnt := g_schedule[5].stage_count;
 qw_sched_u6_stage_cnt := g_schedule[6].stage_count;
-qw_sched_u7_stage_cnt := g_schedule[7].stage_count;
-qw_sched_u8_stage_cnt := g_schedule[8].stage_count;
-qw_sched_u9_stage_cnt := g_schedule[9].stage_count;
-qw_sched_u10_stage_cnt := g_schedule[10].stage_count;
+(* DEBUG: DEP phase + pending valid for activation diagnosis *)
+qw_sched_u7_stage_cnt := main_sched.o_dep_phase;
+qw_sched_u8_stage_cnt := main_sched.o_tsk_phase;
+IF g_dep_pending.valid THEN qw_sched_u9_stage_cnt := 1; ELSE qw_sched_u9_stage_cnt := 0; END_IF;
+qw_sched_u10_stage_cnt := g_batch[1].state;
 (* === Per-transporter task queue (g_task) — count + 10 task slots === *)
 qw_tq1_count := g_task[1].count;
 qw_tq1_q1_unit := g_task[1].queue[1].unit;

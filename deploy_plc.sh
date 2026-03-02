@@ -82,9 +82,13 @@ docker exec -w "$PLC_HOME" "$CONTAINER" \
   bash scripts/compile_program.sh "$ACTIVE_PROG" 2>&1
 echo ""
 
-# ─── Step 5: Start PLC runtime ───
+# ─── Step 5: Restart PLC runtime ───
 echo ""
-echo "═══ Step 5: Start PLC runtime ═══"
+echo "═══ Step 5: Restart PLC runtime ═══"
+# Stop first (in case already running with old binary)
+curl -s -b /tmp/deploy_cookies.txt http://localhost:8080/stop_plc -o /dev/null
+sleep 2
+# Start with newly compiled binary
 curl -s -b /tmp/deploy_cookies.txt http://localhost:8080/start_plc -o /dev/null
 sleep 2
 

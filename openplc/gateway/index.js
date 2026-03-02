@@ -1042,6 +1042,18 @@ app.post('/api/reset', async (req, res) => {
       console.warn(`[RESET] Could not copy plant files to runtime: ${cpErr.message}`);
     }
 
+    // Auto-load saved calibration data into PLC (if movement_times.json exists)
+    try {
+      const calResult = await loadCalibrationToPLC(plantPath);
+      if (calResult.ok) {
+        console.log(`[RESET] Calibration loaded for ${calResult.transporters} transporters`);
+      } else {
+        console.log(`[RESET] No calibration to load (${calResult.reason})`);
+      }
+    } catch (calErr) {
+      console.warn(`[RESET] Calibration load failed: ${calErr.message}`);
+    }
+
     // Reset simulation timer and production queue
     simRunning = true;
     simStartTime = Date.now();
@@ -1545,6 +1557,96 @@ app.post('/api/calibrate/save', async (req, res) => {
     res.json({ ok: true, path: outPath, transporters: Object.keys(movementTimes).length });
   } catch (err) {
     console.error(`[CAL] Save error: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Load saved calibration data into PLC ──────────────────────────
+// Reads movement_times.json kinematic_params and sends to PLC via
+// cfg_cmd=11 (kinematic params per transporter) + cfg_cmd=12 (compute g_move).
+// Returns { ok, transporters } or throws on error.
+async function loadCalibrationToPLC(plantPath) {
+  const mtFile = path.join(plantPath, 'movement_times.json');
+  if (!fs.existsSync(mtFile)) {
+    return { ok: false, reason: 'no_file' };
+  }
+
+  const mtData = JSON.parse(fs.readFileSync(mtFile, 'utf8'));
+  const CFG_BASE = BLOCKS.cfg.start;
+  let seq = (await readCfgSeq()) + 1;
+  let loadedCount = 0;
+
+  for (const [key, tData] of Object.entries(mtData)) {
+    const tid = tData.id || parseInt(key.replace('transporter_', ''), 10);
+    if (!tid || tid < 1 || tid > 3) continue;
+
+    const kp = tData.kinematic_params;
+    if (!kp || !kp.x_max_mm_s || kp.x_max_mm_s < 1) continue;
+
+    // cfg_cmd=11: write kinematic params to g_cal[tid]
+    // d0=lift_wet×100  d1=sink_wet×100  d2=lift_dry×100  d3=sink_dry×100
+    // d4=x_accel×100   d5=x_decel×100   d6=x_max_mm_s
+    await client.writeRegisters(CFG_BASE + 3, [
+      Math.round((kp.lift_wet_s || 0) * 100),
+      Math.round((kp.sink_wet_s || 0) * 100),
+      Math.round((kp.lift_dry_s || 0) * 100),
+      Math.round((kp.sink_dry_s || 0) * 100),
+      Math.round((kp.x_accel_s || 0) * 100),
+      Math.round((kp.x_decel_s || 0) * 100),
+      Math.round(kp.x_max_mm_s || 0)
+    ]);
+    await client.writeRegisters(CFG_BASE + 2, [tid]);
+    await client.writeRegisters(CFG_BASE + 1, [11]);
+    await client.writeRegisters(CFG_BASE + 0, [seq]);
+    if (!await waitForCfgAck(seq, 2000)) {
+      throw new Error(`PLC ack timeout for calibration load T${tid} (seq=${seq})`);
+    }
+    console.log(`[CAL-LOAD] T${tid} kinematic params loaded: vm=${kp.x_max_mm_s} ta=${kp.x_accel_s} td=${kp.x_decel_s}`);
+    seq++;
+    loadedCount++;
+  }
+
+  if (loadedCount === 0) {
+    return { ok: false, reason: 'no_valid_transporters' };
+  }
+
+  // cfg_cmd=12: trigger g_move computation from loaded params
+  await client.writeRegisters(CFG_BASE + 3, [0, 0, 0, 0, 0, 0, 0]);
+  await client.writeRegisters(CFG_BASE + 2, [0]);
+  await client.writeRegisters(CFG_BASE + 1, [12]);
+  await client.writeRegisters(CFG_BASE + 0, [seq]);
+  if (!await waitForCfgAck(seq, 2000)) {
+    throw new Error(`PLC ack timeout for g_move computation (seq=${seq})`);
+  }
+  console.log(`[CAL-LOAD] g_move computed for ${loadedCount} transporters`);
+
+  return { ok: true, transporters: loadedCount };
+}
+
+// POST /api/calibrate/load — load saved calibration into PLC
+app.post('/api/calibrate/load', async (req, res) => {
+  try {
+    if (!connected) return res.status(503).json({ error: 'PLC not connected' });
+    if (!currentCustomer || !currentPlant) {
+      return res.status(400).json({ error: 'No customer/plant selected' });
+    }
+    if (!plcMeta.init_done) {
+      return res.status(409).json({ error: 'PLC not initialized — run RESET first' });
+    }
+
+    const plantPath = getCurrentCustomerPath();
+    const result = await modbusMutex(() => loadCalibrationToPLC(plantPath));
+
+    if (!result.ok) {
+      if (result.reason === 'no_file') {
+        return res.status(404).json({ error: 'No movement_times.json found in customer folder' });
+      }
+      return res.status(400).json({ error: result.reason });
+    }
+
+    res.json({ ok: true, transporters: result.transporters });
+  } catch (err) {
+    console.error(`[CAL-LOAD] Error: ${err.message}`);
     res.status(500).json({ error: err.message });
   }
 });

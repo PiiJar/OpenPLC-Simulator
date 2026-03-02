@@ -287,7 +287,12 @@ ELSIF phase = 10100 THEN
       g_schedule[ui] := g_dep_pending.schedule[ui];
     END_FOR;
     IF g_dep_pending.batch_unit >= 1 AND g_dep_pending.batch_unit <= MAX_UNITS THEN
-      g_batch[g_dep_pending.batch_unit].cur_stage := g_dep_pending.batch_stage;
+      g_batch[g_dep_pending.batch_unit].cur_stage   := g_dep_pending.batch_stage;
+      g_batch[g_dep_pending.batch_unit].state        := g_dep_pending.batch_state;
+      g_batch[g_dep_pending.batch_unit].start_time   := g_dep_pending.time_s;
+      g_batch[g_dep_pending.batch_unit].min_time     := g_dep_pending.batch_min_time;
+      g_batch[g_dep_pending.batch_unit].max_time     := g_dep_pending.batch_max_time;
+      g_batch[g_dep_pending.batch_unit].cal_time     := g_dep_pending.batch_cal_time;
     END_IF;
     g_dep_pending.valid := FALSE;
     (* Full recalculation with new data *)

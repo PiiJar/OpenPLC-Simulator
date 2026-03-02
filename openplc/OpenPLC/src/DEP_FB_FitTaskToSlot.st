@@ -119,9 +119,9 @@ FOR si := 1 TO DEP_MAX_IDLE_SLOTS DO
   END_IF;
 
   (* Latest end = slot_end - travel_from - margin *)
-  IF slot_end > LINT#100000000 THEN
+  IF slot_end > LINT#9000000000 THEN
     (* Open-ended slot *)
-    latest := LINT#100000000;
+    latest := LINT#9000000000;
   ELSE
     latest := slot_end - REAL_TO_LINT(travel_from + i_margin_s);
   END_IF;

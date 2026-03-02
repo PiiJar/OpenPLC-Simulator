@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-01T18:53:22"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-01T18:53:22">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-02T13:05:48"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-02T13:05:48">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -267,17 +267,26 @@
             <variable name="batch_code">
               <type><INT/></type>
             </variable>
+            <variable name="cur_stage">
+              <type><INT/></type>
+            </variable>
             <variable name="state">
               <type><INT/></type>
             </variable>
             <variable name="prog_id">
               <type><INT/></type>
             </variable>
-            <variable name="cur_stage">
-              <type><INT/></type>
-            </variable>
             <variable name="start_time">
               <type><LINT/></type>
+            </variable>
+            <variable name="min_time">
+              <type><INT/></type>
+            </variable>
+            <variable name="max_time">
+              <type><INT/></type>
+            </variable>
+            <variable name="cal_time">
+              <type><INT/></type>
             </variable>
           </struct>
         </baseType>
@@ -731,6 +740,18 @@
             <variable name="batch_stage">
               <type><INT/></type>
             </variable>
+            <variable name="batch_state">
+              <type><INT/></type>
+            </variable>
+            <variable name="batch_min_time">
+              <type><INT/></type>
+            </variable>
+            <variable name="batch_max_time">
+              <type><INT/></type>
+            </variable>
+            <variable name="batch_cal_time">
+              <type><INT/></type>
+            </variable>
             <variable name="time_s">
               <type><LINT/></type>
             </variable>
@@ -912,7 +933,7 @@ END_IF;]]></xhtml:p>
             </variable>
             <variable name="HORIZON">
               <type><LINT/></type>
-              <initialValue><simpleValue value="1000000000"/></initialValue>
+              <initialValue><simpleValue value="9999999999"/></initialValue>
             </variable>
           </localVars>
         </interface>
@@ -1206,9 +1227,9 @@ FOR si := 1 TO DEP_MAX_IDLE_SLOTS DO
   END_IF;
 
   (* Latest end = slot_end - travel_from - margin *)
-  IF slot_end > LINT#100000000 THEN
+  IF slot_end > LINT#9000000000 THEN
     (* Open-ended slot *)
-    latest := LINT#100000000;
+    latest := LINT#9000000000;
   ELSE
     latest := slot_end - REAL_TO_LINT(travel_from + i_margin_s);
   END_IF;
@@ -1689,6 +1710,12 @@ END_IF;]]></xhtml:p>
             <variable name="fb_collect_wait">
               <type><derived name="STC_FB_CollectActiveBatches"/></type>
             </variable>
+            <variable name="fb_travel_s0_to">
+              <type><derived name="STC_FB_CalcHorizontalTravel"/></type>
+            </variable>
+            <variable name="fb_travel_s0_from">
+              <type><derived name="STC_FB_CalcHorizontalTravel"/></type>
+            </variable>
             <variable name="ti">
               <type><INT/></type>
             </variable>
@@ -1732,6 +1759,39 @@ END_IF;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="max_cal">
+              <type><INT/></type>
+            </variable>
+            <variable name="s0_slot_si">
+              <type><INT/></type>
+            </variable>
+            <variable name="s0_slot_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="s0_slot_start">
+              <type><LINT/></type>
+            </variable>
+            <variable name="s0_slot_end">
+              <type><LINT/></type>
+            </variable>
+            <variable name="s0_travel_to">
+              <type><REAL/></type>
+            </variable>
+            <variable name="s0_travel_from">
+              <type><REAL/></type>
+            </variable>
+            <variable name="s0_earliest">
+              <type><LINT/></type>
+            </variable>
+            <variable name="s0_task_dur">
+              <type><LINT/></type>
+            </variable>
+            <variable name="s0_slot_fitted">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="s0_from_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="s0_to_stn">
               <type><INT/></type>
             </variable>
             <variable name="remaining_need">
@@ -1811,7 +1871,7 @@ ELSIF phase = 100 THEN
   (* Snapshot globals → sandbox (backup for rollback) *)
   fb_sandbox(i_cmd := 1);
 
-  (* Find waiting batches (cur_stage = 90) *)
+  (* Find waiting batches (state = NOT_PROCESSED) *)
   fb_collect_wait(i_mode := 1);
   waiting_cnt := fb_collect_wait.o_count;
   FOR ui := 1 TO waiting_cnt DO
@@ -1981,8 +2041,11 @@ ELSIF phase = 1040 THEN
   next_phase := 2000;
 
 (* ════════════════════════════════════════════════════════════ *)
-(* PHASE 2000: FIT_STAGE0 — check pickup from loading station *)
-(* Uses DEP_FB_FitTaskToSlot to fit the virtual pickup task    *)
+(* PHASE 2000: FIT_STAGE0 — inline idle-slot fit for pickup    *)
+(* Matches JS departureScheduler.js stage 0 inline code:       *)
+(*   earliestPickup = max(slot.start, currentTimeSec) + travel  *)
+(*   NO margin in earliest (unlike fb_fit which adds margin).   *)
+(*   Stage 0 delay NEVER triggers RECALC — only stage 1+ does. *)
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 2000 THEN
   loading_stn := g_unit[cur_wait_unit].location;
@@ -1994,7 +2057,6 @@ ELSIF phase = 2000 THEN
   END_IF;
 
   IF first_stn = 0 THEN
-    (* No valid schedule → reject *)
     next_phase := 9000;
   ELSIF loading_stn < 100 THEN
     (* ★ G07: Batch is on transporter — use transporter's current_station *)
@@ -2002,7 +2064,6 @@ ELSIF phase = 2000 THEN
       sched_trans := loading_stn;
       loading_stn := g_transporter[loading_stn].current_station;
       IF loading_stn < 100 THEN
-        (* Transporter has no valid station → reject *)
         next_phase := 9000;
       END_IF;
     ELSE
@@ -2015,79 +2076,110 @@ ELSIF phase = 2000 THEN
       END_IF;
     END_IF;
   ELSE
-    (* Find transporter for pickup *)
     fb_find_trans(i_lift_stn := loading_stn, i_sink_stn := first_stn);
     sched_trans := fb_find_trans.o_trans_id;
     IF sched_trans = 0 THEN sched_trans := 1; END_IF;
   END_IF;
 
-  (* Common path: if not rejected, calculate xfer/overlap/fit *)
   IF next_phase <> 9000 THEN
     (* Calculate transfer time for pickup *)
     fb_xfer(i_from_stn := loading_stn, i_to_stn := first_stn, i_trans := sched_trans);
     xfer_dur := fb_xfer.o_total_s;
     IF xfer_dur < 1.0 THEN xfer_dur := 1.0; END_IF;
 
-    (* ★ G10: Stage 0 overlap check — same as JS *)
-    fb_ovlp_delay(
-      i_lift_stn   := loading_stn,
-      i_sink_stn   := first_stn,
-      i_trans_id   := sched_trans,
-      i_task_start := sched_base_time,
-      i_task_end   := sched_base_time + REAL_TO_LINT(xfer_dur),
-      i_margin_s   := CONFLICT_MARGIN_S
-    );
-    stage0_ovlp := fb_ovlp_delay.o_delay_s;
+    s0_task_dur := REAL_TO_LINT(xfer_dur);
+    s0_slot_fitted := FALSE;
+    s0_slot_cnt := g_dep_idle_slot[sched_trans].count;
+    stage0_delay := 0.0;
 
-    (* Try fitting pickup into idle slots *)
-    fb_fit(
-      i_lift_stn     := loading_stn,
-      i_sink_stn     := first_stn,
-      i_trans_id     := sched_trans,
-      i_task_start   := sched_base_time,
-      i_task_end     := sched_base_time + REAL_TO_LINT(xfer_dur),
-      i_shift_s      := stage0_ovlp,
-      i_calc_time_s  := 0.0,
-      i_max_time_s   := 2.0 * MAX_INIT_WAIT_S,
-      i_flex_factor  := FLEX_FACTOR,
-      i_margin_s     := MARGIN_S
-    );
+    (* ── Inline idle-slot scan (matches JS stage 0 logic) ── *)
+    FOR s0_slot_si := 1 TO DEP_MAX_IDLE_SLOTS DO
+      IF s0_slot_si > s0_slot_cnt THEN EXIT; END_IF;
 
-    IF fb_fit.o_result.fits THEN
-      (* ★ G11: Trim idle slot after successful stage 0 fit *)
-      IF fb_fit.o_result.slot_idx >= 1 AND fb_fit.o_result.slot_idx <= DEP_MAX_IDLE_SLOTS THEN
-        g_dep_idle_slot[sched_trans].slots[fb_fit.o_result.slot_idx].start_time :=
-          fb_fit.o_result.task_end_s;
-      END_IF;
-
-      stage0_delay := fb_fit.o_result.delay_s + stage0_ovlp;
-
-      (* ★ G04: Record stage 0 delay but CONTINUE to stage 1+ (like JS) *)
-      IF stage0_delay > MARGIN_S THEN
-        stage0_pending_delay := stage0_delay;
-        sched_base_time := sched_base_time + REAL_TO_LINT(stage0_delay);
-      ELSE
-        stage0_pending_delay := 0.0;
-      END_IF;
-
-      (* Proceed to stage 1+ regardless of stage 0 delay *)
-      IF w_task_cnt = 0 THEN
-        IF stage0_pending_delay > MARGIN_S THEN
-          (* Only stage 0 delay, no more tasks → apply delay and recalc *)
-          delay_stage  := 0;
-          delay_amount := stage0_pending_delay;
-          delay_target := 0;
-          next_phase   := 3000;
-        ELSE
-          next_phase := 8000;  (* No more tasks → ACTIVATE *)
+      s0_slot_start := g_dep_idle_slot[sched_trans].slots[s0_slot_si].start_time;
+      s0_slot_end   := g_dep_idle_slot[sched_trans].slots[s0_slot_si].end_time;
+      IF s0_slot_end > i_time_s THEN
+        (* Travel: prev task sink → pickup station (JS: travelToPickup) *)
+        s0_from_stn := g_dep_idle_slot[sched_trans].slots[s0_slot_si].lift_station;
+        s0_travel_to := 0.0;
+        IF s0_from_stn > 0 AND s0_from_stn <> loading_stn THEN
+          fb_travel_s0_to(i_from_stn := s0_from_stn, i_to_stn := loading_stn, i_trans := sched_trans);
+          s0_travel_to := fb_travel_s0_to.o_travel_s;
         END_IF;
+
+        (* JS: earliestPickup = max(slot.start, currentTimeSec) + travelToPickup *)
+        IF s0_slot_start > i_time_s THEN
+          s0_earliest := s0_slot_start + REAL_TO_LINT(s0_travel_to);
+        ELSE
+          s0_earliest := i_time_s + REAL_TO_LINT(s0_travel_to);
+        END_IF;
+
+        (* Travel: sink → next task lift (JS: travelFromSink) *)
+        s0_to_stn := g_dep_idle_slot[sched_trans].slots[s0_slot_si].sink_station;
+        s0_travel_from := 0.0;
+        IF s0_to_stn > 0 AND s0_to_stn <> first_stn THEN
+          fb_travel_s0_from(i_from_stn := first_stn, i_to_stn := s0_to_stn, i_trans := sched_trans);
+          s0_travel_from := fb_travel_s0_from.o_travel_s;
+        END_IF;
+
+        (* JS: slotEnd = slot.nextTask ? slot.end - travelFromSink - conflictMargin : slot.end *)
+        IF s0_to_stn > 0 THEN
+          s0_slot_end := s0_slot_end - REAL_TO_LINT(s0_travel_from + CONFLICT_MARGIN_S);
+        END_IF;
+
+        (* ★ G10: Overlap check for stage 0 *)
+        fb_ovlp_delay(
+          i_lift_stn   := loading_stn,
+          i_sink_stn   := first_stn,
+          i_trans_id   := sched_trans,
+          i_task_start := s0_earliest,
+          i_task_end   := s0_earliest + s0_task_dur,
+          i_margin_s   := CONFLICT_MARGIN_S
+        );
+        IF fb_ovlp_delay.o_delay_s > 0.0 THEN
+          s0_earliest := s0_earliest + REAL_TO_LINT(fb_ovlp_delay.o_delay_s);
+        END_IF;
+
+        (* Does the task fit? *)
+        IF s0_earliest + s0_task_dur <= s0_slot_end THEN
+          (* JS: stage0Delay = effectiveStart - task.task_start_time *)
+          stage0_delay := LINT_TO_REAL(s0_earliest - sched_base_time);
+          IF stage0_delay < 0.0 THEN stage0_delay := 0.0; END_IF;
+
+          (* maxInitialWaitS check *)
+          IF stage0_delay <= MAX_INIT_WAIT_S THEN
+            s0_slot_fitted := TRUE;
+
+            (* ★ G11: Trim idle slot *)
+            g_dep_idle_slot[sched_trans].slots[s0_slot_si].start_time :=
+              s0_earliest + s0_task_dur;
+
+            (* Record stage 0 delay — shift sched_base_time for stage 1+ *)
+            IF stage0_delay > MARGIN_S THEN
+              stage0_pending_delay := stage0_delay;
+              sched_base_time := sched_base_time + REAL_TO_LINT(stage0_delay);
+            ELSE
+              stage0_pending_delay := 0.0;
+            END_IF;
+
+            EXIT;  (* Found a fitting slot *)
+          END_IF;
+        END_IF;
+      END_IF;
+    END_FOR;
+
+    IF NOT s0_slot_fitted THEN
+      (* Stage 0 doesn't fit any slot → REJECT *)
+      next_phase := 9000;
+    ELSE
+      (* JS: stage 0 delay NEVER triggers RECALC alone.
+         continue → proceed to stage 1+ tasks. *)
+      IF w_task_cnt = 0 THEN
+        next_phase := 8000;    (* No stage 1+ → ACTIVATE *)
       ELSE
         cur_task_idx := 1;
         next_phase := 2001;    (* Continue to stage 1+ fit *)
       END_IF;
-    ELSE
-      (* Stage 0 doesn't fit → REJECT this batch *)
-      next_phase := 9000;
     END_IF;
   END_IF;
 
@@ -2096,16 +2188,10 @@ ELSIF phase = 2000 THEN
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 2001 THEN
   IF cur_task_idx > w_task_cnt THEN
-    (* ★ G04: All stage 1+ tasks fit — check if stage 0 delay is pending *)
-    IF stage0_pending_delay > MARGIN_S THEN
-      (* Stage 0 delay recorded, no stage 1+ delays → apply and RECALC *)
-      delay_stage  := 0;
-      delay_amount := stage0_pending_delay;
-      delay_target := 0;
-      next_phase   := 3000;
-    ELSE
-      next_phase := 8000;  (* All fit → ACTIVATE *)
-    END_IF;
+    (* All stage 1+ tasks fit → ACTIVATE.
+       Stage 0 delay (if any) was already applied to sched_base_time
+       in phase 2000. TSK will recalculate after activation. *)
+    next_phase := 8000;
   ELSE
     (* Get current task data *)
     si := w_tasks[cur_task_idx].stage;
@@ -2245,10 +2331,7 @@ ELSIF phase = 3000 THEN
   IF fit_round > MAX_FIT_ROUNDS THEN
     next_phase := 9000;
   ELSE
-    IF delay_target = 0 THEN
-      (* Stage 0 delay: shift base time (handled in FIT_STAGE0, shouldn't reach here) *)
-      sched_base_time := sched_base_time + REAL_TO_LINT(delay_amount);
-    ELSIF delay_target = 1 THEN
+    IF delay_target = 1 THEN
       (* Program stage delay: increase cal_time *)
       prog_idx := delay_stage;
       IF prog_idx >= 1 AND prog_idx <= 30 THEN
@@ -2275,7 +2358,15 @@ ELSIF phase = 8000 THEN
     g_dep_pending.schedule[ui] := g_schedule[ui];
   END_FOR;
   g_dep_pending.batch_unit  := cur_wait_unit;
-  g_dep_pending.batch_stage := 0;    (* 90 → 0 *)
+  g_dep_pending.batch_stage := 0;    (* cur_stage = 0, JS: batch.stage = 0 *)
+  g_dep_pending.batch_state := 1;    (* NOT_PROCESSED → IN_PROCESS *)
+  (* Stage 0 times — same naming as PROGRAM_STAGE_T: min_time, max_time, cal_time *)
+  g_dep_pending.batch_cal_time  := REAL_TO_INT(stage0_pending_delay);
+  g_dep_pending.batch_min_time  := REAL_TO_INT(stage0_pending_delay);
+  g_dep_pending.batch_max_time  := REAL_TO_INT(2.0 * stage0_pending_delay);
+  IF g_dep_pending.batch_max_time < g_dep_pending.batch_cal_time THEN
+    g_dep_pending.batch_max_time := g_dep_pending.batch_cal_time;
+  END_IF;
   g_dep_pending.time_s      := i_time_s;
   g_dep_pending.valid        := TRUE;
 
@@ -3377,6 +3468,154 @@ END_IF;]]></xhtml:p>
           </ST>
         </body>
       </pou>
+      <pou name="STC_FB_CalcMoveTimes" pouType="functionBlock">
+        <interface>
+          <inputVars>
+            <variable name="i_run">
+              <type><BOOL/></type>
+            </variable>
+          </inputVars>
+          <externalVars>
+            <variable name="g_cal">
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF CALIBRATION_T"/></type>
+            </variable>
+            <variable name="g_station">
+              <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T"/></type>
+            </variable>
+            <variable name="g_move">
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T"/></type>
+            </variable>
+            <variable name="g_station_count">
+              <type><INT/></type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="prev_run">
+              <type><BOOL/></type>
+              <initialValue><simpleValue value="FALSE"/></initialValue>
+            </variable>
+            <variable name="tid">
+              <type><INT/></type>
+            </variable>
+            <variable name="si">
+              <type><INT/></type>
+            </variable>
+            <variable name="sj">
+              <type><INT/></type>
+            </variable>
+            <variable name="idx_i">
+              <type><INT/></type>
+            </variable>
+            <variable name="idx_j">
+              <type><INT/></type>
+            </variable>
+            <variable name="last_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="vm">
+              <type><REAL/></type>
+            </variable>
+            <variable name="ta">
+              <type><REAL/></type>
+            </variable>
+            <variable name="td">
+              <type><REAL/></type>
+            </variable>
+            <variable name="d_acc">
+              <type><REAL/></type>
+            </variable>
+            <variable name="d_dec">
+              <type><REAL/></type>
+            </variable>
+            <variable name="dist">
+              <type><REAL/></type>
+            </variable>
+            <variable name="t_time">
+              <type><REAL/></type>
+            </variable>
+            <variable name="v_peak">
+              <type><REAL/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[(* Rising edge detection *)
+IF i_run AND NOT prev_run THEN
+
+  (* Determine last active station *)
+  last_stn := STATION_ARRAY_START + g_station_count - 1;
+  IF last_stn > STATION_ARRAY_END THEN
+    last_stn := STATION_ARRAY_END;
+  END_IF;
+
+  FOR tid := 1 TO MAX_TRANSPORTERS DO
+    (* Skip transporters without valid calibration data *)
+    IF g_cal[tid].x_max_mm_s >= 1.0 THEN
+
+      vm := g_cal[tid].x_max_mm_s;
+      ta := g_cal[tid].x_accel_s;
+      td := g_cal[tid].x_decel_s;
+      d_acc := 0.5 * vm * ta;
+      d_dec := 0.5 * vm * td;
+
+      (* --- Lift and sink times per station --- *)
+      FOR si := STATION_ARRAY_START TO last_stn DO
+        idx_i := si - STATION_ARRAY_START + 1;
+        IF idx_i >= 1 AND idx_i <= 30 THEN
+          IF g_station[si].kind = 1 THEN
+            (* Wet station *)
+            g_move[tid].lift_s[idx_i] := g_cal[tid].lift_wet_s;
+            g_move[tid].sink_s[idx_i] := g_cal[tid].sink_wet_s;
+          ELSE
+            (* Dry station *)
+            g_move[tid].lift_s[idx_i] := g_cal[tid].lift_dry_s;
+            g_move[tid].sink_s[idx_i] := g_cal[tid].sink_dry_s;
+          END_IF;
+        END_IF;
+      END_FOR;
+
+      (* --- Travel times between stations --- *)
+      FOR si := STATION_ARRAY_START TO last_stn DO
+        idx_i := si - STATION_ARRAY_START + 1;
+        IF idx_i >= 1 AND idx_i <= 30 THEN
+          FOR sj := STATION_ARRAY_START TO last_stn DO
+            idx_j := sj - STATION_ARRAY_START + 1;
+            IF idx_j >= 1 AND idx_j <= 30 THEN
+              IF si = sj THEN
+                g_move[tid].travel[idx_i].to_s[idx_j] := 0.0;
+              ELSE
+                dist := ABS(g_station[si].x_position - g_station[sj].x_position);
+                IF dist < 1.0 THEN
+                  t_time := 0.0;
+                ELSIF dist >= d_acc + d_dec THEN
+                  (* Trapezoidal profile: full accel + cruise + full decel *)
+                  t_time := ta + (dist - d_acc - d_dec) / vm + td;
+                ELSE
+                  (* Triangle profile: cannot reach full speed *)
+                  IF ta + td > 0.0 THEN
+                    v_peak := SQRT(2.0 * dist * vm / (ta + td));
+                    t_time := v_peak * (ta + td) / vm;
+                  ELSE
+                    t_time := 0.0;
+                  END_IF;
+                END_IF;
+                g_move[tid].travel[idx_i].to_s[idx_j] := t_time;
+              END_IF;
+            END_IF;
+          END_FOR;
+        END_IF;
+      END_FOR;
+
+    END_IF;  (* valid calibration check *)
+  END_FOR;
+
+END_IF;
+
+prev_run := i_run;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
       <pou name="STC_FB_CalcTransferTime" pouType="functionBlock">
         <interface>
           <inputVars>
@@ -3898,6 +4137,9 @@ END_FOR;]]></xhtml:p>
             <variable name="g_unit">
               <type><derived name="ARRAY[1..MAX_UNITS] OF UNIT_T"/></type>
             </variable>
+            <variable name="g_program">
+              <type><derived name="ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T"/></type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="ui">
@@ -3913,14 +4155,23 @@ FOR ui := 1 TO MAX_UNITS DO
 END_FOR;
 
 FOR ui := 1 TO MAX_UNITS DO
-  IF g_batch[ui].state = 1 THEN
+  (* Common conditions: unit USED, target TO_NONE, valid program *)
+  IF g_unit[ui].status = 1
+     AND g_unit[ui].target = 0
+     AND g_batch[ui].prog_id = g_program[ui].program_id
+     AND g_program[ui].program_id > 0 THEN
+
     IF i_mode = 0 THEN
-      (* All active batches *)
-      o_count := o_count + 1;
-      o_list[o_count] := ui;
+      (* Active batches: IN_PROCESS, stage 0..99 *)
+      IF g_batch[ui].state = 1
+         AND g_batch[ui].cur_stage >= 0
+         AND g_batch[ui].cur_stage <= 99 THEN
+        o_count := o_count + 1;
+        o_list[o_count] := ui;
+      END_IF;
     ELSIF i_mode = 1 THEN
-      (* Waiting batches: stage=90 AND unit target = TO_NONE (0) *)
-      IF g_batch[ui].cur_stage = 90 AND g_unit[ui].target = 0 THEN
+      (* Waiting batches: NOT_PROCESSED *)
+      IF g_batch[ui].state = 0 THEN
         o_count := o_count + 1;
         o_list[o_count] := ui;
       END_IF;
@@ -5699,8 +5950,8 @@ FOR st := 1 TO 30 DO
 END_FOR;
 
 (* -- Determine start stage -- *)
-(* Stage 90 = waiting batch, treat as stage 0 *)
-IF cur_stage = 90 THEN
+(* Waiting batch (state = NOT_PROCESSED): treat as stage 0 *)
+IF g_batch[i_unit].state = 0 THEN
   cur_stage := 0;
 END_IF;
 
@@ -5940,7 +6191,7 @@ sc := g_schedule[i_unit].stage_count;
 IF sc < 2 THEN RETURN; END_IF;
 
 cur_stage := g_batch[i_unit].cur_stage;
-IF cur_stage = 90 THEN
+IF g_batch[i_unit].state = 0 THEN  (* NOT_PROCESSED = waiting batch *)
   skip_before := 0;
 ELSE
   skip_before := cur_stage;
@@ -7178,7 +7429,12 @@ ELSIF phase = 10100 THEN
       g_schedule[ui] := g_dep_pending.schedule[ui];
     END_FOR;
     IF g_dep_pending.batch_unit >= 1 AND g_dep_pending.batch_unit <= MAX_UNITS THEN
-      g_batch[g_dep_pending.batch_unit].cur_stage := g_dep_pending.batch_stage;
+      g_batch[g_dep_pending.batch_unit].cur_stage   := g_dep_pending.batch_stage;
+      g_batch[g_dep_pending.batch_unit].state        := g_dep_pending.batch_state;
+      g_batch[g_dep_pending.batch_unit].start_time   := g_dep_pending.time_s;
+      g_batch[g_dep_pending.batch_unit].min_time     := g_dep_pending.batch_min_time;
+      g_batch[g_dep_pending.batch_unit].max_time     := g_dep_pending.batch_max_time;
+      g_batch[g_dep_pending.batch_unit].cal_time     := g_dep_pending.batch_cal_time;
     END_IF;
     g_dep_pending.valid := FALSE;
     (* Full recalculation with new data *)
@@ -10206,12 +10462,19 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
             <variable name="calibrate">
               <type><derived name="STC_FB_Calibrate"/></type>
             </variable>
+            <variable name="calc_move">
+              <type><derived name="STC_FB_CalcMoveTimes"/></type>
+            </variable>
             <variable name="evt_queue">
               <type><derived name="STC_FB_EventQueue"/></type>
             </variable>
             <variable name="cal_cmd">
               <type><INT/></type>
               <initialValue><simpleValue value="0"/></initialValue>
+            </variable>
+            <variable name="cal_load_run">
+              <type><BOOL/></type>
+              <initialValue><simpleValue value="FALSE"/></initialValue>
             </variable>
             <variable name="time_hi">
               <type><LINT/></type>
@@ -10362,6 +10625,29 @@ IF iw_cfg_seq <> last_cfg_seq THEN
       g_ntt[j].target[k].fallback_stations[5] := iw_cfg_d4;
     END_IF;
 
+  ELSIF iw_cfg_cmd = 11 THEN
+    (* --- Load kinematic params for one transporter into g_cal --- *)
+    (* param = tid (1..3)
+       d0 = lift_wet_s × 100   d1 = sink_wet_s × 100
+       d2 = lift_dry_s × 100   d3 = sink_dry_s × 100
+       d4 = x_accel_s × 100    d5 = x_decel_s × 100
+       d6 = x_max_mm_s (integer, mm/s) *)
+    j := iw_cfg_param;
+    IF (j >= 1) AND (j <= 3) THEN
+      g_cal[j].lift_wet_s := INT_TO_REAL(iw_cfg_d0) / 100.0;
+      g_cal[j].sink_wet_s := INT_TO_REAL(iw_cfg_d1) / 100.0;
+      g_cal[j].lift_dry_s := INT_TO_REAL(iw_cfg_d2) / 100.0;
+      g_cal[j].sink_dry_s := INT_TO_REAL(iw_cfg_d3) / 100.0;
+      g_cal[j].x_accel_s  := INT_TO_REAL(iw_cfg_d4) / 100.0;
+      g_cal[j].x_decel_s  := INT_TO_REAL(iw_cfg_d5) / 100.0;
+      g_cal[j].x_max_mm_s := INT_TO_REAL(iw_cfg_d6);
+    END_IF;
+
+  ELSIF iw_cfg_cmd = 12 THEN
+    (* --- Compute g_move from loaded g_cal kinematic params --- *)
+    (* No params needed — computes for all transporters with valid g_cal *)
+    cal_load_run := TRUE;
+
   ELSIF iw_cfg_cmd = 2 THEN
     (* --- Finish init: all config uploaded, init transporter states --- *)
     g_station_count := iw_cfg_param;
@@ -10401,6 +10687,12 @@ END_IF;
    MAIN TRANSPORT CYCLE — only runs when init_done
    ============================================================ *)
 IF init_done THEN
+
+(* ── Compute g_move from loaded kinematic params (one-shot) ── *)
+calc_move(i_run := cal_load_run);
+IF cal_load_run THEN
+  cal_load_run := FALSE;
+END_IF;
 
 (* Calculate transporter working areas (X-limits) every cycle *)
 twa_calc();
@@ -10869,10 +11161,11 @@ qw_sched_u3_stage_cnt := g_schedule[3].stage_count;
 qw_sched_u4_stage_cnt := g_schedule[4].stage_count;
 qw_sched_u5_stage_cnt := g_schedule[5].stage_count;
 qw_sched_u6_stage_cnt := g_schedule[6].stage_count;
-qw_sched_u7_stage_cnt := g_schedule[7].stage_count;
-qw_sched_u8_stage_cnt := g_schedule[8].stage_count;
-qw_sched_u9_stage_cnt := g_schedule[9].stage_count;
-qw_sched_u10_stage_cnt := g_schedule[10].stage_count;
+(* DEBUG: DEP phase + pending valid for activation diagnosis *)
+qw_sched_u7_stage_cnt := main_sched.o_dep_phase;
+qw_sched_u8_stage_cnt := main_sched.o_tsk_phase;
+IF g_dep_pending.valid THEN qw_sched_u9_stage_cnt := 1; ELSE qw_sched_u9_stage_cnt := 0; END_IF;
+qw_sched_u10_stage_cnt := g_batch[1].state;
 (* === Per-transporter task queue (g_task) — count + 10 task slots === *)
 qw_tq1_count := g_task[1].count;
 qw_tq1_q1_unit := g_task[1].queue[1].unit;

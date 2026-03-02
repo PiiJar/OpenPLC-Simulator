@@ -91,8 +91,8 @@ FOR st := 1 TO 30 DO
 END_FOR;
 
 (* -- Determine start stage -- *)
-(* Stage 90 = waiting batch, treat as stage 0 *)
-IF cur_stage = 90 THEN
+(* Waiting batch (state = NOT_PROCESSED): treat as stage 0 *)
+IF g_batch[i_unit].state = 0 THEN
   cur_stage := 0;
 END_IF;
 

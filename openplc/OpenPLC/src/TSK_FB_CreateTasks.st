@@ -46,7 +46,7 @@ sc := g_schedule[i_unit].stage_count;
 IF sc < 2 THEN RETURN; END_IF;
 
 cur_stage := g_batch[i_unit].cur_stage;
-IF cur_stage = 90 THEN
+IF g_batch[i_unit].state = 0 THEN  (* NOT_PROCESSED = waiting batch *)
   skip_before := 0;
 ELSE
   skip_before := cur_stage;
