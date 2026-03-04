@@ -175,7 +175,7 @@ END_FOR;
 (* --- Clear all task queues (g_task) --- *)
 FOR i := 1 TO MAX_TRANSPORTERS DO
   g_task[i].count := 0;
-  FOR j := 1 TO 10 DO
+  FOR j := 1 TO 60 DO
     g_task[i].queue[j].unit         := 0;
     g_task[i].queue[j].stage        := 0;
     g_task[i].queue[j].lift_station := 0;

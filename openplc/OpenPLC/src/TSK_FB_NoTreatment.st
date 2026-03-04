@@ -30,6 +30,7 @@ VAR_EXTERNAL CONSTANT
     STATION_ARRAY_START : INT;
     STATION_ARRAY_END   : INT;
     MAX_UNITS           : INT;
+    MAX_TASK_QUEUE      : INT;
 END_VAR
 
 VAR_EXTERNAL
@@ -358,7 +359,7 @@ FOR ui := 1 TO MAX_UNITS DO
           IF dest_stn > 0 THEN
             (* Append to queue *)
             qi := g_task[cov_t].count + 1;
-            IF qi <= MAX_UNITS THEN
+            IF qi <= MAX_TASK_QUEUE THEN
               g_task[cov_t].queue[qi].unit         := ui;
               g_task[cov_t].queue[qi].stage        := 0;  (* no program stage *)
               g_task[cov_t].queue[qi].lift_station := loc;

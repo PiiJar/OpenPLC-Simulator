@@ -21,6 +21,7 @@ VAR_GLOBAL CONSTANT
   MAX_UNITS          : INT := 10;    (* max units (lifting frames / hooks) *)
   MAX_PARALLELS      : INT := 5;     (* max parallel stations per program stage *)
   MAX_STAGES         : INT := 30;    (* max stages in a treatment program *)
+  MAX_TASK_QUEUE     : INT := 60;    (* max tasks per transporter queue *)
 
   (* ── Algorithm / scheduler limits ── *)
   DEP_MAX_IDLE_SLOTS : INT := 20;    (* max idle slots per transporter *)

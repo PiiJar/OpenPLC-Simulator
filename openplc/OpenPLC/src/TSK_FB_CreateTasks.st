@@ -20,6 +20,7 @@ END_VAR
 VAR_EXTERNAL CONSTANT
     MAX_TRANSPORTERS : INT;
     MAX_UNITS        : INT;
+    MAX_TASK_QUEUE   : INT;
 END_VAR
 
 VAR_EXTERNAL
@@ -60,7 +61,7 @@ FOR si := 1 TO sc - 1 DO
     (* -- Append task to transporter queue -- *)
     IF tid >= 1 AND tid <= 3 THEN
       qi := g_task[tid].count + 1;
-      IF qi <= MAX_UNITS THEN
+      IF qi <= MAX_TASK_QUEUE THEN
         g_task[tid].queue[qi].unit         := i_unit;
         g_task[tid].queue[qi].stage        := si - 1;  (* schedule idx 1=stage0, 2=stage1, ... *)
         g_task[tid].queue[qi].lift_station := lift_stn;

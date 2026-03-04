@@ -221,7 +221,7 @@ END_TYPE
 TYPE TSK_QUEUE_T :
 STRUCT
   count : INT;                                    (* number of active tasks *)
-  queue : ARRAY[1..10] OF TSK_TASK_T;             (* task slots, MAX_UNITS — literal required in TYPE *)
+  queue : ARRAY[1..10] OF TSK_TASK_T;             (* task slots, MAX_TASK_QUEUE — literal required in TYPE *)
 END_STRUCT;
 END_TYPE
 
