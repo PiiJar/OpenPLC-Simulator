@@ -231,8 +231,10 @@ async function plcApiGet(command, timeoutMs) {
   if (!plcJwtToken) await plcApiLogin();
   try {
     const res = await plcApiRequest('GET', command, null, timeoutMs);
-    if (res.status === 401) {
-      // Token expired, re-login
+    if (res.status === 401 || res.status === 422) {
+      // Token expired or invalid (OpenPLC returns 422 for bad JWT) — re-login and retry
+      console.log(`[PLC-API] Got ${res.status} on ${command}, re-authenticating...`);
+      plcJwtToken = null;
       if (await plcApiLogin()) {
         return plcApiRequest('GET', command, null, timeoutMs);
       }
@@ -360,12 +362,15 @@ async function readPLCState() {
     for (let u = 0; u < 10; u++) {
       const base = BLOCKS.unit_state.start + u * UNIT_FIELDS;
       const targetInt = toSigned(r[base + 2]);
-      // Batch data (10 × 4 fields in batch_state block)
-      const bBase = BLOCKS.batch_state.start + u * 4;
+      // Batch data (10 × 7 fields in batch_state block)
+      const bBase = BLOCKS.batch_state.start + u * 7;
       const batchCode = toSigned(r[bBase]);
       const batchState = toSigned(r[bBase + 1]);
       const batchProg = toSigned(r[bBase + 2]);
       const batchStage = toSigned(r[bBase + 3]);
+      const batchMinTime = toSigned(r[bBase + 4]);
+      const batchMaxTime = toSigned(r[bBase + 5]);
+      const batchCalTime = toSigned(r[bBase + 6]);
       plcUnits.push({
         unit_id: u + 1,
         location: toSigned(r[base]),
@@ -375,7 +380,10 @@ async function readPLCState() {
         batch_state: BATCH_STATE_INT_TO_STR[batchState] || 'not_processed',
         batch_state_int: batchState,
         batch_program: batchProg,
-        batch_stage: batchStage
+        batch_stage: batchStage,
+        batch_min_time: batchMinTime,
+        batch_max_time: batchMaxTime,
+        batch_cal_time: batchCalTime
       });
     }
 
@@ -1792,9 +1800,13 @@ async function main() {
   console.log(`[GATEWAY] Connecting to PLC at ${PLC_HOST}:${PLC_PORT}...`);
   await connectModbus();
   
-  // Login to PLC REST API and start status polling
+  // Login to PLC REST API with retry (PLC may still be starting / seeding user)
   console.log(`[GATEWAY] Connecting to PLC REST API at ${PLC_API_HOST}:${PLC_API_PORT}...`);
-  await plcApiLogin();
+  for (let attempt = 1; attempt <= 20; attempt++) {
+    if (await plcApiLogin()) break;
+    console.log(`[PLC-API] Login attempt ${attempt}/20 failed, retrying in 3s...`);
+    await new Promise(r => setTimeout(r, 3000));
+  }
   startPlcStatusPolling();
   
   // Check DB connectivity

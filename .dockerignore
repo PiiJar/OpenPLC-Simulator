@@ -1,0 +1,4 @@
+# Only entrypoint.sh is needed for the OpenPLC image (COPY in Dockerfile).
+# Ignore everything else to prevent unnecessary rebuilds.
+*
+!entrypoint.sh

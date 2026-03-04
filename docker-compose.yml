@@ -11,6 +11,7 @@ services:
     restart: unless-stopped
     volumes:
       - openplc_data:/home/openplc/OpenPLC_v3/persistent
+      - ./openplc/OpenPLC/to_editor/build/plc.st:/home/openplc/plc_program/plc.st:ro
 
   gateway:
     build: ./openplc/gateway

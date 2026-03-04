@@ -122,10 +122,13 @@
       "direction": "out",
       "repeat": { "count": 10, "var": "i", "label": "b{i}" },
       "fields": [
-        { "suffix": "code",  "source": "g_batch[{i}].batch_code", "convert": null, "api": "batch_code",    "comment": "numeric batch code" },
-        { "suffix": "state", "source": "g_batch[{i}].state",      "convert": null, "api": "batch_state",   "comment": "NOT_PROCESSED=0, IN_PROCESS=1, PROCESSED=2" },
-        { "suffix": "prog",  "source": "g_batch[{i}].prog_id",   "convert": null, "api": "batch_program", "comment": "treatment program ID" },
-        { "suffix": "stage", "source": "g_batch[{i}].cur_stage",  "convert": null, "api": "batch_stage",   "comment": "current stage number" }
+        { "suffix": "code",     "source": "g_batch[{i}].batch_code", "convert": null, "api": "batch_code",     "comment": "numeric batch code" },
+        { "suffix": "state",    "source": "g_batch[{i}].state",      "convert": null, "api": "batch_state",    "comment": "NOT_PROCESSED=0, IN_PROCESS=1, PROCESSED=2" },
+        { "suffix": "prog",     "source": "g_batch[{i}].prog_id",   "convert": null, "api": "batch_program",  "comment": "treatment program ID" },
+        { "suffix": "stage",    "source": "g_batch[{i}].cur_stage",  "convert": null, "api": "batch_stage",    "comment": "current stage number" },
+        { "suffix": "min_time", "source": "g_batch[{i}].min_time",   "convert": null, "api": "batch_min_time", "comment": "current stage min time (seconds)" },
+        { "suffix": "max_time", "source": "g_batch[{i}].max_time",   "convert": null, "api": "batch_max_time", "comment": "current stage max time (seconds)" },
+        { "suffix": "cal_time", "source": "g_batch[{i}].cal_time",   "convert": null, "api": "batch_cal_time", "comment": "current stage calc time (seconds)" }
       ]
     },
 
