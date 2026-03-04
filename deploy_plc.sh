@@ -61,8 +61,8 @@ if ! grep -q "Location: /dashboard" /tmp/deploy_headers.txt 2>/dev/null; then
 fi
 echo "✓ Logged in to OpenPLC"
 
-curl -s -b /tmp/deploy_cookies.txt http://localhost:8080/stop_plc -o /dev/null
-sleep 2
+curl -s --max-time 10 -b /tmp/deploy_cookies.txt http://localhost:8080/stop_plc -o /dev/null &
+sleep 3
 echo "✓ PLC runtime stopped"
 
 # ─── Step 3: Copy plc.st to container ───
@@ -86,14 +86,14 @@ echo ""
 echo ""
 echo "═══ Step 5: Restart PLC runtime ═══"
 # Stop first (in case already running with old binary)
-curl -s -b /tmp/deploy_cookies.txt http://localhost:8080/stop_plc -o /dev/null
-sleep 2
-# Start with newly compiled binary
-curl -s -b /tmp/deploy_cookies.txt http://localhost:8080/start_plc -o /dev/null
-sleep 2
+curl -s --max-time 10 -b /tmp/deploy_cookies.txt http://localhost:8080/stop_plc -o /dev/null &
+sleep 3
+# Start with newly compiled binary (may block — use timeout + background)
+curl -s --max-time 15 -b /tmp/deploy_cookies.txt http://localhost:8080/start_plc -o /dev/null &
+sleep 8
 
 # Verify PLC is running
-STATUS=$(curl -s -b /tmp/deploy_cookies.txt http://localhost:8080/dashboard \
+STATUS=$(curl -s --max-time 5 -b /tmp/deploy_cookies.txt http://localhost:8080/dashboard \
   | grep -oi "Running\|Stopped" | head -1)
 echo "PLC status: $STATUS"
 
