@@ -52,7 +52,9 @@ export default function CalibrationPanel({ onClose, stations, transporterStates 
   const [calStatus, setCalStatus] = useState({ step: 0, tid: 0, results: [] });
   const [polling, setPolling] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [existingFile, setExistingFile] = useState(null);
 
   // Filter stations reachable by a given transporter (within x drive limits)
@@ -210,15 +212,24 @@ export default function CalibrationPanel({ onClose, stations, transporterStates 
     }
   };
 
-  const handleDownloadExisting = () => {
+  const handleLoadExisting = async () => {
     if (!existingFile) return;
-    const blob = new Blob([JSON.stringify(existingFile, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'movement_times.json';
-    a.click();
-    URL.revokeObjectURL(url);
+    setError('');
+    setSuccess('');
+    setLoading(true);
+    try {
+      const res = await fetch('/api/calibrate/load', { method: 'POST' });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to load calibration');
+      }
+      const data = await res.json();
+      setSuccess(`Calibration loaded for ${data.transporters} transporter(s)`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const isRunning = calStatus.step > 0 && calStatus.step < 100;
@@ -276,6 +287,11 @@ export default function CalibrationPanel({ onClose, stations, transporterStates 
         {error && (
           <div style={{ color: '#d32f2f', marginBottom: 8, fontSize: '12px' }}>
             Error: {error}
+          </div>
+        )}
+        {success && (
+          <div style={{ color: '#2e7d32', marginBottom: 8, fontSize: '12px' }}>
+            {success}
           </div>
         )}
 
@@ -371,8 +387,8 @@ export default function CalibrationPanel({ onClose, stations, transporterStates 
             </>
           )}
           {existingFile && (
-            <button style={{ ...btnStyle('#546e7a'), marginLeft: 'auto' }} onClick={handleDownloadExisting}>
-              Download Existing
+            <button style={{ ...btnStyle('#1565c0'), marginLeft: 'auto' }} onClick={handleLoadExisting} disabled={loading}>
+              {loading ? 'Loading...' : 'Load Existing'}
             </button>
           )}
         </div>

@@ -28,5 +28,9 @@ RUN git clone --depth 1 https://github.com/thiagoralves/OpenPLC_v3.git
 WORKDIR /home/openplc/OpenPLC_v3
 RUN ./install.sh linux
 
+# Copy custom entrypoint that patches config.py and seeds REST API user
+COPY --chown=openplc:openplc entrypoint.sh /home/openplc/OpenPLC_v3/entrypoint.sh
+RUN chmod +x /home/openplc/OpenPLC_v3/entrypoint.sh
+
 EXPOSE 8080
-CMD ["./start_openplc.sh"]
+CMD ["/home/openplc/OpenPLC_v3/entrypoint.sh"]

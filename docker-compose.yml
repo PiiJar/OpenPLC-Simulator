@@ -4,8 +4,13 @@ services:
     container_name: openplc_v3
     ports:
       - "8080:8080"
+    environment:
+      - PLC_API_USER=PiiJar
+      - PLC_API_PASS=!T0s1v41k33!
     privileged: true
     restart: unless-stopped
+    volumes:
+      - openplc_data:/home/openplc/OpenPLC_v3/persistent
 
   gateway:
     build: ./openplc/gateway
@@ -17,8 +22,8 @@ services:
       - PLC_PORT=502
       - PLC_API_HOST=openplc
       - PLC_API_PORT=8443
-      - PLC_API_USER=openplc
-      - PLC_API_PASS=openplc
+      - PLC_API_USER=PiiJar
+      - PLC_API_PASS=!T0s1v41k33!
       - API_PORT=3001
       - POLL_MS=100
       - DB_HOST=plc_db
@@ -63,3 +68,4 @@ services:
 
 volumes:
   plc_db_data:
+  openplc_data:
