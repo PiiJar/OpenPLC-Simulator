@@ -42,6 +42,7 @@ VAR_EXTERNAL
   g_program : ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T;
   g_task    : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
   g_schedule : ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T;
+  g_cfg    : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
   (* DEP handshake *)
   g_dep_pending : DEP_PENDING_WRITE_T;
 END_VAR
@@ -69,7 +70,6 @@ VAR
   fb_analyze : TSK_FB_Analyze;
   fb_resolve : TSK_FB_Resolve;
   fb_notrt   : TSK_FB_NoTreatment;
-  fb_find    : STC_FB_FindTransporter;  (* shared transporter finder *)
   fb_clear   : STC_FB_ClearTaskQueues;  (* shared queue clear *)
   fb_sort    : STC_FB_SortTaskQueue;    (* shared queue sort *)
   fb_collect : STC_FB_CollectActiveBatches; (* shared batch collector *)
@@ -80,6 +80,7 @@ VAR
   locks           : ARRAY[1..50] OF TSK_LOCK_T;
   lock_cnt        : INT := 0;
   locks_initialized : BOOL := FALSE;
+  fb_find    : STC_FindTransporter;
   (* Temp *)
   bi         : INT;
   ti         : INT;
@@ -146,7 +147,7 @@ ELSIF phase >= 1001 AND phase <= 1000 + MAX_UNITS THEN
 
     (* Find transporter for this unit — first one with matching task_area *)
     fb_find(i_lift_stn := g_unit[ui].location, i_sink_stn := 0);
-    sched_trans := fb_find.o_trans_id;
+    sched_trans := fb_find.o_trans;
     IF sched_trans = 0 THEN sched_trans := 1; END_IF;  (* fallback default *)
 
     fb_calc(i_unit := ui, i_trans := sched_trans, i_time_s := i_time_s);

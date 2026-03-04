@@ -39,6 +39,7 @@ VAR_EXTERNAL
   g_transporter : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
   g_cfg         : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
   g_task        : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
+  g_move        : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
 END_VAR
 VAR
   ui       : INT;     (* unit loop *)
@@ -77,6 +78,7 @@ VAR
   ov_e           : LINT;
   margin_travel  : REAL;
   slot_start     : LINT;   (* idle slot bounds *)
+  tmp_move       : MOVE_TIMES_T;  (* MATIEC cannot index arrays in FUNCTION args *)
   slot_end       : LINT;
   earliest_start : LINT;   (* earliest NTT start considering travel *)
   latest_end     : LINT;   (* latest NTT end considering travel *)
@@ -85,9 +87,6 @@ VAR
   ntt_duration   : LINT;
   qi3            : INT;   (* queue loop for idle-slot calc *)
   slot_ok        : BOOL;
-  fb_ht_margin   : STC_FB_CalcHorizontalTravel;  (* for margin travel *)
-  (* Shared FB instance *)
-  fb_xfer  : STC_FB_CalcTransferTime;
 END_VAR
 
 FOR ui := 1 TO MAX_UNITS DO
@@ -263,8 +262,8 @@ FOR ui := 1 TO MAX_UNITS DO
 
           IF dest_stn > 0 THEN
             (* Calculate timing *)
-            fb_xfer(i_from_stn := loc, i_to_stn := dest_stn, i_trans := cov_t);
-            xfer_s := fb_xfer.o_total_s;
+            tmp_move := g_move[cov_t];
+            xfer_s := STC_CalcTransferTime(i_from_stn := loc, i_to_stn := dest_stn, i_move := tmp_move);
 
             task_start := i_time_s;
             task_end   := task_start + REAL_TO_LINT(xfer_s);
@@ -283,12 +282,11 @@ FOR ui := 1 TO MAX_UNITS DO
                 slot_start := task_start;
                 slot_end   := g_task[cov_t].queue[1].start_time;
                 (* Travel from NTT sink to first task's lift *)
-                fb_ht_margin(
+                travel_from_sink := STC_CalcHorizontalTravel(
                   i_from_stn := dest_stn,
                   i_to_stn   := g_task[cov_t].queue[1].lift_station,
-                  i_trans    := cov_t
+                  i_move     := g_move[cov_t]
                 );
-                travel_from_sink := fb_ht_margin.o_travel_s;
                 latest_end := slot_end - REAL_TO_LINT(travel_from_sink) - 1;
                 IF task_start >= slot_start AND task_end <= latest_end THEN
                   slot_ok := TRUE;
@@ -302,21 +300,19 @@ FOR ui := 1 TO MAX_UNITS DO
                   slot_end   := g_task[cov_t].queue[qi3 + 1].start_time;
                   IF slot_end > slot_start THEN
                     (* Travel from prev task's sink to NTT lift *)
-                    fb_ht_margin(
+                    travel_to_lift := STC_CalcHorizontalTravel(
                       i_from_stn := g_task[cov_t].queue[qi3].sink_station,
                       i_to_stn   := loc,
-                      i_trans    := cov_t
+                      i_move     := g_move[cov_t]
                     );
-                    travel_to_lift := fb_ht_margin.o_travel_s;
                     earliest_start := slot_start + REAL_TO_LINT(travel_to_lift) + 1;
 
                     (* Travel from NTT sink to next task's lift *)
-                    fb_ht_margin(
+                    travel_from_sink := STC_CalcHorizontalTravel(
                       i_from_stn := dest_stn,
                       i_to_stn   := g_task[cov_t].queue[qi3 + 1].lift_station,
-                      i_trans    := cov_t
+                      i_move     := g_move[cov_t]
                     );
-                    travel_from_sink := fb_ht_margin.o_travel_s;
                     latest_end := slot_end - REAL_TO_LINT(travel_from_sink) - 1;
 
                     ntt_start := earliest_start;
@@ -334,12 +330,11 @@ FOR ui := 1 TO MAX_UNITS DO
               IF NOT slot_ok THEN
                 slot_start := g_task[cov_t].queue[g_task[cov_t].count].finish_time;
                 (* Travel from last task's sink to NTT lift *)
-                fb_ht_margin(
+                travel_to_lift := STC_CalcHorizontalTravel(
                   i_from_stn := g_task[cov_t].queue[g_task[cov_t].count].sink_station,
                   i_to_stn   := loc,
-                  i_trans    := cov_t
+                  i_move     := g_move[cov_t]
                 );
-                travel_to_lift := fb_ht_margin.o_travel_s;
                 earliest_start := slot_start + REAL_TO_LINT(travel_to_lift) + 1;
 
                 ntt_start := earliest_start;

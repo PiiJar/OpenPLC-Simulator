@@ -473,6 +473,88 @@ Vaihtoehdot:
 - Välitä tarvittava data `VAR_INPUT`:ina
 - Käytä `FUNCTION_BLOCK`:ia sen sijaan
 
+### ❌ EI TOIMI: ARRAY OF STRUCT FUNCTION:n VAR_INPUT:ina (C-koodigenerointi)
+
+matiec/iec2c **parsii** tämän onnistuneesti, mutta generoitu C++-koodi
+ei käänny. `__SET_VAR`-makro yrittää kopioida koko taulukon yksittäisenä
+structina → tyyppimismatch.
+
+```iecst
+(* PARSEROINTI OK, mutta C-käännös EPÄONNISTUU:
+   "no matching function for call to 'MY_STRUCT_T::MY_STRUCT_T(__ARRAY_OF_MY_STRUCT_T_3&)'" *)
+FUNCTION FindItem : INT
+  VAR_INPUT
+    i_data : ARRAY[1..3] OF MY_STRUCT_T;   (* ❌ EI TOIMI *)
+    i_key  : INT;
+  END_VAR
+  ...
+END_FUNCTION
+```
+
+**Kiertotapa A:** Välitä yksittäinen struct-elementti VAR_INPUT:ina ja kutsu loopissa:
+
+```iecst
+FUNCTION CheckItem : BOOL
+  VAR_INPUT
+    i_item : MY_STRUCT_T;   (* ✅ yksittäinen struct toimii *)
+    i_key  : INT;
+  END_VAR
+  CheckItem := (i_item.id = i_key);
+END_FUNCTION
+
+(* Kutsuja looppaa: *)
+FOR i := 1 TO 3 DO
+  tmp := my_array[i];
+  IF CheckItem(i_item := tmp, i_key := target) THEN ...
+END_FOR;
+```
+
+**Kiertotapa B:** Käytä FUNCTION_BLOCK:ia joka lukee taulukon VAR_EXTERNAL:ista:
+
+```iecst
+FUNCTION_BLOCK FB_FindItem
+  VAR_INPUT
+    i_key : INT;
+  END_VAR
+  VAR_OUTPUT
+    o_result : INT;
+  END_VAR
+  VAR_EXTERNAL
+    g_data : ARRAY[1..3] OF MY_STRUCT_T;
+  END_VAR
+  (* ... iteroi g_data suoraan ... *)
+END_FUNCTION_BLOCK
+```
+
+> **HUOM:** Yksittäinen struct VAR_INPUT:ina (ei taulukko) **toimii** sekä
+> parserien että C-koodigeneroinnin kanssa. Ongelma koskee vain
+> `ARRAY[1..N] OF STRUCT_T` -tyyppisiä parametreja.
+
+### ❌ EI TOIMI: Taulukko-indeksointi FUNCTION-kutsun parametrissa
+
+matiec-parseri **ei hyväksy** taulukko-indeksointia (`arr[idx]`) funktio-kutsun
+nimetyn parametrin arvona. Hakasulku `[` tulkitaan väärin ja tuottaa
+`')' missing at the end of function invocation` -virheen.
+
+```iecst
+(* VIRHE: "')' missing at the end of function invocation" *)
+result := MyFunc(i_data := g_arr[idx]);   (* ❌ EI TOIMI *)
+```
+
+**Kiertotapa:** Kopioi taulukon elementti välimuuttujaan ennen kutsua:
+
+```iecst
+VAR
+  tmp : MY_TYPE;
+END_VAR
+
+tmp := g_arr[idx];
+result := MyFunc(i_data := tmp);   (* ✅ TOIMII *)
+```
+
+> **KRIITTINEN:** Tämä koskee **kaikkia** FUNCTION-kutsuja (ei FB-kutsuja).
+> FB-kutsuissa `fb_inst(i_param := g_arr[idx])` toimii normaalisti.
+
 ---
 
 ## 6. FUNCTION_BLOCK
@@ -844,3 +926,5 @@ END_CONFIGURATION
 | 10 | Vakio array-rajoissa vaatii `-a`-lipun | OpenPLC käyttää oletuksena |
 | 11 | `VAR_EXTERNAL CONSTANT` pitää olla ennen `VAR_EXTERNAL` | Järjestys ratkaisee |
 | 12 | TYPE-lohko ei tue vakioita array-rajoissa | Käytä literaaliarvoa TYPE:ssä |
+| 13 | `ARRAY OF STRUCT` FUNCTION:n VAR_INPUT:ina → C-koodigenerointi epäonnistuu | Välitä yksittäinen struct tai käytä FB:tä |
+| 14 | Taulukko-indeksointi (`arr[idx]`) FUNCTION-kutsun parametrissa | Kopioi välimuuttujaan ennen kutsua: `tmp := arr[i]; f(x := tmp)` |

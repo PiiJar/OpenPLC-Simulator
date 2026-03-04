@@ -38,10 +38,9 @@ END_VAR
 
 VAR_EXTERNAL
   g_dep_idle_slot : ARRAY[1..MAX_TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T;
+  g_move          : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
 END_VAR
 VAR
-  fb_travel_to   : STC_FB_CalcHorizontalTravel;
-  fb_travel_from : STC_FB_CalcHorizontalTravel;
   si          : INT;
   slot_cnt    : INT;
   slot_start  : LINT;
@@ -61,6 +60,7 @@ VAR
   found       : BOOL;
   overflow_best_delay : REAL;   (* best delay among flex-overflow slots *)
   overflow_best_slot  : INT;
+  tmp_move    : MOVE_TIMES_T;  (* MATIEC cannot index arrays in FUNCTION args *)
 END_VAR
 
 (* Initialize output *)
@@ -87,6 +87,7 @@ found      := FALSE;
 overflow_best_delay := 1.0E9;
 overflow_best_slot  := 0;
 
+tmp_move := g_move[i_trans_id];
 FOR si := 1 TO DEP_MAX_IDLE_SLOTS DO
   IF si > slot_cnt THEN
     EXIT;
@@ -99,16 +100,14 @@ FOR si := 1 TO DEP_MAX_IDLE_SLOTS DO
   from_stn := g_dep_idle_slot[i_trans_id].slots[si].lift_station;
   travel_to := 0.0;
   IF from_stn > 0 AND from_stn <> i_lift_stn THEN
-    fb_travel_to(i_from_stn := from_stn, i_to_stn := i_lift_stn, i_trans := i_trans_id);
-    travel_to := fb_travel_to.o_travel_s;
+    travel_to := STC_CalcHorizontalTravel(i_from_stn := from_stn, i_to_stn := i_lift_stn, i_move := tmp_move);
   END_IF;
 
   (* ── Travel time: this sink → next task lift ── *)
   to_stn := g_dep_idle_slot[i_trans_id].slots[si].sink_station;
   travel_from := 0.0;
   IF to_stn > 0 AND to_stn <> i_sink_stn THEN
-    fb_travel_from(i_from_stn := i_sink_stn, i_to_stn := to_stn, i_trans := i_trans_id);
-    travel_from := fb_travel_from.o_travel_s;
+    travel_from := STC_CalcHorizontalTravel(i_from_stn := i_sink_stn, i_to_stn := to_stn, i_move := tmp_move);
   END_IF;
 
   (* Earliest start = max(slot_start, task_start + shift) + travel_to + margin *)

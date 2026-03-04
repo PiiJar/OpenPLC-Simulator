@@ -39,6 +39,7 @@ END_VAR
 VAR_EXTERNAL
   g_task    : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
   g_station : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
+  g_move    : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
 END_VAR
 VAR_OUTPUT
   o_has_conflict  : BOOL;
@@ -94,7 +95,7 @@ VAR
   (* Counter *)
   total_tasks : INT;
   DEFICIT_TOL : REAL := 1.0;
-  fb_travel : STC_FB_CalcHorizontalTravel;
+  tmp_move    : MOVE_TIMES_T;  (* MATIEC cannot index arrays in FUNCTION args *)
 END_VAR
 
 o_has_conflict := FALSE;
@@ -120,8 +121,8 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
       prev_sink := g_task[ti].queue[qi].sink_station;
       next_lift := g_task[ti].queue[qi + 1].lift_station;
 
-      fb_travel(i_from_stn := prev_sink, i_to_stn := next_lift, i_trans := ti);
-      travel_s := fb_travel.o_travel_s;
+      tmp_move := g_move[ti];
+      travel_s := STC_CalcHorizontalTravel(i_from_stn := prev_sink, i_to_stn := next_lift, i_move := tmp_move);
 
       gap_s := LINT_TO_REAL(
         g_task[ti].queue[qi + 1].start_time - g_task[ti].queue[qi].finish_time
@@ -283,12 +284,11 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
 
                 IF has_recv_prev THEN
                   (* Travel from receiver's prev sink to handoff station (= ti's current sink) *)
-                  fb_travel(
+                  recv_travel := STC_CalcHorizontalTravel(
                     i_from_stn := recv_prev_sink,
                     i_to_stn   := g_task[ti].queue[qi].sink_station,
-                    i_trans    := tj
+                    i_move     := g_move[tj]
                   );
-                  recv_travel := fb_travel.o_travel_s;
                   recv_earliest := recv_prev_end + REAL_TO_LINT(recv_travel);
                   handoff_deficit := LINT_TO_REAL(
                     recv_earliest - g_task[ti].queue[qi].finish_time

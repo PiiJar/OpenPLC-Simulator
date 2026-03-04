@@ -33,6 +33,7 @@ VAR_EXTERNAL
   g_station : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
   g_schedule : ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T;
   g_station_count : INT;
+  g_move    : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
 END_VAR
 VAR
   st         : INT;      (* loop: stage index *)
@@ -54,7 +55,7 @@ VAR
   out_count  : INT;      (* output stage counter *)
   p          : INT;      (* parallel station loop index *)
   chosen_stn : INT;      (* chosen parallel station *)
-  fb_xfer    : STC_FB_CalcTransferTime;  (* shared transfer time calc *)
+  tmp_move   : MOVE_TIMES_T;  (* MATIEC cannot index arrays in FUNCTION args *)
   (* ── Parallel station selection (schedule-aware + idle-since) ── *)
   cand_arr         : ARRAY[1..5] OF INT;
   cand_cnt         : INT;
@@ -158,8 +159,8 @@ FOR st := start_st TO 30 DO
     calc_s := INT_TO_REAL(g_program[i_unit].stages[st].cal_time);
 
     (* Estimate this stage's time window *)
-    fb_xfer(i_from_stn := prev_stn, i_to_stn := cand_arr[1], i_trans := i_trans);
-    xfer_t := fb_xfer.o_total_s;
+    tmp_move := g_move[i_trans];
+    xfer_t := STC_CalcTransferTime(i_from_stn := prev_stn, i_to_stn := cand_arr[1], i_move := tmp_move);
     my_entry := exit_t + REAL_TO_LINT(xfer_t);
     my_exit  := my_entry + REAL_TO_LINT(calc_s);
 
@@ -230,8 +231,8 @@ FOR st := start_st TO 30 DO
   max_s  := INT_TO_REAL(g_program[i_unit].stages[st].max_time);
 
   (* -- Calculate transfer time from prev_stn to stn_num -- *)
-  fb_xfer(i_from_stn := prev_stn, i_to_stn := stn_num, i_trans := i_trans);
-  xfer_t := fb_xfer.o_total_s;
+  tmp_move := g_move[i_trans];
+  xfer_t := STC_CalcTransferTime(i_from_stn := prev_stn, i_to_stn := stn_num, i_move := tmp_move);
 
   (* -- Calculate entry and exit times -- *)
   IF is_first AND is_on_stn AND st = cur_stage THEN

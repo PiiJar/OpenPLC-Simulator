@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-02T15:12:32"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-02T15:12:32">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-04T09:34:00"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-04T09:34:00">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -842,6 +842,85 @@
       </dataType>
     </dataTypes>
     <pous>
+      <pou name="STC_CalcHorizontalTravel" pouType="function">
+        <interface>
+          <returnType>
+            <REAL/>
+          </returnType>
+          <inputVars>
+            <variable name="i_from_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="i_to_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="i_move">
+              <type><derived name="MOVE_TIMES_T"/></type>
+            </variable>
+          </inputVars>
+          <localVars>
+            <variable name="from_idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="to_idx">
+              <type><INT/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[STC_CalcHorizontalTravel := 0.0;
+IF i_from_stn > 0 AND i_to_stn > 0 AND i_from_stn <> i_to_stn THEN
+  from_idx := i_from_stn - 100;
+  to_idx   := i_to_stn - 100;
+  IF from_idx >= 1 AND from_idx <= 25 AND to_idx >= 1 AND to_idx <= 25 THEN
+    STC_CalcHorizontalTravel := i_move.travel[from_idx].to_s[to_idx];
+  END_IF;
+END_IF;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
+      <pou name="STC_CalcTransferTime" pouType="function">
+        <interface>
+          <returnType>
+            <REAL/>
+          </returnType>
+          <inputVars>
+            <variable name="i_from_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="i_to_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="i_move">
+              <type><derived name="MOVE_TIMES_T"/></type>
+            </variable>
+          </inputVars>
+          <localVars>
+            <variable name="from_idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="to_idx">
+              <type><INT/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[STC_CalcTransferTime := 0.0;
+IF i_from_stn > 0 AND i_from_stn <> i_to_stn THEN
+  from_idx := i_from_stn - 100;
+  to_idx   := i_to_stn - 100;
+  IF from_idx >= 1 AND from_idx <= 25 AND to_idx >= 1 AND to_idx <= 25 THEN
+    STC_CalcTransferTime :=
+      i_move.lift_s[from_idx]
+      + i_move.travel[from_idx].to_s[to_idx]
+      + i_move.sink_s[to_idx];
+  END_IF;
+END_IF;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
       <pou name="TWA_CalcPriority" pouType="function">
         <interface>
           <returnType>
@@ -1102,14 +1181,11 @@ END_FOR;]]></xhtml:p>
             <variable name="g_dep_idle_slot">
               <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T"/></type>
             </variable>
+            <variable name="g_move">
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T"/></type>
+            </variable>
           </externalVars>
           <localVars>
-            <variable name="fb_travel_to">
-              <type><derived name="STC_FB_CalcHorizontalTravel"/></type>
-            </variable>
-            <variable name="fb_travel_from">
-              <type><derived name="STC_FB_CalcHorizontalTravel"/></type>
-            </variable>
             <variable name="si">
               <type><INT/></type>
             </variable>
@@ -1167,6 +1243,9 @@ END_FOR;]]></xhtml:p>
             <variable name="overflow_best_slot">
               <type><INT/></type>
             </variable>
+            <variable name="tmp_move">
+              <type><derived name="MOVE_TIMES_T"/></type>
+            </variable>
           </localVars>
         </interface>
         <body>
@@ -1195,6 +1274,7 @@ found      := FALSE;
 overflow_best_delay := 1.0E9;
 overflow_best_slot  := 0;
 
+tmp_move := g_move[i_trans_id];
 FOR si := 1 TO DEP_MAX_IDLE_SLOTS DO
   IF si > slot_cnt THEN
     EXIT;
@@ -1207,16 +1287,14 @@ FOR si := 1 TO DEP_MAX_IDLE_SLOTS DO
   from_stn := g_dep_idle_slot[i_trans_id].slots[si].lift_station;
   travel_to := 0.0;
   IF from_stn > 0 AND from_stn <> i_lift_stn THEN
-    fb_travel_to(i_from_stn := from_stn, i_to_stn := i_lift_stn, i_trans := i_trans_id);
-    travel_to := fb_travel_to.o_travel_s;
+    travel_to := STC_CalcHorizontalTravel(i_from_stn := from_stn, i_to_stn := i_lift_stn, i_move := tmp_move);
   END_IF;
 
   (* ── Travel time: this sink → next task lift ── *)
   to_stn := g_dep_idle_slot[i_trans_id].slots[si].sink_station;
   travel_from := 0.0;
   IF to_stn > 0 AND to_stn <> i_sink_stn THEN
-    fb_travel_from(i_from_stn := i_sink_stn, i_to_stn := to_stn, i_trans := i_trans_id);
-    travel_from := fb_travel_from.o_travel_s;
+    travel_from := STC_CalcHorizontalTravel(i_from_stn := i_sink_stn, i_to_stn := to_stn, i_move := tmp_move);
   END_IF;
 
   (* Earliest start = max(slot_start, task_start + shift) + travel_to + margin *)
@@ -1568,6 +1646,9 @@ END_IF;]]></xhtml:p>
             <variable name="g_dep_stable">
               <type><BOOL/></type>
             </variable>
+            <variable name="g_move">
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T"/></type>
+            </variable>
             <variable name="g_dep_waiting">
               <type><derived name="ARRAY[1..DEP_MAX_WAITING] OF INT"/></type>
             </variable>
@@ -1692,12 +1773,6 @@ END_IF;]]></xhtml:p>
             <variable name="fb_swap_tasks">
               <type><derived name="TSK_FB_SwapTasks"/></type>
             </variable>
-            <variable name="fb_find_trans">
-              <type><derived name="STC_FB_FindTransporter"/></type>
-            </variable>
-            <variable name="fb_xfer">
-              <type><derived name="STC_FB_CalcTransferTime"/></type>
-            </variable>
             <variable name="fb_clear">
               <type><derived name="STC_FB_ClearTaskQueues"/></type>
             </variable>
@@ -1710,17 +1785,17 @@ END_IF;]]></xhtml:p>
             <variable name="fb_collect_wait">
               <type><derived name="STC_FB_CollectActiveBatches"/></type>
             </variable>
-            <variable name="fb_travel_s0_to">
-              <type><derived name="STC_FB_CalcHorizontalTravel"/></type>
-            </variable>
-            <variable name="fb_travel_s0_from">
-              <type><derived name="STC_FB_CalcHorizontalTravel"/></type>
+            <variable name="fb_find">
+              <type><derived name="STC_FindTransporter"/></type>
             </variable>
             <variable name="ti">
               <type><INT/></type>
             </variable>
             <variable name="sched_trans">
               <type><INT/></type>
+            </variable>
+            <variable name="tmp_move">
+              <type><derived name="MOVE_TIMES_T"/></type>
             </variable>
             <variable name="write_idx">
               <type><INT/></type>
@@ -1949,8 +2024,8 @@ ELSIF phase = 1000 THEN
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 1010 THEN
   (* Find transporter for this batch based on its location *)
-  fb_find_trans(i_lift_stn := g_unit[cur_wait_unit].location, i_sink_stn := 0);
-  sched_trans := fb_find_trans.o_trans_id;
+  fb_find(i_lift_stn := g_unit[cur_wait_unit].location, i_sink_stn := 0);
+  sched_trans := fb_find.o_trans;
   IF sched_trans = 0 THEN sched_trans := 1; END_IF;
 
   (* Calculate schedule using (possibly shifted) base time *)
@@ -2070,21 +2145,21 @@ ELSIF phase = 2000 THEN
       next_phase := 9000;
     END_IF;
     IF next_phase <> 9000 THEN
-      fb_find_trans(i_lift_stn := loading_stn, i_sink_stn := first_stn);
-      IF fb_find_trans.o_trans_id > 0 THEN
-        sched_trans := fb_find_trans.o_trans_id;
+      fb_find(i_lift_stn := loading_stn, i_sink_stn := first_stn);
+      IF fb_find.o_trans > 0 THEN
+        sched_trans := fb_find.o_trans;
       END_IF;
     END_IF;
   ELSE
-    fb_find_trans(i_lift_stn := loading_stn, i_sink_stn := first_stn);
-    sched_trans := fb_find_trans.o_trans_id;
+    fb_find(i_lift_stn := loading_stn, i_sink_stn := first_stn);
+    sched_trans := fb_find.o_trans;
     IF sched_trans = 0 THEN sched_trans := 1; END_IF;
   END_IF;
 
   IF next_phase <> 9000 THEN
     (* Calculate transfer time for pickup *)
-    fb_xfer(i_from_stn := loading_stn, i_to_stn := first_stn, i_trans := sched_trans);
-    xfer_dur := fb_xfer.o_total_s;
+    tmp_move := g_move[sched_trans];
+    xfer_dur := STC_CalcTransferTime(i_from_stn := loading_stn, i_to_stn := first_stn, i_move := tmp_move);
     IF xfer_dur < 1.0 THEN xfer_dur := 1.0; END_IF;
 
     s0_task_dur := REAL_TO_LINT(xfer_dur);
@@ -2103,8 +2178,7 @@ ELSIF phase = 2000 THEN
         s0_from_stn := g_dep_idle_slot[sched_trans].slots[s0_slot_si].lift_station;
         s0_travel_to := 0.0;
         IF s0_from_stn > 0 AND s0_from_stn <> loading_stn THEN
-          fb_travel_s0_to(i_from_stn := s0_from_stn, i_to_stn := loading_stn, i_trans := sched_trans);
-          s0_travel_to := fb_travel_s0_to.o_travel_s;
+          s0_travel_to := STC_CalcHorizontalTravel(i_from_stn := s0_from_stn, i_to_stn := loading_stn, i_move := tmp_move);
         END_IF;
 
         (* JS: earliestPickup = max(slot.start, currentTimeSec) + travelToPickup *)
@@ -2118,8 +2192,7 @@ ELSIF phase = 2000 THEN
         s0_to_stn := g_dep_idle_slot[sched_trans].slots[s0_slot_si].sink_station;
         s0_travel_from := 0.0;
         IF s0_to_stn > 0 AND s0_to_stn <> first_stn THEN
-          fb_travel_s0_from(i_from_stn := first_stn, i_to_stn := s0_to_stn, i_trans := sched_trans);
-          s0_travel_from := fb_travel_s0_from.o_travel_s;
+          s0_travel_from := STC_CalcHorizontalTravel(i_from_stn := first_stn, i_to_stn := s0_to_stn, i_move := tmp_move);
         END_IF;
 
         (* JS: slotEnd = slot.nextTask ? slot.end - travelFromSink - conflictMargin : slot.end *)
@@ -3422,52 +3495,6 @@ END_CASE;]]></xhtml:p>
           </ST>
         </body>
       </pou>
-      <pou name="STC_FB_CalcHorizontalTravel" pouType="functionBlock">
-        <interface>
-          <inputVars>
-            <variable name="i_from_stn">
-              <type><INT/></type>
-            </variable>
-            <variable name="i_to_stn">
-              <type><INT/></type>
-            </variable>
-            <variable name="i_trans">
-              <type><INT/></type>
-            </variable>
-          </inputVars>
-          <outputVars>
-            <variable name="o_travel_s">
-              <type><REAL/></type>
-            </variable>
-          </outputVars>
-          <externalVars>
-            <variable name="g_move">
-              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T"/></type>
-            </variable>
-          </externalVars>
-          <localVars>
-            <variable name="from_idx">
-              <type><INT/></type>
-            </variable>
-            <variable name="to_idx">
-              <type><INT/></type>
-            </variable>
-          </localVars>
-        </interface>
-        <body>
-          <ST>
-            <xhtml:p><![CDATA[o_travel_s := 0.0;
-IF i_from_stn > 0 AND i_to_stn > 0 AND i_from_stn <> i_to_stn THEN
-  from_idx := i_from_stn - 100;
-  to_idx   := i_to_stn - 100;
-  IF from_idx >= 1 AND from_idx <= 25 AND to_idx >= 1 AND to_idx <= 25
-     AND i_trans >= 1 AND i_trans <= 3 THEN
-    o_travel_s := g_move[i_trans].travel[from_idx].to_s[to_idx];
-  END_IF;
-END_IF;]]></xhtml:p>
-          </ST>
-        </body>
-      </pou>
       <pou name="STC_FB_CalcMoveTimes" pouType="functionBlock">
         <interface>
           <inputVars>
@@ -3613,68 +3640,6 @@ IF i_run AND NOT prev_run THEN
 END_IF;
 
 prev_run := i_run;]]></xhtml:p>
-          </ST>
-        </body>
-      </pou>
-      <pou name="STC_FB_CalcTransferTime" pouType="functionBlock">
-        <interface>
-          <inputVars>
-            <variable name="i_from_stn">
-              <type><INT/></type>
-            </variable>
-            <variable name="i_to_stn">
-              <type><INT/></type>
-            </variable>
-            <variable name="i_trans">
-              <type><INT/></type>
-            </variable>
-          </inputVars>
-          <outputVars>
-            <variable name="o_total_s">
-              <type><REAL/></type>
-            </variable>
-            <variable name="o_lift_s">
-              <type><REAL/></type>
-            </variable>
-            <variable name="o_travel_s">
-              <type><REAL/></type>
-            </variable>
-            <variable name="o_sink_s">
-              <type><REAL/></type>
-            </variable>
-          </outputVars>
-          <externalVars>
-            <variable name="g_move">
-              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T"/></type>
-            </variable>
-          </externalVars>
-          <localVars>
-            <variable name="from_idx">
-              <type><INT/></type>
-            </variable>
-            <variable name="to_idx">
-              <type><INT/></type>
-            </variable>
-          </localVars>
-        </interface>
-        <body>
-          <ST>
-            <xhtml:p><![CDATA[o_total_s  := 0.0;
-o_lift_s   := 0.0;
-o_travel_s := 0.0;
-o_sink_s   := 0.0;
-
-IF i_from_stn > 0 AND i_from_stn <> i_to_stn THEN
-  from_idx := i_from_stn - 100;
-  to_idx   := i_to_stn - 100;
-  IF from_idx >= 1 AND from_idx <= 25 AND to_idx >= 1 AND to_idx <= 25
-     AND i_trans >= 1 AND i_trans <= 3 THEN
-    o_lift_s   := g_move[i_trans].lift_s[from_idx];
-    o_travel_s := g_move[i_trans].travel[from_idx].to_s[to_idx];
-    o_sink_s   := g_move[i_trans].sink_s[to_idx];
-    o_total_s  := o_lift_s + o_travel_s + o_sink_s;
-  END_IF;
-END_IF;]]></xhtml:p>
           </ST>
         </body>
       </pou>
@@ -4767,73 +4732,6 @@ dropping_time_s := 0.0;]]></xhtml:p>
           </ST>
         </body>
       </pou>
-      <pou name="STC_FB_FindTransporter" pouType="functionBlock">
-        <interface>
-          <inputVars>
-            <variable name="i_lift_stn">
-              <type><INT/></type>
-            </variable>
-            <variable name="i_sink_stn">
-              <type><INT/></type>
-            </variable>
-          </inputVars>
-          <outputVars>
-            <variable name="o_trans_id">
-              <type><INT/></type>
-            </variable>
-          </outputVars>
-          <externalVars>
-            <variable name="g_cfg">
-              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
-            </variable>
-          </externalVars>
-          <localVars>
-            <variable name="ti">
-              <type><INT/></type>
-            </variable>
-            <variable name="ai">
-              <type><INT/></type>
-            </variable>
-            <variable name="area">
-              <type><derived name="TASK_AREA_T"/></type>
-            </variable>
-            <variable name="can_lift">
-              <type><BOOL/></type>
-            </variable>
-            <variable name="can_sink">
-              <type><BOOL/></type>
-            </variable>
-          </localVars>
-        </interface>
-        <body>
-          <ST>
-            <xhtml:p><![CDATA[o_trans_id := 0;
-FOR ti := 1 TO MAX_TRANSPORTERS DO
-  IF o_trans_id = 0 THEN
-    FOR ai := 1 TO 4 DO
-      IF o_trans_id = 0 THEN
-        area := g_cfg[ti].task_area[ai];
-        IF area.min_lift > 0 OR area.max_lift > 0 THEN
-          can_lift := (i_lift_stn >= area.min_lift) AND (i_lift_stn <= area.max_lift);
-          IF i_sink_stn = 0 THEN
-            (* Lift-only coverage search *)
-            IF can_lift THEN
-              o_trans_id := ti;
-            END_IF;
-          ELSE
-            can_sink := (i_sink_stn >= area.min_sink) AND (i_sink_stn <= area.max_sink);
-            IF can_lift AND can_sink THEN
-              o_trans_id := ti;
-            END_IF;
-          END_IF;
-        END_IF;
-      END_IF;
-    END_FOR;
-  END_IF;
-END_FOR;]]></xhtml:p>
-          </ST>
-        </body>
-      </pou>
       <pou name="STC_FB_MainScheduler" pouType="functionBlock">
         <interface>
           <inputVars>
@@ -5394,6 +5292,72 @@ END_IF;]]></xhtml:p>
           </ST>
         </body>
       </pou>
+      <pou name="STC_FindTransporter" pouType="functionBlock">
+        <interface>
+          <inputVars>
+            <variable name="i_lift_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="i_sink_stn">
+              <type><INT/></type>
+            </variable>
+          </inputVars>
+          <outputVars>
+            <variable name="o_trans">
+              <type><INT/></type>
+            </variable>
+          </outputVars>
+          <externalVars>
+            <variable name="g_cfg">
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
+            </variable>
+          </externalVars>
+          <localVars>
+            <variable name="ti">
+              <type><INT/></type>
+            </variable>
+            <variable name="ai">
+              <type><INT/></type>
+            </variable>
+            <variable name="area">
+              <type><derived name="TASK_AREA_T"/></type>
+            </variable>
+            <variable name="can_lift">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="can_sink">
+              <type><BOOL/></type>
+            </variable>
+          </localVars>
+        </interface>
+        <body>
+          <ST>
+            <xhtml:p><![CDATA[o_trans := 0;
+FOR ti := 1 TO MAX_TRANSPORTERS DO
+  IF o_trans = 0 THEN
+    FOR ai := 1 TO 4 DO
+      IF o_trans = 0 THEN
+        area := g_cfg[ti].task_area[ai];
+        IF area.min_lift > 0 OR area.max_lift > 0 THEN
+          can_lift := (i_lift_stn >= area.min_lift) AND (i_lift_stn <= area.max_lift);
+          IF i_sink_stn = 0 THEN
+            IF can_lift THEN
+              o_trans := ti;
+            END_IF;
+          ELSE
+            can_sink := (i_sink_stn >= area.min_sink) AND (i_sink_stn <= area.max_sink);
+            IF can_lift AND can_sink THEN
+              o_trans := ti;
+            END_IF;
+          END_IF;
+        END_IF;
+      END_IF;
+    END_FOR;
+  END_IF;
+END_FOR;]]></xhtml:p>
+          </ST>
+        </body>
+      </pou>
       <pou name="TSK_FB_Analyze" pouType="functionBlock">
         <interface>
           <outputVars>
@@ -5431,6 +5395,9 @@ END_IF;]]></xhtml:p>
             </variable>
             <variable name="g_station">
               <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T"/></type>
+            </variable>
+            <variable name="g_move">
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -5546,8 +5513,8 @@ END_IF;]]></xhtml:p>
               <type><REAL/></type>
               <initialValue><simpleValue value="1.0"/></initialValue>
             </variable>
-            <variable name="fb_travel">
-              <type><derived name="STC_FB_CalcHorizontalTravel"/></type>
+            <variable name="tmp_move">
+              <type><derived name="MOVE_TIMES_T"/></type>
             </variable>
           </localVars>
         </interface>
@@ -5576,8 +5543,8 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
       prev_sink := g_task[ti].queue[qi].sink_station;
       next_lift := g_task[ti].queue[qi + 1].lift_station;
 
-      fb_travel(i_from_stn := prev_sink, i_to_stn := next_lift, i_trans := ti);
-      travel_s := fb_travel.o_travel_s;
+      tmp_move := g_move[ti];
+      travel_s := STC_CalcHorizontalTravel(i_from_stn := prev_sink, i_to_stn := next_lift, i_move := tmp_move);
 
       gap_s := LINT_TO_REAL(
         g_task[ti].queue[qi + 1].start_time - g_task[ti].queue[qi].finish_time
@@ -5739,12 +5706,11 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
 
                 IF has_recv_prev THEN
                   (* Travel from receiver's prev sink to handoff station (= ti's current sink) *)
-                  fb_travel(
+                  recv_travel := STC_CalcHorizontalTravel(
                     i_from_stn := recv_prev_sink,
                     i_to_stn   := g_task[ti].queue[qi].sink_station,
-                    i_trans    := tj
+                    i_move     := g_move[tj]
                   );
-                  recv_travel := fb_travel.o_travel_s;
                   recv_earliest := recv_prev_end + REAL_TO_LINT(recv_travel);
                   handoff_deficit := LINT_TO_REAL(
                     recv_earliest - g_task[ti].queue[qi].finish_time
@@ -5814,6 +5780,9 @@ checked_count := total_tasks;]]></xhtml:p>
             <variable name="g_station_count">
               <type><INT/></type>
             </variable>
+            <variable name="g_move">
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T"/></type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="st">
@@ -5873,8 +5842,8 @@ checked_count := total_tasks;]]></xhtml:p>
             <variable name="chosen_stn">
               <type><INT/></type>
             </variable>
-            <variable name="fb_xfer">
-              <type><derived name="STC_FB_CalcTransferTime"/></type>
+            <variable name="tmp_move">
+              <type><derived name="MOVE_TIMES_T"/></type>
             </variable>
             <variable name="cand_arr">
               <type>
@@ -6017,8 +5986,8 @@ FOR st := start_st TO 30 DO
     calc_s := INT_TO_REAL(g_program[i_unit].stages[st].cal_time);
 
     (* Estimate this stage's time window *)
-    fb_xfer(i_from_stn := prev_stn, i_to_stn := cand_arr[1], i_trans := i_trans);
-    xfer_t := fb_xfer.o_total_s;
+    tmp_move := g_move[i_trans];
+    xfer_t := STC_CalcTransferTime(i_from_stn := prev_stn, i_to_stn := cand_arr[1], i_move := tmp_move);
     my_entry := exit_t + REAL_TO_LINT(xfer_t);
     my_exit  := my_entry + REAL_TO_LINT(calc_s);
 
@@ -6089,8 +6058,8 @@ FOR st := start_st TO 30 DO
   max_s  := INT_TO_REAL(g_program[i_unit].stages[st].max_time);
 
   (* -- Calculate transfer time from prev_stn to stn_num -- *)
-  fb_xfer(i_from_stn := prev_stn, i_to_stn := stn_num, i_trans := i_trans);
-  xfer_t := fb_xfer.o_total_s;
+  tmp_move := g_move[i_trans];
+  xfer_t := STC_CalcTransferTime(i_from_stn := prev_stn, i_to_stn := stn_num, i_move := tmp_move);
 
   (* -- Calculate entry and exit times -- *)
   IF is_first AND is_on_stn AND st = cur_stage THEN
@@ -6149,6 +6118,9 @@ g_schedule[i_unit].stage_count := out_count;]]></xhtml:p>
             <variable name="g_task">
               <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
             </variable>
+            <variable name="g_cfg">
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="si">
@@ -6179,7 +6151,7 @@ g_schedule[i_unit].stage_count := out_count;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="fb_find">
-              <type><derived name="STC_FB_FindTransporter"/></type>
+              <type><derived name="STC_FindTransporter"/></type>
             </variable>
           </localVars>
         </interface>
@@ -6210,7 +6182,7 @@ FOR si := 1 TO sc - 1 DO
     IF lift_stn > 0 AND sink_stn > 0 THEN
       (* -- Find transporter via task_area matching -- *)
       fb_find(i_lift_stn := lift_stn, i_sink_stn := sink_stn);
-      tid := fb_find.o_trans_id;
+      tid := fb_find.o_trans;
 
       (* -- Append task to transporter queue -- *)
       IF tid >= 1 AND tid <= 3 THEN
@@ -6259,6 +6231,9 @@ END_FOR;]]></xhtml:p>
             </variable>
             <variable name="g_task">
               <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T"/></type>
+            </variable>
+            <variable name="g_move">
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -6355,6 +6330,9 @@ END_FOR;]]></xhtml:p>
             <variable name="slot_start">
               <type><LINT/></type>
             </variable>
+            <variable name="tmp_move">
+              <type><derived name="MOVE_TIMES_T"/></type>
+            </variable>
             <variable name="slot_end">
               <type><LINT/></type>
             </variable>
@@ -6378,12 +6356,6 @@ END_FOR;]]></xhtml:p>
             </variable>
             <variable name="slot_ok">
               <type><BOOL/></type>
-            </variable>
-            <variable name="fb_ht_margin">
-              <type><derived name="STC_FB_CalcHorizontalTravel"/></type>
-            </variable>
-            <variable name="fb_xfer">
-              <type><derived name="STC_FB_CalcTransferTime"/></type>
             </variable>
           </localVars>
         </interface>
@@ -6562,8 +6534,8 @@ END_FOR;]]></xhtml:p>
 
           IF dest_stn > 0 THEN
             (* Calculate timing *)
-            fb_xfer(i_from_stn := loc, i_to_stn := dest_stn, i_trans := cov_t);
-            xfer_s := fb_xfer.o_total_s;
+            tmp_move := g_move[cov_t];
+            xfer_s := STC_CalcTransferTime(i_from_stn := loc, i_to_stn := dest_stn, i_move := tmp_move);
 
             task_start := i_time_s;
             task_end   := task_start + REAL_TO_LINT(xfer_s);
@@ -6582,12 +6554,11 @@ END_FOR;]]></xhtml:p>
                 slot_start := task_start;
                 slot_end   := g_task[cov_t].queue[1].start_time;
                 (* Travel from NTT sink to first task's lift *)
-                fb_ht_margin(
+                travel_from_sink := STC_CalcHorizontalTravel(
                   i_from_stn := dest_stn,
                   i_to_stn   := g_task[cov_t].queue[1].lift_station,
-                  i_trans    := cov_t
+                  i_move     := g_move[cov_t]
                 );
-                travel_from_sink := fb_ht_margin.o_travel_s;
                 latest_end := slot_end - REAL_TO_LINT(travel_from_sink) - 1;
                 IF task_start >= slot_start AND task_end <= latest_end THEN
                   slot_ok := TRUE;
@@ -6601,21 +6572,19 @@ END_FOR;]]></xhtml:p>
                   slot_end   := g_task[cov_t].queue[qi3 + 1].start_time;
                   IF slot_end > slot_start THEN
                     (* Travel from prev task's sink to NTT lift *)
-                    fb_ht_margin(
+                    travel_to_lift := STC_CalcHorizontalTravel(
                       i_from_stn := g_task[cov_t].queue[qi3].sink_station,
                       i_to_stn   := loc,
-                      i_trans    := cov_t
+                      i_move     := g_move[cov_t]
                     );
-                    travel_to_lift := fb_ht_margin.o_travel_s;
                     earliest_start := slot_start + REAL_TO_LINT(travel_to_lift) + 1;
 
                     (* Travel from NTT sink to next task's lift *)
-                    fb_ht_margin(
+                    travel_from_sink := STC_CalcHorizontalTravel(
                       i_from_stn := dest_stn,
                       i_to_stn   := g_task[cov_t].queue[qi3 + 1].lift_station,
-                      i_trans    := cov_t
+                      i_move     := g_move[cov_t]
                     );
-                    travel_from_sink := fb_ht_margin.o_travel_s;
                     latest_end := slot_end - REAL_TO_LINT(travel_from_sink) - 1;
 
                     ntt_start := earliest_start;
@@ -6633,12 +6602,11 @@ END_FOR;]]></xhtml:p>
               IF NOT slot_ok THEN
                 slot_start := g_task[cov_t].queue[g_task[cov_t].count].finish_time;
                 (* Travel from last task's sink to NTT lift *)
-                fb_ht_margin(
+                travel_to_lift := STC_CalcHorizontalTravel(
                   i_from_stn := g_task[cov_t].queue[g_task[cov_t].count].sink_station,
                   i_to_stn   := loc,
-                  i_trans    := cov_t
+                  i_move     := g_move[cov_t]
                 );
-                travel_to_lift := fb_ht_margin.o_travel_s;
                 earliest_start := slot_start + REAL_TO_LINT(travel_to_lift) + 1;
 
                 ntt_start := earliest_start;
@@ -7128,6 +7096,9 @@ END_IF;
             <variable name="g_schedule">
               <type><derived name="ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T"/></type>
             </variable>
+            <variable name="g_cfg">
+              <type><derived name="ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T"/></type>
+            </variable>
             <variable name="g_dep_pending">
               <type><derived name="DEP_PENDING_WRITE_T"/></type>
             </variable>
@@ -7174,9 +7145,6 @@ END_IF;
             <variable name="fb_notrt">
               <type><derived name="TSK_FB_NoTreatment"/></type>
             </variable>
-            <variable name="fb_find">
-              <type><derived name="STC_FB_FindTransporter"/></type>
-            </variable>
             <variable name="fb_clear">
               <type><derived name="STC_FB_ClearTaskQueues"/></type>
             </variable>
@@ -7207,6 +7175,9 @@ END_IF;
             <variable name="locks_initialized">
               <type><BOOL/></type>
               <initialValue><simpleValue value="FALSE"/></initialValue>
+            </variable>
+            <variable name="fb_find">
+              <type><derived name="STC_FindTransporter"/></type>
             </variable>
             <variable name="bi">
               <type><INT/></type>
@@ -7288,7 +7259,7 @@ ELSIF phase >= 1001 AND phase <= 1000 + MAX_UNITS THEN
 
     (* Find transporter for this unit — first one with matching task_area *)
     fb_find(i_lift_stn := g_unit[ui].location, i_sink_stn := 0);
-    sched_trans := fb_find.o_trans_id;
+    sched_trans := fb_find.o_trans;
     IF sched_trans = 0 THEN sched_trans := 1; END_IF;  (* fallback default *)
 
     fb_calc(i_unit := ui, i_trans := sched_trans, i_time_s := i_time_s);
@@ -10443,9 +10414,6 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
             </variable>
             <variable name="twa_calc">
               <type><derived name="TWA_FB_CalcLimits"/></type>
-            </variable>
-            <variable name="lookup">
-              <type><derived name="STC_FB_FindStation"/></type>
             </variable>
             <variable name="clear_cfg">
               <type><derived name="SIM_FB_ClearConfig"/></type>

@@ -61,6 +61,7 @@ VAR_EXTERNAL
   g_dep_pending      : DEP_PENDING_WRITE_T;
   g_dep_activated    : BOOL;
   g_dep_stable       : BOOL;
+  g_move              : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
   g_dep_waiting      : ARRAY[1..DEP_MAX_WAITING] OF INT;
   g_dep_waiting_count : INT;
 END_VAR
@@ -119,18 +120,16 @@ VAR
   fb_calc_sched   : TSK_FB_CalcSchedule;
   fb_create_tasks : TSK_FB_CreateTasks;
   fb_swap_tasks   : TSK_FB_SwapTasks;
-  fb_find_trans   : STC_FB_FindTransporter;
-  fb_xfer         : STC_FB_CalcTransferTime;
   fb_clear        : STC_FB_ClearTaskQueues;
   fb_sort         : STC_FB_SortTaskQueue;
   fb_collect_all  : STC_FB_CollectActiveBatches;
   fb_collect_wait : STC_FB_CollectActiveBatches;
-  fb_travel_s0_to   : STC_FB_CalcHorizontalTravel;  (* stage 0: prev sink → pickup *)
-  fb_travel_s0_from : STC_FB_CalcHorizontalTravel;  (* stage 0: sink → next lift *)
+  fb_find         : STC_FindTransporter;
 
   (* ── Temp variables ── *)
   ti : INT;  qi : INT;  bi : INT;  ui : INT;  si : INT;
   sched_trans   : INT;
+  tmp_move       : MOVE_TIMES_T;  (* temp for g_move[sched_trans] *)
   write_idx     : INT;
   loading_stn   : INT;
   first_stn     : INT;
@@ -285,8 +284,8 @@ ELSIF phase = 1000 THEN
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 1010 THEN
   (* Find transporter for this batch based on its location *)
-  fb_find_trans(i_lift_stn := g_unit[cur_wait_unit].location, i_sink_stn := 0);
-  sched_trans := fb_find_trans.o_trans_id;
+  fb_find(i_lift_stn := g_unit[cur_wait_unit].location, i_sink_stn := 0);
+  sched_trans := fb_find.o_trans;
   IF sched_trans = 0 THEN sched_trans := 1; END_IF;
 
   (* Calculate schedule using (possibly shifted) base time *)
@@ -406,21 +405,21 @@ ELSIF phase = 2000 THEN
       next_phase := 9000;
     END_IF;
     IF next_phase <> 9000 THEN
-      fb_find_trans(i_lift_stn := loading_stn, i_sink_stn := first_stn);
-      IF fb_find_trans.o_trans_id > 0 THEN
-        sched_trans := fb_find_trans.o_trans_id;
+      fb_find(i_lift_stn := loading_stn, i_sink_stn := first_stn);
+      IF fb_find.o_trans > 0 THEN
+        sched_trans := fb_find.o_trans;
       END_IF;
     END_IF;
   ELSE
-    fb_find_trans(i_lift_stn := loading_stn, i_sink_stn := first_stn);
-    sched_trans := fb_find_trans.o_trans_id;
+    fb_find(i_lift_stn := loading_stn, i_sink_stn := first_stn);
+    sched_trans := fb_find.o_trans;
     IF sched_trans = 0 THEN sched_trans := 1; END_IF;
   END_IF;
 
   IF next_phase <> 9000 THEN
     (* Calculate transfer time for pickup *)
-    fb_xfer(i_from_stn := loading_stn, i_to_stn := first_stn, i_trans := sched_trans);
-    xfer_dur := fb_xfer.o_total_s;
+    tmp_move := g_move[sched_trans];
+    xfer_dur := STC_CalcTransferTime(i_from_stn := loading_stn, i_to_stn := first_stn, i_move := tmp_move);
     IF xfer_dur < 1.0 THEN xfer_dur := 1.0; END_IF;
 
     s0_task_dur := REAL_TO_LINT(xfer_dur);
@@ -439,8 +438,7 @@ ELSIF phase = 2000 THEN
         s0_from_stn := g_dep_idle_slot[sched_trans].slots[s0_slot_si].lift_station;
         s0_travel_to := 0.0;
         IF s0_from_stn > 0 AND s0_from_stn <> loading_stn THEN
-          fb_travel_s0_to(i_from_stn := s0_from_stn, i_to_stn := loading_stn, i_trans := sched_trans);
-          s0_travel_to := fb_travel_s0_to.o_travel_s;
+          s0_travel_to := STC_CalcHorizontalTravel(i_from_stn := s0_from_stn, i_to_stn := loading_stn, i_move := tmp_move);
         END_IF;
 
         (* JS: earliestPickup = max(slot.start, currentTimeSec) + travelToPickup *)
@@ -454,8 +452,7 @@ ELSIF phase = 2000 THEN
         s0_to_stn := g_dep_idle_slot[sched_trans].slots[s0_slot_si].sink_station;
         s0_travel_from := 0.0;
         IF s0_to_stn > 0 AND s0_to_stn <> first_stn THEN
-          fb_travel_s0_from(i_from_stn := first_stn, i_to_stn := s0_to_stn, i_trans := sched_trans);
-          s0_travel_from := fb_travel_s0_from.o_travel_s;
+          s0_travel_from := STC_CalcHorizontalTravel(i_from_stn := first_stn, i_to_stn := s0_to_stn, i_move := tmp_move);
         END_IF;
 
         (* JS: slotEnd = slot.nextTask ? slot.end - travelFromSink - conflictMargin : slot.end *)

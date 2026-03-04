@@ -26,6 +26,7 @@ VAR_EXTERNAL
   g_batch  : ARRAY[1..MAX_UNITS] OF BATCH_T;
   g_schedule : ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T;
   g_task    : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
+  g_cfg    : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
 END_VAR
 VAR
   si         : INT;     (* schedule stage index *)
@@ -37,7 +38,7 @@ VAR
   tid        : INT;     (* transporter id found *)
   qi         : INT;     (* queue write index *)
   stg_num    : INT;     (* stage number from schedule *)
-  fb_find    : STC_FB_FindTransporter;  (* shared transporter finder *)
+  fb_find    : STC_FindTransporter;  (* transporter lookup *)
 END_VAR
 
 IF i_unit < 1 OR i_unit > MAX_UNITS THEN RETURN; END_IF;
@@ -65,7 +66,7 @@ FOR si := 1 TO sc - 1 DO
     IF lift_stn > 0 AND sink_stn > 0 THEN
       (* -- Find transporter via task_area matching -- *)
       fb_find(i_lift_stn := lift_stn, i_sink_stn := sink_stn);
-      tid := fb_find.o_trans_id;
+      tid := fb_find.o_trans;
 
       (* -- Append task to transporter queue -- *)
       IF tid >= 1 AND tid <= 3 THEN

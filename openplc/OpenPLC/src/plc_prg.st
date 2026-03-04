@@ -825,7 +825,6 @@ VAR
   stn_num        : INT;
   idx          : INT;
   twa_calc     : TWA_FB_CalcLimits;
-  lookup       : STC_FB_FindStation;
   clear_cfg    : SIM_FB_ClearConfig;
   cycle_count  : INT;
   main_sched   : STC_FB_MainScheduler;
