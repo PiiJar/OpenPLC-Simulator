@@ -131,6 +131,30 @@ END_IF;
 
 is_first := TRUE;
 
+(* -- Prepend current location when unit needs pre-positioning -- *)
+(* If unit is on a station that is NOT the first treatment station,
+   insert it as schedule entry 0 (0 treatment time) so that
+   CreateTasks generates a move-to-first-station task. *)
+IF is_on_stn AND start_st >= 1 THEN
+  stn_num := 0;
+  FOR p := 1 TO 5 DO
+    IF g_program[i_unit].stages[start_st].stations[p] = location THEN
+      stn_num := location;  (* flag: already on first treatment station *)
+    END_IF;
+  END_FOR;
+  IF stn_num = 0 THEN
+    out_count := out_count + 1;
+    g_schedule[i_unit].stages[out_count].station       := location;
+    g_schedule[i_unit].stages[out_count].entry_time    := exit_t;
+    g_schedule[i_unit].stages[out_count].exit_time     := exit_t;
+    g_schedule[i_unit].stages[out_count].min_time      := 0.0;
+    g_schedule[i_unit].stages[out_count].calc_time     := 0.0;
+    g_schedule[i_unit].stages[out_count].max_time      := 0.0;
+    g_schedule[i_unit].stages[out_count].transfer_time := 0.0;
+    is_first := FALSE;
+  END_IF;
+END_IF;
+
 (* ============================================================
    MAIN LOOP: Calculate schedule for each program stage
    ============================================================ *)
@@ -238,8 +262,13 @@ FOR st := start_st TO 30 DO
   IF is_first AND is_on_stn AND st = cur_stage THEN
     (* Batch is currently at this station *)
     entry_t := i_time_s;
-    (* Remaining time: calc_time - elapsed *)
-    remain_s := calc_s;
+    (* Remaining time: calc_time - elapsed since arrival *)
+    IF g_batch[i_unit].start_time > 0 THEN
+      elapsed_s := LINT_TO_REAL(i_time_s - g_batch[i_unit].start_time);
+    ELSE
+      elapsed_s := 0.0;
+    END_IF;
+    remain_s := calc_s - elapsed_s;
     IF remain_s < 1.0 THEN remain_s := 1.0; END_IF;
     exit_t := i_time_s + REAL_TO_LINT(remain_s);
   ELSIF is_first AND NOT is_on_stn THEN

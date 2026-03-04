@@ -362,8 +362,8 @@ async function readPLCState() {
     for (let u = 0; u < 10; u++) {
       const base = BLOCKS.unit_state.start + u * UNIT_FIELDS;
       const targetInt = toSigned(r[base + 2]);
-      // Batch data (10 × 7 fields in batch_state block)
-      const bBase = BLOCKS.batch_state.start + u * 7;
+      // Batch data (10 × 9 fields in batch_state block)
+      const bBase = BLOCKS.batch_state.start + u * 9;
       const batchCode = toSigned(r[bBase]);
       const batchState = toSigned(r[bBase + 1]);
       const batchProg = toSigned(r[bBase + 2]);
@@ -371,6 +371,9 @@ async function readPLCState() {
       const batchMinTime = toSigned(r[bBase + 4]);
       const batchMaxTime = toSigned(r[bBase + 5]);
       const batchCalTime = toSigned(r[bBase + 6]);
+      const startHi = r[bBase + 7] || 0;
+      const startLo = r[bBase + 8] || 0;
+      const batchStartTime = startHi * 65536 + startLo;  // seconds
       plcUnits.push({
         unit_id: u + 1,
         location: toSigned(r[base]),
@@ -383,7 +386,8 @@ async function readPLCState() {
         batch_stage: batchStage,
         batch_min_time: batchMinTime,
         batch_max_time: batchMaxTime,
-        batch_cal_time: batchCalTime
+        batch_cal_time: batchCalTime,
+        batch_start_time: batchStartTime
       });
     }
 

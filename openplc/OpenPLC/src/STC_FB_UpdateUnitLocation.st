@@ -7,6 +7,7 @@
 
    When moving to a station (sink / task completion):
      - Advances batch cur_stage if batch is IN_PROCESS
+     - Updates batch min_time/max_time/cal_time from treatment program
      - Clears unit target to TO_NONE if target was set (NTT done)
    ============================================================ *)
 
@@ -28,10 +29,12 @@ VAR_EXTERNAL
   g_station     : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
   g_transporter : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
   g_batch       : ARRAY[1..MAX_UNITS] OF BATCH_T;
+  g_program     : ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T;
   g_time_s      : LINT;
 END_VAR
 VAR
   old_loc : INT;
+  new_stg : INT;
 END_VAR
 
 IF (i_unit >= 1) AND (i_unit <= MAX_UNITS) THEN
@@ -56,11 +59,26 @@ IF (i_unit >= 1) AND (i_unit <= MAX_UNITS) THEN
     g_station[i_location].unit_id     := i_unit;
     g_station[i_location].change_time := g_time_s;
 
-    (* Advance batch stage if unit has an active batch *)
-    IF (g_batch[i_unit].batch_code <> 0)
+    (* Advance batch stage if unit is USED with an active batch *)
+    IF (g_unit[i_unit].status = 1)  (* USED *)
+       AND (g_batch[i_unit].batch_code <> 0)
        AND (g_batch[i_unit].state = IN_PROCESS)
        AND (g_batch[i_unit].cur_stage < MAX_STAGES) THEN
       g_batch[i_unit].cur_stage := g_batch[i_unit].cur_stage + 1;
+
+      (* Stamp arrival time on new station — used by CalcSchedule for elapsed calculation *)
+      g_batch[i_unit].start_time := g_time_s;
+
+      (* Update batch treatment times from program for the new stage *)
+      IF (g_program[i_unit].program_id = g_batch[i_unit].prog_id)
+         AND (g_program[i_unit].program_id > 0) THEN
+        new_stg := g_batch[i_unit].cur_stage;
+        IF (new_stg >= 1) AND (new_stg <= MAX_STAGES) THEN
+          g_batch[i_unit].min_time := g_program[i_unit].stages[new_stg].min_time;
+          g_batch[i_unit].max_time := g_program[i_unit].stages[new_stg].max_time;
+          g_batch[i_unit].cal_time := g_program[i_unit].stages[new_stg].cal_time;
+        END_IF;
+      END_IF;
     END_IF;
 
     (* Clear unit target after placement (NTT task done) *)

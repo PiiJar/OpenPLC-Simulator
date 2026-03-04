@@ -25,6 +25,10 @@ VAR_EXTERNAL
   g_batch          : ARRAY[1..MAX_UNITS] OF BATCH_T;
   g_program         : ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T;
   g_avoid_status     : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF INT;
+  g_schedule         : ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T;
+  g_task             : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
+  g_dep_sandbox      : DEP_SANDBOX_T;
+  g_dep_pending      : DEP_PENDING_WRITE_T;
 END_VAR
 VAR
   i : INT;
@@ -149,5 +153,42 @@ FOR i := 1 TO MAX_UNITS DO
     g_program[i].stages[j].cal_time := 0;
   END_FOR;
 END_FOR;
+
+(* --- Clear all schedules (g_schedule) --- *)
+FOR i := 1 TO MAX_UNITS DO
+  g_schedule[i].stage_count := 0;
+  FOR j := 1 TO 30 DO
+    g_schedule[i].stages[j].station       := 0;
+    g_schedule[i].stages[j].entry_time    := 0;
+    g_schedule[i].stages[j].exit_time     := 0;
+    g_schedule[i].stages[j].min_time      := 0.0;
+    g_schedule[i].stages[j].calc_time     := 0.0;
+    g_schedule[i].stages[j].max_time      := 0.0;
+    g_schedule[i].stages[j].transfer_time := 0.0;
+  END_FOR;
+END_FOR;
+
+(* --- Clear all task queues (g_task) --- *)
+FOR i := 1 TO MAX_TRANSPORTERS DO
+  g_task[i].count := 0;
+  FOR j := 1 TO 10 DO
+    g_task[i].queue[j].unit         := 0;
+    g_task[i].queue[j].stage        := 0;
+    g_task[i].queue[j].lift_station := 0;
+    g_task[i].queue[j].sink_station := 0;
+    g_task[i].queue[j].start_time   := 0;
+    g_task[i].queue[j].finish_time  := 0;
+    g_task[i].queue[j].calc_time    := 0.0;
+    g_task[i].queue[j].min_time     := 0.0;
+    g_task[i].queue[j].max_time     := 0.0;
+  END_FOR;
+END_FOR;
+
+(* --- Clear departure sandbox and pending write --- *)
+g_dep_sandbox.valid := FALSE;
+g_dep_pending.valid := FALSE;
+g_dep_pending.batch_unit  := 0;
+g_dep_pending.batch_stage := 0;
+g_dep_pending.batch_state := 0;
 
 END_FUNCTION_BLOCK

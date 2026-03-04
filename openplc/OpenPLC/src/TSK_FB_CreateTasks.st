@@ -33,11 +33,8 @@ VAR
   sc         : INT;     (* stage count *)
   lift_stn   : INT;     (* lift station *)
   sink_stn   : INT;     (* sink station *)
-  cur_stage  : INT;     (* batch current stage *)
-  skip_before : INT;    (* skip stages before this *)
   tid        : INT;     (* transporter id found *)
   qi         : INT;     (* queue write index *)
-  stg_num    : INT;     (* stage number from schedule *)
   fb_find    : STC_FindTransporter;  (* transporter lookup *)
 END_VAR
 
@@ -46,43 +43,34 @@ IF i_unit < 1 OR i_unit > MAX_UNITS THEN RETURN; END_IF;
 sc := g_schedule[i_unit].stage_count;
 IF sc < 2 THEN RETURN; END_IF;
 
-cur_stage := g_batch[i_unit].cur_stage;
-IF g_batch[i_unit].state = 0 THEN  (* NOT_PROCESSED = waiting batch *)
-  skip_before := 0;
-ELSE
-  skip_before := cur_stage;
-END_IF;
+(* CalcSchedule already builds a schedule starting from the batch's
+   current stage (and prepends the unit's current location when needed).
+   No skip logic needed here — every consecutive pair is a valid task. *)
 
 (* Loop through consecutive stage pairs *)
 FOR si := 1 TO sc - 1 DO
-  (* schedule index si = current stage, si+1 = next stage *)
-  stg_num := si;   (* simplified: schedule stage index = stage number *)
+  lift_stn := g_schedule[i_unit].stages[si].station;
+  sink_stn := g_schedule[i_unit].stages[si + 1].station;
 
-  (* Skip already completed stages *)
-  IF stg_num >= skip_before THEN
-    lift_stn := g_schedule[i_unit].stages[si].station;
-    sink_stn := g_schedule[i_unit].stages[si + 1].station;
+  IF lift_stn > 0 AND sink_stn > 0 THEN
+    (* -- Find transporter via task_area matching -- *)
+    fb_find(i_lift_stn := lift_stn, i_sink_stn := sink_stn);
+    tid := fb_find.o_trans;
 
-    IF lift_stn > 0 AND sink_stn > 0 THEN
-      (* -- Find transporter via task_area matching -- *)
-      fb_find(i_lift_stn := lift_stn, i_sink_stn := sink_stn);
-      tid := fb_find.o_trans;
-
-      (* -- Append task to transporter queue -- *)
-      IF tid >= 1 AND tid <= 3 THEN
-        qi := g_task[tid].count + 1;
-        IF qi <= MAX_UNITS THEN
-          g_task[tid].queue[qi].unit         := i_unit;
-          g_task[tid].queue[qi].stage        := stg_num;
-          g_task[tid].queue[qi].lift_station := lift_stn;
-          g_task[tid].queue[qi].sink_station := sink_stn;
-          g_task[tid].queue[qi].start_time   := g_schedule[i_unit].stages[si].exit_time;
-          g_task[tid].queue[qi].finish_time  := g_schedule[i_unit].stages[si + 1].entry_time;
-          g_task[tid].queue[qi].calc_time    := g_schedule[i_unit].stages[si].calc_time;
-          g_task[tid].queue[qi].min_time     := g_schedule[i_unit].stages[si].min_time;
-          g_task[tid].queue[qi].max_time     := g_schedule[i_unit].stages[si].max_time;
-          g_task[tid].count := qi;
-        END_IF;
+    (* -- Append task to transporter queue -- *)
+    IF tid >= 1 AND tid <= 3 THEN
+      qi := g_task[tid].count + 1;
+      IF qi <= MAX_UNITS THEN
+        g_task[tid].queue[qi].unit         := i_unit;
+        g_task[tid].queue[qi].stage        := si - 1;  (* schedule idx 1=stage0, 2=stage1, ... *)
+        g_task[tid].queue[qi].lift_station := lift_stn;
+        g_task[tid].queue[qi].sink_station := sink_stn;
+        g_task[tid].queue[qi].start_time   := g_schedule[i_unit].stages[si].exit_time;
+        g_task[tid].queue[qi].finish_time  := g_schedule[i_unit].stages[si + 1].entry_time;
+        g_task[tid].queue[qi].calc_time    := g_schedule[i_unit].stages[si].calc_time;
+        g_task[tid].queue[qi].min_time     := g_schedule[i_unit].stages[si].min_time;
+        g_task[tid].queue[qi].max_time     := g_schedule[i_unit].stages[si].max_time;
+        g_task[tid].count := qi;
       END_IF;
     END_IF;
   END_IF;

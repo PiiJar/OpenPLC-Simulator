@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import * as d3 from "d3";
 
 // Import modular StationLayout component
@@ -1445,6 +1445,24 @@ export default function App() {
     : [];
   const batchFormTitle = editingBatchId != null ? `Edit batch ${editingBatchId}` : 'Add batch';
 
+  // Build batches from PLC unit data for Station time bars (real-time from Modbus)
+  const plcBatches = useMemo(() => {
+    if (!Array.isArray(units)) return [];
+    return units
+      .filter(u => u.batch_code && u.batch_code > 0)
+      .map(u => ({
+        batch_id: u.batch_code,
+        location: u.location,
+        stage: u.batch_stage,
+        state: u.batch_state,
+        treatment_program: u.batch_program,
+        min_time_s: u.batch_min_time || 0,
+        max_time_s: u.batch_max_time || 0,
+        calc_time_s: u.batch_cal_time || 0,
+        start_time: (u.batch_start_time || 0) * 1000  // PLC seconds → UI milliseconds
+      }));
+  }, [units]);
+
   return (
     <div style={{ 
       width: '100vw', 
@@ -1823,7 +1841,7 @@ export default function App() {
           tanks={tanks}
           transporters={transporters}
           transporterStates={displayTransporterStates}
-          batches={batches}
+          batches={plcBatches}
           units={units}
           currentSimMs={elapsedMs}
           avoidStatuses={avoidStatuses}

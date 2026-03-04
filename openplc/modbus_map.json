@@ -128,7 +128,9 @@
         { "suffix": "stage",    "source": "g_batch[{i}].cur_stage",  "convert": null, "api": "batch_stage",    "comment": "current stage number" },
         { "suffix": "min_time", "source": "g_batch[{i}].min_time",   "convert": null, "api": "batch_min_time", "comment": "current stage min time (seconds)" },
         { "suffix": "max_time", "source": "g_batch[{i}].max_time",   "convert": null, "api": "batch_max_time", "comment": "current stage max time (seconds)" },
-        { "suffix": "cal_time", "source": "g_batch[{i}].cal_time",   "convert": null, "api": "batch_cal_time", "comment": "current stage calc time (seconds)" }
+        { "suffix": "cal_time", "source": "g_batch[{i}].cal_time",   "convert": null, "api": "batch_cal_time", "comment": "current stage calc time (seconds)" },
+        { "suffix": "start_hi", "source": "LINT_TO_INT(g_batch[{i}].start_time / LINT#65536)", "convert": null, "api": "batch_start_hi", "comment": "arrival time upper 16 bits" },
+        { "suffix": "start_lo", "source": "LINT_TO_INT(g_batch[{i}].start_time MOD LINT#65536)", "convert": null, "api": "batch_start_lo", "comment": "arrival time lower 16 bits" }
       ]
     },
 

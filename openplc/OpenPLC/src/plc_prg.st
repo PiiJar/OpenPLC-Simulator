@@ -178,6 +178,8 @@ VAR_EXTERNAL
   qw_b1_min_time                 : INT;
   qw_b1_max_time                 : INT;
   qw_b1_cal_time                 : INT;
+  qw_b1_start_hi                 : INT;
+  qw_b1_start_lo                 : INT;
   qw_b2_code                     : INT;
   qw_b2_state                    : INT;
   qw_b2_prog                     : INT;
@@ -185,6 +187,8 @@ VAR_EXTERNAL
   qw_b2_min_time                 : INT;
   qw_b2_max_time                 : INT;
   qw_b2_cal_time                 : INT;
+  qw_b2_start_hi                 : INT;
+  qw_b2_start_lo                 : INT;
   qw_b3_code                     : INT;
   qw_b3_state                    : INT;
   qw_b3_prog                     : INT;
@@ -192,6 +196,8 @@ VAR_EXTERNAL
   qw_b3_min_time                 : INT;
   qw_b3_max_time                 : INT;
   qw_b3_cal_time                 : INT;
+  qw_b3_start_hi                 : INT;
+  qw_b3_start_lo                 : INT;
   qw_b4_code                     : INT;
   qw_b4_state                    : INT;
   qw_b4_prog                     : INT;
@@ -199,6 +205,8 @@ VAR_EXTERNAL
   qw_b4_min_time                 : INT;
   qw_b4_max_time                 : INT;
   qw_b4_cal_time                 : INT;
+  qw_b4_start_hi                 : INT;
+  qw_b4_start_lo                 : INT;
   qw_b5_code                     : INT;
   qw_b5_state                    : INT;
   qw_b5_prog                     : INT;
@@ -206,6 +214,8 @@ VAR_EXTERNAL
   qw_b5_min_time                 : INT;
   qw_b5_max_time                 : INT;
   qw_b5_cal_time                 : INT;
+  qw_b5_start_hi                 : INT;
+  qw_b5_start_lo                 : INT;
   qw_b6_code                     : INT;
   qw_b6_state                    : INT;
   qw_b6_prog                     : INT;
@@ -213,6 +223,8 @@ VAR_EXTERNAL
   qw_b6_min_time                 : INT;
   qw_b6_max_time                 : INT;
   qw_b6_cal_time                 : INT;
+  qw_b6_start_hi                 : INT;
+  qw_b6_start_lo                 : INT;
   qw_b7_code                     : INT;
   qw_b7_state                    : INT;
   qw_b7_prog                     : INT;
@@ -220,6 +232,8 @@ VAR_EXTERNAL
   qw_b7_min_time                 : INT;
   qw_b7_max_time                 : INT;
   qw_b7_cal_time                 : INT;
+  qw_b7_start_hi                 : INT;
+  qw_b7_start_lo                 : INT;
   qw_b8_code                     : INT;
   qw_b8_state                    : INT;
   qw_b8_prog                     : INT;
@@ -227,6 +241,8 @@ VAR_EXTERNAL
   qw_b8_min_time                 : INT;
   qw_b8_max_time                 : INT;
   qw_b8_cal_time                 : INT;
+  qw_b8_start_hi                 : INT;
+  qw_b8_start_lo                 : INT;
   qw_b9_code                     : INT;
   qw_b9_state                    : INT;
   qw_b9_prog                     : INT;
@@ -234,6 +250,8 @@ VAR_EXTERNAL
   qw_b9_min_time                 : INT;
   qw_b9_max_time                 : INT;
   qw_b9_cal_time                 : INT;
+  qw_b9_start_hi                 : INT;
+  qw_b9_start_lo                 : INT;
   qw_b10_code                    : INT;
   qw_b10_state                   : INT;
   qw_b10_prog                    : INT;
@@ -241,6 +259,8 @@ VAR_EXTERNAL
   qw_b10_min_time                : INT;
   qw_b10_max_time                : INT;
   qw_b10_cal_time                : INT;
+  qw_b10_start_hi                : INT;
+  qw_b10_start_lo                : INT;
   qw_calibration_step            : INT;
   qw_calibration_tid             : INT;
   qw_cal_t1_lift_wet             : INT;
@@ -843,6 +863,7 @@ VAR_EXTERNAL
 
 
 
+
 END_VAR
 VAR
   init_done      : BOOL := FALSE;
@@ -1211,7 +1232,7 @@ cycle_count := cycle_count + 1;
 IF cycle_count > 30000 THEN cycle_count := 0; END_IF;
 
 (* --- BEGIN GENERATED MODBUS OUTPUT --- *)
-(* Auto-generated from modbus_map.json — 740 output registers *)
+(* Auto-generated from modbus_map.json — 760 output registers *)
 
 (* === Per-transporter live state — PLC writes, gateway reads === *)
 qw_t1_x_mm := REAL_TO_INT(g_transporter[1].x_mm);
@@ -1352,6 +1373,8 @@ qw_b1_stage := g_batch[1].cur_stage;
 qw_b1_min_time := g_batch[1].min_time;
 qw_b1_max_time := g_batch[1].max_time;
 qw_b1_cal_time := g_batch[1].cal_time;
+qw_b1_start_hi := LINT_TO_INT(g_batch[1].start_time / LINT#65536);
+qw_b1_start_lo := LINT_TO_INT(g_batch[1].start_time MOD LINT#65536);
 qw_b2_code := g_batch[2].batch_code;
 qw_b2_state := g_batch[2].state;
 qw_b2_prog := g_batch[2].prog_id;
@@ -1359,6 +1382,8 @@ qw_b2_stage := g_batch[2].cur_stage;
 qw_b2_min_time := g_batch[2].min_time;
 qw_b2_max_time := g_batch[2].max_time;
 qw_b2_cal_time := g_batch[2].cal_time;
+qw_b2_start_hi := LINT_TO_INT(g_batch[2].start_time / LINT#65536);
+qw_b2_start_lo := LINT_TO_INT(g_batch[2].start_time MOD LINT#65536);
 qw_b3_code := g_batch[3].batch_code;
 qw_b3_state := g_batch[3].state;
 qw_b3_prog := g_batch[3].prog_id;
@@ -1366,6 +1391,8 @@ qw_b3_stage := g_batch[3].cur_stage;
 qw_b3_min_time := g_batch[3].min_time;
 qw_b3_max_time := g_batch[3].max_time;
 qw_b3_cal_time := g_batch[3].cal_time;
+qw_b3_start_hi := LINT_TO_INT(g_batch[3].start_time / LINT#65536);
+qw_b3_start_lo := LINT_TO_INT(g_batch[3].start_time MOD LINT#65536);
 qw_b4_code := g_batch[4].batch_code;
 qw_b4_state := g_batch[4].state;
 qw_b4_prog := g_batch[4].prog_id;
@@ -1373,6 +1400,8 @@ qw_b4_stage := g_batch[4].cur_stage;
 qw_b4_min_time := g_batch[4].min_time;
 qw_b4_max_time := g_batch[4].max_time;
 qw_b4_cal_time := g_batch[4].cal_time;
+qw_b4_start_hi := LINT_TO_INT(g_batch[4].start_time / LINT#65536);
+qw_b4_start_lo := LINT_TO_INT(g_batch[4].start_time MOD LINT#65536);
 qw_b5_code := g_batch[5].batch_code;
 qw_b5_state := g_batch[5].state;
 qw_b5_prog := g_batch[5].prog_id;
@@ -1380,6 +1409,8 @@ qw_b5_stage := g_batch[5].cur_stage;
 qw_b5_min_time := g_batch[5].min_time;
 qw_b5_max_time := g_batch[5].max_time;
 qw_b5_cal_time := g_batch[5].cal_time;
+qw_b5_start_hi := LINT_TO_INT(g_batch[5].start_time / LINT#65536);
+qw_b5_start_lo := LINT_TO_INT(g_batch[5].start_time MOD LINT#65536);
 qw_b6_code := g_batch[6].batch_code;
 qw_b6_state := g_batch[6].state;
 qw_b6_prog := g_batch[6].prog_id;
@@ -1387,6 +1418,8 @@ qw_b6_stage := g_batch[6].cur_stage;
 qw_b6_min_time := g_batch[6].min_time;
 qw_b6_max_time := g_batch[6].max_time;
 qw_b6_cal_time := g_batch[6].cal_time;
+qw_b6_start_hi := LINT_TO_INT(g_batch[6].start_time / LINT#65536);
+qw_b6_start_lo := LINT_TO_INT(g_batch[6].start_time MOD LINT#65536);
 qw_b7_code := g_batch[7].batch_code;
 qw_b7_state := g_batch[7].state;
 qw_b7_prog := g_batch[7].prog_id;
@@ -1394,6 +1427,8 @@ qw_b7_stage := g_batch[7].cur_stage;
 qw_b7_min_time := g_batch[7].min_time;
 qw_b7_max_time := g_batch[7].max_time;
 qw_b7_cal_time := g_batch[7].cal_time;
+qw_b7_start_hi := LINT_TO_INT(g_batch[7].start_time / LINT#65536);
+qw_b7_start_lo := LINT_TO_INT(g_batch[7].start_time MOD LINT#65536);
 qw_b8_code := g_batch[8].batch_code;
 qw_b8_state := g_batch[8].state;
 qw_b8_prog := g_batch[8].prog_id;
@@ -1401,6 +1436,8 @@ qw_b8_stage := g_batch[8].cur_stage;
 qw_b8_min_time := g_batch[8].min_time;
 qw_b8_max_time := g_batch[8].max_time;
 qw_b8_cal_time := g_batch[8].cal_time;
+qw_b8_start_hi := LINT_TO_INT(g_batch[8].start_time / LINT#65536);
+qw_b8_start_lo := LINT_TO_INT(g_batch[8].start_time MOD LINT#65536);
 qw_b9_code := g_batch[9].batch_code;
 qw_b9_state := g_batch[9].state;
 qw_b9_prog := g_batch[9].prog_id;
@@ -1408,6 +1445,8 @@ qw_b9_stage := g_batch[9].cur_stage;
 qw_b9_min_time := g_batch[9].min_time;
 qw_b9_max_time := g_batch[9].max_time;
 qw_b9_cal_time := g_batch[9].cal_time;
+qw_b9_start_hi := LINT_TO_INT(g_batch[9].start_time / LINT#65536);
+qw_b9_start_lo := LINT_TO_INT(g_batch[9].start_time MOD LINT#65536);
 qw_b10_code := g_batch[10].batch_code;
 qw_b10_state := g_batch[10].state;
 qw_b10_prog := g_batch[10].prog_id;
@@ -1415,6 +1454,8 @@ qw_b10_stage := g_batch[10].cur_stage;
 qw_b10_min_time := g_batch[10].min_time;
 qw_b10_max_time := g_batch[10].max_time;
 qw_b10_cal_time := g_batch[10].cal_time;
+qw_b10_start_hi := LINT_TO_INT(g_batch[10].start_time / LINT#65536);
+qw_b10_start_lo := LINT_TO_INT(g_batch[10].start_time MOD LINT#65536);
 (* === Calibration status — PLC writes, gateway reads === *)
 qw_calibration_step := calibrate.o_step;
 qw_calibration_tid := calibrate.o_tid;
@@ -1971,6 +2012,7 @@ IF g_dep_overlap.flags[130] THEN qw_ov_s130_flag := 1; ELSE qw_ov_s130_flag := 0
 (* qw_event_out_f12 — no source (manual) *)
 
 (* --- END GENERATED MODBUS OUTPUT --- *)
+
 
 
 
