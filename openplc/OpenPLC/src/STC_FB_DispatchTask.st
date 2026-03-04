@@ -51,6 +51,7 @@ VAR
   t_lift       : INT;
   t_sink       : INT;
   t_start      : LINT;
+  t_finish     : LINT;
   t_calc_time  : REAL;
   (* Time check *)
   travel_s     : REAL;
@@ -90,6 +91,7 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
     t_lift      := g_task[ti].queue[1].lift_station;
     t_sink      := g_task[ti].queue[1].sink_station;
     t_start     := g_task[ti].queue[1].start_time;
+    t_finish    := g_task[ti].queue[1].finish_time;
     t_calc_time := g_task[ti].queue[1].calc_time;
 
     (* ── 2. Time check ── *)
@@ -272,6 +274,14 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
           g_transporter[ti].min_time := g_task[ti].queue[1].min_time;
           g_transporter[ti].max_time := g_task[ti].queue[1].max_time;
           g_transporter[ti].remaining_time := t_calc_time;
+
+          (* ── Update batch times: transfer duration as time bar ── *)
+          IF t_unit >= 1 AND t_unit <= MAX_UNITS THEN
+            g_batch[t_unit].start_time := g_time_s;
+            g_batch[t_unit].cal_time   := REAL_TO_INT(LINT_TO_REAL(t_finish - t_start));
+            g_batch[t_unit].min_time   := g_batch[t_unit].cal_time;
+            g_batch[t_unit].max_time   := REAL_TO_INT(LINT_TO_REAL(t_finish - t_start) * 2.0);
+          END_IF;
 
           (* ── Emit TASK_DISPATCHED event (msg_type=1) ── *)
           IF NOT g_event_pending_valid THEN

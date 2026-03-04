@@ -12,16 +12,16 @@ const router = express.Router();
 
 // ─── Sim control (PLC runs natively, no JS sim) ─────────────────────────
 
-// GET /api/sim/time — return PLC-relative time
-let _getSimTime = () => ({ elapsed_s: 0, running: false });
+// GET /api/sim/time — return current unix time in seconds
+let _getSimTime = () => ({ running: false });
 function init({ getSimTime }) {
   _getSimTime = getSimTime;
 }
 
 router.get('/sim/time', (req, res) => {
-  const { elapsed_s, running } = _getSimTime();
+  const { running } = _getSimTime();
   res.json({
-    time: elapsed_s,
+    time: Math.floor(Date.now() / 1000),
     running,
     speed: 1,
     timestamp: new Date().toISOString()

@@ -520,12 +520,12 @@ export default function App() {
     try {
       const res = await fetch(`/api/sim/time`);
       const data = await res.json();
-      if (typeof data.simTimeMs === 'number') {
+      if (typeof data.time === 'number') {
         const backendRunning = typeof data.running === 'boolean' ? data.running : isRunning;
         setElapsedMs((prev) => {
-          if (backendRunning) return data.simTimeMs;
+          if (backendRunning) return data.time;
           // When paused, never jump forward; keep the smaller of UI and backend
-          return Math.min(prev, data.simTimeMs);
+          return Math.min(prev, data.time);
         });
       }
       if (typeof data.speedMultiplier === 'number') {
@@ -1050,7 +1050,7 @@ export default function App() {
       if (!isRunning) {
         const res = await fetch('/api/sim/start', { method: 'POST' });
         const data = await res.json();
-        if (typeof data.simTimeMs === 'number') setElapsedMs(data.simTimeMs);
+        if (typeof data.time === 'number') setElapsedMs(data.time);
         if (typeof data.speedMultiplier === 'number') setSpeed(data.speedMultiplier);
         if (typeof data.running === 'boolean') {
           setIsRunning(data.running);
@@ -1073,7 +1073,7 @@ export default function App() {
 
     setIsResetting(true);
     setIsRunning(false);
-    setElapsedMs(0);
+    setElapsedMs(Math.floor(Date.now() / 1000));
     setAvgCycleSec(0);
     setProductionStartTime(null);
     setProductionDuration(0);
@@ -1164,7 +1164,7 @@ export default function App() {
       if (!isRunning) {
         const startRes = await fetch(`/api/sim/start`, { method: 'POST' });
         const startData = await startRes.json();
-        if (typeof startData.simTimeMs === 'number') setElapsedMs(startData.simTimeMs);
+        if (typeof startData.time === 'number') setElapsedMs(startData.time);
         if (typeof startData.running === 'boolean') {
           setIsRunning(startData.running);
           lastTickRef.current = startData.running ? Date.now() : null;
@@ -1192,6 +1192,25 @@ export default function App() {
     const millis = (totalMs % 1000).toString().padStart(3, '0');
     return `${hours}:${minutes}:${seconds}.${millis}`;
   };
+
+  // Build batches from PLC unit data for Station time bars (real-time from Modbus)
+  // NOTE: Must be BEFORE the conditional return below to satisfy React hooks rules
+  const plcBatches = useMemo(() => {
+    if (!Array.isArray(units)) return [];
+    return units
+      .filter(u => u.batch_code && u.batch_code > 0)
+      .map(u => ({
+        batch_id: u.batch_code,
+        location: u.location,
+        stage: u.batch_stage,
+        state: u.batch_state,
+        treatment_program: u.batch_program,
+        min_time_s: u.batch_min_time || 0,
+        max_time_s: u.batch_max_time || 0,
+        calc_time_s: u.batch_cal_time || 0,
+        start_time: u.batch_start_time || 0  // unix seconds (same as currentTimeSec)
+      }));
+  }, [units]);
 
   // Guard: use lightweight render while config is loading / not yet selected
   // Show the exact same toolbar as the main view, just with empty layout area
@@ -1433,8 +1452,8 @@ export default function App() {
     : null;
   const deviceDelay = debugStation ? Number(debugStation.device_delay) || 0 : 0;
   const minRequired = debugBatchAtStation ? Number(debugBatchAtStation.min_time_s) || 0 : 0;
-  const startMs = debugBatchAtStation ? Number(debugBatchAtStation.start_time) || 0 : 0;
-  const elapsedSec = Math.max(0, (elapsedMs - startMs) / 1000);
+  const startSec = debugBatchAtStation ? Number(debugBatchAtStation.start_time) || 0 : 0;
+  const elapsedSec = Math.max(0, elapsedMs - startSec);
   const extraWait = Math.max(0, minRequired - elapsedSec);
   const initialDelay = extraWait > deviceDelay ? extraWait : deviceDelay;
   const delayRemaining = debugTransporterState && debugTransporterState.state.phase === 1 && debugTransporterState.state.z_stage === 'delay_up'
@@ -1444,24 +1463,6 @@ export default function App() {
     ? [...batches].sort((a, b) => Number(a.batch_id) - Number(b.batch_id))
     : [];
   const batchFormTitle = editingBatchId != null ? `Edit batch ${editingBatchId}` : 'Add batch';
-
-  // Build batches from PLC unit data for Station time bars (real-time from Modbus)
-  const plcBatches = useMemo(() => {
-    if (!Array.isArray(units)) return [];
-    return units
-      .filter(u => u.batch_code && u.batch_code > 0)
-      .map(u => ({
-        batch_id: u.batch_code,
-        location: u.location,
-        stage: u.batch_stage,
-        state: u.batch_state,
-        treatment_program: u.batch_program,
-        min_time_s: u.batch_min_time || 0,
-        max_time_s: u.batch_max_time || 0,
-        calc_time_s: u.batch_cal_time || 0,
-        start_time: (u.batch_start_time || 0) * 1000  // PLC seconds → UI milliseconds
-      }));
-  }, [units]);
 
   return (
     <div style={{ 
@@ -3040,7 +3041,7 @@ export default function App() {
                             </thead>
                             <tbody>
                               {tasksForTransporter.map((task, idx) => {
-                                const now = elapsedMs / 1000;
+                                const now = elapsedMs;
                                 const relStart = Math.round(task.task_start_time - now);
                                 const relEnd = Math.round(task.task_finished_time - now);
                                 const startStr = relStart > 0 ? `+${relStart}` : `${relStart}`;
@@ -3098,7 +3099,7 @@ export default function App() {
                           .filter(task => task.transporter_id === null)
                           .sort((a, b) => a.task_start_time - b.task_start_time)
                           .map((task, idx) => {
-                            const now = elapsedMs / 1000;
+                            const now = elapsedMs;
                             const relStart = Math.round(task.task_start_time - now);
                             const relEnd = Math.round(task.task_finished_time - now);
                             const startStr = relStart > 0 ? `+${relStart}` : `${relStart}`;

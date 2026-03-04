@@ -595,7 +595,6 @@ app.use('/api', fileRoutes.router);
 // ── Initialize & mount legacy stub routes ──
 legacyStubs.init({
   getSimTime: () => ({
-    elapsed_s: simRunning ? Math.floor((Date.now() - simStartTime) / 1000) : 0,
     running: simRunning
   })
 });

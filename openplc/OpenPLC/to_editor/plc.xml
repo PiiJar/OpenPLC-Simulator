@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-04T14:05:16"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-04T14:05:16">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-04T15:55:51"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-04T15:55:51">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -2674,10 +2674,14 @@ END_FOR;
 
 (* --- Clear all batches --- *)
 FOR i := 1 TO MAX_UNITS DO
-  g_batch[i].batch_code := 0;
-  g_batch[i].state      := 0;
-  g_batch[i].prog_id    := 0;
-  g_batch[i].cur_stage      := 0;
+  g_batch[i].batch_code  := 0;
+  g_batch[i].state       := 0;
+  g_batch[i].prog_id     := 0;
+  g_batch[i].cur_stage   := 0;
+  g_batch[i].min_time    := 0;
+  g_batch[i].max_time    := 0;
+  g_batch[i].cal_time    := 0;
+  g_batch[i].start_time  := LINT#0;
 END_FOR;
 
 (* --- Clear all treatment programs --- *)
@@ -4251,6 +4255,9 @@ END_FOR;]]></xhtml:p>
             <variable name="t_start">
               <type><LINT/></type>
             </variable>
+            <variable name="t_finish">
+              <type><LINT/></type>
+            </variable>
             <variable name="t_calc_time">
               <type><REAL/></type>
             </variable>
@@ -4332,6 +4339,7 @@ END_FOR;]]></xhtml:p>
     t_lift      := g_task[ti].queue[1].lift_station;
     t_sink      := g_task[ti].queue[1].sink_station;
     t_start     := g_task[ti].queue[1].start_time;
+    t_finish    := g_task[ti].queue[1].finish_time;
     t_calc_time := g_task[ti].queue[1].calc_time;
 
     (* ── 2. Time check ── *)
@@ -4514,6 +4522,14 @@ END_FOR;]]></xhtml:p>
           g_transporter[ti].min_time := g_task[ti].queue[1].min_time;
           g_transporter[ti].max_time := g_task[ti].queue[1].max_time;
           g_transporter[ti].remaining_time := t_calc_time;
+
+          (* ── Update batch times: transfer duration as time bar ── *)
+          IF t_unit >= 1 AND t_unit <= MAX_UNITS THEN
+            g_batch[t_unit].start_time := g_time_s;
+            g_batch[t_unit].cal_time   := REAL_TO_INT(LINT_TO_REAL(t_finish - t_start));
+            g_batch[t_unit].min_time   := g_batch[t_unit].cal_time;
+            g_batch[t_unit].max_time   := REAL_TO_INT(LINT_TO_REAL(t_finish - t_start) * 2.0);
+          END_IF;
 
           (* ── Emit TASK_DISPATCHED event (msg_type=1) ── *)
           IF NOT g_event_pending_valid THEN
@@ -5347,6 +5363,15 @@ END_FOR;]]></xhtml:p>
           g_batch[i_unit].cal_time := g_program[i_unit].stages[new_stg].cal_time;
         END_IF;
       END_IF;
+    END_IF;
+
+    (* NOT_PROCESSED batch on station: clear times so UI shows no progress bar *)
+    IF (g_batch[i_unit].batch_code <> 0)
+       AND (g_batch[i_unit].state <> IN_PROCESS) THEN
+      g_batch[i_unit].min_time   := 0;
+      g_batch[i_unit].cal_time   := 0;
+      g_batch[i_unit].max_time   := 32000;  (* ~8.9 h cap, INT max safe *)
+      g_batch[i_unit].start_time := g_time_s;
     END_IF;
 
     (* Clear unit target after placement (NTT task done) *)

@@ -81,6 +81,15 @@ IF (i_unit >= 1) AND (i_unit <= MAX_UNITS) THEN
       END_IF;
     END_IF;
 
+    (* NOT_PROCESSED batch on station: clear times so UI shows no progress bar *)
+    IF (g_batch[i_unit].batch_code <> 0)
+       AND (g_batch[i_unit].state <> IN_PROCESS) THEN
+      g_batch[i_unit].min_time   := 0;
+      g_batch[i_unit].cal_time   := 0;
+      g_batch[i_unit].max_time   := 32000;  (* ~8.9 h cap, INT max safe *)
+      g_batch[i_unit].start_time := g_time_s;
+    END_IF;
+
     (* Clear unit target after placement (NTT task done) *)
     IF g_unit[i_unit].target <> 0 THEN
       g_unit[i_unit].target := 0;  (* TO_NONE *)

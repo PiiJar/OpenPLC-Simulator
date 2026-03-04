@@ -163,8 +163,8 @@ function Transporter2D({
     const calcTime = Number(batch.calc_time_s) || minTime;
     const maxTime = Number(batch.max_time_s) || 0;
     const overWindow = maxTime > 0 ? maxTime * 0.2 : 0;
-    const startMs = Number(batch.start_time) || 0;
-    const elapsedSec = Math.max(0, (currentSimMs - startMs) / 1000);
+    const startSec = Number(batch.start_time) || 0;
+    const elapsedSec = Math.max(0, currentSimMs - startSec);
 
     const greenRatio = calcTime > 0 ? Math.min(1, elapsedSec / calcTime) : 0;
     let yellowRatio = 0;

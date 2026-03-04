@@ -141,8 +141,8 @@ function Station({
     const calcTime = Math.max(minTime, Number(batch.calc_time_s) || minTime);
     const maxTime = Math.max(calcTime, Number(batch.max_time_s) || 0);
     const overWindow = maxTime > 0 ? maxTime * 0.2 : 0;
-    const startMs = Number(batch.start_time) || 0;
-    const elapsedSec = Math.max(0, (currentSimMs - startMs) / 1000);
+    const startSec = Number(batch.start_time) || 0;
+    const elapsedSec = Math.max(0, currentSimMs - startSec);
 
     // Blue phase: 0 -> calcTime
     // Jos calcTime = 0, minimiaika on jo saavutettu → sininen täysi

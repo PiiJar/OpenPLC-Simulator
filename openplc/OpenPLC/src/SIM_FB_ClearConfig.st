@@ -135,10 +135,14 @@ END_FOR;
 
 (* --- Clear all batches --- *)
 FOR i := 1 TO MAX_UNITS DO
-  g_batch[i].batch_code := 0;
-  g_batch[i].state      := 0;
-  g_batch[i].prog_id    := 0;
-  g_batch[i].cur_stage      := 0;
+  g_batch[i].batch_code  := 0;
+  g_batch[i].state       := 0;
+  g_batch[i].prog_id     := 0;
+  g_batch[i].cur_stage   := 0;
+  g_batch[i].min_time    := 0;
+  g_batch[i].max_time    := 0;
+  g_batch[i].cal_time    := 0;
+  g_batch[i].start_time  := LINT#0;
 END_FOR;
 
 (* --- Clear all treatment programs --- *)
