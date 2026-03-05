@@ -36,6 +36,7 @@ VAR_EXTERNAL
   g_move         : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
   g_unit         : ARRAY[1..MAX_UNITS] OF UNIT_T;
   g_batch        : ARRAY[1..MAX_UNITS] OF BATCH_T;
+  g_program      : ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T;
   g_time_s       : LINT;
   g_event_pending       : EVENT_MSG_T;
   g_event_pending_valid : BOOL;
@@ -81,6 +82,11 @@ VAR
   (* Event helpers *)
   evt_unit     : INT;
   evt_diff     : LINT;
+  (* Treatment time wait *)
+  can_lift       : BOOL;
+  lift_uid       : INT;      (* unit at lift station *)
+  treat_cal      : INT;      (* treatment cal_time for current stage *)
+  treat_elapsed  : LINT;     (* seconds spent at lift station *)
 END_VAR
 
 IF NOT i_run THEN
@@ -153,6 +159,28 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
                   AND (ABS(g_transporter[i].x_mm - g_transporter[i].final_target_x) <= 6.0);
     IF at_station THEN
       g_transporter[i].current_station := g_transporter[i].lift_station;
+
+      (* ── Wait for treatment time before lifting ──────────────
+         If the unit at the lift station is IN_PROCESS and its
+         treatment cal_time has not yet elapsed, stay at station
+         and do NOT begin the lift sequence. *)
+      can_lift := TRUE;
+      lift_uid := g_station[g_transporter[i].lift_station].unit_id;
+      IF lift_uid >= 1 AND lift_uid <= MAX_UNITS THEN
+        IF g_batch[lift_uid].state = IN_PROCESS
+           AND g_batch[lift_uid].cur_stage >= 1
+           AND g_batch[lift_uid].cur_stage <= MAX_STAGES THEN
+          treat_cal := g_program[lift_uid].stages[g_batch[lift_uid].cur_stage].cal_time;
+          IF treat_cal > 0 THEN
+            treat_elapsed := g_time_s - g_station[g_transporter[i].lift_station].change_time;
+            IF treat_elapsed < INT_TO_LINT(treat_cal) THEN
+              can_lift := FALSE;
+            END_IF;
+          END_IF;
+        END_IF;
+      END_IF;
+
+      IF can_lift THEN
       lookup(station_number := g_transporter[i].lift_station);
       device_delay := lookup.device_delay_s;
       drop_time    := lookup.dropping_time_s;
@@ -197,6 +225,7 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
           upd_loc3(i_unit := pick_unit_id, i_location := i);
         END_IF;
       END_IF;
+      END_IF;  (* can_lift *)
     END_IF;
     (* If arrived_x but not at_station → at drive limit, wait for clearance *)
 
