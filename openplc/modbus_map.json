@@ -285,6 +285,43 @@
     },
 
     {
+      "name": "schedule_window",
+      "comment": "Sliding window: one unit schedule at a time (PLC fills on request)",
+      "direction": "out",
+      "skip_plc_write": true,
+      "fields": [
+        { "suffix": "unit_id",     "source": null, "convert": null, "api": "unit_id",     "comment": "which unit is in window (0=empty)" },
+        { "suffix": "stage_count", "source": null, "convert": null, "api": "stage_count", "comment": "active stage count for this unit" },
+        { "suffix": "seq",         "source": null, "convert": null, "api": "seq",         "comment": "sequence number (bumps on each fill)" }
+      ],
+      "template_fields": {
+        "repeat": { "count": 30, "var": "s" },
+        "fields": [
+          { "suffix": "s{s}_stn",      "source": null, "convert": null,         "api": "s{s}_station",       "comment": "stage {s} station number" },
+          { "suffix": "s{s}_entry_hi", "source": null, "convert": null,         "api": "_s{s}_entry_hi",     "comment": "stage {s} entry time upper 16", "type": "uint32_hi" },
+          { "suffix": "s{s}_entry_lo", "source": null, "convert": null,         "api": "_s{s}_entry_lo",     "comment": "stage {s} entry time lower 16", "type": "uint32_lo",
+            "api_combine": { "name": "s{s}_entry_time", "hi_suffix": "s{s}_entry_hi", "lo_suffix": "s{s}_entry_lo", "type": "uint32" }
+          },
+          { "suffix": "s{s}_exit_hi",  "source": null, "convert": null,         "api": "_s{s}_exit_hi",      "comment": "stage {s} exit time upper 16",  "type": "uint32_hi" },
+          { "suffix": "s{s}_exit_lo",  "source": null, "convert": null,         "api": "_s{s}_exit_lo",      "comment": "stage {s} exit time lower 16",  "type": "uint32_lo",
+            "api_combine": { "name": "s{s}_exit_time", "hi_suffix": "s{s}_exit_hi", "lo_suffix": "s{s}_exit_lo", "type": "uint32" }
+          },
+          { "suffix": "s{s}_min_x10",  "source": null, "convert": null, "api": "s{s}_min_time",  "api_scale": 0.1, "comment": "stage {s} min time ×10" },
+          { "suffix": "s{s}_max_x10",  "source": null, "convert": null, "api": "s{s}_max_time",  "api_scale": 0.1, "comment": "stage {s} max time ×10" }
+        ]
+      }
+    },
+
+    {
+      "name": "schedule_req",
+      "comment": "Schedule window request — gateway writes unit_id to export",
+      "direction": "in",
+      "fields": [
+        { "suffix": "unit", "api": "sch_req_unit", "comment": "requested unit_id (1-10, gateway writes)" }
+      ]
+    },
+
+    {
       "name": "cmd_transport",
       "comment": "Manual transport commands — gateway writes, PLC reads",
       "direction": "in",

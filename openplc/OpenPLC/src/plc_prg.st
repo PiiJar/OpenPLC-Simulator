@@ -788,6 +788,220 @@ VAR_EXTERNAL
   qw_ov_s128_flag                : INT;
   qw_ov_s129_flag                : INT;
   qw_ov_s130_flag                : INT;
+  qw_schedule_window_unit_id     : INT;
+  qw_schedule_window_stage_count : INT;
+  qw_schedule_window_seq         : INT;
+  qw_schedule_window_s1_stn      : INT;
+  qw_schedule_window_s1_entry_hi : INT;
+  qw_schedule_window_s1_entry_lo : INT;
+  qw_schedule_window_s1_exit_hi  : INT;
+  qw_schedule_window_s1_exit_lo  : INT;
+  qw_schedule_window_s1_min_x10  : INT;
+  qw_schedule_window_s1_max_x10  : INT;
+  qw_schedule_window_s2_stn      : INT;
+  qw_schedule_window_s2_entry_hi : INT;
+  qw_schedule_window_s2_entry_lo : INT;
+  qw_schedule_window_s2_exit_hi  : INT;
+  qw_schedule_window_s2_exit_lo  : INT;
+  qw_schedule_window_s2_min_x10  : INT;
+  qw_schedule_window_s2_max_x10  : INT;
+  qw_schedule_window_s3_stn      : INT;
+  qw_schedule_window_s3_entry_hi : INT;
+  qw_schedule_window_s3_entry_lo : INT;
+  qw_schedule_window_s3_exit_hi  : INT;
+  qw_schedule_window_s3_exit_lo  : INT;
+  qw_schedule_window_s3_min_x10  : INT;
+  qw_schedule_window_s3_max_x10  : INT;
+  qw_schedule_window_s4_stn      : INT;
+  qw_schedule_window_s4_entry_hi : INT;
+  qw_schedule_window_s4_entry_lo : INT;
+  qw_schedule_window_s4_exit_hi  : INT;
+  qw_schedule_window_s4_exit_lo  : INT;
+  qw_schedule_window_s4_min_x10  : INT;
+  qw_schedule_window_s4_max_x10  : INT;
+  qw_schedule_window_s5_stn      : INT;
+  qw_schedule_window_s5_entry_hi : INT;
+  qw_schedule_window_s5_entry_lo : INT;
+  qw_schedule_window_s5_exit_hi  : INT;
+  qw_schedule_window_s5_exit_lo  : INT;
+  qw_schedule_window_s5_min_x10  : INT;
+  qw_schedule_window_s5_max_x10  : INT;
+  qw_schedule_window_s6_stn      : INT;
+  qw_schedule_window_s6_entry_hi : INT;
+  qw_schedule_window_s6_entry_lo : INT;
+  qw_schedule_window_s6_exit_hi  : INT;
+  qw_schedule_window_s6_exit_lo  : INT;
+  qw_schedule_window_s6_min_x10  : INT;
+  qw_schedule_window_s6_max_x10  : INT;
+  qw_schedule_window_s7_stn      : INT;
+  qw_schedule_window_s7_entry_hi : INT;
+  qw_schedule_window_s7_entry_lo : INT;
+  qw_schedule_window_s7_exit_hi  : INT;
+  qw_schedule_window_s7_exit_lo  : INT;
+  qw_schedule_window_s7_min_x10  : INT;
+  qw_schedule_window_s7_max_x10  : INT;
+  qw_schedule_window_s8_stn      : INT;
+  qw_schedule_window_s8_entry_hi : INT;
+  qw_schedule_window_s8_entry_lo : INT;
+  qw_schedule_window_s8_exit_hi  : INT;
+  qw_schedule_window_s8_exit_lo  : INT;
+  qw_schedule_window_s8_min_x10  : INT;
+  qw_schedule_window_s8_max_x10  : INT;
+  qw_schedule_window_s9_stn      : INT;
+  qw_schedule_window_s9_entry_hi : INT;
+  qw_schedule_window_s9_entry_lo : INT;
+  qw_schedule_window_s9_exit_hi  : INT;
+  qw_schedule_window_s9_exit_lo  : INT;
+  qw_schedule_window_s9_min_x10  : INT;
+  qw_schedule_window_s9_max_x10  : INT;
+  qw_schedule_window_s10_stn     : INT;
+  qw_schedule_window_s10_entry_hi : INT;
+  qw_schedule_window_s10_entry_lo : INT;
+  qw_schedule_window_s10_exit_hi : INT;
+  qw_schedule_window_s10_exit_lo : INT;
+  qw_schedule_window_s10_min_x10 : INT;
+  qw_schedule_window_s10_max_x10 : INT;
+  qw_schedule_window_s11_stn     : INT;
+  qw_schedule_window_s11_entry_hi : INT;
+  qw_schedule_window_s11_entry_lo : INT;
+  qw_schedule_window_s11_exit_hi : INT;
+  qw_schedule_window_s11_exit_lo : INT;
+  qw_schedule_window_s11_min_x10 : INT;
+  qw_schedule_window_s11_max_x10 : INT;
+  qw_schedule_window_s12_stn     : INT;
+  qw_schedule_window_s12_entry_hi : INT;
+  qw_schedule_window_s12_entry_lo : INT;
+  qw_schedule_window_s12_exit_hi : INT;
+  qw_schedule_window_s12_exit_lo : INT;
+  qw_schedule_window_s12_min_x10 : INT;
+  qw_schedule_window_s12_max_x10 : INT;
+  qw_schedule_window_s13_stn     : INT;
+  qw_schedule_window_s13_entry_hi : INT;
+  qw_schedule_window_s13_entry_lo : INT;
+  qw_schedule_window_s13_exit_hi : INT;
+  qw_schedule_window_s13_exit_lo : INT;
+  qw_schedule_window_s13_min_x10 : INT;
+  qw_schedule_window_s13_max_x10 : INT;
+  qw_schedule_window_s14_stn     : INT;
+  qw_schedule_window_s14_entry_hi : INT;
+  qw_schedule_window_s14_entry_lo : INT;
+  qw_schedule_window_s14_exit_hi : INT;
+  qw_schedule_window_s14_exit_lo : INT;
+  qw_schedule_window_s14_min_x10 : INT;
+  qw_schedule_window_s14_max_x10 : INT;
+  qw_schedule_window_s15_stn     : INT;
+  qw_schedule_window_s15_entry_hi : INT;
+  qw_schedule_window_s15_entry_lo : INT;
+  qw_schedule_window_s15_exit_hi : INT;
+  qw_schedule_window_s15_exit_lo : INT;
+  qw_schedule_window_s15_min_x10 : INT;
+  qw_schedule_window_s15_max_x10 : INT;
+  qw_schedule_window_s16_stn     : INT;
+  qw_schedule_window_s16_entry_hi : INT;
+  qw_schedule_window_s16_entry_lo : INT;
+  qw_schedule_window_s16_exit_hi : INT;
+  qw_schedule_window_s16_exit_lo : INT;
+  qw_schedule_window_s16_min_x10 : INT;
+  qw_schedule_window_s16_max_x10 : INT;
+  qw_schedule_window_s17_stn     : INT;
+  qw_schedule_window_s17_entry_hi : INT;
+  qw_schedule_window_s17_entry_lo : INT;
+  qw_schedule_window_s17_exit_hi : INT;
+  qw_schedule_window_s17_exit_lo : INT;
+  qw_schedule_window_s17_min_x10 : INT;
+  qw_schedule_window_s17_max_x10 : INT;
+  qw_schedule_window_s18_stn     : INT;
+  qw_schedule_window_s18_entry_hi : INT;
+  qw_schedule_window_s18_entry_lo : INT;
+  qw_schedule_window_s18_exit_hi : INT;
+  qw_schedule_window_s18_exit_lo : INT;
+  qw_schedule_window_s18_min_x10 : INT;
+  qw_schedule_window_s18_max_x10 : INT;
+  qw_schedule_window_s19_stn     : INT;
+  qw_schedule_window_s19_entry_hi : INT;
+  qw_schedule_window_s19_entry_lo : INT;
+  qw_schedule_window_s19_exit_hi : INT;
+  qw_schedule_window_s19_exit_lo : INT;
+  qw_schedule_window_s19_min_x10 : INT;
+  qw_schedule_window_s19_max_x10 : INT;
+  qw_schedule_window_s20_stn     : INT;
+  qw_schedule_window_s20_entry_hi : INT;
+  qw_schedule_window_s20_entry_lo : INT;
+  qw_schedule_window_s20_exit_hi : INT;
+  qw_schedule_window_s20_exit_lo : INT;
+  qw_schedule_window_s20_min_x10 : INT;
+  qw_schedule_window_s20_max_x10 : INT;
+  qw_schedule_window_s21_stn     : INT;
+  qw_schedule_window_s21_entry_hi : INT;
+  qw_schedule_window_s21_entry_lo : INT;
+  qw_schedule_window_s21_exit_hi : INT;
+  qw_schedule_window_s21_exit_lo : INT;
+  qw_schedule_window_s21_min_x10 : INT;
+  qw_schedule_window_s21_max_x10 : INT;
+  qw_schedule_window_s22_stn     : INT;
+  qw_schedule_window_s22_entry_hi : INT;
+  qw_schedule_window_s22_entry_lo : INT;
+  qw_schedule_window_s22_exit_hi : INT;
+  qw_schedule_window_s22_exit_lo : INT;
+  qw_schedule_window_s22_min_x10 : INT;
+  qw_schedule_window_s22_max_x10 : INT;
+  qw_schedule_window_s23_stn     : INT;
+  qw_schedule_window_s23_entry_hi : INT;
+  qw_schedule_window_s23_entry_lo : INT;
+  qw_schedule_window_s23_exit_hi : INT;
+  qw_schedule_window_s23_exit_lo : INT;
+  qw_schedule_window_s23_min_x10 : INT;
+  qw_schedule_window_s23_max_x10 : INT;
+  qw_schedule_window_s24_stn     : INT;
+  qw_schedule_window_s24_entry_hi : INT;
+  qw_schedule_window_s24_entry_lo : INT;
+  qw_schedule_window_s24_exit_hi : INT;
+  qw_schedule_window_s24_exit_lo : INT;
+  qw_schedule_window_s24_min_x10 : INT;
+  qw_schedule_window_s24_max_x10 : INT;
+  qw_schedule_window_s25_stn     : INT;
+  qw_schedule_window_s25_entry_hi : INT;
+  qw_schedule_window_s25_entry_lo : INT;
+  qw_schedule_window_s25_exit_hi : INT;
+  qw_schedule_window_s25_exit_lo : INT;
+  qw_schedule_window_s25_min_x10 : INT;
+  qw_schedule_window_s25_max_x10 : INT;
+  qw_schedule_window_s26_stn     : INT;
+  qw_schedule_window_s26_entry_hi : INT;
+  qw_schedule_window_s26_entry_lo : INT;
+  qw_schedule_window_s26_exit_hi : INT;
+  qw_schedule_window_s26_exit_lo : INT;
+  qw_schedule_window_s26_min_x10 : INT;
+  qw_schedule_window_s26_max_x10 : INT;
+  qw_schedule_window_s27_stn     : INT;
+  qw_schedule_window_s27_entry_hi : INT;
+  qw_schedule_window_s27_entry_lo : INT;
+  qw_schedule_window_s27_exit_hi : INT;
+  qw_schedule_window_s27_exit_lo : INT;
+  qw_schedule_window_s27_min_x10 : INT;
+  qw_schedule_window_s27_max_x10 : INT;
+  qw_schedule_window_s28_stn     : INT;
+  qw_schedule_window_s28_entry_hi : INT;
+  qw_schedule_window_s28_entry_lo : INT;
+  qw_schedule_window_s28_exit_hi : INT;
+  qw_schedule_window_s28_exit_lo : INT;
+  qw_schedule_window_s28_min_x10 : INT;
+  qw_schedule_window_s28_max_x10 : INT;
+  qw_schedule_window_s29_stn     : INT;
+  qw_schedule_window_s29_entry_hi : INT;
+  qw_schedule_window_s29_entry_lo : INT;
+  qw_schedule_window_s29_exit_hi : INT;
+  qw_schedule_window_s29_exit_lo : INT;
+  qw_schedule_window_s29_min_x10 : INT;
+  qw_schedule_window_s29_max_x10 : INT;
+  qw_schedule_window_s30_stn     : INT;
+  qw_schedule_window_s30_entry_hi : INT;
+  qw_schedule_window_s30_entry_lo : INT;
+  qw_schedule_window_s30_exit_hi : INT;
+  qw_schedule_window_s30_exit_lo : INT;
+  qw_schedule_window_s30_min_x10 : INT;
+  qw_schedule_window_s30_max_x10 : INT;
+  iw_schedule_req_unit           : INT;
   iw_cmd_t1_start                : INT;
   iw_cmd_t1_lift                 : INT;
   iw_cmd_t1_sink                 : INT;
@@ -865,6 +1079,11 @@ VAR_EXTERNAL
 
 
 
+
+
+
+
+
 END_VAR
 VAR
   init_done      : BOOL := FALSE;
@@ -894,6 +1113,10 @@ VAR
   time_cycle_cnt : INT := 0;      (* counts 20ms cycles, resets at 50 = 1 s *)
   last_sync_hi   : INT := 0;      (* previous gateway iw_time_hi — for change detect *)
   last_sync_lo   : INT := 0;      (* previous gateway iw_time_lo *)
+  (* Schedule window export *)
+  sch_last_req   : INT := 0;      (* last exported unit_id *)
+  sch_copy       : TSK_SCHEDULE_T; (* temp copy of requested schedule *)
+  sch_s          : INT;            (* loop counter for stages *)
 END_VAR
 (* ============================================================
    CONFIG UPLOAD HANDLER
@@ -1124,9 +1347,6 @@ ELSE
   END_IF;
 END_IF;
 
-(* ── Main Scheduler (TSK + DEP alternating cycles) ── *)
-main_sched(i_run := init_done, i_time_s := g_time_s);
-
 (* ── Execute transporter tasks (physics simulation) ── *)
 run_tasks(i_run := init_done);
 
@@ -1136,6 +1356,12 @@ cal_cmd := 0;   (* consumed after one cycle *)
 g_cal_active := calibrate.o_active;
 
 END_IF;  (* init_done *)
+
+(* ── Main Scheduler (TSK + DEP alternating cycles) ──
+   MUST run outside init_done block so that when init_done=FALSE
+   (during RESET), MainScheduler's i_run=FALSE path executes,
+   properly resetting internal state of both TSK and DEP FBs. *)
+main_sched(i_run := init_done, i_time_s := g_time_s);
 
 (* ── Event queue — always runs, not gated by init_done ── *)
 evt_queue();
@@ -1233,7 +1459,7 @@ cycle_count := cycle_count + 1;
 IF cycle_count > 30000 THEN cycle_count := 0; END_IF;
 
 (* --- BEGIN GENERATED MODBUS OUTPUT --- *)
-(* Auto-generated from modbus_map.json — 760 output registers *)
+(* Auto-generated from modbus_map.json — 973 output registers *)
 
 (* === Per-transporter live state — PLC writes, gateway reads === *)
 qw_t1_x_mm := REAL_TO_INT(g_transporter[1].x_mm);
@@ -2014,17 +2240,260 @@ IF g_dep_overlap.flags[130] THEN qw_ov_s130_flag := 1; ELSE qw_ov_s130_flag := 0
 
 (* --- END GENERATED MODBUS OUTPUT --- *)
 
+(* ── SCHEDULE WINDOW EXPORT ──
+   Gateway writes iw_schedule_req_unit = N (1..10).
+   PLC copies g_schedule[N] into the window registers and bumps seq.
+   Gateway detects seq change → reads window → stores → requests next unit. *)
+IF iw_schedule_req_unit >= 1 AND iw_schedule_req_unit <= 10
+   AND iw_schedule_req_unit <> sch_last_req THEN
+  sch_last_req := iw_schedule_req_unit;
+  sch_copy := g_schedule[iw_schedule_req_unit];
 
+  qw_schedule_window_unit_id := iw_schedule_req_unit;
+  qw_schedule_window_stage_count := sch_copy.stage_count;
 
+  (* Stage 1 *)
+  qw_schedule_window_s1_stn := sch_copy.stages[1].station;
+  qw_schedule_window_s1_entry_hi := LINT_TO_INT(sch_copy.stages[1].entry_time / 65536);
+  qw_schedule_window_s1_entry_lo := LINT_TO_INT(sch_copy.stages[1].entry_time MOD 65536);
+  qw_schedule_window_s1_exit_hi := LINT_TO_INT(sch_copy.stages[1].exit_time / 65536);
+  qw_schedule_window_s1_exit_lo := LINT_TO_INT(sch_copy.stages[1].exit_time MOD 65536);
+  qw_schedule_window_s1_min_x10 := REAL_TO_INT(sch_copy.stages[1].min_time * 10.0);
+  qw_schedule_window_s1_max_x10 := REAL_TO_INT(sch_copy.stages[1].max_time * 10.0);
+  (* Stage 2 *)
+  qw_schedule_window_s2_stn := sch_copy.stages[2].station;
+  qw_schedule_window_s2_entry_hi := LINT_TO_INT(sch_copy.stages[2].entry_time / 65536);
+  qw_schedule_window_s2_entry_lo := LINT_TO_INT(sch_copy.stages[2].entry_time MOD 65536);
+  qw_schedule_window_s2_exit_hi := LINT_TO_INT(sch_copy.stages[2].exit_time / 65536);
+  qw_schedule_window_s2_exit_lo := LINT_TO_INT(sch_copy.stages[2].exit_time MOD 65536);
+  qw_schedule_window_s2_min_x10 := REAL_TO_INT(sch_copy.stages[2].min_time * 10.0);
+  qw_schedule_window_s2_max_x10 := REAL_TO_INT(sch_copy.stages[2].max_time * 10.0);
+  (* Stage 3 *)
+  qw_schedule_window_s3_stn := sch_copy.stages[3].station;
+  qw_schedule_window_s3_entry_hi := LINT_TO_INT(sch_copy.stages[3].entry_time / 65536);
+  qw_schedule_window_s3_entry_lo := LINT_TO_INT(sch_copy.stages[3].entry_time MOD 65536);
+  qw_schedule_window_s3_exit_hi := LINT_TO_INT(sch_copy.stages[3].exit_time / 65536);
+  qw_schedule_window_s3_exit_lo := LINT_TO_INT(sch_copy.stages[3].exit_time MOD 65536);
+  qw_schedule_window_s3_min_x10 := REAL_TO_INT(sch_copy.stages[3].min_time * 10.0);
+  qw_schedule_window_s3_max_x10 := REAL_TO_INT(sch_copy.stages[3].max_time * 10.0);
+  (* Stage 4 *)
+  qw_schedule_window_s4_stn := sch_copy.stages[4].station;
+  qw_schedule_window_s4_entry_hi := LINT_TO_INT(sch_copy.stages[4].entry_time / 65536);
+  qw_schedule_window_s4_entry_lo := LINT_TO_INT(sch_copy.stages[4].entry_time MOD 65536);
+  qw_schedule_window_s4_exit_hi := LINT_TO_INT(sch_copy.stages[4].exit_time / 65536);
+  qw_schedule_window_s4_exit_lo := LINT_TO_INT(sch_copy.stages[4].exit_time MOD 65536);
+  qw_schedule_window_s4_min_x10 := REAL_TO_INT(sch_copy.stages[4].min_time * 10.0);
+  qw_schedule_window_s4_max_x10 := REAL_TO_INT(sch_copy.stages[4].max_time * 10.0);
+  (* Stage 5 *)
+  qw_schedule_window_s5_stn := sch_copy.stages[5].station;
+  qw_schedule_window_s5_entry_hi := LINT_TO_INT(sch_copy.stages[5].entry_time / 65536);
+  qw_schedule_window_s5_entry_lo := LINT_TO_INT(sch_copy.stages[5].entry_time MOD 65536);
+  qw_schedule_window_s5_exit_hi := LINT_TO_INT(sch_copy.stages[5].exit_time / 65536);
+  qw_schedule_window_s5_exit_lo := LINT_TO_INT(sch_copy.stages[5].exit_time MOD 65536);
+  qw_schedule_window_s5_min_x10 := REAL_TO_INT(sch_copy.stages[5].min_time * 10.0);
+  qw_schedule_window_s5_max_x10 := REAL_TO_INT(sch_copy.stages[5].max_time * 10.0);
+  (* Stage 6 *)
+  qw_schedule_window_s6_stn := sch_copy.stages[6].station;
+  qw_schedule_window_s6_entry_hi := LINT_TO_INT(sch_copy.stages[6].entry_time / 65536);
+  qw_schedule_window_s6_entry_lo := LINT_TO_INT(sch_copy.stages[6].entry_time MOD 65536);
+  qw_schedule_window_s6_exit_hi := LINT_TO_INT(sch_copy.stages[6].exit_time / 65536);
+  qw_schedule_window_s6_exit_lo := LINT_TO_INT(sch_copy.stages[6].exit_time MOD 65536);
+  qw_schedule_window_s6_min_x10 := REAL_TO_INT(sch_copy.stages[6].min_time * 10.0);
+  qw_schedule_window_s6_max_x10 := REAL_TO_INT(sch_copy.stages[6].max_time * 10.0);
+  (* Stage 7 *)
+  qw_schedule_window_s7_stn := sch_copy.stages[7].station;
+  qw_schedule_window_s7_entry_hi := LINT_TO_INT(sch_copy.stages[7].entry_time / 65536);
+  qw_schedule_window_s7_entry_lo := LINT_TO_INT(sch_copy.stages[7].entry_time MOD 65536);
+  qw_schedule_window_s7_exit_hi := LINT_TO_INT(sch_copy.stages[7].exit_time / 65536);
+  qw_schedule_window_s7_exit_lo := LINT_TO_INT(sch_copy.stages[7].exit_time MOD 65536);
+  qw_schedule_window_s7_min_x10 := REAL_TO_INT(sch_copy.stages[7].min_time * 10.0);
+  qw_schedule_window_s7_max_x10 := REAL_TO_INT(sch_copy.stages[7].max_time * 10.0);
+  (* Stage 8 *)
+  qw_schedule_window_s8_stn := sch_copy.stages[8].station;
+  qw_schedule_window_s8_entry_hi := LINT_TO_INT(sch_copy.stages[8].entry_time / 65536);
+  qw_schedule_window_s8_entry_lo := LINT_TO_INT(sch_copy.stages[8].entry_time MOD 65536);
+  qw_schedule_window_s8_exit_hi := LINT_TO_INT(sch_copy.stages[8].exit_time / 65536);
+  qw_schedule_window_s8_exit_lo := LINT_TO_INT(sch_copy.stages[8].exit_time MOD 65536);
+  qw_schedule_window_s8_min_x10 := REAL_TO_INT(sch_copy.stages[8].min_time * 10.0);
+  qw_schedule_window_s8_max_x10 := REAL_TO_INT(sch_copy.stages[8].max_time * 10.0);
+  (* Stage 9 *)
+  qw_schedule_window_s9_stn := sch_copy.stages[9].station;
+  qw_schedule_window_s9_entry_hi := LINT_TO_INT(sch_copy.stages[9].entry_time / 65536);
+  qw_schedule_window_s9_entry_lo := LINT_TO_INT(sch_copy.stages[9].entry_time MOD 65536);
+  qw_schedule_window_s9_exit_hi := LINT_TO_INT(sch_copy.stages[9].exit_time / 65536);
+  qw_schedule_window_s9_exit_lo := LINT_TO_INT(sch_copy.stages[9].exit_time MOD 65536);
+  qw_schedule_window_s9_min_x10 := REAL_TO_INT(sch_copy.stages[9].min_time * 10.0);
+  qw_schedule_window_s9_max_x10 := REAL_TO_INT(sch_copy.stages[9].max_time * 10.0);
+  (* Stage 10 *)
+  qw_schedule_window_s10_stn := sch_copy.stages[10].station;
+  qw_schedule_window_s10_entry_hi := LINT_TO_INT(sch_copy.stages[10].entry_time / 65536);
+  qw_schedule_window_s10_entry_lo := LINT_TO_INT(sch_copy.stages[10].entry_time MOD 65536);
+  qw_schedule_window_s10_exit_hi := LINT_TO_INT(sch_copy.stages[10].exit_time / 65536);
+  qw_schedule_window_s10_exit_lo := LINT_TO_INT(sch_copy.stages[10].exit_time MOD 65536);
+  qw_schedule_window_s10_min_x10 := REAL_TO_INT(sch_copy.stages[10].min_time * 10.0);
+  qw_schedule_window_s10_max_x10 := REAL_TO_INT(sch_copy.stages[10].max_time * 10.0);
+  (* Stage 11 *)
+  qw_schedule_window_s11_stn := sch_copy.stages[11].station;
+  qw_schedule_window_s11_entry_hi := LINT_TO_INT(sch_copy.stages[11].entry_time / 65536);
+  qw_schedule_window_s11_entry_lo := LINT_TO_INT(sch_copy.stages[11].entry_time MOD 65536);
+  qw_schedule_window_s11_exit_hi := LINT_TO_INT(sch_copy.stages[11].exit_time / 65536);
+  qw_schedule_window_s11_exit_lo := LINT_TO_INT(sch_copy.stages[11].exit_time MOD 65536);
+  qw_schedule_window_s11_min_x10 := REAL_TO_INT(sch_copy.stages[11].min_time * 10.0);
+  qw_schedule_window_s11_max_x10 := REAL_TO_INT(sch_copy.stages[11].max_time * 10.0);
+  (* Stage 12 *)
+  qw_schedule_window_s12_stn := sch_copy.stages[12].station;
+  qw_schedule_window_s12_entry_hi := LINT_TO_INT(sch_copy.stages[12].entry_time / 65536);
+  qw_schedule_window_s12_entry_lo := LINT_TO_INT(sch_copy.stages[12].entry_time MOD 65536);
+  qw_schedule_window_s12_exit_hi := LINT_TO_INT(sch_copy.stages[12].exit_time / 65536);
+  qw_schedule_window_s12_exit_lo := LINT_TO_INT(sch_copy.stages[12].exit_time MOD 65536);
+  qw_schedule_window_s12_min_x10 := REAL_TO_INT(sch_copy.stages[12].min_time * 10.0);
+  qw_schedule_window_s12_max_x10 := REAL_TO_INT(sch_copy.stages[12].max_time * 10.0);
+  (* Stage 13 *)
+  qw_schedule_window_s13_stn := sch_copy.stages[13].station;
+  qw_schedule_window_s13_entry_hi := LINT_TO_INT(sch_copy.stages[13].entry_time / 65536);
+  qw_schedule_window_s13_entry_lo := LINT_TO_INT(sch_copy.stages[13].entry_time MOD 65536);
+  qw_schedule_window_s13_exit_hi := LINT_TO_INT(sch_copy.stages[13].exit_time / 65536);
+  qw_schedule_window_s13_exit_lo := LINT_TO_INT(sch_copy.stages[13].exit_time MOD 65536);
+  qw_schedule_window_s13_min_x10 := REAL_TO_INT(sch_copy.stages[13].min_time * 10.0);
+  qw_schedule_window_s13_max_x10 := REAL_TO_INT(sch_copy.stages[13].max_time * 10.0);
+  (* Stage 14 *)
+  qw_schedule_window_s14_stn := sch_copy.stages[14].station;
+  qw_schedule_window_s14_entry_hi := LINT_TO_INT(sch_copy.stages[14].entry_time / 65536);
+  qw_schedule_window_s14_entry_lo := LINT_TO_INT(sch_copy.stages[14].entry_time MOD 65536);
+  qw_schedule_window_s14_exit_hi := LINT_TO_INT(sch_copy.stages[14].exit_time / 65536);
+  qw_schedule_window_s14_exit_lo := LINT_TO_INT(sch_copy.stages[14].exit_time MOD 65536);
+  qw_schedule_window_s14_min_x10 := REAL_TO_INT(sch_copy.stages[14].min_time * 10.0);
+  qw_schedule_window_s14_max_x10 := REAL_TO_INT(sch_copy.stages[14].max_time * 10.0);
+  (* Stage 15 *)
+  qw_schedule_window_s15_stn := sch_copy.stages[15].station;
+  qw_schedule_window_s15_entry_hi := LINT_TO_INT(sch_copy.stages[15].entry_time / 65536);
+  qw_schedule_window_s15_entry_lo := LINT_TO_INT(sch_copy.stages[15].entry_time MOD 65536);
+  qw_schedule_window_s15_exit_hi := LINT_TO_INT(sch_copy.stages[15].exit_time / 65536);
+  qw_schedule_window_s15_exit_lo := LINT_TO_INT(sch_copy.stages[15].exit_time MOD 65536);
+  qw_schedule_window_s15_min_x10 := REAL_TO_INT(sch_copy.stages[15].min_time * 10.0);
+  qw_schedule_window_s15_max_x10 := REAL_TO_INT(sch_copy.stages[15].max_time * 10.0);
+  (* Stage 16 *)
+  qw_schedule_window_s16_stn := sch_copy.stages[16].station;
+  qw_schedule_window_s16_entry_hi := LINT_TO_INT(sch_copy.stages[16].entry_time / 65536);
+  qw_schedule_window_s16_entry_lo := LINT_TO_INT(sch_copy.stages[16].entry_time MOD 65536);
+  qw_schedule_window_s16_exit_hi := LINT_TO_INT(sch_copy.stages[16].exit_time / 65536);
+  qw_schedule_window_s16_exit_lo := LINT_TO_INT(sch_copy.stages[16].exit_time MOD 65536);
+  qw_schedule_window_s16_min_x10 := REAL_TO_INT(sch_copy.stages[16].min_time * 10.0);
+  qw_schedule_window_s16_max_x10 := REAL_TO_INT(sch_copy.stages[16].max_time * 10.0);
+  (* Stage 17 *)
+  qw_schedule_window_s17_stn := sch_copy.stages[17].station;
+  qw_schedule_window_s17_entry_hi := LINT_TO_INT(sch_copy.stages[17].entry_time / 65536);
+  qw_schedule_window_s17_entry_lo := LINT_TO_INT(sch_copy.stages[17].entry_time MOD 65536);
+  qw_schedule_window_s17_exit_hi := LINT_TO_INT(sch_copy.stages[17].exit_time / 65536);
+  qw_schedule_window_s17_exit_lo := LINT_TO_INT(sch_copy.stages[17].exit_time MOD 65536);
+  qw_schedule_window_s17_min_x10 := REAL_TO_INT(sch_copy.stages[17].min_time * 10.0);
+  qw_schedule_window_s17_max_x10 := REAL_TO_INT(sch_copy.stages[17].max_time * 10.0);
+  (* Stage 18 *)
+  qw_schedule_window_s18_stn := sch_copy.stages[18].station;
+  qw_schedule_window_s18_entry_hi := LINT_TO_INT(sch_copy.stages[18].entry_time / 65536);
+  qw_schedule_window_s18_entry_lo := LINT_TO_INT(sch_copy.stages[18].entry_time MOD 65536);
+  qw_schedule_window_s18_exit_hi := LINT_TO_INT(sch_copy.stages[18].exit_time / 65536);
+  qw_schedule_window_s18_exit_lo := LINT_TO_INT(sch_copy.stages[18].exit_time MOD 65536);
+  qw_schedule_window_s18_min_x10 := REAL_TO_INT(sch_copy.stages[18].min_time * 10.0);
+  qw_schedule_window_s18_max_x10 := REAL_TO_INT(sch_copy.stages[18].max_time * 10.0);
+  (* Stage 19 *)
+  qw_schedule_window_s19_stn := sch_copy.stages[19].station;
+  qw_schedule_window_s19_entry_hi := LINT_TO_INT(sch_copy.stages[19].entry_time / 65536);
+  qw_schedule_window_s19_entry_lo := LINT_TO_INT(sch_copy.stages[19].entry_time MOD 65536);
+  qw_schedule_window_s19_exit_hi := LINT_TO_INT(sch_copy.stages[19].exit_time / 65536);
+  qw_schedule_window_s19_exit_lo := LINT_TO_INT(sch_copy.stages[19].exit_time MOD 65536);
+  qw_schedule_window_s19_min_x10 := REAL_TO_INT(sch_copy.stages[19].min_time * 10.0);
+  qw_schedule_window_s19_max_x10 := REAL_TO_INT(sch_copy.stages[19].max_time * 10.0);
+  (* Stage 20 *)
+  qw_schedule_window_s20_stn := sch_copy.stages[20].station;
+  qw_schedule_window_s20_entry_hi := LINT_TO_INT(sch_copy.stages[20].entry_time / 65536);
+  qw_schedule_window_s20_entry_lo := LINT_TO_INT(sch_copy.stages[20].entry_time MOD 65536);
+  qw_schedule_window_s20_exit_hi := LINT_TO_INT(sch_copy.stages[20].exit_time / 65536);
+  qw_schedule_window_s20_exit_lo := LINT_TO_INT(sch_copy.stages[20].exit_time MOD 65536);
+  qw_schedule_window_s20_min_x10 := REAL_TO_INT(sch_copy.stages[20].min_time * 10.0);
+  qw_schedule_window_s20_max_x10 := REAL_TO_INT(sch_copy.stages[20].max_time * 10.0);
+  (* Stage 21 *)
+  qw_schedule_window_s21_stn := sch_copy.stages[21].station;
+  qw_schedule_window_s21_entry_hi := LINT_TO_INT(sch_copy.stages[21].entry_time / 65536);
+  qw_schedule_window_s21_entry_lo := LINT_TO_INT(sch_copy.stages[21].entry_time MOD 65536);
+  qw_schedule_window_s21_exit_hi := LINT_TO_INT(sch_copy.stages[21].exit_time / 65536);
+  qw_schedule_window_s21_exit_lo := LINT_TO_INT(sch_copy.stages[21].exit_time MOD 65536);
+  qw_schedule_window_s21_min_x10 := REAL_TO_INT(sch_copy.stages[21].min_time * 10.0);
+  qw_schedule_window_s21_max_x10 := REAL_TO_INT(sch_copy.stages[21].max_time * 10.0);
+  (* Stage 22 *)
+  qw_schedule_window_s22_stn := sch_copy.stages[22].station;
+  qw_schedule_window_s22_entry_hi := LINT_TO_INT(sch_copy.stages[22].entry_time / 65536);
+  qw_schedule_window_s22_entry_lo := LINT_TO_INT(sch_copy.stages[22].entry_time MOD 65536);
+  qw_schedule_window_s22_exit_hi := LINT_TO_INT(sch_copy.stages[22].exit_time / 65536);
+  qw_schedule_window_s22_exit_lo := LINT_TO_INT(sch_copy.stages[22].exit_time MOD 65536);
+  qw_schedule_window_s22_min_x10 := REAL_TO_INT(sch_copy.stages[22].min_time * 10.0);
+  qw_schedule_window_s22_max_x10 := REAL_TO_INT(sch_copy.stages[22].max_time * 10.0);
+  (* Stage 23 *)
+  qw_schedule_window_s23_stn := sch_copy.stages[23].station;
+  qw_schedule_window_s23_entry_hi := LINT_TO_INT(sch_copy.stages[23].entry_time / 65536);
+  qw_schedule_window_s23_entry_lo := LINT_TO_INT(sch_copy.stages[23].entry_time MOD 65536);
+  qw_schedule_window_s23_exit_hi := LINT_TO_INT(sch_copy.stages[23].exit_time / 65536);
+  qw_schedule_window_s23_exit_lo := LINT_TO_INT(sch_copy.stages[23].exit_time MOD 65536);
+  qw_schedule_window_s23_min_x10 := REAL_TO_INT(sch_copy.stages[23].min_time * 10.0);
+  qw_schedule_window_s23_max_x10 := REAL_TO_INT(sch_copy.stages[23].max_time * 10.0);
+  (* Stage 24 *)
+  qw_schedule_window_s24_stn := sch_copy.stages[24].station;
+  qw_schedule_window_s24_entry_hi := LINT_TO_INT(sch_copy.stages[24].entry_time / 65536);
+  qw_schedule_window_s24_entry_lo := LINT_TO_INT(sch_copy.stages[24].entry_time MOD 65536);
+  qw_schedule_window_s24_exit_hi := LINT_TO_INT(sch_copy.stages[24].exit_time / 65536);
+  qw_schedule_window_s24_exit_lo := LINT_TO_INT(sch_copy.stages[24].exit_time MOD 65536);
+  qw_schedule_window_s24_min_x10 := REAL_TO_INT(sch_copy.stages[24].min_time * 10.0);
+  qw_schedule_window_s24_max_x10 := REAL_TO_INT(sch_copy.stages[24].max_time * 10.0);
+  (* Stage 25 *)
+  qw_schedule_window_s25_stn := sch_copy.stages[25].station;
+  qw_schedule_window_s25_entry_hi := LINT_TO_INT(sch_copy.stages[25].entry_time / 65536);
+  qw_schedule_window_s25_entry_lo := LINT_TO_INT(sch_copy.stages[25].entry_time MOD 65536);
+  qw_schedule_window_s25_exit_hi := LINT_TO_INT(sch_copy.stages[25].exit_time / 65536);
+  qw_schedule_window_s25_exit_lo := LINT_TO_INT(sch_copy.stages[25].exit_time MOD 65536);
+  qw_schedule_window_s25_min_x10 := REAL_TO_INT(sch_copy.stages[25].min_time * 10.0);
+  qw_schedule_window_s25_max_x10 := REAL_TO_INT(sch_copy.stages[25].max_time * 10.0);
+  (* Stage 26 *)
+  qw_schedule_window_s26_stn := sch_copy.stages[26].station;
+  qw_schedule_window_s26_entry_hi := LINT_TO_INT(sch_copy.stages[26].entry_time / 65536);
+  qw_schedule_window_s26_entry_lo := LINT_TO_INT(sch_copy.stages[26].entry_time MOD 65536);
+  qw_schedule_window_s26_exit_hi := LINT_TO_INT(sch_copy.stages[26].exit_time / 65536);
+  qw_schedule_window_s26_exit_lo := LINT_TO_INT(sch_copy.stages[26].exit_time MOD 65536);
+  qw_schedule_window_s26_min_x10 := REAL_TO_INT(sch_copy.stages[26].min_time * 10.0);
+  qw_schedule_window_s26_max_x10 := REAL_TO_INT(sch_copy.stages[26].max_time * 10.0);
+  (* Stage 27 *)
+  qw_schedule_window_s27_stn := sch_copy.stages[27].station;
+  qw_schedule_window_s27_entry_hi := LINT_TO_INT(sch_copy.stages[27].entry_time / 65536);
+  qw_schedule_window_s27_entry_lo := LINT_TO_INT(sch_copy.stages[27].entry_time MOD 65536);
+  qw_schedule_window_s27_exit_hi := LINT_TO_INT(sch_copy.stages[27].exit_time / 65536);
+  qw_schedule_window_s27_exit_lo := LINT_TO_INT(sch_copy.stages[27].exit_time MOD 65536);
+  qw_schedule_window_s27_min_x10 := REAL_TO_INT(sch_copy.stages[27].min_time * 10.0);
+  qw_schedule_window_s27_max_x10 := REAL_TO_INT(sch_copy.stages[27].max_time * 10.0);
+  (* Stage 28 *)
+  qw_schedule_window_s28_stn := sch_copy.stages[28].station;
+  qw_schedule_window_s28_entry_hi := LINT_TO_INT(sch_copy.stages[28].entry_time / 65536);
+  qw_schedule_window_s28_entry_lo := LINT_TO_INT(sch_copy.stages[28].entry_time MOD 65536);
+  qw_schedule_window_s28_exit_hi := LINT_TO_INT(sch_copy.stages[28].exit_time / 65536);
+  qw_schedule_window_s28_exit_lo := LINT_TO_INT(sch_copy.stages[28].exit_time MOD 65536);
+  qw_schedule_window_s28_min_x10 := REAL_TO_INT(sch_copy.stages[28].min_time * 10.0);
+  qw_schedule_window_s28_max_x10 := REAL_TO_INT(sch_copy.stages[28].max_time * 10.0);
+  (* Stage 29 *)
+  qw_schedule_window_s29_stn := sch_copy.stages[29].station;
+  qw_schedule_window_s29_entry_hi := LINT_TO_INT(sch_copy.stages[29].entry_time / 65536);
+  qw_schedule_window_s29_entry_lo := LINT_TO_INT(sch_copy.stages[29].entry_time MOD 65536);
+  qw_schedule_window_s29_exit_hi := LINT_TO_INT(sch_copy.stages[29].exit_time / 65536);
+  qw_schedule_window_s29_exit_lo := LINT_TO_INT(sch_copy.stages[29].exit_time MOD 65536);
+  qw_schedule_window_s29_min_x10 := REAL_TO_INT(sch_copy.stages[29].min_time * 10.0);
+  qw_schedule_window_s29_max_x10 := REAL_TO_INT(sch_copy.stages[29].max_time * 10.0);
+  (* Stage 30 *)
+  qw_schedule_window_s30_stn := sch_copy.stages[30].station;
+  qw_schedule_window_s30_entry_hi := LINT_TO_INT(sch_copy.stages[30].entry_time / 65536);
+  qw_schedule_window_s30_entry_lo := LINT_TO_INT(sch_copy.stages[30].entry_time MOD 65536);
+  qw_schedule_window_s30_exit_hi := LINT_TO_INT(sch_copy.stages[30].exit_time / 65536);
+  qw_schedule_window_s30_exit_lo := LINT_TO_INT(sch_copy.stages[30].exit_time MOD 65536);
+  qw_schedule_window_s30_min_x10 := REAL_TO_INT(sch_copy.stages[30].min_time * 10.0);
+  qw_schedule_window_s30_max_x10 := REAL_TO_INT(sch_copy.stages[30].max_time * 10.0);
 
-
-
-
-
-
-
-
-
-
+  qw_schedule_window_seq := qw_schedule_window_seq + 1;
+END_IF;
 
 END_PROGRAM

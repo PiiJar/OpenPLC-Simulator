@@ -59,6 +59,7 @@ def expand_blocks(blocks):
         }
         Template fields are expanded BEFORE the outer repeat, so both
         {outer_var} and {inner_var} placeholders work correctly.
+      - skip_plc_write: if true, output writes are skipped for this block
 
     Returns list of register dicts."""
     registers = []
@@ -72,6 +73,7 @@ def expand_blocks(blocks):
         repeat = block.get('repeat')
         comment = block.get('comment', '')
         prefix = 'qw' if direction == 'out' else 'iw'
+        skip_plc_write = block.get('skip_plc_write', False)
 
         # Expand template_fields (inner repeat) into the field list
         if template:
@@ -110,6 +112,7 @@ def expand_blocks(blocks):
                         'field_type': field.get('type', 'int16'),
                         'comment': field.get('comment', ''),
                         'block_comment': comment,
+                        'skip_plc_write': skip_plc_write,
                     }
                     registers.append(reg)
                     addr += 1
@@ -131,6 +134,7 @@ def expand_blocks(blocks):
                     'field_type': field.get('type', 'int16'),
                     'comment': field.get('comment', ''),
                     'block_comment': comment,
+                    'skip_plc_write': skip_plc_write,
                 }
                 registers.append(reg)
                 addr += 1
@@ -175,7 +179,7 @@ def generate_plc_prg_st(registers):
     lines.append(f'(* Auto-generated from modbus_map.json — {len([r for r in registers if r["direction"] == "out"])} output registers *)')
     lines.append('')
 
-    out_regs = [r for r in registers if r['direction'] == 'out']
+    out_regs = [r for r in registers if r['direction'] == 'out' and not r.get('skip_plc_write', False)]
 
     current_block = None
     for reg in out_regs:

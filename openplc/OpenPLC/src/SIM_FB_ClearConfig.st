@@ -29,6 +29,10 @@ VAR_EXTERNAL
   g_task             : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
   g_dep_sandbox      : DEP_SANDBOX_T;
   g_dep_pending      : DEP_PENDING_WRITE_T;
+  g_dep_activated    : BOOL;
+  g_dep_stable       : BOOL;
+  g_dep_waiting_count : INT;
+  g_dep_waiting       : ARRAY[1..5] OF INT;
 END_VAR
 VAR
   i : INT;
@@ -194,5 +198,13 @@ g_dep_pending.valid := FALSE;
 g_dep_pending.batch_unit  := 0;
 g_dep_pending.batch_stage := 0;
 g_dep_pending.batch_state := 0;
+
+(* --- Clear departure scheduler state (previously missing) --- *)
+g_dep_activated     := FALSE;
+g_dep_stable        := FALSE;
+g_dep_waiting_count := 0;
+FOR i := 1 TO 5 DO
+  g_dep_waiting[i] := 0;
+END_FOR;
 
 END_FUNCTION_BLOCK

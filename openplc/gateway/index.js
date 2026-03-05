@@ -155,6 +155,15 @@ let simRunning = false;
 // --- TWA dynamic drive limits (from Modbus) ---
 let twaLimits = { 1: { x_min: 0, x_max: 0 }, 2: { x_min: 0, x_max: 0 }, 3: { x_min: 0, x_max: 0 } };
 
+// --- Task queues per transporter (from Modbus) ---
+let plcTaskQueues = { 1: { count: 0, tasks: [] }, 2: { count: 0, tasks: [] }, 3: { count: 0, tasks: [] } };
+
+// --- Unit schedules (from Modbus, sliding window protocol) ---
+let plcSchedules = [];          // Array of { batch_id, batchStage, stages: [...] }
+let scheduleTickCounter = 0;
+const SCHEDULE_POLL_TICKS = 2;  // schedule tick every 200ms (2 × 100ms poll)
+let schReqUnit = 0;             // last requested unit_id (cycles 1..10)
+
 // --- Calibration state (from Modbus) ---
 let calibrationState = {
   step: 0,
@@ -312,7 +321,7 @@ async function readPLCState() {
   if (!connected) return null;
   try {
     // Read all output registers in chunks of 125 (Modbus FC3 limit)
-    const totalOut = BLOCKS.calibration_results.end + 1; // up to end of cal results
+    const totalOut = BLOCKS.task_queue.end + 1; // up to end of task_queue
     const r = new Array(totalOut).fill(0);
     const CHUNK = 125;
     for (let offset = 0; offset < totalOut; offset += CHUNK) {
@@ -433,11 +442,119 @@ async function readPLCState() {
       };
     }
 
+    // Task queues (3 transporters × up to 10 task slots)
+    const TASK_SLOT_FIELDS = 11; // unit, stage, lift, sink, start_hi, start_lo, fin_hi, fin_lo, calc_x10, min_x10, max_x10
+    const TASK_SLOTS = 10;
+    const TQ_REGS_PER_T = 1 + TASK_SLOTS * TASK_SLOT_FIELDS; // 111 per transporter
+    for (let t = 1; t <= 3; t++) {
+      const tBase = BLOCKS.task_queue.start + (t - 1) * TQ_REGS_PER_T;
+      const count = toSigned(r[tBase]);
+      const tasks = [];
+      for (let q = 0; q < Math.min(count, TASK_SLOTS); q++) {
+        const qBase = tBase + 1 + q * TASK_SLOT_FIELDS;
+        const unit = toSigned(r[qBase]);
+        if (unit === 0) continue; // empty slot
+        const startHi = r[qBase + 4] || 0;
+        const startLo = r[qBase + 5] || 0;
+        const finHi   = r[qBase + 6] || 0;
+        const finLo   = r[qBase + 7] || 0;
+        tasks.push({
+          slot: q + 1,
+          unit_id: unit,
+          stage: toSigned(r[qBase + 1]),
+          lift_station: toSigned(r[qBase + 2]),
+          sink_station: toSigned(r[qBase + 3]),
+          start_time: startHi * 65536 + startLo,
+          finish_time: finHi * 65536 + finLo,
+          calc_time: toSigned(r[qBase + 8]) * 0.1,
+          min_time: toSigned(r[qBase + 9]) * 0.1,
+          max_time: toSigned(r[qBase + 10]) * 0.1,
+        });
+      }
+      plcTaskQueues[t] = { count, tasks };
+    }
+
     return plcState;
   } catch (err) {
     connected = false;
     console.error(`[MODBUS] Read error: ${err.message}`);
     return null;
+  }
+}
+
+// ── Sliding window: request one unit's schedule per tick ──────────────────
+// Gateway writes schedule_req_unit = N → PLC fills schedule_window → gateway reads.
+// Cycles through units 1..10, one per tick (~200ms), full refresh ≈ 2 seconds.
+async function pollScheduleWindow() {
+  if (!connected) return;
+
+  schReqUnit = (schReqUnit % 10) + 1; // 1→2→…→10→1
+  const reqAddr  = BLOCKS.schedule_req.start;
+  const winStart = BLOCKS.schedule_window.start;
+  const winCount = BLOCKS.schedule_window.count;
+
+  try {
+    // 1. Write request
+    await client.writeRegisters(reqAddr, [schReqUnit]);
+
+    // 2. Wait for PLC to fill the window (1 PLC cycle ≈ 20 ms)
+    await new Promise(resolve => setTimeout(resolve, 40));
+
+    // 3. Read window (213 regs in 2 chunks, FC3 max = 125)
+    const CHUNK = 125;
+    const w = new Array(winCount).fill(0);
+    for (let offset = 0; offset < winCount; offset += CHUNK) {
+      const count = Math.min(CHUNK, winCount - offset);
+      const result = await client.readHoldingRegisters(winStart + offset, count);
+      for (let j = 0; j < result.data.length; j++) {
+        w[offset + j] = result.data[j];
+      }
+    }
+
+    // 4. Parse header
+    const toSigned = (v) => v > 32767 ? v - 65536 : v;
+    const winUnitId  = toSigned(w[0]);
+    const stageCount = toSigned(w[1]);
+    // const winSeq  = toSigned(w[2]); // for debug
+
+    if (winUnitId !== schReqUnit) return; // PLC hasn't responded yet
+
+    // 5. Parse stages (7 fields per stage)
+    if (stageCount > 0) {
+      const stages = [];
+      for (let s = 0; s < Math.min(stageCount, 30); s++) {
+        const sBase = 3 + s * 7;
+        stages.push({
+          stage:        s + 1,
+          station:      toSigned(w[sBase]),
+          entry_time_s: w[sBase + 1] * 65536 + w[sBase + 2],
+          exit_time_s:  w[sBase + 3] * 65536 + w[sBase + 4],
+          min_time_s:   toSigned(w[sBase + 5]) * 0.1,
+          max_time_s:   toSigned(w[sBase + 6]) * 0.1,
+        });
+      }
+
+      const unitInfo   = plcUnits.find(pu => pu.unit_id === schReqUnit);
+      const batchStage = unitInfo ? unitInfo.batch_stage : 0;
+
+      const entry = {
+        batch_id:         schReqUnit,
+        batchStage,
+        stage_count:      stageCount,
+        total_duration_s: stages[stages.length - 1].exit_time_s - stages[0].entry_time_s,
+        stages
+      };
+
+      const idx = plcSchedules.findIndex(s => s.batch_id === schReqUnit);
+      if (idx >= 0) plcSchedules[idx] = entry;
+      else plcSchedules.push(entry);
+    } else {
+      // No schedule for this unit — remove if present
+      const idx = plcSchedules.findIndex(s => s.batch_id === schReqUnit);
+      if (idx >= 0) plcSchedules.splice(idx, 1);
+    }
+  } catch (err) {
+    console.error(`[MODBUS] Schedule window error (unit ${schReqUnit}): ${err.message}`);
   }
 }
 
@@ -565,6 +682,12 @@ function startPolling() {
           lastTimeSyncMs = now;
         }
         await readPLCState();
+        // Sliding window: poll one unit's schedule per tick (~200ms)
+        scheduleTickCounter++;
+        if (scheduleTickCounter >= SCHEDULE_POLL_TICKS) {
+          scheduleTickCounter = 0;
+          await pollScheduleWindow();
+        }
         // Production queue dispatcher — only tick when PLC is initialized
         if (plcMeta.init_done) {
           await dispatcher.tick(plcUnits);
@@ -602,7 +725,11 @@ app.use('/api', legacyStubs.router);
 
 // Serve static config files from current customer/plant
 app.get('/api/config/:filename', (req, res) => {
-  const filePath = path.join(getCurrentCustomerPath(), req.params.filename);
+  let filePath = path.join(getCurrentCustomerPath(), req.params.filename);
+  // Try with .json extension if file not found
+  if (!fs.existsSync(filePath) && !req.params.filename.endsWith('.json')) {
+    filePath = filePath + '.json';
+  }
   if (fs.existsSync(filePath)) {
     res.json(JSON.parse(fs.readFileSync(filePath, 'utf8')));
   } else {
@@ -747,19 +874,69 @@ app.delete('/api/manual-tasks/:id', (req, res) => {
   res.json({ ok: true });
 });
 
-// GET /api/transporter-tasks — current task queue from PLC state
+// GET /api/transporter-tasks — current task queue from PLC Modbus registers
 app.get('/api/transporter-tasks', (req, res) => {
-  // Build task list from current transporter states
-  const tasks = (plcState.transporters || [])
-    .filter(t => t && t.state && t.state.phase > 0)
-    .map(t => ({
-      transporterId: t.id,
-      liftStation: t.state.lift_station_target,
-      sinkStation: t.state.sink_station_target,
-      phase: t.state.phase,
-      operation: t.state.operation
-    }));
+  const tasks = [];
+  for (const tid of [1, 2, 3]) {
+    const tq = plcTaskQueues[tid];
+    if (!tq) continue;
+    for (const task of tq.tasks) {
+      tasks.push({
+        transporter_id: tid,
+        unit_id: task.unit_id,
+        stage: task.stage,
+        lift_station_id: task.lift_station,
+        sink_station_id: task.sink_station,
+        task_start_time: task.start_time,
+        task_finished_time: task.finish_time,
+        calc_time: task.calc_time,
+        min_time: task.min_time,
+        max_time: task.max_time,
+        is_manual: false
+      });
+    }
+  }
+  tasks.sort((a, b) => a.task_start_time - b.task_start_time);
   res.json({ tasks });
+});
+
+// GET /api/schedules — unit schedules from PLC Modbus registers (Gantt chart)
+app.get('/api/schedules', (req, res) => {
+  // Current PLC time from the time registers (already synced)
+  const currentTimeSec = Math.floor(Date.now() / 1000);
+  res.json({
+    success: true,
+    currentTimeSec,
+    schedules: plcSchedules
+  });
+});
+
+// GET /api/transporter-schedule — task-based transporter Gantt data
+app.get('/api/transporter-schedule', (req, res) => {
+  const currentTimeSec = Math.floor(Date.now() / 1000);
+  const transporterSchedule = [];
+  for (const tid of [1, 2, 3]) {
+    const tq = plcTaskQueues[tid];
+    if (!tq) continue;
+    const slots = tq.tasks.map(task => ({
+      transporter_id: tid,
+      unit_id: task.unit_id,
+      lift_station: task.lift_station,
+      sink_station: task.sink_station,
+      start_time_s: task.start_time,
+      end_time_s: task.finish_time,
+    }));
+    transporterSchedule.push({
+      transporter_id: tid,
+      task_count: tq.count,
+      slots
+    });
+  }
+  res.json({
+    success: true,
+    currentTimeSec,
+    transporters: transporterSchedule
+  });
 });
 
 // Legacy alias

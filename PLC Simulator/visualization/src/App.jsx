@@ -3034,32 +3034,32 @@ export default function App() {
                           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                             <thead>
                               <tr style={{ borderBottom: '2px solid #ddd' }}>
-                                <th style={{ textAlign: 'right', padding: '4px 4px', fontWeight: 600, color: '#666', width: '50px' }}>Lift</th>
-                                <th style={{ textAlign: 'right', padding: '4px 4px', fontWeight: 600, color: '#666', width: '50px' }}>Sink</th>
-                                <th style={{ textAlign: 'left', padding: '4px 8px', fontWeight: 600, color: '#666' }}>Task</th>
+                                <th style={{ textAlign: 'left', padding: '4px 4px', fontWeight: 600, color: '#666' }}>Unit</th>
+                                <th style={{ textAlign: 'right', padding: '4px 4px', fontWeight: 600, color: '#666' }}>Lift</th>
+                                <th style={{ textAlign: 'right', padding: '4px 4px', fontWeight: 600, color: '#666' }}>Sink</th>
+                                <th style={{ textAlign: 'right', padding: '4px 4px', fontWeight: 600, color: '#666' }}>Start</th>
                               </tr>
                             </thead>
                             <tbody>
                               {tasksForTransporter.map((task, idx) => {
                                 const now = elapsedMs;
                                 const relStart = Math.round(task.task_start_time - now);
-                                const relEnd = Math.round(task.task_finished_time - now);
-                                const startStr = relStart > 0 ? `+${relStart}` : `${relStart}`;
-                                const endStr = relEnd > 0 ? `+${relEnd}` : `${relEnd}`;
+                                const sign = relStart >= 0 ? '+' : '';
+                                const absSec = Math.abs(relStart);
+                                const mm = String(Math.floor(absSec / 60)).padStart(2, '0');
+                                const ss = String(absSec % 60).padStart(2, '0');
+                                const startStr = `${sign}${mm}:${ss}`;
                                 return (
                                   <tr key={idx} style={{ 
-                                    background: task.is_manual ? '#fff3e0' : (task.transporter_id === t.id ? '#e8f5e9' : 'transparent'),
+                                    background: task.is_manual ? '#fff3e0' : '#e8f5e9',
                                     borderBottom: idx < tasksForTransporter.length - 1 ? '1px solid #f0f0f0' : 'none'
                                   }}>
-                                    <td style={{ textAlign: 'right', padding: '2px 4px', fontFamily: 'monospace', color: '#999', fontSize: '10px' }}>{startStr}</td>
-                                    <td style={{ textAlign: 'right', padding: '2px 4px', fontFamily: 'monospace', color: '#999', fontSize: '10px' }}>{endStr}</td>
-                                    <td style={{ textAlign: 'left', padding: '2px 8px' }}>
-                                      <span style={{ fontWeight: 600, color: task.is_manual ? '#e65100' : 'inherit' }}>
-                                        {task.is_manual ? '🔧 Manual' : `B${task.batch_id}`}
-                                      </span>
-                                      {' - '}
-                                      <span>{task.lift_station_id} → {task.sink_station_id}</span>
+                                    <td style={{ textAlign: 'left', padding: '2px 4px', fontWeight: 600, fontSize: '10px' }}>
+                                      U{task.unit_id}
                                     </td>
+                                    <td style={{ textAlign: 'right', padding: '2px 4px', fontFamily: 'monospace', fontSize: '10px' }}>{task.lift_station_id}</td>
+                                    <td style={{ textAlign: 'right', padding: '2px 4px', fontFamily: 'monospace', fontSize: '10px' }}>{task.sink_station_id}</td>
+                                    <td style={{ textAlign: 'right', padding: '2px 4px', fontFamily: 'monospace', color: '#999', fontSize: '10px' }}>{startStr}</td>
                                   </tr>
                                 );
                               })}

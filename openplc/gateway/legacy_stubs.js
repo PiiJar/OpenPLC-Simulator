@@ -40,22 +40,17 @@ router.post('/sim/speed', (req, res) => {
   res.json({ success: true, speed: 1, message: 'Speed control not applicable — PLC runs in real time' });
 });
 
-// ─── Scheduler / schedules (legacy JS state machine) ────────────────────
+// ─── Scheduler / schedules — real endpoints in index.js ──────────────────
 
+// /api/schedules, /api/transporter-schedule, /api/scheduler/state
+// are now served from index.js with actual PLC Modbus data.
+// Only keep /api/scheduler/state stub for backward compatibility.
 router.get('/scheduler/state', (req, res) => {
   res.json({
     state: 'idle',
     message: 'PLC handles scheduling natively',
     transporters: []
   });
-});
-
-router.get('/schedules', (req, res) => {
-  res.json({ schedules: [], timestamp: new Date().toISOString() });
-});
-
-router.get('/transporter-schedule', (req, res) => {
-  res.json({ schedule: [], timestamp: new Date().toISOString() });
 });
 
 // ─── Batch schedules (legacy) ────────────────────────────────────────────
