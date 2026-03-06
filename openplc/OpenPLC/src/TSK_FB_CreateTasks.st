@@ -18,16 +18,16 @@ VAR_INPUT
   i_unit : INT;   (* unit index 1..10 *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    MAX_TRANSPORTERS : INT;
-    MAX_UNITS        : INT;
+    MAX_Transporters : INT;
+    MAX_Units        : INT;
     MAX_TASK_QUEUE   : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_batch  : ARRAY[1..MAX_UNITS] OF BATCH_T;
-  g_schedule : ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T;
-  g_task    : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
-  g_cfg    : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
+  g_batch  : ARRAY[1..MAX_Units] OF BATCH_T;
+  g_schedule : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
+  g_task    : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
+  g_cfg    : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
 END_VAR
 VAR
   si         : INT;     (* schedule stage index *)
@@ -39,7 +39,7 @@ VAR
   fb_find    : STC_FindTransporter;  (* transporter lookup *)
 END_VAR
 
-IF i_unit < 1 OR i_unit > MAX_UNITS THEN RETURN; END_IF;
+IF i_unit < 1 OR i_unit > MAX_Units THEN RETURN; END_IF;
 
 sc := g_schedule[i_unit].stage_count;
 IF sc < 2 THEN RETURN; END_IF;

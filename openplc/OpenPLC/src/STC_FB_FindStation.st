@@ -15,23 +15,23 @@ VAR_OUTPUT
   dropping_time_s : REAL;
 END_VAR
 VAR_EXTERNAL CONSTANT
-    STATION_ARRAY_START : INT;
-    STATION_ARRAY_END   : INT;
+    MIN_StationIndex : INT;
+    MAX_StationIndex   : INT;
 END_VAR
 VAR_EXTERNAL
-  g_station : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
+  g_station : ARRAY[MIN_StationIndex..MAX_StationIndex] OF STATION_T;
 END_VAR
 VAR
   st : STATION_T;
 END_VAR
   (* Direct lookup by station number — no loop needed *)
-  IF (station_number >= STATION_ARRAY_START) AND (station_number <= STATION_ARRAY_END) THEN
+  IF (station_number >= MIN_StationIndex) AND (station_number <= MAX_StationIndex) THEN
     st := g_station[station_number];
-    IF st.tank_id <> 0 THEN
+    IF st.TankId <> 0 THEN
       found := TRUE;
       idx := station_number;
-      x_mm := st.x_position;
-      skind := st.kind;
+      x_mm := st.XPosition;
+      skind := st.DryWet;
       device_delay_s := st.device_delay;
       dropping_time_s := st.dropping_time;
       RETURN;

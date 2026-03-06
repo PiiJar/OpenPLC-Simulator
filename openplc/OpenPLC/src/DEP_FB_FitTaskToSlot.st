@@ -32,13 +32,13 @@ VAR_OUTPUT
   o_result : DEP_FIT_RESULT_T;
 END_VAR
 VAR_EXTERNAL CONSTANT
-    MAX_TRANSPORTERS   : INT;
+    MAX_Transporters   : INT;
     DEP_MAX_IDLE_SLOTS : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_dep_idle_slot : ARRAY[1..MAX_TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T;
-  g_move          : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
+  g_dep_idle_slot : ARRAY[1..MAX_Transporters] OF DEP_IDLE_SLOT_SET_T;
+  g_move          : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
 END_VAR
 VAR
   si          : INT;
@@ -71,7 +71,7 @@ o_result.task_end_s   := 0;
 o_result.slot_idx     := 0;
 o_result.trans_id     := i_trans_id;
 
-IF i_trans_id < 1 OR i_trans_id > MAX_TRANSPORTERS THEN
+IF i_trans_id < 1 OR i_trans_id > MAX_Transporters THEN
   RETURN;
 END_IF;
 

@@ -17,19 +17,19 @@ VAR_INPUT
   i_location : INT;   (* new location: <100 = transporter id, >=100 = station number *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    MAX_UNITS           : INT;
-    MAX_TRANSPORTERS    : INT;
-    MAX_STAGES          : INT;
-    STATION_ARRAY_START : INT;
-    STATION_ARRAY_END   : INT;
+    MAX_Units           : INT;
+    MAX_Transporters    : INT;
+    MAX_STEPS_PER_PROGRAM          : INT;
+    MIN_StationIndex : INT;
+    MAX_StationIndex   : INT;
     IN_PROCESS          : INT;
 END_VAR
 VAR_EXTERNAL
-  g_unit        : ARRAY[1..MAX_UNITS] OF UNIT_T;
-  g_station     : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
-  g_transporter : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
-  g_batch       : ARRAY[1..MAX_UNITS] OF BATCH_T;
-  g_program     : ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T;
+  g_unit        : ARRAY[1..MAX_Units] OF UNIT_T;
+  g_station     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF STATION_T;
+  g_transporter : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
+  g_batch       : ARRAY[1..MAX_Units] OF BATCH_T;
+  g_program     : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
   g_time_s      : LINT;
 END_VAR
 VAR
@@ -37,33 +37,33 @@ VAR
   new_stg : INT;
 END_VAR
 
-IF (i_unit >= 1) AND (i_unit <= MAX_UNITS) THEN
+IF (i_unit >= 1) AND (i_unit <= MAX_Units) THEN
   old_loc := g_unit[i_unit].location;
 
   (* --- Clear unit_id from old location --- *)
-  IF (old_loc >= STATION_ARRAY_START) AND (old_loc <= STATION_ARRAY_END) THEN
+  IF (old_loc >= MIN_StationIndex) AND (old_loc <= MAX_StationIndex) THEN
     (* Was on a station — clear station unit_id, stamp change_time *)
-    g_station[old_loc].unit_id     := 0;
-    g_station[old_loc].change_time := g_time_s;
-  ELSIF (old_loc >= 1) AND (old_loc <= MAX_TRANSPORTERS) THEN
+    g_station[old_loc].UnitId     := 0;
+    g_station[old_loc].ChangeTime := g_time_s;
+  ELSIF (old_loc >= 1) AND (old_loc <= MAX_Transporters) THEN
     (* Was on a transporter — clear transporter unit_id *)
-    g_transporter[old_loc].unit_id := 0;
+    g_transporter[old_loc].UnitId := 0;
   END_IF;
 
   (* --- Update unit location --- *)
   g_unit[i_unit].location := i_location;
 
   (* --- Set unit_id on new location --- *)
-  IF (i_location >= STATION_ARRAY_START) AND (i_location <= STATION_ARRAY_END) THEN
+  IF (i_location >= MIN_StationIndex) AND (i_location <= MAX_StationIndex) THEN
     (* Moving to a station (sink completion) *)
-    g_station[i_location].unit_id     := i_unit;
-    g_station[i_location].change_time := g_time_s;
+    g_station[i_location].UnitId     := i_unit;
+    g_station[i_location].ChangeTime := g_time_s;
 
     (* Advance batch stage if unit is USED with an active batch *)
     IF (g_unit[i_unit].status = 1)  (* USED *)
        AND (g_batch[i_unit].batch_code <> 0)
        AND (g_batch[i_unit].state = IN_PROCESS)
-       AND (g_batch[i_unit].cur_stage < MAX_STAGES) THEN
+       AND (g_batch[i_unit].cur_stage < MAX_STEPS_PER_PROGRAM) THEN
       g_batch[i_unit].cur_stage := g_batch[i_unit].cur_stage + 1;
 
       (* Stamp arrival time on new station — used by CalcSchedule for elapsed calculation *)
@@ -73,7 +73,7 @@ IF (i_unit >= 1) AND (i_unit <= MAX_UNITS) THEN
       IF (g_program[i_unit].program_id = g_batch[i_unit].prog_id)
          AND (g_program[i_unit].program_id > 0) THEN
         new_stg := g_batch[i_unit].cur_stage;
-        IF (new_stg >= 1) AND (new_stg <= MAX_STAGES) THEN
+        IF (new_stg >= 1) AND (new_stg <= MAX_STEPS_PER_PROGRAM) THEN
           g_batch[i_unit].min_time := g_program[i_unit].stages[new_stg].min_time;
           g_batch[i_unit].max_time := g_program[i_unit].stages[new_stg].max_time;
           g_batch[i_unit].cal_time := g_program[i_unit].stages[new_stg].cal_time;
@@ -95,9 +95,9 @@ IF (i_unit >= 1) AND (i_unit <= MAX_UNITS) THEN
       g_unit[i_unit].target := 0;  (* TO_NONE *)
     END_IF;
 
-  ELSIF (i_location >= 1) AND (i_location <= MAX_TRANSPORTERS) THEN
+  ELSIF (i_location >= 1) AND (i_location <= MAX_Transporters) THEN
     (* Moving to a transporter (lift start) *)
-    g_transporter[i_location].unit_id := i_unit;
+    g_transporter[i_location].UnitId := i_unit;
   END_IF;
 END_IF;
 

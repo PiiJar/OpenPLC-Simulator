@@ -17,13 +17,13 @@ VAR_INPUT
   i_amount     : REAL;    (* seconds to shift (+ = later, - = earlier) *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    MAX_TRANSPORTERS : INT;
-    MAX_UNITS        : INT;
+    MAX_Transporters : INT;
+    MAX_Units        : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_schedule : ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T;
-  g_task    : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
+  g_schedule : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
+  g_task    : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
 END_VAR
 VAR
   sc : INT;
@@ -32,7 +32,7 @@ VAR
   ti : INT;
 END_VAR
 
-IF i_unit < 1 OR i_unit > MAX_UNITS THEN RETURN; END_IF;
+IF i_unit < 1 OR i_unit > MAX_Units THEN RETURN; END_IF;
 IF ABS(i_amount) < 0.001 THEN RETURN; END_IF;
 
 (* ── Shift schedule stages entry/exit times ── *)
@@ -47,7 +47,7 @@ FOR si := i_from_stage TO sc DO
 END_FOR;
 
 (* ── Shift matching tasks in all transporter queues ── *)
-FOR ti := 1 TO MAX_TRANSPORTERS DO
+FOR ti := 1 TO MAX_Transporters DO
   FOR qi := 1 TO g_task[ti].count DO
     IF g_task[ti].queue[qi].unit = i_unit
        AND g_task[ti].queue[qi].stage >= i_from_stage THEN

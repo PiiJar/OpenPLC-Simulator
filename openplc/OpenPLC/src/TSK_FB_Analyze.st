@@ -30,16 +30,16 @@
 
 FUNCTION_BLOCK TSK_FB_Analyze
 VAR_EXTERNAL CONSTANT
-    MAX_TRANSPORTERS    : INT;
-    MAX_UNITS           : INT;
-    STATION_ARRAY_START : INT;
-    STATION_ARRAY_END   : INT;
+    MAX_Transporters    : INT;
+    MAX_Units           : INT;
+    MIN_StationIndex : INT;
+    MAX_StationIndex   : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_task    : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
-  g_station : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
-  g_move    : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
+  g_task    : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
+  g_station : ARRAY[MIN_StationIndex..MAX_StationIndex] OF STATION_T;
+  g_move    : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
 END_VAR
 VAR_OUTPUT
   o_has_conflict  : BOOL;
@@ -105,7 +105,7 @@ checked_count  := 0;
 
 (* Count total tasks *)
 total_tasks := 0;
-FOR ti := 1 TO MAX_TRANSPORTERS DO
+FOR ti := 1 TO MAX_Transporters DO
   total_tasks := total_tasks + g_task[ti].count;
 END_FOR;
 IF total_tasks = 0 THEN RETURN; END_IF;
@@ -114,7 +114,7 @@ IF total_tasks = 0 THEN RETURN; END_IF;
 (* CHECK 1: TASK_SEQUENCE — per-transporter queue order (SWAP-safe)    *)
 (* Iterates g_task[ti].queue[] in queue order, NOT sorted by time.     *)
 (* ══════════════════════════════════════════════════════════════════════ *)
-FOR ti := 1 TO MAX_TRANSPORTERS DO
+FOR ti := 1 TO MAX_Transporters DO
   FOR qi := 1 TO g_task[ti].count - 1 DO
     IF g_task[ti].queue[qi].unit > 0 AND g_task[ti].queue[qi + 1].unit > 0 THEN
 
@@ -150,7 +150,7 @@ END_FOR;
 (* CHECK 2: TRANSPORTER_COLLISION — X+time overlap, different trans.   *)
 (* Compares every task pair across different transporters.              *)
 (* ══════════════════════════════════════════════════════════════════════ *)
-FOR ti := 1 TO MAX_TRANSPORTERS DO
+FOR ti := 1 TO MAX_Transporters DO
   FOR qi := 1 TO g_task[ti].count DO
     IF g_task[ti].queue[qi].unit > 0 THEN
 
@@ -158,12 +158,12 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
       l_idx := g_task[ti].queue[qi].lift_station - 100;
       s_idx := g_task[ti].queue[qi].sink_station - 100;
       IF l_idx >= 1 AND l_idx <= 30 THEN
-        lift_x := g_station[g_task[ti].queue[qi].lift_station].x_position;
+        lift_x := g_station[g_task[ti].queue[qi].lift_station].XPosition;
       ELSE
         lift_x := 0.0;
       END_IF;
       IF s_idx >= 1 AND s_idx <= 30 THEN
-        sink_x := g_station[g_task[ti].queue[qi].sink_station].x_position;
+        sink_x := g_station[g_task[ti].queue[qi].sink_station].XPosition;
       ELSE
         sink_x := 0.0;
       END_IF;
@@ -175,7 +175,7 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
         x1_max := lift_x;
       END_IF;
 
-      FOR tj := ti + 1 TO MAX_TRANSPORTERS DO
+      FOR tj := ti + 1 TO MAX_Transporters DO
         FOR qj := 1 TO g_task[tj].count DO
           IF g_task[tj].queue[qj].unit > 0 THEN
 
@@ -183,12 +183,12 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
             l_idx2 := g_task[tj].queue[qj].lift_station - 100;
             s_idx2 := g_task[tj].queue[qj].sink_station - 100;
             IF l_idx2 >= 1 AND l_idx2 <= 30 THEN
-              lift_x2 := g_station[g_task[tj].queue[qj].lift_station].x_position;
+              lift_x2 := g_station[g_task[tj].queue[qj].lift_station].XPosition;
             ELSE
               lift_x2 := 0.0;
             END_IF;
             IF s_idx2 >= 1 AND s_idx2 <= 30 THEN
-              sink_x2 := g_station[g_task[tj].queue[qj].sink_station].x_position;
+              sink_x2 := g_station[g_task[tj].queue[qj].sink_station].XPosition;
             ELSE
               sink_x2 := 0.0;
             END_IF;
@@ -249,7 +249,7 @@ END_FOR;
 (* resolver will delay the preceding stage so the batch waits longer   *)
 (* on the delivering transporter's side.                               *)
 (* ══════════════════════════════════════════════════════════════════════ *)
-FOR ti := 1 TO MAX_TRANSPORTERS DO
+FOR ti := 1 TO MAX_Transporters DO
   FOR qi := 1 TO g_task[ti].count DO
     cur_unit  := g_task[ti].queue[qi].unit;
     cur_stage := g_task[ti].queue[qi].stage;
@@ -257,7 +257,7 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
 
       (* Find next stage of same batch in a different transporter *)
       found_next := FALSE;
-      FOR tj := 1 TO MAX_TRANSPORTERS DO
+      FOR tj := 1 TO MAX_Transporters DO
         IF tj <> ti AND NOT found_next THEN
           FOR qj := 1 TO g_task[tj].count DO
             IF NOT found_next THEN

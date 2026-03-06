@@ -4,28 +4,28 @@
 
 PROGRAM PLC_PRG
 VAR_EXTERNAL CONSTANT
-    MAX_TRANSPORTERS    : INT;
-    MAX_PARALLELS       : INT;
-    STATION_ARRAY_START : INT;
-    STATION_ARRAY_END   : INT;
-    MAX_UNITS           : INT;
+    MAX_Transporters    : INT;
+    MAX_STATIONS_PER_STEP       : INT;
+    MIN_StationIndex : INT;
+    MAX_StationIndex   : INT;
+    MAX_Units           : INT;
     DEP_MAX_WAITING     : INT;
 END_VAR
 
 VAR_EXTERNAL
   (* --- Shared data arrays --- *)
   g_station_count    : INT;
-  g_station         : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
-  g_cfg              : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
-  g_transporter      : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
-  g_unit            : ARRAY[1..MAX_UNITS] OF UNIT_T;
-  g_ntt             : ARRAY[1..MAX_TRANSPORTERS] OF NTT_TRANSPORTER_T;
-  g_batch          : ARRAY[1..MAX_UNITS] OF BATCH_T;
-  g_program         : ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T;
-  g_avoid_status     : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF INT;
-  g_move             : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
-  g_schedule         : ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T;
-  g_task            : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
+  g_station         : ARRAY[MIN_StationIndex..MAX_StationIndex] OF STATION_T;
+  g_cfg              : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
+  g_transporter      : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
+  g_unit            : ARRAY[1..MAX_Units] OF UNIT_T;
+  g_ntt             : ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T;
+  g_batch          : ARRAY[1..MAX_Units] OF BATCH_T;
+  g_program         : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
+  g_avoid_status     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF INT;
+  g_move             : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
+  g_schedule         : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
+  g_task            : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
   (* --- Departure Scheduler state --- *)
   g_dep_activated     : BOOL;
   g_dep_stable        : BOOL;
@@ -34,7 +34,7 @@ VAR_EXTERNAL
   g_dep_pending       : DEP_PENDING_WRITE_T;
   g_dep_waiting       : ARRAY[1..DEP_MAX_WAITING] OF INT;
   (* --- Calibration --- *)
-  g_cal              : ARRAY[1..MAX_TRANSPORTERS] OF CALIBRATION_T;
+  g_cal              : ARRAY[1..MAX_Transporters] OF CALIBRATION_T;
   g_cal_active       : BOOL;
   (* --- Production --- *)
   g_production_queue : INT;
@@ -1135,13 +1135,13 @@ IF iw_cfg_seq <> last_cfg_seq THEN
 
   ELSIF iw_cfg_cmd = 1 THEN
     (* --- Write one station to g_station array --- *)
-    IF (iw_cfg_param >= STATION_ARRAY_START) AND (iw_cfg_param <= STATION_ARRAY_END) THEN
-      g_station[iw_cfg_param].tank_id       := iw_cfg_d0;
-      g_station[iw_cfg_param].x_position    := INT_TO_REAL(iw_cfg_d1);
-      g_station[iw_cfg_param].y_position    := INT_TO_REAL(iw_cfg_d2);
-      g_station[iw_cfg_param].z_position    := INT_TO_REAL(iw_cfg_d3);
-      g_station[iw_cfg_param].operation     := iw_cfg_d4;
-      g_station[iw_cfg_param].kind            := iw_cfg_d7;
+    IF (iw_cfg_param >= MIN_StationIndex) AND (iw_cfg_param <= MAX_StationIndex) THEN
+      g_station[iw_cfg_param].TankId       := iw_cfg_d0;
+      g_station[iw_cfg_param].XPosition    := INT_TO_REAL(iw_cfg_d1);
+      g_station[iw_cfg_param].YPosition    := INT_TO_REAL(iw_cfg_d2);
+      g_station[iw_cfg_param].ZPosition    := INT_TO_REAL(iw_cfg_d3);
+      g_station[iw_cfg_param].StationType     := iw_cfg_d4;
+      g_station[iw_cfg_param].DryWet            := iw_cfg_d7;
       g_station[iw_cfg_param].dropping_time := INT_TO_REAL(iw_cfg_d5) / 10.0;
       g_station[iw_cfg_param].device_delay  := INT_TO_REAL(iw_cfg_d6) / 10.0;
     END_IF;
@@ -1155,14 +1155,14 @@ IF iw_cfg_seq <> last_cfg_seq THEN
        d6 = avoid_mm *)
     j := iw_cfg_param;
     IF (j >= 1) AND (j <= 3) THEN
-      g_cfg[j].x_min_limit          := INT_TO_REAL(iw_cfg_d0);
-      g_cfg[j].x_max_limit          := INT_TO_REAL(iw_cfg_d1);
+      g_cfg[j].XMinLimit          := INT_TO_REAL(iw_cfg_d0);
+      g_cfg[j].XMaxLimit          := INT_TO_REAL(iw_cfg_d1);
       g_cfg[j].phys2d.x_accel_s     := INT_TO_REAL(iw_cfg_d2) / 10.0;
       g_cfg[j].phys2d.x_decel_s     := INT_TO_REAL(iw_cfg_d3) / 10.0;
       g_cfg[j].phys2d.x_max_mm_s    := INT_TO_REAL(iw_cfg_d4);
       g_cfg[j].phys2d.z_total_mm    := INT_TO_REAL(iw_cfg_d5);
       g_cfg[j].phys2d.avoid_mm      := INT_TO_REAL(iw_cfg_d6);
-      g_cfg[j].x_avoid_mm           := INT_TO_REAL(iw_cfg_d6);
+      g_cfg[j].XAvoidMm           := INT_TO_REAL(iw_cfg_d6);
     END_IF;
 
   ELSIF iw_cfg_cmd = 5 THEN
@@ -1220,7 +1220,7 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     j := iw_cfg_param / 100;             (* transporter *)
     k := (iw_cfg_param / 10) MOD 10;     (* target code 1..8 *)
     i := iw_cfg_param MOD 10;            (* station_count *)
-    IF (j >= 1) AND (j <= MAX_TRANSPORTERS) AND (k >= 1) AND (k <= 8) AND (i >= 0) AND (i <= MAX_PARALLELS) THEN
+    IF (j >= 1) AND (j <= MAX_Transporters) AND (k >= 1) AND (k <= 8) AND (i >= 0) AND (i <= MAX_STATIONS_PER_STEP) THEN
       g_ntt[j].target[k].station_count := i;
       g_ntt[j].target[k].stations[1] := iw_cfg_d0;
       g_ntt[j].target[k].stations[2] := iw_cfg_d1;
@@ -1236,7 +1236,7 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     j := iw_cfg_param / 100;             (* transporter *)
     k := (iw_cfg_param / 10) MOD 10;     (* target code 1..8 *)
     i := iw_cfg_param MOD 10;            (* fallback_count *)
-    IF (j >= 1) AND (j <= MAX_TRANSPORTERS) AND (k >= 1) AND (k <= 8) AND (i >= 0) AND (i <= MAX_PARALLELS) THEN
+    IF (j >= 1) AND (j <= MAX_Transporters) AND (k >= 1) AND (k <= 8) AND (i >= 0) AND (i <= MAX_STATIONS_PER_STEP) THEN
       g_ntt[j].target[k].fallback_count := i;
       g_ntt[j].target[k].fallback_stations[1] := iw_cfg_d0;
       g_ntt[j].target[k].fallback_stations[2] := iw_cfg_d1;
@@ -1272,7 +1272,7 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     (* --- Finish init: all config uploaded, init transporter states --- *)
     g_station_count := iw_cfg_param;
 
-    FOR i := 1 TO MAX_TRANSPORTERS DO
+    FOR i := 1 TO MAX_Transporters DO
       (* Active if task_area[1] has non-zero stations *)
       IF g_cfg[i].task_area[1].min_lift > 0 THEN
         g_transporter[i].active := TRUE;
@@ -1283,14 +1283,14 @@ IF iw_cfg_seq <> last_cfg_seq THEN
       END_IF;
       g_transporter[i].phase := 0;
       g_transporter[i].z_stage := 0;
-      g_transporter[i].vel_x := 0.0;
+      g_transporter[i].XVelocity := 0.0;
       g_transporter[i].z_timer_s := 0.0;
-      g_transporter[i].x_min_limit := g_cfg[i].x_min_limit;
-      g_transporter[i].x_max_limit := g_cfg[i].x_max_limit;
+      g_transporter[i].XMinLimit := g_cfg[i].XMinLimit;
+      g_transporter[i].XMaxLimit := g_cfg[i].XMaxLimit;
 
       (* Start position: at own area minimum, z=0 *)
-      g_transporter[i].x_mm := g_cfg[i].x_min_limit;
-      g_transporter[i].z_mm := 0.0;
+      g_transporter[i].XPosition := g_cfg[i].XMinLimit;
+      g_transporter[i].ZPosition := 0.0;
       g_transporter[i].current_station := 0;
     END_FOR;
 
@@ -1371,10 +1371,10 @@ evt_queue();
    ============================================================ *)
 IF iw_unit_seq <> last_unit_seq THEN
   last_unit_seq := iw_unit_seq;
-  IF (iw_unit_id >= 1) AND (iw_unit_id <= MAX_UNITS) THEN
+  IF (iw_unit_id >= 1) AND (iw_unit_id <= MAX_Units) THEN
     (* Clear unit_id from old station if unit had a valid location *)
-    IF (g_unit[iw_unit_id].location >= STATION_ARRAY_START) AND (g_unit[iw_unit_id].location <= STATION_ARRAY_END) THEN
-      g_station[g_unit[iw_unit_id].location].unit_id := 0;
+    IF (g_unit[iw_unit_id].location >= MIN_StationIndex) AND (g_unit[iw_unit_id].location <= MAX_StationIndex) THEN
+      g_station[g_unit[iw_unit_id].location].UnitId := 0;
     END_IF;
 
     g_unit[iw_unit_id].location := iw_unit_loc;
@@ -1382,8 +1382,8 @@ IF iw_unit_seq <> last_unit_seq THEN
     g_unit[iw_unit_id].target   := iw_unit_target;
 
     (* Set unit_id on the new station *)
-    IF (iw_unit_loc >= STATION_ARRAY_START) AND (iw_unit_loc <= STATION_ARRAY_END) THEN
-      g_station[iw_unit_loc].unit_id := iw_unit_id;
+    IF (iw_unit_loc >= MIN_StationIndex) AND (iw_unit_loc <= MAX_StationIndex) THEN
+      g_station[iw_unit_loc].UnitId := iw_unit_id;
     END_IF;
   END_IF;
 END_IF;
@@ -1394,7 +1394,7 @@ END_IF;
    ============================================================ *)
 IF iw_batch_seq <> last_batch_seq THEN
   last_batch_seq := iw_batch_seq;
-  IF (iw_batch_unit >= 1) AND (iw_batch_unit <= MAX_UNITS) THEN
+  IF (iw_batch_unit >= 1) AND (iw_batch_unit <= MAX_Units) THEN
     g_batch[iw_batch_unit].batch_code := iw_batch_code;
     g_batch[iw_batch_unit].state      := iw_batch_state;
     g_batch[iw_batch_unit].prog_id    := iw_batch_prog_id;
@@ -1417,7 +1417,7 @@ END_IF;
    ============================================================ *)
 IF iw_prog_seq <> last_prog_seq THEN
   last_prog_seq := iw_prog_seq;
-  IF (iw_prog_unit >= 1) AND (iw_prog_unit <= MAX_UNITS) AND
+  IF (iw_prog_unit >= 1) AND (iw_prog_unit <= MAX_Units) AND
      (iw_prog_stage >= 1) AND (iw_prog_stage <= 30) THEN
     g_program[iw_prog_unit].stages[iw_prog_stage].stations[1] := iw_prog_s1;
     g_program[iw_prog_unit].stages[iw_prog_stage].stations[2] := iw_prog_s2;
@@ -1435,7 +1435,7 @@ END_IF;
    ============================================================ *)
 IF iw_avoid_seq <> last_avoid_seq THEN
   last_avoid_seq := iw_avoid_seq;
-  IF (iw_avoid_station >= STATION_ARRAY_START) AND (iw_avoid_station <= STATION_ARRAY_END) THEN
+  IF (iw_avoid_station >= MIN_StationIndex) AND (iw_avoid_station <= MAX_StationIndex) THEN
     g_avoid_status[iw_avoid_station] := iw_avoid_value;
   END_IF;
 END_IF;
@@ -1462,11 +1462,11 @@ IF cycle_count > 30000 THEN cycle_count := 0; END_IF;
 (* Auto-generated from modbus_map.json — 973 output registers *)
 
 (* === Per-transporter live state — PLC writes, gateway reads === *)
-qw_t1_x_mm := REAL_TO_INT(g_transporter[1].x_mm);
-qw_t1_z_mm := REAL_TO_INT(g_transporter[1].z_mm);
-qw_t1_vel_x10 := REAL_TO_INT(g_transporter[1].vel_x * 10.0);
+qw_t1_x_mm := REAL_TO_INT(g_transporter[1].XPosition);
+qw_t1_z_mm := REAL_TO_INT(g_transporter[1].ZPosition);
+qw_t1_vel_x10 := REAL_TO_INT(g_transporter[1].XVelocity * 10.0);
 qw_t1_phase := g_transporter[1].phase;
-qw_t1_unit_id := g_transporter[1].unit_id;
+qw_t1_unit_id := g_transporter[1].UnitId;
 qw_t1_z_stage := g_transporter[1].z_stage;
 qw_t1_cur_st := g_transporter[1].current_station;
 qw_t1_lift_tgt := g_transporter[1].lift_station;
@@ -1475,11 +1475,11 @@ IF g_transporter[1].active THEN qw_t1_active := 1; ELSE qw_t1_active := 0; END_I
 qw_t1_status := g_transporter[1].status;
 qw_t1_rtask_hi := LINT_TO_INT(g_transporter[1].running_task_id / 65536);
 qw_t1_rtask_lo := LINT_TO_INT(g_transporter[1].running_task_id MOD 65536);
-qw_t2_x_mm := REAL_TO_INT(g_transporter[2].x_mm);
-qw_t2_z_mm := REAL_TO_INT(g_transporter[2].z_mm);
-qw_t2_vel_x10 := REAL_TO_INT(g_transporter[2].vel_x * 10.0);
+qw_t2_x_mm := REAL_TO_INT(g_transporter[2].XPosition);
+qw_t2_z_mm := REAL_TO_INT(g_transporter[2].ZPosition);
+qw_t2_vel_x10 := REAL_TO_INT(g_transporter[2].XVelocity * 10.0);
 qw_t2_phase := g_transporter[2].phase;
-qw_t2_unit_id := g_transporter[2].unit_id;
+qw_t2_unit_id := g_transporter[2].UnitId;
 qw_t2_z_stage := g_transporter[2].z_stage;
 qw_t2_cur_st := g_transporter[2].current_station;
 qw_t2_lift_tgt := g_transporter[2].lift_station;
@@ -1488,11 +1488,11 @@ IF g_transporter[2].active THEN qw_t2_active := 1; ELSE qw_t2_active := 0; END_I
 qw_t2_status := g_transporter[2].status;
 qw_t2_rtask_hi := LINT_TO_INT(g_transporter[2].running_task_id / 65536);
 qw_t2_rtask_lo := LINT_TO_INT(g_transporter[2].running_task_id MOD 65536);
-qw_t3_x_mm := REAL_TO_INT(g_transporter[3].x_mm);
-qw_t3_z_mm := REAL_TO_INT(g_transporter[3].z_mm);
-qw_t3_vel_x10 := REAL_TO_INT(g_transporter[3].vel_x * 10.0);
+qw_t3_x_mm := REAL_TO_INT(g_transporter[3].XPosition);
+qw_t3_z_mm := REAL_TO_INT(g_transporter[3].ZPosition);
+qw_t3_vel_x10 := REAL_TO_INT(g_transporter[3].XVelocity * 10.0);
 qw_t3_phase := g_transporter[3].phase;
-qw_t3_unit_id := g_transporter[3].unit_id;
+qw_t3_unit_id := g_transporter[3].UnitId;
 qw_t3_z_stage := g_transporter[3].z_stage;
 qw_t3_cur_st := g_transporter[3].current_station;
 qw_t3_lift_tgt := g_transporter[3].lift_station;
@@ -1504,11 +1504,11 @@ qw_t3_rtask_lo := LINT_TO_INT(g_transporter[3].running_task_id MOD 65536);
 (* === Per-transporter extended state — remaining STC_TRANSPORTER_T fields === *)
 qw_t1_remain_x10 := REAL_TO_INT(g_transporter[1].remaining_time * 10.0);
 qw_t1_treat_time := REAL_TO_INT(g_transporter[1].treatment_time);
-qw_t1_fintgt_x := REAL_TO_INT(g_transporter[1].final_target_x);
-qw_t1_drvtgt_x := REAL_TO_INT(g_transporter[1].drive_target_x);
-qw_t1_fintgt_y := REAL_TO_INT(g_transporter[1].final_target_y);
-qw_t1_drvtgt_y := REAL_TO_INT(g_transporter[1].drive_target_y);
-qw_t1_y_mm := REAL_TO_INT(g_transporter[1].y_mm);
+qw_t1_fintgt_x := REAL_TO_INT(g_transporter[1].XFinalTarget);
+qw_t1_drvtgt_x := REAL_TO_INT(g_transporter[1].XDriveTarget);
+qw_t1_fintgt_y := REAL_TO_INT(g_transporter[1].YFinalTarget);
+qw_t1_drvtgt_y := REAL_TO_INT(g_transporter[1].YDriveTarget);
+qw_t1_y_mm := REAL_TO_INT(g_transporter[1].YPosition);
 qw_t1_ztimer_x10 := REAL_TO_INT(g_transporter[1].z_timer_s * 10.0);
 qw_t1_ctask_hi := LINT_TO_INT(g_transporter[1].task_id / 65536);
 qw_t1_ctask_lo := LINT_TO_INT(g_transporter[1].task_id MOD 65536);
@@ -1517,11 +1517,11 @@ qw_t1_sdev_x10 := REAL_TO_INT(g_transporter[1].sink_device_delay * 10.0);
 qw_t1_drop_x10 := REAL_TO_INT(g_transporter[1].dropping_time * 10.0);
 qw_t2_remain_x10 := REAL_TO_INT(g_transporter[2].remaining_time * 10.0);
 qw_t2_treat_time := REAL_TO_INT(g_transporter[2].treatment_time);
-qw_t2_fintgt_x := REAL_TO_INT(g_transporter[2].final_target_x);
-qw_t2_drvtgt_x := REAL_TO_INT(g_transporter[2].drive_target_x);
-qw_t2_fintgt_y := REAL_TO_INT(g_transporter[2].final_target_y);
-qw_t2_drvtgt_y := REAL_TO_INT(g_transporter[2].drive_target_y);
-qw_t2_y_mm := REAL_TO_INT(g_transporter[2].y_mm);
+qw_t2_fintgt_x := REAL_TO_INT(g_transporter[2].XFinalTarget);
+qw_t2_drvtgt_x := REAL_TO_INT(g_transporter[2].XDriveTarget);
+qw_t2_fintgt_y := REAL_TO_INT(g_transporter[2].YFinalTarget);
+qw_t2_drvtgt_y := REAL_TO_INT(g_transporter[2].YDriveTarget);
+qw_t2_y_mm := REAL_TO_INT(g_transporter[2].YPosition);
 qw_t2_ztimer_x10 := REAL_TO_INT(g_transporter[2].z_timer_s * 10.0);
 qw_t2_ctask_hi := LINT_TO_INT(g_transporter[2].task_id / 65536);
 qw_t2_ctask_lo := LINT_TO_INT(g_transporter[2].task_id MOD 65536);
@@ -1530,11 +1530,11 @@ qw_t2_sdev_x10 := REAL_TO_INT(g_transporter[2].sink_device_delay * 10.0);
 qw_t2_drop_x10 := REAL_TO_INT(g_transporter[2].dropping_time * 10.0);
 qw_t3_remain_x10 := REAL_TO_INT(g_transporter[3].remaining_time * 10.0);
 qw_t3_treat_time := REAL_TO_INT(g_transporter[3].treatment_time);
-qw_t3_fintgt_x := REAL_TO_INT(g_transporter[3].final_target_x);
-qw_t3_drvtgt_x := REAL_TO_INT(g_transporter[3].drive_target_x);
-qw_t3_fintgt_y := REAL_TO_INT(g_transporter[3].final_target_y);
-qw_t3_drvtgt_y := REAL_TO_INT(g_transporter[3].drive_target_y);
-qw_t3_y_mm := REAL_TO_INT(g_transporter[3].y_mm);
+qw_t3_fintgt_x := REAL_TO_INT(g_transporter[3].XFinalTarget);
+qw_t3_drvtgt_x := REAL_TO_INT(g_transporter[3].XDriveTarget);
+qw_t3_fintgt_y := REAL_TO_INT(g_transporter[3].YFinalTarget);
+qw_t3_drvtgt_y := REAL_TO_INT(g_transporter[3].YDriveTarget);
+qw_t3_y_mm := REAL_TO_INT(g_transporter[3].YPosition);
 qw_t3_ztimer_x10 := REAL_TO_INT(g_transporter[3].z_timer_s * 10.0);
 qw_t3_ctask_hi := LINT_TO_INT(g_transporter[3].task_id / 65536);
 qw_t3_ctask_lo := LINT_TO_INT(g_transporter[3].task_id MOD 65536);
@@ -1542,12 +1542,12 @@ qw_t3_ldev_x10 := REAL_TO_INT(g_transporter[3].lift_device_delay * 10.0);
 qw_t3_sdev_x10 := REAL_TO_INT(g_transporter[3].sink_device_delay * 10.0);
 qw_t3_drop_x10 := REAL_TO_INT(g_transporter[3].dropping_time * 10.0);
 (* === TWA dynamic drive limits — PLC writes, gateway reads === *)
-qw_t1_xmin := REAL_TO_INT(g_transporter[1].x_min_limit);
-qw_t1_xmax := REAL_TO_INT(g_transporter[1].x_max_limit);
-qw_t2_xmin := REAL_TO_INT(g_transporter[2].x_min_limit);
-qw_t2_xmax := REAL_TO_INT(g_transporter[2].x_max_limit);
-qw_t3_xmin := REAL_TO_INT(g_transporter[3].x_min_limit);
-qw_t3_xmax := REAL_TO_INT(g_transporter[3].x_max_limit);
+qw_t1_xmin := REAL_TO_INT(g_transporter[1].XMinLimit);
+qw_t1_xmax := REAL_TO_INT(g_transporter[1].XMaxLimit);
+qw_t2_xmin := REAL_TO_INT(g_transporter[2].XMinLimit);
+qw_t2_xmax := REAL_TO_INT(g_transporter[2].XMaxLimit);
+qw_t3_xmin := REAL_TO_INT(g_transporter[3].XMinLimit);
+qw_t3_xmax := REAL_TO_INT(g_transporter[3].XMaxLimit);
 (* === PLC status + acks — PLC writes, gateway reads === *)
 qw_plc_status_station_cnt := g_station_count;
 IF init_done THEN qw_plc_status_init_done := 1; ELSE qw_plc_status_init_done := 0; END_IF;
@@ -1709,12 +1709,12 @@ qw_cal_t3_x_acc := REAL_TO_INT(g_cal[3].x_accel_s * 10.0);
 qw_cal_t3_x_dec := REAL_TO_INT(g_cal[3].x_decel_s * 10.0);
 qw_cal_t3_x_max := REAL_TO_INT(g_cal[3].x_max_mm_s);
 (* === Per-transporter config (g_cfg) — limits, physics, task areas === *)
-qw_cfg_t1_x_min := REAL_TO_INT(g_cfg[1].x_min_limit);
-qw_cfg_t1_x_max := REAL_TO_INT(g_cfg[1].x_max_limit);
-qw_cfg_t1_y_min := REAL_TO_INT(g_cfg[1].y_min_limit);
-qw_cfg_t1_y_max := REAL_TO_INT(g_cfg[1].y_max_limit);
-qw_cfg_t1_x_avoid := REAL_TO_INT(g_cfg[1].x_avoid_mm);
-qw_cfg_t1_y_avoid := REAL_TO_INT(g_cfg[1].y_avoid_mm);
+qw_cfg_t1_x_min := REAL_TO_INT(g_cfg[1].XMinLimit);
+qw_cfg_t1_x_max := REAL_TO_INT(g_cfg[1].XMaxLimit);
+qw_cfg_t1_y_min := REAL_TO_INT(g_cfg[1].YMinLimit);
+qw_cfg_t1_y_max := REAL_TO_INT(g_cfg[1].YMaxLimit);
+qw_cfg_t1_x_avoid := REAL_TO_INT(g_cfg[1].XAvoidMm);
+qw_cfg_t1_y_avoid := REAL_TO_INT(g_cfg[1].YAvoidMm);
 qw_cfg_t1_ph_xacc_x100 := REAL_TO_INT(g_cfg[1].phys2d.x_accel_s * 100.0);
 qw_cfg_t1_ph_xdec_x100 := REAL_TO_INT(g_cfg[1].phys2d.x_decel_s * 100.0);
 qw_cfg_t1_ph_xmax := REAL_TO_INT(g_cfg[1].phys2d.x_max_mm_s);
@@ -1738,12 +1738,12 @@ qw_cfg_t1_ta3_min_lift := g_cfg[1].task_area[3].min_lift;
 qw_cfg_t1_ta3_max_lift := g_cfg[1].task_area[3].max_lift;
 qw_cfg_t1_ta3_min_sink := g_cfg[1].task_area[3].min_sink;
 qw_cfg_t1_ta3_max_sink := g_cfg[1].task_area[3].max_sink;
-qw_cfg_t2_x_min := REAL_TO_INT(g_cfg[2].x_min_limit);
-qw_cfg_t2_x_max := REAL_TO_INT(g_cfg[2].x_max_limit);
-qw_cfg_t2_y_min := REAL_TO_INT(g_cfg[2].y_min_limit);
-qw_cfg_t2_y_max := REAL_TO_INT(g_cfg[2].y_max_limit);
-qw_cfg_t2_x_avoid := REAL_TO_INT(g_cfg[2].x_avoid_mm);
-qw_cfg_t2_y_avoid := REAL_TO_INT(g_cfg[2].y_avoid_mm);
+qw_cfg_t2_x_min := REAL_TO_INT(g_cfg[2].XMinLimit);
+qw_cfg_t2_x_max := REAL_TO_INT(g_cfg[2].XMaxLimit);
+qw_cfg_t2_y_min := REAL_TO_INT(g_cfg[2].YMinLimit);
+qw_cfg_t2_y_max := REAL_TO_INT(g_cfg[2].YMaxLimit);
+qw_cfg_t2_x_avoid := REAL_TO_INT(g_cfg[2].XAvoidMm);
+qw_cfg_t2_y_avoid := REAL_TO_INT(g_cfg[2].YAvoidMm);
 qw_cfg_t2_ph_xacc_x100 := REAL_TO_INT(g_cfg[2].phys2d.x_accel_s * 100.0);
 qw_cfg_t2_ph_xdec_x100 := REAL_TO_INT(g_cfg[2].phys2d.x_decel_s * 100.0);
 qw_cfg_t2_ph_xmax := REAL_TO_INT(g_cfg[2].phys2d.x_max_mm_s);
@@ -1767,12 +1767,12 @@ qw_cfg_t2_ta3_min_lift := g_cfg[2].task_area[3].min_lift;
 qw_cfg_t2_ta3_max_lift := g_cfg[2].task_area[3].max_lift;
 qw_cfg_t2_ta3_min_sink := g_cfg[2].task_area[3].min_sink;
 qw_cfg_t2_ta3_max_sink := g_cfg[2].task_area[3].max_sink;
-qw_cfg_t3_x_min := REAL_TO_INT(g_cfg[3].x_min_limit);
-qw_cfg_t3_x_max := REAL_TO_INT(g_cfg[3].x_max_limit);
-qw_cfg_t3_y_min := REAL_TO_INT(g_cfg[3].y_min_limit);
-qw_cfg_t3_y_max := REAL_TO_INT(g_cfg[3].y_max_limit);
-qw_cfg_t3_x_avoid := REAL_TO_INT(g_cfg[3].x_avoid_mm);
-qw_cfg_t3_y_avoid := REAL_TO_INT(g_cfg[3].y_avoid_mm);
+qw_cfg_t3_x_min := REAL_TO_INT(g_cfg[3].XMinLimit);
+qw_cfg_t3_x_max := REAL_TO_INT(g_cfg[3].XMaxLimit);
+qw_cfg_t3_y_min := REAL_TO_INT(g_cfg[3].YMinLimit);
+qw_cfg_t3_y_max := REAL_TO_INT(g_cfg[3].YMaxLimit);
+qw_cfg_t3_x_avoid := REAL_TO_INT(g_cfg[3].XAvoidMm);
+qw_cfg_t3_y_avoid := REAL_TO_INT(g_cfg[3].YAvoidMm);
 qw_cfg_t3_ph_xacc_x100 := REAL_TO_INT(g_cfg[3].phys2d.x_accel_s * 100.0);
 qw_cfg_t3_ph_xdec_x100 := REAL_TO_INT(g_cfg[3].phys2d.x_decel_s * 100.0);
 qw_cfg_t3_ph_xmax := REAL_TO_INT(g_cfg[3].phys2d.x_max_mm_s);

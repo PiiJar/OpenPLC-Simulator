@@ -8,31 +8,32 @@
 
 FUNCTION_BLOCK SIM_FB_ClearConfig
 VAR_EXTERNAL CONSTANT
-    MAX_TRANSPORTERS    : INT;
-    MAX_PARALLELS       : INT;
-    STATION_ARRAY_START : INT;
-    STATION_ARRAY_END   : INT;
-    MAX_UNITS           : INT;
+    MAX_Transporters    : INT;
+    MAX_STATIONS_PER_STEP       : INT;
+    MIN_StationIndex : INT;
+    MAX_StationIndex   : INT;
+    MAX_Units           : INT;
+    DEP_MAX_WAITING     : INT;
 END_VAR
 
 VAR_EXTERNAL
   g_station_count    : INT;
-  g_station         : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
-  g_cfg              : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
-  g_transporter      : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
-  g_unit            : ARRAY[1..MAX_UNITS] OF UNIT_T;
-  g_ntt             : ARRAY[1..MAX_TRANSPORTERS] OF NTT_TRANSPORTER_T;
-  g_batch          : ARRAY[1..MAX_UNITS] OF BATCH_T;
-  g_program         : ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T;
-  g_avoid_status     : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF INT;
-  g_schedule         : ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T;
-  g_task             : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
+  g_station         : ARRAY[MIN_StationIndex..MAX_StationIndex] OF STATION_T;
+  g_cfg              : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
+  g_transporter      : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
+  g_unit            : ARRAY[1..MAX_Units] OF UNIT_T;
+  g_ntt             : ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T;
+  g_batch          : ARRAY[1..MAX_Units] OF BATCH_T;
+  g_program         : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
+  g_avoid_status     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF INT;
+  g_schedule         : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
+  g_task             : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
   g_dep_sandbox      : DEP_SANDBOX_T;
   g_dep_pending      : DEP_PENDING_WRITE_T;
   g_dep_activated    : BOOL;
   g_dep_stable       : BOOL;
   g_dep_waiting_count : INT;
-  g_dep_waiting       : ARRAY[1..5] OF INT;
+  g_dep_waiting       : ARRAY[1..DEP_MAX_WAITING] OF INT;
 END_VAR
 VAR
   i : INT;
@@ -41,29 +42,29 @@ VAR
 END_VAR
 
 (* --- Clear all stations --- *)
-FOR i := STATION_ARRAY_START TO STATION_ARRAY_END DO
-  g_station[i].tank_id       := 0;
-  g_station[i].status        := 0;
-  g_station[i].x_position    := 0.0;
-  g_station[i].y_position    := 0.0;
-  g_station[i].z_position    := 0.0;
-  g_station[i].kind          := 0;
-  g_station[i].operation     := 0;
+FOR i := MIN_StationIndex TO MAX_StationIndex DO
+  g_station[i].TankId       := 0;
+  g_station[i].IsInUse       := FALSE;
+  g_station[i].XPosition    := 0.0;
+  g_station[i].YPosition    := 0.0;
+  g_station[i].ZPosition    := 0.0;
+  g_station[i].DryWet          := 0;
+  g_station[i].StationType     := 0;
   g_station[i].dropping_time := 0.0;
   g_station[i].device_delay  := 0.0;
-  g_station[i].unit_id       := 0;
-  g_station[i].change_time   := 0;
+  g_station[i].UnitId       := 0;
+  g_station[i].ChangeTime   := 0;
 END_FOR;
 g_station_count := 0;
 
 (* --- Clear all transporter configs --- *)
-FOR i := 1 TO MAX_TRANSPORTERS DO
-  g_cfg[i].x_min_limit   := 0.0;
-  g_cfg[i].x_max_limit   := 0.0;
-  g_cfg[i].y_min_limit   := 0.0;
-  g_cfg[i].y_max_limit   := 0.0;
-  g_cfg[i].x_avoid_mm    := 0.0;
-  g_cfg[i].y_avoid_mm    := 0.0;
+FOR i := 1 TO MAX_Transporters DO
+  g_cfg[i].XMinLimit   := 0.0;
+  g_cfg[i].XMaxLimit   := 0.0;
+  g_cfg[i].YMinLimit   := 0.0;
+  g_cfg[i].YMaxLimit   := 0.0;
+  g_cfg[i].XAvoidMm    := 0.0;
+  g_cfg[i].YAvoidMm    := 0.0;
   g_cfg[i].phys2d.x_accel_s     := 0.0;
   g_cfg[i].phys2d.x_decel_s     := 0.0;
   g_cfg[i].phys2d.x_max_mm_s    := 0.0;
@@ -84,16 +85,16 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
 END_FOR;
 
 (* --- Clear avoid status --- *)
-FOR i := STATION_ARRAY_START TO STATION_ARRAY_END DO
+FOR i := MIN_StationIndex TO MAX_StationIndex DO
   g_avoid_status[i] := 0;
 END_FOR;
 
 (* --- Clear all transporter states --- *)
-FOR i := 1 TO MAX_TRANSPORTERS DO
+FOR i := 1 TO MAX_Transporters DO
   g_transporter[i].active          := FALSE;
   g_transporter[i].status          := 0;
   g_transporter[i].phase           := 0;
-  g_transporter[i].unit_id         := 0;
+  g_transporter[i].UnitId         := 0;
   g_transporter[i].task_id         := 0;
   g_transporter[i].running_task_id := 0;
   g_transporter[i].lift_station    := 0;
@@ -104,33 +105,33 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
   g_transporter[i].dropping_time   := 0.0;
   g_transporter[i].remaining_time  := 0.0;
   g_transporter[i].current_station := 0;
-  g_transporter[i].final_target_x  := 0.0;
-  g_transporter[i].drive_target_x  := 0.0;
-  g_transporter[i].final_target_y  := 0.0;
-  g_transporter[i].drive_target_y  := 0.0;
-  g_transporter[i].x_mm            := 0.0;
-  g_transporter[i].y_mm            := 0.0;
-  g_transporter[i].z_mm            := 0.0;
-  g_transporter[i].vel_x           := 0.0;
+  g_transporter[i].XFinalTarget  := 0.0;
+  g_transporter[i].XDriveTarget  := 0.0;
+  g_transporter[i].YFinalTarget  := 0.0;
+  g_transporter[i].YDriveTarget  := 0.0;
+  g_transporter[i].XPosition            := 0.0;
+  g_transporter[i].YPosition            := 0.0;
+  g_transporter[i].ZPosition            := 0.0;
+  g_transporter[i].XVelocity           := 0.0;
   g_transporter[i].z_stage         := 0;
   g_transporter[i].z_timer_s       := 0.0;
-  g_transporter[i].x_min_limit     := 0.0;
-  g_transporter[i].x_max_limit     := 0.0;
+  g_transporter[i].XMinLimit     := 0.0;
+  g_transporter[i].XMaxLimit     := 0.0;
 END_FOR;
 
 (* --- Clear all units --- *)
-FOR i := 1 TO MAX_UNITS DO
+FOR i := 1 TO MAX_Units DO
   g_unit[i].location := 0;
   g_unit[i].status   := 0;
   g_unit[i].target   := 0;
 END_FOR;
 
 (* --- Clear NTT destinations --- *)
-FOR i := 1 TO MAX_TRANSPORTERS DO
+FOR i := 1 TO MAX_Transporters DO
   FOR j := 1 TO 8 DO
     g_ntt[i].target[j].station_count := 0;
     g_ntt[i].target[j].fallback_count := 0;
-    FOR k := 1 TO MAX_PARALLELS DO
+    FOR k := 1 TO MAX_STATIONS_PER_STEP DO
       g_ntt[i].target[j].stations[k] := 0;
       g_ntt[i].target[j].fallback_stations[k] := 0;
     END_FOR;
@@ -138,7 +139,7 @@ FOR i := 1 TO MAX_TRANSPORTERS DO
 END_FOR;
 
 (* --- Clear all batches --- *)
-FOR i := 1 TO MAX_UNITS DO
+FOR i := 1 TO MAX_Units DO
   g_batch[i].batch_code  := 0;
   g_batch[i].state       := 0;
   g_batch[i].prog_id     := 0;
@@ -150,7 +151,7 @@ FOR i := 1 TO MAX_UNITS DO
 END_FOR;
 
 (* --- Clear all treatment programs --- *)
-FOR i := 1 TO MAX_UNITS DO
+FOR i := 1 TO MAX_Units DO
   g_program[i].program_id := 0;
   FOR j := 1 TO 30 DO
     FOR k := 1 TO 5 DO
@@ -163,7 +164,7 @@ FOR i := 1 TO MAX_UNITS DO
 END_FOR;
 
 (* --- Clear all schedules (g_schedule) --- *)
-FOR i := 1 TO MAX_UNITS DO
+FOR i := 1 TO MAX_Units DO
   g_schedule[i].stage_count := 0;
   FOR j := 1 TO 30 DO
     g_schedule[i].stages[j].station       := 0;
@@ -177,7 +178,7 @@ FOR i := 1 TO MAX_UNITS DO
 END_FOR;
 
 (* --- Clear all task queues (g_task) --- *)
-FOR i := 1 TO MAX_TRANSPORTERS DO
+FOR i := 1 TO MAX_Transporters DO
   g_task[i].count := 0;
   FOR j := 1 TO 60 DO
     g_task[i].queue[j].unit         := 0;

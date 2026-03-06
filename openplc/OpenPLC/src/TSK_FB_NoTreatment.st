@@ -25,22 +25,22 @@ VAR_INPUT
   i_time_s : LINT;   (* current absolute time (s), unix seconds *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    MAX_TRANSPORTERS    : INT;
-    MAX_PARALLELS       : INT;
-    STATION_ARRAY_START : INT;
-    STATION_ARRAY_END   : INT;
-    MAX_UNITS           : INT;
+    MAX_Transporters    : INT;
+    MAX_STATIONS_PER_STEP       : INT;
+    MIN_StationIndex : INT;
+    MAX_StationIndex   : INT;
+    MAX_Units           : INT;
     MAX_TASK_QUEUE      : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_unit        : ARRAY[1..MAX_UNITS] OF UNIT_T;
-  g_batch       : ARRAY[1..MAX_UNITS] OF BATCH_T;
-  g_ntt         : ARRAY[1..MAX_TRANSPORTERS] OF NTT_TRANSPORTER_T;
-  g_transporter : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
-  g_cfg         : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
-  g_task        : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
-  g_move        : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
+  g_unit        : ARRAY[1..MAX_Units] OF UNIT_T;
+  g_batch       : ARRAY[1..MAX_Units] OF BATCH_T;
+  g_ntt         : ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T;
+  g_transporter : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
+  g_cfg         : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
+  g_task        : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
+  g_move        : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
 END_VAR
 VAR
   ui       : INT;     (* unit loop *)
@@ -88,9 +88,10 @@ VAR
   ntt_duration   : LINT;
   qi3            : INT;   (* queue loop for idle-slot calc *)
   slot_ok        : BOOL;
+  sh             : INT;   (* shift loop for insert-at-first *)
 END_VAR
 
-FOR ui := 1 TO MAX_UNITS DO
+FOR ui := 1 TO MAX_Units DO
   tgt := g_unit[ui].target;
   loc := g_unit[ui].location;
 
@@ -106,10 +107,10 @@ FOR ui := 1 TO MAX_UNITS DO
 
     (* Skip if unit already has a pending task in any queue or is being transported *)
     already := FALSE;
-    FOR ti := 1 TO MAX_TRANSPORTERS DO
+    FOR ti := 1 TO MAX_Transporters DO
       IF NOT already THEN
         (* Being transported right now? *)
-        IF g_transporter[ti].phase > 0 AND g_transporter[ti].unit_id = ui THEN
+        IF g_transporter[ti].phase > 0 AND g_transporter[ti].UnitId = ui THEN
           already := TRUE;
         END_IF;
         (* In any task queue? *)
@@ -127,7 +128,7 @@ FOR ui := 1 TO MAX_UNITS DO
 
     (* Try each transporter — not just the first covering one *)
     done := FALSE;
-    FOR cov_t := 1 TO MAX_TRANSPORTERS DO
+    FOR cov_t := 1 TO MAX_Transporters DO
       IF NOT done THEN
 
       (* Check coverage: transporter task_area covers this station *)
@@ -142,7 +143,8 @@ FOR ui := 1 TO MAX_UNITS DO
         END_IF;
       END_FOR;
 
-      IF covers AND g_transporter[cov_t].phase = 0 AND g_transporter[cov_t].active THEN
+      IF covers AND g_transporter[cov_t].active
+         AND (g_transporter[cov_t].phase = 0 OR tgt = 5) THEN
 
         (* ── Resolve NTT index ── *)
         (* TO_BUFFER(2) maps to 6/7/8 depending on batch state *)
@@ -186,9 +188,9 @@ FOR ui := 1 TO MAX_UNITS DO
           primary_free := FALSE;
           FOR si := 1 TO dest.station_count DO
             stn := dest.stations[si];
-            IF stn <> loc AND stn >= STATION_ARRAY_START AND stn <= STATION_ARRAY_END THEN
+            IF stn <> loc AND stn >= MIN_StationIndex AND stn <= MAX_StationIndex THEN
               stn_free := TRUE;
-              FOR uj := 1 TO MAX_UNITS DO
+              FOR uj := 1 TO MAX_Units DO
                 IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
                   stn_free := FALSE;
                 END_IF;
@@ -209,9 +211,9 @@ FOR ui := 1 TO MAX_UNITS DO
             FOR si := 1 TO dest.station_count DO
               IF dest_stn = 0 THEN
                 stn := dest.stations[si];
-                IF stn <> loc AND stn >= STATION_ARRAY_START AND stn <= STATION_ARRAY_END THEN
+                IF stn <> loc AND stn >= MIN_StationIndex AND stn <= MAX_StationIndex THEN
                   stn_free := TRUE;
-                  FOR uj := 1 TO MAX_UNITS DO
+                  FOR uj := 1 TO MAX_Units DO
                     IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
                       stn_free := FALSE;
                     END_IF;
@@ -227,9 +229,9 @@ FOR ui := 1 TO MAX_UNITS DO
             FOR si := 1 TO dest.station_count DO
               IF dest_stn = 0 THEN
                 stn := dest.stations[si];
-                IF stn <> loc AND stn >= STATION_ARRAY_START AND stn <= STATION_ARRAY_END THEN
+                IF stn <> loc AND stn >= MIN_StationIndex AND stn <= MAX_StationIndex THEN
                   stn_free := TRUE;
-                  FOR uj := 1 TO MAX_UNITS DO
+                  FOR uj := 1 TO MAX_Units DO
                     IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
                       stn_free := FALSE;
                     END_IF;
@@ -245,9 +247,9 @@ FOR ui := 1 TO MAX_UNITS DO
               FOR si := 1 TO dest.fallback_count DO
                 IF dest_stn = 0 THEN
                   stn := dest.fallback_stations[si];
-                  IF stn <> loc AND stn >= STATION_ARRAY_START AND stn <= STATION_ARRAY_END THEN
+                  IF stn <> loc AND stn >= MIN_StationIndex AND stn <= MAX_StationIndex THEN
                     stn_free := TRUE;
-                    FOR uj := 1 TO MAX_UNITS DO
+                    FOR uj := 1 TO MAX_Units DO
                       IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
                         stn_free := FALSE;
                       END_IF;
@@ -270,16 +272,18 @@ FOR ui := 1 TO MAX_UNITS DO
             task_end   := task_start + REAL_TO_LINT(xfer_s);
             ntt_duration := task_end - task_start;
 
-            (* ── Idle-slot check: does NTT task fit in transporter's schedule? ── *)
-            (* Build idle slots from existing queue and check fit *)
+            (* ── Current-slot check: NTT fits only in the CURRENT idle slot ──
+               Like JS: find the slot where start <= now < end, check totalTime
+               fits. NTT is never placed into future slots — only "right now". *)
             slot_ok := FALSE;
 
             IF g_task[cov_t].count = 0 THEN
               (* No existing tasks → NTT always fits *)
               slot_ok := TRUE;
             ELSE
-              (* Check slot BEFORE first queued task *)
-              IF NOT slot_ok AND g_task[cov_t].queue[1].start_time > task_start THEN
+              (* Current slot = time from NOW until first queued task starts.
+                 NTT must fit: task_end + travel_to_next_lift <= queue[1].start_time *)
+              IF g_task[cov_t].queue[1].start_time > task_start THEN
                 slot_start := task_start;
                 slot_end   := g_task[cov_t].queue[1].start_time;
                 (* Travel from NTT sink to first task's lift *)
@@ -293,83 +297,38 @@ FOR ui := 1 TO MAX_UNITS DO
                   slot_ok := TRUE;
                 END_IF;
               END_IF;
-
-              (* Check slots BETWEEN queued tasks *)
-              FOR qi3 := 1 TO g_task[cov_t].count - 1 DO
-                IF NOT slot_ok THEN
-                  slot_start := g_task[cov_t].queue[qi3].finish_time;
-                  slot_end   := g_task[cov_t].queue[qi3 + 1].start_time;
-                  IF slot_end > slot_start THEN
-                    (* Travel from prev task's sink to NTT lift *)
-                    travel_to_lift := STC_CalcHorizontalTravel(
-                      i_from_stn := g_task[cov_t].queue[qi3].sink_station,
-                      i_to_stn   := loc,
-                      i_move     := g_move[cov_t]
-                    );
-                    earliest_start := slot_start + REAL_TO_LINT(travel_to_lift) + 1;
-
-                    (* Travel from NTT sink to next task's lift *)
-                    travel_from_sink := STC_CalcHorizontalTravel(
-                      i_from_stn := dest_stn,
-                      i_to_stn   := g_task[cov_t].queue[qi3 + 1].lift_station,
-                      i_move     := g_move[cov_t]
-                    );
-                    latest_end := slot_end - REAL_TO_LINT(travel_from_sink) - 1;
-
-                    ntt_start := earliest_start;
-                    IF task_start > ntt_start THEN ntt_start := task_start; END_IF;
-                    ntt_end := ntt_start + ntt_duration;
-
-                    IF ntt_start >= earliest_start AND ntt_end <= latest_end THEN
-                      slot_ok := TRUE;
-                    END_IF;
-                  END_IF;
-                END_IF;
-              END_FOR;
-
-              (* Check slot AFTER last queued task *)
-              IF NOT slot_ok THEN
-                slot_start := g_task[cov_t].queue[g_task[cov_t].count].finish_time;
-                (* Travel from last task's sink to NTT lift *)
-                travel_to_lift := STC_CalcHorizontalTravel(
-                  i_from_stn := g_task[cov_t].queue[g_task[cov_t].count].sink_station,
-                  i_to_stn   := loc,
-                  i_move     := g_move[cov_t]
-                );
-                earliest_start := slot_start + REAL_TO_LINT(travel_to_lift) + 1;
-
-                ntt_start := earliest_start;
-                IF task_start > ntt_start THEN ntt_start := task_start; END_IF;
-                ntt_end := ntt_start + ntt_duration;
-
-                (* Open-ended slot → always fits after last task if start is valid *)
-                IF ntt_start >= earliest_start THEN
-                  slot_ok := TRUE;
-                  task_start := ntt_start;
-                  task_end := ntt_end;
-                END_IF;
-              END_IF;
             END_IF;
 
             IF NOT slot_ok THEN
-              dest_stn := 0;  (* NTT doesn't fit → skip *)
+              (* Exception: if the next queued task's sink station is where
+                 this NTT unit sits, we MUST move it first or we deadlock.
+                 Force-insert; future scheduling will re-stabilize the list. *)
+              IF g_task[cov_t].count > 0
+                 AND g_task[cov_t].queue[1].sink_station = loc THEN
+                slot_ok := TRUE;  (* force — deadlock prevention *)
+              ELSE
+                dest_stn := 0;  (* NTT doesn't fit → skip *)
+              END_IF;
             END_IF;
           END_IF;
 
           IF dest_stn > 0 THEN
-            (* Append to queue *)
-            qi := g_task[cov_t].count + 1;
-            IF qi <= MAX_TASK_QUEUE THEN
-              g_task[cov_t].queue[qi].unit         := ui;
-              g_task[cov_t].queue[qi].stage        := 0;  (* no program stage *)
-              g_task[cov_t].queue[qi].lift_station := loc;
-              g_task[cov_t].queue[qi].sink_station := dest_stn;
-              g_task[cov_t].queue[qi].start_time   := task_start;
-              g_task[cov_t].queue[qi].finish_time  := task_end;
-              g_task[cov_t].queue[qi].calc_time    := 0.0;
-              g_task[cov_t].queue[qi].min_time     := 0.0;
-              g_task[cov_t].queue[qi].max_time     := 0.0;
-              g_task[cov_t].count := qi;
+            (* Insert as FIRST task — shift existing tasks down *)
+            IF g_task[cov_t].count < MAX_TASK_QUEUE THEN
+              (* Shift queue[1..count] → queue[2..count+1] *)
+              FOR sh := g_task[cov_t].count TO 1 BY -1 DO
+                g_task[cov_t].queue[sh + 1] := g_task[cov_t].queue[sh];
+              END_FOR;
+              g_task[cov_t].queue[1].unit         := ui;
+              g_task[cov_t].queue[1].stage        := 0;  (* no program stage *)
+              g_task[cov_t].queue[1].lift_station := loc;
+              g_task[cov_t].queue[1].sink_station := dest_stn;
+              g_task[cov_t].queue[1].start_time   := task_start;
+              g_task[cov_t].queue[1].finish_time  := task_end;
+              g_task[cov_t].queue[1].calc_time    := 0.0;
+              g_task[cov_t].queue[1].min_time     := 0.0;
+              g_task[cov_t].queue[1].max_time     := 0.0;
+              g_task[cov_t].count := g_task[cov_t].count + 1;
               done := TRUE;
             END_IF;
           END_IF;

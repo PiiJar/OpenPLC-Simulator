@@ -23,22 +23,22 @@
 
 FUNCTION_BLOCK STC_FB_DispatchTask
 VAR_EXTERNAL CONSTANT
-    MAX_TRANSPORTERS    : INT;
-    MAX_UNITS           : INT;
-    MAX_PARALLELS       : INT;
-    MAX_STAGES          : INT;
-    STATION_ARRAY_START : INT;
-    STATION_ARRAY_END   : INT;
+    MAX_Transporters    : INT;
+    MAX_Units           : INT;
+    MAX_STATIONS_PER_STEP       : INT;
+    MAX_STEPS_PER_PROGRAM          : INT;
+    MIN_StationIndex : INT;
+    MAX_StationIndex   : INT;
 END_VAR
 VAR_EXTERNAL
-  g_transporter : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
-  g_task        : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
-  g_station     : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
-  g_unit        : ARRAY[1..MAX_UNITS] OF UNIT_T;
-  g_program     : ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T;
-  g_ntt         : ARRAY[1..MAX_TRANSPORTERS] OF NTT_TRANSPORTER_T;
-  g_batch       : ARRAY[1..MAX_UNITS] OF BATCH_T;
-  g_move        : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
+  g_transporter : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
+  g_task        : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
+  g_station     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF STATION_T;
+  g_unit        : ARRAY[1..MAX_Units] OF UNIT_T;
+  g_program     : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
+  g_ntt         : ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T;
+  g_batch       : ARRAY[1..MAX_Units] OF BATCH_T;
+  g_move        : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
   g_time_s      : LINT;
   g_event_pending       : EVENT_MSG_T;
   g_event_pending_valid : BOOL;
@@ -80,7 +80,7 @@ VAR
   sh           : INT;
 END_VAR
 
-FOR ti := 1 TO MAX_TRANSPORTERS DO
+FOR ti := 1 TO MAX_Transporters DO
 
   (* ── 1. Skip if not idle or queue empty ── *)
   IF g_transporter[ti].phase = 0 AND g_task[ti].count >= 1 THEN
@@ -113,9 +113,9 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
       sink_stn := t_sink;
       sink_free := FALSE;
 
-      IF sink_stn >= STATION_ARRAY_START AND sink_stn <= STATION_ARRAY_END THEN
+      IF sink_stn >= MIN_StationIndex AND sink_stn <= MAX_StationIndex THEN
         sink_free := TRUE;
-        FOR uj := 1 TO MAX_UNITS DO
+        FOR uj := 1 TO MAX_Units DO
           IF g_unit[uj].location = sink_stn AND g_unit[uj].status = 1 THEN
             sink_free := FALSE;
           END_IF;
@@ -127,22 +127,22 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
         best_stn := 0;
         best_change := LINT#2000000000;
 
-        IF t_stage >= 1 AND t_stage <= MAX_STAGES
-           AND t_unit >= 1 AND t_unit <= MAX_UNITS THEN
+        IF t_stage >= 1 AND t_stage <= MAX_STEPS_PER_PROGRAM
+           AND t_unit >= 1 AND t_unit <= MAX_Units THEN
           (* Treatment task — look in g_program for parallel stations *)
-          FOR si := 1 TO MAX_PARALLELS DO
+          FOR si := 1 TO MAX_STATIONS_PER_STEP DO
             cand_stn := g_program[t_unit].stages[t_stage].stations[si];
             IF cand_stn > 0 AND cand_stn <> t_sink THEN
-              IF cand_stn >= STATION_ARRAY_START AND cand_stn <= STATION_ARRAY_END THEN
+              IF cand_stn >= MIN_StationIndex AND cand_stn <= MAX_StationIndex THEN
                 cand_free := TRUE;
-                FOR uj := 1 TO MAX_UNITS DO
+                FOR uj := 1 TO MAX_Units DO
                   IF g_unit[uj].location = cand_stn AND g_unit[uj].status = 1 THEN
                     cand_free := FALSE;
                   END_IF;
                 END_FOR;
                 IF cand_free THEN
-                  IF g_station[cand_stn].change_time < best_change THEN
-                    best_change := g_station[cand_stn].change_time;
+                  IF g_station[cand_stn].ChangeTime < best_change THEN
+                    best_change := g_station[cand_stn].ChangeTime;
                     best_stn := cand_stn;
                   END_IF;
                 END_IF;
@@ -150,7 +150,7 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
             END_IF;
           END_FOR;
 
-        ELSIF t_stage = 0 AND t_unit >= 1 AND t_unit <= MAX_UNITS THEN
+        ELSIF t_stage = 0 AND t_unit >= 1 AND t_unit <= MAX_Units THEN
           (* No-treatment task — look in g_ntt for alternatives *)
           tgt := g_unit[t_unit].target;
           IF tgt >= 1 AND tgt <= 5 THEN
@@ -169,19 +169,19 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
             (* Check primary stations *)
             ntt_cnt := g_ntt[ti].target[ntt_idx].station_count;
             FOR si := 1 TO ntt_cnt DO
-              IF si <= MAX_PARALLELS THEN
+              IF si <= MAX_STATIONS_PER_STEP THEN
                 cand_stn := g_ntt[ti].target[ntt_idx].stations[si];
                 IF cand_stn > 0 AND cand_stn <> t_sink THEN
-                  IF cand_stn >= STATION_ARRAY_START AND cand_stn <= STATION_ARRAY_END THEN
+                  IF cand_stn >= MIN_StationIndex AND cand_stn <= MAX_StationIndex THEN
                     cand_free := TRUE;
-                    FOR uj := 1 TO MAX_UNITS DO
+                    FOR uj := 1 TO MAX_Units DO
                       IF g_unit[uj].location = cand_stn AND g_unit[uj].status = 1 THEN
                         cand_free := FALSE;
                       END_IF;
                     END_FOR;
                     IF cand_free THEN
-                      IF g_station[cand_stn].change_time < best_change THEN
-                        best_change := g_station[cand_stn].change_time;
+                      IF g_station[cand_stn].ChangeTime < best_change THEN
+                        best_change := g_station[cand_stn].ChangeTime;
                         best_stn := cand_stn;
                       END_IF;
                     END_IF;
@@ -192,19 +192,19 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
             (* Check fallback stations *)
             ntt_fb_cnt := g_ntt[ti].target[ntt_idx].fallback_count;
             FOR si := 1 TO ntt_fb_cnt DO
-              IF si <= MAX_PARALLELS THEN
+              IF si <= MAX_STATIONS_PER_STEP THEN
                 cand_stn := g_ntt[ti].target[ntt_idx].fallback_stations[si];
                 IF cand_stn > 0 AND cand_stn <> t_sink THEN
-                  IF cand_stn >= STATION_ARRAY_START AND cand_stn <= STATION_ARRAY_END THEN
+                  IF cand_stn >= MIN_StationIndex AND cand_stn <= MAX_StationIndex THEN
                     cand_free := TRUE;
-                    FOR uj := 1 TO MAX_UNITS DO
+                    FOR uj := 1 TO MAX_Units DO
                       IF g_unit[uj].location = cand_stn AND g_unit[uj].status = 1 THEN
                         cand_free := FALSE;
                       END_IF;
                     END_FOR;
                     IF cand_free THEN
-                      IF g_station[cand_stn].change_time < best_change THEN
-                        best_change := g_station[cand_stn].change_time;
+                      IF g_station[cand_stn].ChangeTime < best_change THEN
+                        best_change := g_station[cand_stn].ChangeTime;
                         best_stn := cand_stn;
                       END_IF;
                     END_IF;
@@ -244,7 +244,7 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
           task_max := t_lift;
         END_IF;
 
-        FOR cj := 1 TO MAX_TRANSPORTERS DO
+        FOR cj := 1 TO MAX_Transporters DO
           IF cj <> ti AND g_transporter[cj].phase > 0 THEN
 
             (* a) T2's entire active task inside our range → conflict *)
@@ -269,14 +269,14 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
           g_transporter[ti].task_id      := t_start;
           g_transporter[ti].lift_station := t_lift;
           g_transporter[ti].sink_station := sink_stn;
-          g_transporter[ti].unit_id      := t_unit;
+          g_transporter[ti].UnitId      := t_unit;
           g_transporter[ti].treatment_time := t_calc_time;
           g_transporter[ti].min_time := g_task[ti].queue[1].min_time;
           g_transporter[ti].max_time := g_task[ti].queue[1].max_time;
           g_transporter[ti].remaining_time := t_calc_time;
 
           (* ── Update batch times: transfer duration as time bar ── *)
-          IF t_unit >= 1 AND t_unit <= MAX_UNITS THEN
+          IF t_unit >= 1 AND t_unit <= MAX_Units THEN
             g_batch[t_unit].start_time := g_time_s;
             g_batch[t_unit].cal_time   := REAL_TO_INT(LINT_TO_REAL(t_finish - t_start));
             g_batch[t_unit].min_time   := g_batch[t_unit].cal_time;
@@ -304,11 +304,11 @@ FOR ti := 1 TO MAX_TRANSPORTERS DO
           END_IF;
 
           (* Copy station-specific timing from config *)
-          IF t_lift >= STATION_ARRAY_START AND t_lift <= STATION_ARRAY_END THEN
+          IF t_lift >= MIN_StationIndex AND t_lift <= MAX_StationIndex THEN
             g_transporter[ti].dropping_time := g_station[t_lift].dropping_time;
             g_transporter[ti].lift_device_delay := g_station[t_lift].device_delay;
           END_IF;
-          IF sink_stn >= STATION_ARRAY_START AND sink_stn <= STATION_ARRAY_END THEN
+          IF sink_stn >= MIN_StationIndex AND sink_stn <= MAX_StationIndex THEN
             g_transporter[ti].sink_device_delay := g_station[sink_stn].device_delay;
           END_IF;
 

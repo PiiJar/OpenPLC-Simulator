@@ -8,7 +8,7 @@
      1    INIT (count active batches)
      2    NO_TREATMENT_STATES (update unit/batch states)
      1000 SCHEDULE_START
-     1001..1000+N  SCHEDULE per batch (one per tick, N=MAX_UNITS)
+     1001..1000+N  SCHEDULE per batch (one per tick, N=MAX_Units)
      1900 SCHEDULE_DONE
      2000 TASKS_START (clear task queues)
      2001..2000+N  CREATE_TASKS per batch (one per tick)
@@ -32,17 +32,17 @@ VAR_INPUT
   i_time_s : LINT;    (* current absolute time (s), unix seconds *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    MAX_TRANSPORTERS : INT;
-    MAX_UNITS        : INT;
+    MAX_Transporters : INT;
+    MAX_Units        : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_batch  : ARRAY[1..MAX_UNITS] OF BATCH_T;
-  g_unit    : ARRAY[1..MAX_UNITS] OF UNIT_T;
-  g_program : ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T;
-  g_task    : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
-  g_schedule : ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T;
-  g_cfg    : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
+  g_batch  : ARRAY[1..MAX_Units] OF BATCH_T;
+  g_unit    : ARRAY[1..MAX_Units] OF UNIT_T;
+  g_program : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
+  g_task    : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
+  g_schedule : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
+  g_cfg    : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
   (* DEP handshake *)
   g_dep_pending : DEP_PENDING_WRITE_T;
 END_VAR
@@ -58,7 +58,7 @@ VAR
   next_phase   : INT;
   (* Batch iteration *)
   batch_idx    : INT;      (* current batch being processed 1..10 *)
-  batch_list   : ARRAY[1..MAX_UNITS] OF INT;  (* active unit indices *)
+  batch_list   : ARRAY[1..MAX_Units] OF INT;  (* active unit indices *)
   batch_count  : INT;
   (* Conflict iteration *)
   conflict_iter : INT;
@@ -139,9 +139,9 @@ ELSIF phase = 1000 THEN
   next_phase := 1001;
 
 (* ══════════════════════════════════════════════════════════════ *)
-(* PHASE 1001..1000+MAX_UNITS: SCHEDULE per batch (one per tick) *)
+(* PHASE 1001..1000+MAX_Units: SCHEDULE per batch (one per tick) *)
 (* ══════════════════════════════════════════════════════════════ *)
-ELSIF phase >= 1001 AND phase <= 1000 + MAX_UNITS THEN
+ELSIF phase >= 1001 AND phase <= 1000 + MAX_Units THEN
   IF batch_idx <= batch_count THEN
     ui := batch_list[batch_idx];
 
@@ -177,9 +177,9 @@ ELSIF phase = 2000 THEN
   next_phase := 2001;
 
 (* ══════════════════════════════════════════════════════════════ *)
-(* PHASE 2001..2000+MAX_UNITS: CREATE_TASKS per batch (one per tick) *)
+(* PHASE 2001..2000+MAX_Units: CREATE_TASKS per batch (one per tick) *)
 (* ══════════════════════════════════════════════════════════════ *)
-ELSIF phase >= 2001 AND phase <= 2000 + MAX_UNITS THEN
+ELSIF phase >= 2001 AND phase <= 2000 + MAX_Units THEN
   IF batch_idx <= batch_count THEN
     ui := batch_list[batch_idx];
     fb_create(i_unit := ui);
@@ -270,7 +270,7 @@ ELSIF phase = 2204 THEN
 ELSIF phase = 10000 THEN
   (* Count total tasks *)
   total_tasks := 0;
-  FOR ti := 1 TO MAX_TRANSPORTERS DO
+  FOR ti := 1 TO MAX_Transporters DO
     total_tasks := total_tasks + g_task[ti].count;
   END_FOR;
   o_task_cnt := total_tasks;
@@ -283,11 +283,11 @@ ELSIF phase = 10000 THEN
 ELSIF phase = 10100 THEN
   IF g_dep_pending.valid THEN
     (* Apply DEP's pending data: programs + schedules + stage change *)
-    FOR ui := 1 TO MAX_UNITS DO
+    FOR ui := 1 TO MAX_Units DO
       g_program[ui]  := g_dep_pending.programs[ui];
       g_schedule[ui] := g_dep_pending.schedule[ui];
     END_FOR;
-    IF g_dep_pending.batch_unit >= 1 AND g_dep_pending.batch_unit <= MAX_UNITS THEN
+    IF g_dep_pending.batch_unit >= 1 AND g_dep_pending.batch_unit <= MAX_Units THEN
       g_batch[g_dep_pending.batch_unit].cur_stage   := g_dep_pending.batch_stage;
       g_batch[g_dep_pending.batch_unit].state        := g_dep_pending.batch_state;
       g_batch[g_dep_pending.batch_unit].start_time   := g_dep_pending.time_s;

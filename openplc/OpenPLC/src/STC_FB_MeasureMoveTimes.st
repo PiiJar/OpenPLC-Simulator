@@ -23,7 +23,7 @@
 
    Usage in plc_prg.st (one instance per transporter):
      tm1(t_id := 1, phase := g_transporter[1].phase,
-         delta_t := 0.02, vel_x := g_transporter[1].vel_x,
+         delta_t := 0.02, vel_x := g_transporter[1].XVelocity,
          z_stage := g_transporter[1].z_stage,
          lift_stn := g_transporter[1].lift_station,
          sink_stn := g_transporter[1].sink_station,
@@ -55,11 +55,11 @@ VAR
   sink_idx     : INT;         (* index 1..25 for sink station *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    MAX_TRANSPORTERS : INT;
+    MAX_Transporters : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_move : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
+  g_move : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
 END_VAR
 
 (* ---- Phase transition detection ---- *)

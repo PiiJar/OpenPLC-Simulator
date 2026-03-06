@@ -26,15 +26,15 @@ VAR_OUTPUT
   o_delay_s : REAL;       (* total delay needed (s), 0 = no conflict *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    MAX_TRANSPORTERS    : INT;
-    STATION_ARRAY_START : INT;
-    STATION_ARRAY_END   : INT;
-    MAX_UNITS           : INT;
+    MAX_Transporters    : INT;
+    MIN_StationIndex : INT;
+    MAX_StationIndex   : INT;
+    MAX_Units           : INT;
     DEP_MAX_DELAY_ACTS  : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_task       : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
+  g_task       : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
   g_dep_overlap : DEP_OVERLAP_T;
 END_VAR
 VAR
@@ -80,9 +80,9 @@ FOR round := 1 TO DEP_MAX_DELAY_ACTS DO
   t_end    := i_task_end + REAL_TO_LINT(o_delay_s);
 
   (* Check all tasks on OTHER transporters *)
-  FOR ti := 1 TO MAX_TRANSPORTERS DO
+  FOR ti := 1 TO MAX_Transporters DO
     IF ti <> i_trans_id THEN
-      FOR qi := 1 TO MAX_UNITS DO
+      FOR qi := 1 TO MAX_Units DO
         IF qi > g_task[ti].count THEN
           EXIT;
         END_IF;

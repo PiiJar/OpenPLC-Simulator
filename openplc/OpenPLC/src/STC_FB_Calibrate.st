@@ -49,17 +49,17 @@ VAR_OUTPUT
   o_active : BOOL;    (* calibration in progress *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    MAX_TRANSPORTERS    : INT;
-    STATION_ARRAY_START : INT;
-    STATION_ARRAY_END   : INT;
+    MAX_Transporters    : INT;
+    MIN_StationIndex : INT;
+    MAX_StationIndex   : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_transporter : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
-  g_station    : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
-  g_cfg         : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
-  g_cal         : ARRAY[1..MAX_TRANSPORTERS] OF CALIBRATION_T;
-  g_move        : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
+  g_transporter : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
+  g_station    : ARRAY[MIN_StationIndex..MAX_StationIndex] OF STATION_T;
+  g_cfg         : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
+  g_cal         : ARRAY[1..MAX_Transporters] OF CALIBRATION_T;
+  g_move        : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
   g_time_s      : LINT;
 END_VAR
 VAR
@@ -99,7 +99,7 @@ END_IF;
 IF i_cmd = 1 AND cal_step = 0 THEN
   (* Start calibration — find first active transporter with plan *)
   tid := 0;
-  FOR ci := 1 TO MAX_TRANSPORTERS DO
+  FOR ci := 1 TO MAX_Transporters DO
     IF g_transporter[ci].active AND tid = 0 THEN
       IF g_cal[ci].wet_station > 0 AND g_cal[ci].dry_station > 0 THEN
         tid := ci;
@@ -153,7 +153,7 @@ IF cal_step = 11 THEN
 END_IF;
 
 IF cal_step = 12 THEN
-  cur_v := ABS(g_transporter[tid].vel_x);
+  cur_v := ABS(g_transporter[tid].XVelocity);
 
   (* ── Track X velocity during phase 3 (travel dry→wet) ── *)
   IF g_transporter[tid].phase = 3 THEN
@@ -260,7 +260,7 @@ END_IF;
 IF cal_step = 40 THEN
   (* Find next active transporter after current tid with plan *)
   next_tid := 0;
-  FOR ci := tid + 1 TO MAX_TRANSPORTERS DO
+  FOR ci := tid + 1 TO MAX_Transporters DO
     IF g_transporter[ci].active AND next_tid = 0 THEN
       IF g_cal[ci].wet_station > 0 AND g_cal[ci].dry_station > 0 THEN
         next_tid := ci;
@@ -287,7 +287,7 @@ END_IF;
        measured v_max, t_acc, t_dec and station distances
    ================================================================ *)
 IF cal_step = 200 THEN
-  FOR ci := 1 TO MAX_TRANSPORTERS DO
+  FOR ci := 1 TO MAX_Transporters DO
     IF g_transporter[ci].active AND g_cal[ci].x_max_mm_s > 0.0 THEN
 
       vm := g_cal[ci].x_max_mm_s;
@@ -296,8 +296,8 @@ IF cal_step = 200 THEN
 
       (* --- Fill lift_s and sink_s per station type --- *)
       FOR cj := 1 TO 25 DO
-        IF g_station[100 + cj].tank_id <> 0 THEN
-          IF g_station[100 + cj].kind = 1 THEN
+        IF g_station[100 + cj].TankId <> 0 THEN
+          IF g_station[100 + cj].DryWet = 1 THEN
             (* Wet station *)
             g_move[ci].lift_s[cj] := g_cal[ci].lift_wet_s;
             g_move[ci].sink_s[cj] := g_cal[ci].sink_wet_s;
@@ -321,13 +321,13 @@ IF cal_step = 200 THEN
       d_dec := 0.5 * vm * td;
 
       FOR cj := 1 TO 25 DO
-        IF g_station[100 + cj].tank_id <> 0 THEN
+        IF g_station[100 + cj].TankId <> 0 THEN
           FOR wet_idx := 1 TO 25 DO
-            IF g_station[100 + wet_idx].tank_id <> 0 THEN
+            IF g_station[100 + wet_idx].TankId <> 0 THEN
               IF cj = wet_idx THEN
                 g_move[ci].travel[cj].to_s[wet_idx] := 0.0;
               ELSE
-                dist := ABS(g_station[100 + cj].x_position - g_station[100 + wet_idx].x_position);
+                dist := ABS(g_station[100 + cj].XPosition - g_station[100 + wet_idx].XPosition);
                 IF dist < 1.0 THEN
                   g_move[ci].travel[cj].to_s[wet_idx] := 0.0;
                 ELSIF dist >= (d_acc + d_dec) THEN

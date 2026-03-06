@@ -21,14 +21,14 @@ VAR_INPUT
   i_run : BOOL;    (* rising edge triggers computation *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    MAX_TRANSPORTERS    : INT;
-    STATION_ARRAY_START : INT;
-    STATION_ARRAY_END   : INT;
+    MAX_Transporters    : INT;
+    MIN_StationIndex : INT;
+    MAX_StationIndex   : INT;
 END_VAR
 VAR_EXTERNAL
-  g_cal           : ARRAY[1..MAX_TRANSPORTERS] OF CALIBRATION_T;
-  g_station       : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
-  g_move          : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
+  g_cal           : ARRAY[1..MAX_Transporters] OF CALIBRATION_T;
+  g_station       : ARRAY[MIN_StationIndex..MAX_StationIndex] OF STATION_T;
+  g_move          : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
   g_station_count : INT;
 END_VAR
 VAR
@@ -53,12 +53,12 @@ END_VAR
 IF i_run AND NOT prev_run THEN
 
   (* Determine last active station *)
-  last_stn := STATION_ARRAY_START + g_station_count - 1;
-  IF last_stn > STATION_ARRAY_END THEN
-    last_stn := STATION_ARRAY_END;
+  last_stn := MIN_StationIndex + g_station_count - 1;
+  IF last_stn > MAX_StationIndex THEN
+    last_stn := MAX_StationIndex;
   END_IF;
 
-  FOR tid := 1 TO MAX_TRANSPORTERS DO
+  FOR tid := 1 TO MAX_Transporters DO
     (* Skip transporters without valid calibration data *)
     IF g_cal[tid].x_max_mm_s >= 1.0 THEN
 
@@ -69,10 +69,10 @@ IF i_run AND NOT prev_run THEN
       d_dec := 0.5 * vm * td;
 
       (* --- Lift and sink times per station --- *)
-      FOR si := STATION_ARRAY_START TO last_stn DO
-        idx_i := si - STATION_ARRAY_START + 1;
+      FOR si := MIN_StationIndex TO last_stn DO
+        idx_i := si - MIN_StationIndex + 1;
         IF idx_i >= 1 AND idx_i <= 30 THEN
-          IF g_station[si].kind = 1 THEN
+          IF g_station[si].DryWet = 1 THEN
             (* Wet station *)
             g_move[tid].lift_s[idx_i] := g_cal[tid].lift_wet_s;
             g_move[tid].sink_s[idx_i] := g_cal[tid].sink_wet_s;
@@ -85,16 +85,16 @@ IF i_run AND NOT prev_run THEN
       END_FOR;
 
       (* --- Travel times between stations --- *)
-      FOR si := STATION_ARRAY_START TO last_stn DO
-        idx_i := si - STATION_ARRAY_START + 1;
+      FOR si := MIN_StationIndex TO last_stn DO
+        idx_i := si - MIN_StationIndex + 1;
         IF idx_i >= 1 AND idx_i <= 30 THEN
-          FOR sj := STATION_ARRAY_START TO last_stn DO
-            idx_j := sj - STATION_ARRAY_START + 1;
+          FOR sj := MIN_StationIndex TO last_stn DO
+            idx_j := sj - MIN_StationIndex + 1;
             IF idx_j >= 1 AND idx_j <= 30 THEN
               IF si = sj THEN
                 g_move[tid].travel[idx_i].to_s[idx_j] := 0.0;
               ELSE
-                dist := ABS(g_station[si].x_position - g_station[sj].x_position);
+                dist := ABS(g_station[si].XPosition - g_station[sj].XPosition);
                 IF dist < 1.0 THEN
                   t_time := 0.0;
                 ELSIF dist >= d_acc + d_dec THEN

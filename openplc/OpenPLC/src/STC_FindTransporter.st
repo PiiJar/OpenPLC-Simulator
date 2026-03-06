@@ -23,10 +23,10 @@ VAR_OUTPUT
   o_trans : INT;         (* transporter ID 1..3, 0 = not found *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-  MAX_TRANSPORTERS : INT;
+  MAX_Transporters : INT;
 END_VAR
 VAR_EXTERNAL
-  g_cfg : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
+  g_cfg : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
 END_VAR
 VAR
   ti       : INT;
@@ -37,7 +37,7 @@ VAR
 END_VAR
 
 o_trans := 0;
-FOR ti := 1 TO MAX_TRANSPORTERS DO
+FOR ti := 1 TO MAX_Transporters DO
   IF o_trans = 0 THEN
     FOR ai := 1 TO 4 DO
       IF o_trans = 0 THEN

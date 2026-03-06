@@ -19,11 +19,11 @@ VAR_INPUT
   i_trans : INT;    (* 0 = all, 1..3 = specific transporter *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    MAX_TRANSPORTERS : INT;
+    MAX_Transporters : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_task : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
+  g_task : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
 END_VAR
 VAR
   ti       : INT;

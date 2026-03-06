@@ -4,28 +4,28 @@
 
 TYPE TANK_T :
 STRUCT
-  tank_id    : INT;
+  TankId    : INT;
   status     : INT;    (* NOT_USED=0, USED=1 *)
-  x_position : REAL;
-  y_position : REAL;
-  z_position : REAL;
+  XPosition    : DINT;
+  YPosition    : DINT;
+  ZPosition    : DINT;
   kind       : INT;
 END_STRUCT;
 END_TYPE
 
 TYPE STATION_T :
 STRUCT
-  tank_id       : INT;
-  status        : INT;    (* NOT_USED=0, USED=1 *)
-  unit_id       : INT;    (* unit currently at this station, 0 = none *)
-  x_position    : REAL;
-  y_position    : REAL;
-  z_position    : REAL;
-  kind          : INT;    (* 0=dry, 1=wet *)
-  operation     : INT;    (* original station type from JSON *)
+  TankId       : INT;
+  IsInUse       : BOOL;   (* station enabled *)
+  UnitId       : INT;    (* unit currently at this station, 0 = none *)
+  XPosition    : DINT;
+  YPosition    : DINT;
+  ZPosition    : DINT;
+  DryWet        : INT;    (* 0=dry, 1=wet *)
+  StationType   : INT;    (* original station type from JSON *)
   dropping_time : REAL;
   device_delay  : REAL;
-  change_time   : LINT;   (* timestamp of last unit arrival/departure (unix seconds) *)
+  ChangeTime   : LINT;   (* timestamp of last unit arrival/departure (unix seconds) *)
 END_STRUCT;
 END_TYPE
 
@@ -56,20 +56,20 @@ END_TYPE
 
 TYPE TRANSPORTER_CFG_T :
 STRUCT
-  x_min_limit : REAL;
-  x_max_limit : REAL;
-  y_min_limit : REAL;
-  y_max_limit : REAL;
-  x_avoid_mm  : REAL;
-  y_avoid_mm  : REAL;
+  XMinLimit   : DINT;
+  XMaxLimit   : DINT;
+  YMinLimit   : DINT;
+  YMaxLimit   : DINT;
+  XAvoidMm    : DINT;
+  YAvoidMm    : DINT;
   phys2d      : PHYSICS_2D_T;
-  task_area   : ARRAY[1..3] OF TASK_AREA_T;  (* MAX_TRANSPORTERS_PER_LINE — literal required in TYPE *)
+  task_area   : ARRAY[1..3] OF TASK_AREA_T;  (* MAX_Transporters_PER_LINE — literal required in TYPE *)
 END_STRUCT;
 END_TYPE
 
 (* ── Transporter interface — production-compatible ──────────── *)
 (* Used by scheduler, TWA, simulation, and production alike.     *)
-(* g_transporter : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T              *)
+(* g_transporter : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T              *)
 TYPE STC_TRANSPORTER_T :
 STRUCT
   (* --- Command (scheduler → transporter) --- *)
@@ -85,23 +85,23 @@ STRUCT
   (* --- Status (transporter → outside world) --- *)
   status             : INT;      (* 0=not_used 1=manual 2=half_manual 3=auto_idle 4=auto_run *)
   phase              : INT;      (* 0=idle 1=to_lift 2=lifting 3=to_sink 4=sinking *)
-  unit_id            : INT;      (* unit currently being transported, 0 = none *)
+  UnitId            : INT;      (* unit currently being transported, 0 = none *)
   running_task_id    : LINT;     (* copied from task_id when accepted *)
   current_station    : INT;      (* nearest station number *)
   remaining_time     : REAL;     (* remaining treatment time (s) *)
   (* --- Drive (runtime / TWA) --- *)
-  final_target_x     : REAL;     (* destination X (station position) *)
-  drive_target_x     : REAL;     (* TWA-clamped X drive target *)
-  final_target_y     : REAL;     (* destination Y (3D transporter) *)
-  drive_target_y     : REAL;     (* TWA-clamped Y drive target *)
-  x_mm               : REAL;     (* current X position *)
-  y_mm               : REAL;     (* current Y position (3D) *)
-  z_mm               : REAL;     (* current Z position *)
-  vel_x              : REAL;     (* X velocity *)
+  XFinalTarget       : DINT;     (* destination X (station position) mm *)
+  XDriveTarget       : DINT;     (* TWA-clamped X drive target mm *)
+  YFinalTarget       : DINT;     (* destination Y (3D transporter) mm *)
+  YDriveTarget       : DINT;     (* TWA-clamped Y drive target mm *)
+  XPosition          : DINT;     (* current X position mm *)
+  YPosition          : DINT;     (* current Y position mm *)
+  ZPosition          : DINT;     (* current Z position mm *)
+  XVelocity          : DINT;     (* X velocity mm/s *)
   z_stage            : INT;      (* Z motion sub-phase *)
   z_timer_s          : REAL;     (* Z motion timer *)
-  x_min_limit        : REAL;     (* TWA lower X limit *)
-  x_max_limit        : REAL;     (* TWA upper X limit *)
+  XMinLimit          : DINT;     (* TWA lower X limit mm *)
+  XMaxLimit          : DINT;     (* TWA upper X limit mm *)
   (* --- General --- *)
   active             : BOOL;     (* transporter enabled *)
 END_STRUCT;
@@ -122,7 +122,7 @@ END_TYPE
 
 TYPE PROGRAM_STAGE_T :
 STRUCT
-  stations : ARRAY[1..5] OF INT;   (* up to MAX_PARALLELS station numbers *)
+  stations : ARRAY[1..5] OF INT;   (* up to MAX_STATIONS_PER_STEP station numbers *)
   min_time : INT;                   (* minimum processing time (seconds) *)
   max_time : INT;                   (* maximum processing time (seconds) *)
   cal_time : INT;                   (* calculated / target time (seconds) *)
@@ -132,7 +132,7 @@ END_TYPE
 TYPE TREATMENT_PROGRAM_T :
 STRUCT
   program_id : INT;                      (* treatment program number *)
-  stages     : ARRAY[1..30] OF PROGRAM_STAGE_T;  (* up to MAX_STAGES *)
+  stages     : ARRAY[1..30] OF PROGRAM_STAGE_T;  (* up to MAX_STEPS_PER_PROGRAM *)
 END_STRUCT;
 END_TYPE
 
@@ -144,15 +144,32 @@ STRUCT
 END_STRUCT;
 END_TYPE
 
+(* Snapshot of unit state — pre-computed once per cycle by NoTreatmentStates *)
+TYPE UNIT_SNAP_T :
+STRUCT
+  active     : BOOL;   (* status <> NOT_USED *)
+  loc        : INT;    (* location *)
+  loc_op     : INT;    (* station operation at location *)
+  tgt        : INT;    (* target *)
+  has_batch  : BOOL;   (* batch_code <> 0 *)
+  bstate     : INT;    (* batch state *)
+  cur_stage  : INT;    (* current stage from g_batch *)
+  in_buffer  : BOOL;   (* loc operation 44..47 *)
+  on_station : BOOL;   (* loc in STATION_ARRAY range *)
+  elapsed    : LINT;   (* time at station, 0 if not on station *)
+  cal        : INT;    (* cal_time for current stage *)
+END_STRUCT;
+END_TYPE
+
 (* ── No-Treatment Task destination types (NTT_) ─────────────────── *)
 (* Per target per transporter: which stations a unit can be moved to  *)
 (* Mirrors no_treatment_tasks.json structure                          *)
 
 TYPE NTT_DEST_T :
 STRUCT
-  stations          : ARRAY[1..5] OF INT;   (* primary stations, up to MAX_PARALLELS *)
+  stations          : ARRAY[1..5] OF INT;   (* primary stations, up to MAX_STATIONS_PER_STEP *)
   station_count     : INT;                   (* how many primary stations are valid *)
-  fallback_stations : ARRAY[1..5] OF INT;   (* fallback stations, up to MAX_PARALLELS *)
+  fallback_stations : ARRAY[1..5] OF INT;   (* fallback stations, up to MAX_STATIONS_PER_STEP *)
   fallback_count    : INT;                   (* how many fallback stations are valid *)
 END_STRUCT;
 END_TYPE
@@ -196,7 +213,7 @@ END_TYPE
 TYPE TSK_SCHEDULE_T :
 STRUCT
   stage_count : INT;                              (* number of active stages *)
-  stages      : ARRAY[1..30] OF TSK_STAGE_T;     (* MAX_STAGES *)
+  stages      : ARRAY[1..30] OF TSK_STAGE_T;     (* MAX_STEPS_PER_PROGRAM *)
 END_STRUCT;
 END_TYPE
 
@@ -236,14 +253,14 @@ STRUCT
   end_time     : LINT;    (* task end (s), unix seconds *)
   flex_down    : REAL;    (* available advance margin (s) *)
   flex_up      : REAL;    (* available delay margin (s) *)
-  x_min        : REAL;    (* X-area minimum (mm) *)
-  x_max        : REAL;    (* X-area maximum (mm) *)
+  XMin         : DINT;    (* X-area minimum (mm) *)
+  XMax         : DINT;    (* X-area maximum (mm) *)
   is_conflict  : BOOL;    (* TRUE if this task is in conflict *)
 END_STRUCT;
 END_TYPE
 
 (* Precomputed movement times — timed from real motions, not calculated *)
-(* Station number IS the array index (STATION_ARRAY_START..STATION_ARRAY_END) *)
+(* Station number IS the array index (MIN_StationIndex..MAX_StationIndex) *)
 (* Access: g_move[transporter].travel[from_stn].to_s[to_stn]            *)
 
 TYPE TRAVEL_FROM_T :
@@ -317,10 +334,10 @@ END_TYPE
 
 TYPE DEP_SANDBOX_T :
 STRUCT
-  schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;           (* MAX_UNITS *)
-  batches  : ARRAY[1..10] OF BATCH_T;                   (* MAX_UNITS *)
-  programs : ARRAY[1..10] OF TREATMENT_PROGRAM_T;       (* MAX_UNITS *)
-  tasks    : ARRAY[1..3] OF TSK_QUEUE_T;                (* MAX_TRANSPORTERS — literal required in TYPE *)
+  schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;           (* MAX_Units *)
+  batches  : ARRAY[1..10] OF BATCH_T;                   (* MAX_Units *)
+  programs : ARRAY[1..10] OF TREATMENT_PROGRAM_T;       (* MAX_Units *)
+  tasks    : ARRAY[1..3] OF TSK_QUEUE_T;                (* MAX_Transporters — literal required in TYPE *)
   valid    : BOOL;
 END_STRUCT;
 END_TYPE
@@ -330,8 +347,8 @@ END_TYPE
 TYPE DEP_PENDING_WRITE_T :
 STRUCT
   valid      : BOOL;
-  programs   : ARRAY[1..10] OF TREATMENT_PROGRAM_T;    (* MAX_UNITS *)
-  schedule   : ARRAY[1..10] OF TSK_SCHEDULE_T;          (* MAX_UNITS *)
+  programs   : ARRAY[1..10] OF TREATMENT_PROGRAM_T;    (* MAX_Units *)
+  schedule   : ARRAY[1..10] OF TSK_SCHEDULE_T;          (* MAX_Units *)
   batch_unit       : INT;     (* activated batch: unit index *)
   batch_stage      : INT;     (* activated batch: new cur_stage *)
   batch_state      : INT;     (* activated batch: new state (IN_PROCESS=1) *)
@@ -369,12 +386,12 @@ END_TYPE
    msg_type determines the meaning of f[1..12]:
 
    msg_type=1 (TASK_DISPATCHED):
-     f[1]=transporter  f[2]=unit_id  f[3]=lift_stn  f[4]=sink_stn
+     f[1]=transporter  f[2]=UnitId  f[3]=lift_stn  f[4]=sink_stn
      f[5]=stage  f[6]=batch_code  f[7]=batch_state  f[8]=batch_program
      f[9]=target  f[10]=calc_time_x10  f[11]=min_time_x10  f[12]=max_time_x10
 
    msg_type=2 (LIFT):
-     f[1]=transporter  f[2]=unit_id  f[3]=station  f[4]=batch_code
+     f[1]=transporter  f[2]=UnitId  f[3]=station  f[4]=batch_code
      f[5]=batch_state  f[6]=batch_program  f[7]=stage
      f[8]=actual_time_x10  f[9]=calc_time_x10  f[10]=min_time_x10
      f[11]=max_time_x10  f[12]=reserved

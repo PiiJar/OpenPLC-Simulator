@@ -13,13 +13,13 @@
 
 FUNCTION_BLOCK DEP_FB_CalcOverlap
 VAR_EXTERNAL CONSTANT
-    MAX_TRANSPORTERS    : INT;
-    STATION_ARRAY_START : INT;
-    STATION_ARRAY_END   : INT;
+    MAX_Transporters    : INT;
+    MIN_StationIndex : INT;
+    MAX_StationIndex   : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_cfg         : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
+  g_cfg         : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
   g_dep_overlap : DEP_OVERLAP_T;
 END_VAR
 VAR
@@ -38,10 +38,10 @@ FOR stn := 0 TO 200 DO
   g_dep_overlap.flags[stn] := FALSE;
 END_FOR;
 
-FOR stn := STATION_ARRAY_START TO STATION_ARRAY_END DO
+FOR stn := MIN_StationIndex TO MAX_StationIndex DO
   cover_count := 0;
 
-  FOR ti := 1 TO MAX_TRANSPORTERS DO
+  FOR ti := 1 TO MAX_Transporters DO
     covered := FALSE;
     FOR ai := 1 TO 4 DO
       IF NOT covered THEN

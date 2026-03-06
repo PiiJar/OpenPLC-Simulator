@@ -10,20 +10,20 @@
 
 FUNCTION_BLOCK STC_FB_ClearTaskQueues
 VAR_EXTERNAL CONSTANT
-    MAX_TRANSPORTERS : INT;
-    MAX_UNITS        : INT;
+    MAX_Transporters : INT;
+    MAX_Units        : INT;
     MAX_TASK_QUEUE   : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_task : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
+  g_task : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
 END_VAR
 VAR
   ti : INT;
   qi : INT;
 END_VAR
 
-FOR ti := 1 TO MAX_TRANSPORTERS DO
+FOR ti := 1 TO MAX_Transporters DO
   g_task[ti].count := 0;
   FOR qi := 1 TO MAX_TASK_QUEUE DO
     g_task[ti].queue[qi].unit         := 0;

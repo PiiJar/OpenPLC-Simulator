@@ -26,15 +26,15 @@ VAR_INPUT
   i_mode : INT;    (* 0 = all active, 1 = waiting only *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    MAX_UNITS : INT;
+    MAX_Units : INT;
 END_VAR
 VAR_EXTERNAL
-  g_batch   : ARRAY[1..MAX_UNITS] OF BATCH_T;
-  g_unit    : ARRAY[1..MAX_UNITS] OF UNIT_T;
-  g_program : ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T;
+  g_batch   : ARRAY[1..MAX_Units] OF BATCH_T;
+  g_unit    : ARRAY[1..MAX_Units] OF UNIT_T;
+  g_program : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
 END_VAR
 VAR_OUTPUT
-  o_list  : ARRAY[1..MAX_UNITS] OF INT;  (* unit indices *)
+  o_list  : ARRAY[1..MAX_Units] OF INT;  (* unit indices *)
   o_count : INT;
 END_VAR
 VAR
@@ -42,11 +42,11 @@ VAR
 END_VAR
 
 o_count := 0;
-FOR ui := 1 TO MAX_UNITS DO
+FOR ui := 1 TO MAX_Units DO
   o_list[ui] := 0;
 END_FOR;
 
-FOR ui := 1 TO MAX_UNITS DO
+FOR ui := 1 TO MAX_Units DO
   (* Common conditions: unit USED, target TO_NONE, valid program *)
   IF g_unit[ui].status = 1
      AND g_unit[ui].target = 0

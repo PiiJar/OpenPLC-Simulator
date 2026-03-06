@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-05T16:18:14"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-05T16:18:14">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-06T08:19:55"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-06T08:19:55">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -5142,34 +5142,22 @@ END_IF;]]></xhtml:p>
       <pou name="STC_FB_NoTreatmentStates" pouType="functionBlock">
         <interface>
           <externalVars>
-            <variable name="MAX_UNITS">
-              <type><INT/></type>
+            <variable name="g_unit">
+              <type><derived name="ARRAY[1..MAX_UNITS] OF UNIT_T"/></type>
             </variable>
-            <variable name="MAX_STAGES">
-              <type><INT/></type>
+            <variable name="g_batch">
+              <type><derived name="ARRAY[1..MAX_UNITS] OF BATCH_T"/></type>
             </variable>
-            <variable name="MAX_PARALLELS">
-              <type><INT/></type>
+            <variable name="g_program">
+              <type><derived name="ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T"/></type>
             </variable>
-            <variable name="STATION_ARRAY_START">
-              <type><INT/></type>
+            <variable name="g_station">
+              <type><derived name="ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T"/></type>
             </variable>
-            <variable name="STATION_ARRAY_END">
-              <type><INT/></type>
+            <variable name="g_time_s">
+              <type><LINT/></type>
             </variable>
-            <variable name="IN_PROCESS">
-              <type><INT/></type>
-            </variable>
-            <variable name="PROCESSED">
-              <type><INT/></type>
-            </variable>
-            <variable name="NOT_USED">
-              <type><INT/></type>
-            </variable>
-            <variable name="TO_NONE">
-              <type><INT/></type>
-            </variable>
-            <variable name="TO_AVOID">
+            <variable name="g_production_queue">
               <type><INT/></type>
             </variable>
           </externalVars>
@@ -5202,6 +5190,30 @@ END_IF;]]></xhtml:p>
               <type><BOOL/></type>
             </variable>
             <variable name="avoid_uid">
+              <type><INT/></type>
+            </variable>
+            <variable name="has_loading">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="load_free">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="load_uid">
+              <type><INT/></type>
+            </variable>
+            <variable name="load_in_buf">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="stk">
+              <type><INT/></type>
+            </variable>
+            <variable name="op">
+              <type><INT/></type>
+            </variable>
+            <variable name="u_loc">
+              <type><INT/></type>
+            </variable>
+            <variable name="u_op">
               <type><INT/></type>
             </variable>
           </localVars>
@@ -5238,14 +5250,17 @@ END_IF;]]></xhtml:p>
      For an IN_PROCESS unit whose next stage exists, check whether
      ALL parallel stations of the next stage are occupied.
      If at least one is free → nothing to do.
-     If ALL are occupied → find the first station whose unit has
-     no batch (batch_code=0) and target=TO_NONE, then set that
-     unit's target to TO_AVOID so NTT will move it out of the way. *)
+     If a unit at one of those stations already has target=TO_AVOID
+     (set by a previous cycle or another IN_PROCESS unit) → also
+     nothing to do, the slot is already being cleared.
+     Only if ALL are occupied AND none is already TO_AVOID → find
+     ONE station whose unit has no batch and target=TO_NONE, then
+     set that unit's target to TO_AVOID. *)
   IF g_batch[u].batch_code <> 0 AND g_batch[u].state = IN_PROCESS THEN
     IF cur >= 1 AND cur < MAX_STAGES THEN
       IF g_program[u].stages[cur + 1].stations[1] <> 0 THEN
 
-        (* — Pass 1: is any next-stage station free? — *)
+        (* — Pass 1: is any next-stage station free or already being cleared? — *)
         free_found := FALSE;
         avoid_uid  := 0;
         FOR p := 1 TO MAX_PARALLELS DO
@@ -5254,14 +5269,23 @@ END_IF;]]></xhtml:p>
             EXIT;  (* no more parallel stations *)
           END_IF;
           IF next_stn >= STATION_ARRAY_START AND next_stn <= STATION_ARRAY_END THEN
+            (* Station is physically empty → free *)
             IF g_station[next_stn].unit_id = 0 THEN
               free_found := TRUE;
               EXIT;
             END_IF;
+            (* Unit at station already has TO_AVOID → slot is being cleared *)
+            occ_uid := g_station[next_stn].unit_id;
+            IF occ_uid >= 1 AND occ_uid <= MAX_UNITS THEN
+              IF g_unit[occ_uid].target = TO_AVOID THEN
+                free_found := TRUE;
+                EXIT;
+              END_IF;
+            END_IF;
           END_IF;
         END_FOR;
 
-        (* — Pass 2: only if no free station, find a movable unit — *)
+        (* — Pass 2: only if no free/clearing station, mark ONE movable unit — *)
         IF NOT free_found THEN
           FOR p := 1 TO MAX_PARALLELS DO
             next_stn := g_program[u].stages[cur + 1].stations[p];
@@ -5289,7 +5313,75 @@ END_IF;]]></xhtml:p>
     END_IF;  (* cur range check *)
   END_IF;  (* IN_PROCESS check *)
 
-END_FOR;]]></xhtml:p>
+END_FOR;
+
+(* ── TO_LOADING: route one empty unit to loading station ──────────
+   When production is active (g_production_queue = 1) and a loading
+   or loading/unloading station is free, find ONE empty unit
+   (USED, no batch, target = TO_NONE) and set its target to TO_LOADING.
+   Priority: units NOT in buffer/storage (op 44-47) first.
+   If only buffer units qualify, use one of those. *)
+IF g_production_queue = 1 THEN
+
+  (* 1. Check if any unit already has TO_LOADING — only one allowed *)
+  has_loading := FALSE;
+  FOR u := 1 TO MAX_UNITS DO
+    IF g_unit[u].status <> NOT_USED AND g_unit[u].target = TO_LOADING THEN
+      has_loading := TRUE;
+      EXIT;
+    END_IF;
+  END_FOR;
+
+  IF NOT has_loading THEN
+
+    (* 2. Check if any loading/loading_unloading station is free *)
+    load_free := FALSE;
+    FOR stk := STATION_ARRAY_START TO STATION_ARRAY_END DO
+      op := g_station[stk].operation;
+      IF (op = OP_LOADING OR op = OP_LOADING_UNLOADING)
+         AND g_station[stk].unit_id = 0 THEN
+        load_free := TRUE;
+        EXIT;
+      END_IF;
+    END_FOR;
+
+    IF load_free THEN
+
+      (* 3. Scan units — prefer non-buffer over buffer *)
+      load_uid    := 0;
+      load_in_buf := FALSE;
+      FOR u := 1 TO MAX_UNITS DO
+        IF g_unit[u].status = USED
+           AND g_batch[u].batch_code = 0
+           AND g_unit[u].target = TO_NONE THEN
+          u_loc := g_unit[u].location;
+          IF u_loc >= STATION_ARRAY_START AND u_loc <= STATION_ARRAY_END THEN
+            u_op := g_station[u_loc].operation;
+            IF u_op >= 44 AND u_op <= 47 THEN
+              (* Unit is in buffer/storage — candidate only if nothing better *)
+              IF load_uid = 0 THEN
+                load_uid    := u;
+                load_in_buf := TRUE;
+              END_IF;
+            ELSE
+              (* Unit is NOT in buffer — always preferred *)
+              IF load_uid = 0 OR load_in_buf THEN
+                (* First non-buffer, or replaces a buffer candidate *)
+                load_uid    := u;
+                load_in_buf := FALSE;
+              END_IF;
+            END_IF;
+          END_IF;
+        END_IF;
+      END_FOR;
+
+      IF load_uid >= 1 THEN
+        g_unit[load_uid].target := TO_LOADING;
+      END_IF;
+
+    END_IF; (* load_free *)
+  END_IF; (* NOT has_loading *)
+END_IF; (* production_queue = 1 *)]]></xhtml:p>
           </ST>
         </body>
       </pou>
@@ -6606,6 +6698,9 @@ END_FOR;]]></xhtml:p>
             <variable name="slot_ok">
               <type><BOOL/></type>
             </variable>
+            <variable name="sh">
+              <type><INT/></type>
+            </variable>
           </localVars>
         </interface>
         <body>
@@ -6662,7 +6757,8 @@ END_FOR;]]></xhtml:p>
         END_IF;
       END_FOR;
 
-      IF covers AND g_transporter[cov_t].phase = 0 AND g_transporter[cov_t].active THEN
+      IF covers AND g_transporter[cov_t].active
+         AND (g_transporter[cov_t].phase = 0 OR tgt = 5) THEN
 
         (* ── Resolve NTT index ── *)
         (* TO_BUFFER(2) maps to 6/7/8 depending on batch state *)
@@ -6790,16 +6886,18 @@ END_FOR;]]></xhtml:p>
             task_end   := task_start + REAL_TO_LINT(xfer_s);
             ntt_duration := task_end - task_start;
 
-            (* ── Idle-slot check: does NTT task fit in transporter's schedule? ── *)
-            (* Build idle slots from existing queue and check fit *)
+            (* ── Current-slot check: NTT fits only in the CURRENT idle slot ──
+               Like JS: find the slot where start <= now < end, check totalTime
+               fits. NTT is never placed into future slots — only "right now". *)
             slot_ok := FALSE;
 
             IF g_task[cov_t].count = 0 THEN
               (* No existing tasks → NTT always fits *)
               slot_ok := TRUE;
             ELSE
-              (* Check slot BEFORE first queued task *)
-              IF NOT slot_ok AND g_task[cov_t].queue[1].start_time > task_start THEN
+              (* Current slot = time from NOW until first queued task starts.
+                 NTT must fit: task_end + travel_to_next_lift <= queue[1].start_time *)
+              IF g_task[cov_t].queue[1].start_time > task_start THEN
                 slot_start := task_start;
                 slot_end   := g_task[cov_t].queue[1].start_time;
                 (* Travel from NTT sink to first task's lift *)
@@ -6813,83 +6911,38 @@ END_FOR;]]></xhtml:p>
                   slot_ok := TRUE;
                 END_IF;
               END_IF;
-
-              (* Check slots BETWEEN queued tasks *)
-              FOR qi3 := 1 TO g_task[cov_t].count - 1 DO
-                IF NOT slot_ok THEN
-                  slot_start := g_task[cov_t].queue[qi3].finish_time;
-                  slot_end   := g_task[cov_t].queue[qi3 + 1].start_time;
-                  IF slot_end > slot_start THEN
-                    (* Travel from prev task's sink to NTT lift *)
-                    travel_to_lift := STC_CalcHorizontalTravel(
-                      i_from_stn := g_task[cov_t].queue[qi3].sink_station,
-                      i_to_stn   := loc,
-                      i_move     := g_move[cov_t]
-                    );
-                    earliest_start := slot_start + REAL_TO_LINT(travel_to_lift) + 1;
-
-                    (* Travel from NTT sink to next task's lift *)
-                    travel_from_sink := STC_CalcHorizontalTravel(
-                      i_from_stn := dest_stn,
-                      i_to_stn   := g_task[cov_t].queue[qi3 + 1].lift_station,
-                      i_move     := g_move[cov_t]
-                    );
-                    latest_end := slot_end - REAL_TO_LINT(travel_from_sink) - 1;
-
-                    ntt_start := earliest_start;
-                    IF task_start > ntt_start THEN ntt_start := task_start; END_IF;
-                    ntt_end := ntt_start + ntt_duration;
-
-                    IF ntt_start >= earliest_start AND ntt_end <= latest_end THEN
-                      slot_ok := TRUE;
-                    END_IF;
-                  END_IF;
-                END_IF;
-              END_FOR;
-
-              (* Check slot AFTER last queued task *)
-              IF NOT slot_ok THEN
-                slot_start := g_task[cov_t].queue[g_task[cov_t].count].finish_time;
-                (* Travel from last task's sink to NTT lift *)
-                travel_to_lift := STC_CalcHorizontalTravel(
-                  i_from_stn := g_task[cov_t].queue[g_task[cov_t].count].sink_station,
-                  i_to_stn   := loc,
-                  i_move     := g_move[cov_t]
-                );
-                earliest_start := slot_start + REAL_TO_LINT(travel_to_lift) + 1;
-
-                ntt_start := earliest_start;
-                IF task_start > ntt_start THEN ntt_start := task_start; END_IF;
-                ntt_end := ntt_start + ntt_duration;
-
-                (* Open-ended slot → always fits after last task if start is valid *)
-                IF ntt_start >= earliest_start THEN
-                  slot_ok := TRUE;
-                  task_start := ntt_start;
-                  task_end := ntt_end;
-                END_IF;
-              END_IF;
             END_IF;
 
             IF NOT slot_ok THEN
-              dest_stn := 0;  (* NTT doesn't fit → skip *)
+              (* Exception: if the next queued task's sink station is where
+                 this NTT unit sits, we MUST move it first or we deadlock.
+                 Force-insert; future scheduling will re-stabilize the list. *)
+              IF g_task[cov_t].count > 0
+                 AND g_task[cov_t].queue[1].sink_station = loc THEN
+                slot_ok := TRUE;  (* force — deadlock prevention *)
+              ELSE
+                dest_stn := 0;  (* NTT doesn't fit → skip *)
+              END_IF;
             END_IF;
           END_IF;
 
           IF dest_stn > 0 THEN
-            (* Append to queue *)
-            qi := g_task[cov_t].count + 1;
-            IF qi <= MAX_TASK_QUEUE THEN
-              g_task[cov_t].queue[qi].unit         := ui;
-              g_task[cov_t].queue[qi].stage        := 0;  (* no program stage *)
-              g_task[cov_t].queue[qi].lift_station := loc;
-              g_task[cov_t].queue[qi].sink_station := dest_stn;
-              g_task[cov_t].queue[qi].start_time   := task_start;
-              g_task[cov_t].queue[qi].finish_time  := task_end;
-              g_task[cov_t].queue[qi].calc_time    := 0.0;
-              g_task[cov_t].queue[qi].min_time     := 0.0;
-              g_task[cov_t].queue[qi].max_time     := 0.0;
-              g_task[cov_t].count := qi;
+            (* Insert as FIRST task — shift existing tasks down *)
+            IF g_task[cov_t].count < MAX_TASK_QUEUE THEN
+              (* Shift queue[1..count] → queue[2..count+1] *)
+              FOR sh := g_task[cov_t].count TO 1 BY -1 DO
+                g_task[cov_t].queue[sh + 1] := g_task[cov_t].queue[sh];
+              END_FOR;
+              g_task[cov_t].queue[1].unit         := ui;
+              g_task[cov_t].queue[1].stage        := 0;  (* no program stage *)
+              g_task[cov_t].queue[1].lift_station := loc;
+              g_task[cov_t].queue[1].sink_station := dest_stn;
+              g_task[cov_t].queue[1].start_time   := task_start;
+              g_task[cov_t].queue[1].finish_time  := task_end;
+              g_task[cov_t].queue[1].calc_time    := 0.0;
+              g_task[cov_t].queue[1].min_time     := 0.0;
+              g_task[cov_t].queue[1].max_time     := 0.0;
+              g_task[cov_t].count := g_task[cov_t].count + 1;
               done := TRUE;
             END_IF;
           END_IF;

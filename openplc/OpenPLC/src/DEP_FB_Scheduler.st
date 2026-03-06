@@ -41,27 +41,27 @@ VAR_INPUT
   i_tsk_phase : INT;      (* TSK_FB_Scheduler.o_phase *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    MAX_TRANSPORTERS   : INT;
-    MAX_UNITS          : INT;
+    MAX_Transporters   : INT;
+    MAX_Units          : INT;
     DEP_MAX_WAITING    : INT;
     DEP_MAX_IDLE_SLOTS : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_batch          : ARRAY[1..MAX_UNITS] OF BATCH_T;
-  g_unit            : ARRAY[1..MAX_UNITS] OF UNIT_T;
-  g_program         : ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T;
-  g_schedule         : ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T;
-  g_task            : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
-  g_cfg              : ARRAY[1..MAX_TRANSPORTERS] OF TRANSPORTER_CFG_T;
-  g_transporter      : ARRAY[1..MAX_TRANSPORTERS] OF STC_TRANSPORTER_T;
+  g_batch          : ARRAY[1..MAX_Units] OF BATCH_T;
+  g_unit            : ARRAY[1..MAX_Units] OF UNIT_T;
+  g_program         : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
+  g_schedule         : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
+  g_task            : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
+  g_cfg              : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
+  g_transporter      : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
   g_dep_sandbox      : DEP_SANDBOX_T;
-  g_dep_idle_slot   : ARRAY[1..MAX_TRANSPORTERS] OF DEP_IDLE_SLOT_SET_T;
+  g_dep_idle_slot   : ARRAY[1..MAX_Transporters] OF DEP_IDLE_SLOT_SET_T;
   g_dep_overlap      : DEP_OVERLAP_T;
   g_dep_pending      : DEP_PENDING_WRITE_T;
   g_dep_activated    : BOOL;
   g_dep_stable       : BOOL;
-  g_move              : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
+  g_move              : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
   g_dep_waiting      : ARRAY[1..DEP_MAX_WAITING] OF INT;
   g_dep_waiting_count : INT;
 END_VAR
@@ -75,13 +75,13 @@ VAR
   next_phase  : INT;
 
   (* ── Waiting batch management ── *)
-  waiting_list  : ARRAY[1..MAX_UNITS] OF INT;  (* unit indices with state=NOT_PROCESSED *)
+  waiting_list  : ARRAY[1..MAX_Units] OF INT;  (* unit indices with state=NOT_PROCESSED *)
   waiting_cnt   : INT;
   cur_wait_idx  : INT;
   cur_wait_unit : INT;
 
   (* ── Active batch list for rebuild ── *)
-  batch_list    : ARRAY[1..MAX_UNITS] OF INT;
+  batch_list    : ARRAY[1..MAX_Units] OF INT;
   batch_count   : INT;
   create_idx    : INT;    (* index into batch_list for per-scan create *)
 
@@ -338,7 +338,7 @@ ELSIF phase = 1023 THEN
 ELSIF phase = 1030 THEN
   w_task_cnt := 0;
 
-  FOR ti := 1 TO MAX_TRANSPORTERS DO
+  FOR ti := 1 TO MAX_Transporters DO
     write_idx := 0;
     FOR qi := 1 TO g_task[ti].count DO
       IF g_task[ti].queue[qi].unit = cur_wait_unit THEN
@@ -369,7 +369,7 @@ ELSIF phase = 1030 THEN
 (* PHASE 1040: CALC_IDLE — calc idle slots for all transporters*)
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 1040 THEN
-  FOR ti := 1 TO MAX_TRANSPORTERS DO
+  FOR ti := 1 TO MAX_Transporters DO
     fb_idle_slots(i_trans := ti, i_time_s := i_time_s);
   END_FOR;
   cur_task_idx := 1;
@@ -395,7 +395,7 @@ ELSIF phase = 2000 THEN
     next_phase := 9000;
   ELSIF loading_stn < 100 THEN
     (* ★ G07: Batch is on transporter — use transporter's current_station *)
-    IF loading_stn >= 1 AND loading_stn <= MAX_TRANSPORTERS THEN
+    IF loading_stn >= 1 AND loading_stn <= MAX_Transporters THEN
       sched_trans := loading_stn;
       loading_stn := g_transporter[loading_stn].current_station;
       IF loading_stn < 100 THEN
@@ -686,7 +686,7 @@ ELSIF phase = 3000 THEN
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 8000 THEN
   (* Store pending write data *)
-  FOR ui := 1 TO MAX_UNITS DO
+  FOR ui := 1 TO MAX_Units DO
     g_dep_pending.programs[ui] := g_program[ui];
     g_dep_pending.schedule[ui] := g_schedule[ui];
   END_FOR;

@@ -21,19 +21,19 @@ VAR_INPUT
   i_time_s   : LINT;    (* current absolute time (s), unix seconds *)
 END_VAR
 VAR_EXTERNAL CONSTANT
-    STATION_ARRAY_START : INT;
-    STATION_ARRAY_END   : INT;
-    MAX_UNITS           : INT;
-    MAX_TRANSPORTERS    : INT;
+    MIN_StationIndex : INT;
+    MAX_StationIndex   : INT;
+    MAX_Units           : INT;
+    MAX_Transporters    : INT;
 END_VAR
 VAR_EXTERNAL
-  g_batch  : ARRAY[1..MAX_UNITS] OF BATCH_T;
-  g_program : ARRAY[1..MAX_UNITS] OF TREATMENT_PROGRAM_T;
-  g_unit    : ARRAY[1..MAX_UNITS] OF UNIT_T;
-  g_station : ARRAY[STATION_ARRAY_START..STATION_ARRAY_END] OF STATION_T;
-  g_schedule : ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T;
+  g_batch  : ARRAY[1..MAX_Units] OF BATCH_T;
+  g_program : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
+  g_unit    : ARRAY[1..MAX_Units] OF UNIT_T;
+  g_station : ARRAY[MIN_StationIndex..MAX_StationIndex] OF STATION_T;
+  g_schedule : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
   g_station_count : INT;
-  g_move    : ARRAY[1..MAX_TRANSPORTERS] OF MOVE_TIMES_T;
+  g_move    : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
 END_VAR
 VAR
   st         : INT;      (* loop: stage index *)
@@ -71,8 +71,8 @@ VAR
 END_VAR
 
 (* -- Validate inputs -- *)
-IF i_unit < 1 OR i_unit > MAX_UNITS THEN RETURN; END_IF;
-IF i_trans < 1 OR i_trans > MAX_TRANSPORTERS THEN RETURN; END_IF;
+IF i_unit < 1 OR i_unit > MAX_Units THEN RETURN; END_IF;
+IF i_trans < 1 OR i_trans > MAX_Transporters THEN RETURN; END_IF;
 
 (* -- Read batch and unit data -- *)
 cur_stage := g_batch[i_unit].cur_stage;
@@ -190,7 +190,7 @@ FOR st := start_st TO 30 DO
 
     (* Check schedule overlap + physical occupation for each candidate *)
     FOR p := 1 TO cand_cnt DO
-      FOR uj := 1 TO MAX_UNITS DO
+      FOR uj := 1 TO MAX_Units DO
         IF uj <> i_unit AND g_schedule[uj].stage_count > 0 THEN
           FOR sj := 1 TO g_schedule[uj].stage_count DO
             IF g_schedule[uj].stages[sj].station = cand_arr[p] THEN
@@ -211,7 +211,7 @@ FOR st := start_st TO 30 DO
       END_FOR;
 
       (* Physical occupation *)
-      FOR uj := 1 TO MAX_UNITS DO
+      FOR uj := 1 TO MAX_Units DO
         IF g_unit[uj].location = cand_arr[p] AND g_unit[uj].status = 1 THEN
           phys_occupied[p] := TRUE;
         END_IF;
@@ -223,9 +223,9 @@ FOR st := start_st TO 30 DO
     best_change_time := LINT#9999999999;
     FOR p := 1 TO cand_cnt DO
       IF NOT sched_occupied[p] AND NOT phys_occupied[p] THEN
-        IF cand_arr[p] >= STATION_ARRAY_START AND cand_arr[p] <= STATION_ARRAY_END THEN
-          IF g_station[cand_arr[p]].change_time < best_change_time THEN
-            best_change_time := g_station[cand_arr[p]].change_time;
+        IF cand_arr[p] >= MIN_StationIndex AND cand_arr[p] <= MAX_StationIndex THEN
+          IF g_station[cand_arr[p]].ChangeTime < best_change_time THEN
+            best_change_time := g_station[cand_arr[p]].ChangeTime;
             chosen_stn := cand_arr[p];
           END_IF;
         END_IF;

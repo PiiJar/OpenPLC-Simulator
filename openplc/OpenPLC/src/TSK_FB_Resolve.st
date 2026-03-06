@@ -36,14 +36,14 @@ VAR_IN_OUT
   io_lock_cnt : INT;
 END_VAR
 VAR_EXTERNAL CONSTANT
-    MAX_TRANSPORTERS : INT;
-    MAX_UNITS        : INT;
+    MAX_Transporters : INT;
+    MAX_Units        : INT;
 END_VAR
 
 VAR_EXTERNAL
-  g_task    : ARRAY[1..MAX_TRANSPORTERS] OF TSK_QUEUE_T;
-  g_schedule : ARRAY[1..MAX_UNITS] OF TSK_SCHEDULE_T;
-  g_batch  : ARRAY[1..MAX_UNITS] OF BATCH_T;
+  g_task    : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
+  g_schedule : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
+  g_batch  : ARRAY[1..MAX_Units] OF BATCH_T;
 END_VAR
 VAR_OUTPUT
   o_solved      : BOOL;
@@ -117,7 +117,7 @@ can_delay   := NOT is_locked_del;
 (* ══════ Calculate chain flex DOWN for blocked batch ══════ *)
 (* Sum of flex_down (calc_time - min_time) from stage 1 to blocked_stage *)
 chain_flex_down := 0.0;
-IF can_advance AND i_blocked_unit >= 1 AND i_blocked_unit <= MAX_UNITS THEN
+IF can_advance AND i_blocked_unit >= 1 AND i_blocked_unit <= MAX_Units THEN
   sc := g_schedule[i_blocked_unit].stage_count;
   FOR si := 1 TO sc DO
     IF si <= i_blocked_stage THEN
@@ -133,7 +133,7 @@ END_IF;
 (* ══════ Calculate chain flex UP for conflict batch ══════ *)
 (* Sum of flex_up (max_time - calc_time) from stage 1 to conf_stage *)
 chain_flex_up := 0.0;
-IF can_delay AND i_conf_unit >= 1 AND i_conf_unit <= MAX_UNITS THEN
+IF can_delay AND i_conf_unit >= 1 AND i_conf_unit <= MAX_Units THEN
   sc := g_schedule[i_conf_unit].stage_count;
   FOR si := 1 TO sc DO
     IF si <= i_conf_stage THEN
