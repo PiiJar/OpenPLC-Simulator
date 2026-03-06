@@ -38,7 +38,7 @@ END_VAR
 
 VAR_EXTERNAL
   g_task    : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
-  g_station : ARRAY[MIN_StationIndex..MAX_StationIndex] OF STATION_T;
+  g_station : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
   g_move    : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
 END_VAR
 VAR_OUTPUT

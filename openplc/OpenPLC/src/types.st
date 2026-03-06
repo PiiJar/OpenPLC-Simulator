@@ -13,19 +13,42 @@ STRUCT
 END_STRUCT;
 END_TYPE
 
-TYPE STATION_T :
+TYPE UDT_StationType :
 STRUCT
-  TankId       : INT;
-  IsInUse       : BOOL;   (* station enabled *)
-  UnitId       : INT;    (* unit currently at this station, 0 = none *)
-  XPosition    : DINT;
-  YPosition    : DINT;
-  ZPosition    : DINT;
-  DryWet        : INT;    (* 0=dry, 1=wet *)
-  StationType   : INT;    (* original station type from JSON *)
-  dropping_time : REAL;
-  device_delay  : REAL;
-  ChangeTime   : LINT;   (* timestamp of last unit arrival/departure (unix seconds) *)
+  StationId            : INT;   (* Primary key *)
+  TankId               : INT;   (* Reference to tanks.TankId *)
+  IsInUse              : BOOL;  (* Station enabled *)
+  StationType          : INT;   (* 0=Reserve, 1=Buffer, 2=Process, etc. *)
+  UnitId               : INT;   (* unit currently at this station, 0 = none *)
+  ChangeTime           : LINT;  (* timestamp of last unit arrival/departure (unix seconds) *)
+  (* Position in mm *)
+  XPosition            : DINT;  (* X position mm *)
+  YPosition            : DINT;  (* Y position mm *)
+  ZPosition            : DINT;  (* Z position mm *)
+  LiftSinkZone         : INT;   (* Lift/sink zone *)
+  AvoidDistance         : INT;   (* Avoid distance *)
+  TakeOutDistance       : INT;   (* Take out distance *)
+  DrippingTime         : INT;   (* Dripping time ×10 = tenths of second *)
+  DeviceDelay          : INT;   (* Device delay ×10 = tenths of second *)
+  DryWet               : INT;   (* 0=dry, 1=wet *)
+  (* Cross transport parameters *)
+  Crosstransport       : INT;   (* Cross transport index *)
+  CrossTransportTime   : INT;   (* Cross transport time s *)
+  ChangeStation        : INT;   (* Change station index *)
+  DeviceConfig         : INT;   (* Device configuration *)
+  (* Control indices *)
+  Temp_Index           : INT;   (* Temperature control index *)
+  Level_Index          : INT;   (* Level control index *)
+  Cond_Index           : INT;   (* Conductivity control index *)
+  (* Rotation *)
+  HasAutomaticRotation : BOOL;  (* TRUE = chemical tank *)
+END_STRUCT;
+END_TYPE
+
+TYPE UDT_UnitLocation :
+STRUCT
+  UnitId     : INT;   (* unit currently at this station, 0 = none *)
+  ChangeTime : LINT;  (* timestamp of last unit arrival/departure (unix seconds) *)
 END_STRUCT;
 END_TYPE
 

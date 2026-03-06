@@ -18,7 +18,7 @@ END_VAR
 
 VAR_EXTERNAL
   g_station_count    : INT;
-  g_station         : ARRAY[MIN_StationIndex..MAX_StationIndex] OF STATION_T;
+  g_station         : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
   g_cfg              : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
   g_transporter      : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
   g_unit            : ARRAY[1..MAX_Units] OF UNIT_T;
@@ -45,13 +45,13 @@ END_VAR
 FOR i := MIN_StationIndex TO MAX_StationIndex DO
   g_station[i].TankId       := 0;
   g_station[i].IsInUse       := FALSE;
-  g_station[i].XPosition    := 0.0;
-  g_station[i].YPosition    := 0.0;
-  g_station[i].ZPosition    := 0.0;
+  g_station[i].XPosition    := 0;
+  g_station[i].YPosition    := 0;
+  g_station[i].ZPosition    := 0;
   g_station[i].DryWet          := 0;
   g_station[i].StationType     := 0;
-  g_station[i].dropping_time := 0.0;
-  g_station[i].device_delay  := 0.0;
+  g_station[i].DrippingTime := 0;
+  g_station[i].DeviceDelay  := 0;
   g_station[i].UnitId       := 0;
   g_station[i].ChangeTime   := 0;
 END_FOR;
@@ -102,7 +102,7 @@ FOR i := 1 TO MAX_Transporters DO
   g_transporter[i].treatment_time  := 0.0;
   g_transporter[i].lift_device_delay := 0.0;
   g_transporter[i].sink_device_delay := 0.0;
-  g_transporter[i].dropping_time   := 0.0;
+  g_transporter[i].DrippingTime   := 0.0;
   g_transporter[i].remaining_time  := 0.0;
   g_transporter[i].current_station := 0;
   g_transporter[i].XFinalTarget  := 0.0;

@@ -33,7 +33,7 @@ FUNCTION_BLOCK STC_FB_NoTreatmentStates
     g_unit             : ARRAY[1..MAX_Units] OF UNIT_T;
     g_batch            : ARRAY[1..MAX_Units] OF BATCH_T;
     g_program          : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
-    g_station          : ARRAY[MIN_StationIndex..MAX_StationIndex] OF STATION_T;
+    g_station          : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
     g_time_s           : LINT;
     g_production_queue : INT;
   END_VAR

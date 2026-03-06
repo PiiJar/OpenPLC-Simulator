@@ -30,7 +30,7 @@ VAR_EXTERNAL
   g_batch  : ARRAY[1..MAX_Units] OF BATCH_T;
   g_program : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
   g_unit    : ARRAY[1..MAX_Units] OF UNIT_T;
-  g_station : ARRAY[MIN_StationIndex..MAX_StationIndex] OF STATION_T;
+  g_station : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
   g_schedule : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
   g_station_count : INT;
   g_move    : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;

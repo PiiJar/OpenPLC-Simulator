@@ -19,10 +19,10 @@ VAR_EXTERNAL CONSTANT
     MAX_StationIndex   : INT;
 END_VAR
 VAR_EXTERNAL
-  g_station : ARRAY[MIN_StationIndex..MAX_StationIndex] OF STATION_T;
+  g_station : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
 END_VAR
 VAR
-  st : STATION_T;
+  st : UDT_StationType;
 END_VAR
   (* Direct lookup by station number — no loop needed *)
   IF (station_number >= MIN_StationIndex) AND (station_number <= MAX_StationIndex) THEN
@@ -32,8 +32,8 @@ END_VAR
       idx := station_number;
       x_mm := st.XPosition;
       skind := st.DryWet;
-      device_delay_s := st.device_delay;
-      dropping_time_s := st.dropping_time;
+      device_delay_s := INT_TO_REAL(st.DeviceDelay) / 10.0;
+      dropping_time_s := INT_TO_REAL(st.DrippingTime) / 10.0;
       RETURN;
     END_IF;
   END_IF;

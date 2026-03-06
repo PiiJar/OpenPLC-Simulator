@@ -27,7 +27,7 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 VAR_EXTERNAL
   g_cal           : ARRAY[1..MAX_Transporters] OF CALIBRATION_T;
-  g_station       : ARRAY[MIN_StationIndex..MAX_StationIndex] OF STATION_T;
+  g_station       : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
   g_move          : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
   g_station_count : INT;
 END_VAR

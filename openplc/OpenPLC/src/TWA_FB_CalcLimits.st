@@ -29,7 +29,7 @@ END_VAR
 VAR_EXTERNAL
   g_cfg            : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
   g_transporter          : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
-  g_station       : ARRAY[MIN_StationIndex..MAX_StationIndex] OF STATION_T;
+  g_station       : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
   g_station_count  : INT;
   g_avoid_status   : ARRAY[MIN_StationIndex..MAX_StationIndex] OF INT;
 END_VAR

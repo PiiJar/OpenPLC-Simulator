@@ -15,7 +15,7 @@ END_VAR
 VAR_EXTERNAL
   (* --- Shared data arrays --- *)
   g_station_count    : INT;
-  g_station         : ARRAY[MIN_StationIndex..MAX_StationIndex] OF STATION_T;
+  g_station         : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
   g_cfg              : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
   g_transporter      : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
   g_unit            : ARRAY[1..MAX_Units] OF UNIT_T;
@@ -1142,8 +1142,8 @@ IF iw_cfg_seq <> last_cfg_seq THEN
       g_station[iw_cfg_param].ZPosition    := INT_TO_REAL(iw_cfg_d3);
       g_station[iw_cfg_param].StationType     := iw_cfg_d4;
       g_station[iw_cfg_param].DryWet            := iw_cfg_d7;
-      g_station[iw_cfg_param].dropping_time := INT_TO_REAL(iw_cfg_d5) / 10.0;
-      g_station[iw_cfg_param].device_delay  := INT_TO_REAL(iw_cfg_d6) / 10.0;
+      g_station[iw_cfg_param].DrippingTime := iw_cfg_d5;
+      g_station[iw_cfg_param].DeviceDelay  := iw_cfg_d6;
     END_IF;
 
   ELSIF iw_cfg_cmd = 4 THEN
@@ -1514,7 +1514,7 @@ qw_t1_ctask_hi := LINT_TO_INT(g_transporter[1].task_id / 65536);
 qw_t1_ctask_lo := LINT_TO_INT(g_transporter[1].task_id MOD 65536);
 qw_t1_ldev_x10 := REAL_TO_INT(g_transporter[1].lift_device_delay * 10.0);
 qw_t1_sdev_x10 := REAL_TO_INT(g_transporter[1].sink_device_delay * 10.0);
-qw_t1_drop_x10 := REAL_TO_INT(g_transporter[1].dropping_time * 10.0);
+qw_t1_drop_x10 := REAL_TO_INT(g_transporter[1].DrippingTime * 10.0);
 qw_t2_remain_x10 := REAL_TO_INT(g_transporter[2].remaining_time * 10.0);
 qw_t2_treat_time := REAL_TO_INT(g_transporter[2].treatment_time);
 qw_t2_fintgt_x := REAL_TO_INT(g_transporter[2].XFinalTarget);
@@ -1527,7 +1527,7 @@ qw_t2_ctask_hi := LINT_TO_INT(g_transporter[2].task_id / 65536);
 qw_t2_ctask_lo := LINT_TO_INT(g_transporter[2].task_id MOD 65536);
 qw_t2_ldev_x10 := REAL_TO_INT(g_transporter[2].lift_device_delay * 10.0);
 qw_t2_sdev_x10 := REAL_TO_INT(g_transporter[2].sink_device_delay * 10.0);
-qw_t2_drop_x10 := REAL_TO_INT(g_transporter[2].dropping_time * 10.0);
+qw_t2_drop_x10 := REAL_TO_INT(g_transporter[2].DrippingTime * 10.0);
 qw_t3_remain_x10 := REAL_TO_INT(g_transporter[3].remaining_time * 10.0);
 qw_t3_treat_time := REAL_TO_INT(g_transporter[3].treatment_time);
 qw_t3_fintgt_x := REAL_TO_INT(g_transporter[3].XFinalTarget);
@@ -1540,7 +1540,7 @@ qw_t3_ctask_hi := LINT_TO_INT(g_transporter[3].task_id / 65536);
 qw_t3_ctask_lo := LINT_TO_INT(g_transporter[3].task_id MOD 65536);
 qw_t3_ldev_x10 := REAL_TO_INT(g_transporter[3].lift_device_delay * 10.0);
 qw_t3_sdev_x10 := REAL_TO_INT(g_transporter[3].sink_device_delay * 10.0);
-qw_t3_drop_x10 := REAL_TO_INT(g_transporter[3].dropping_time * 10.0);
+qw_t3_drop_x10 := REAL_TO_INT(g_transporter[3].DrippingTime * 10.0);
 (* === TWA dynamic drive limits — PLC writes, gateway reads === *)
 qw_t1_xmin := REAL_TO_INT(g_transporter[1].XMinLimit);
 qw_t1_xmax := REAL_TO_INT(g_transporter[1].XMaxLimit);
