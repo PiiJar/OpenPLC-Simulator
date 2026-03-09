@@ -92,9 +92,9 @@ END_TYPE
 
 TYPE PHYSICS_2D_T :
 STRUCT
-  x_accel_s      : INT;    (* acceleration time ×10 = tenths of second *)
-  x_decel_s      : INT;    (* deceleration time ×10 = tenths of second *)
-  x_max_mm_s     : DINT;   (* max X velocity mm/s *)
+  Acceleration_X : INT;    (* acceleration time ×10 = tenths of second *)
+  Deceleration_X : INT;    (* deceleration time ×10 = tenths of second *)
+  SpeedMax_X     : DINT;   (* max X velocity mm/s *)
   z_total_mm     : DINT;   (* total Z travel mm *)
   z_slow_dry_mm  : DINT;   (* Z slow zone dry mm *)
   z_slow_wet_mm  : DINT;   (* Z slow zone wet mm *)
@@ -117,12 +117,12 @@ END_TYPE
 
 TYPE TRANSPORTER_CFG_T :
 STRUCT
-  XMinDriveLimit   : DINT;
-  XMaxDriveLimit   : DINT;
-  YMinLimit   : DINT;
-  YMaxLimit   : DINT;
-  XAvoidMm    : DINT;
-  YAvoidMm    : DINT;
+  DrivePosMin      : DINT;
+  DrivePosMax      : DINT;
+  YMinDriveLimit   : DINT;
+  YMaxDriveLimit   : DINT;
+  CollisionWidth   : DINT;
+  AvoidanceWidth   : DINT;
   phys2d      : PHYSICS_2D_T;
   task_area   : ARRAY[1..3] OF TASK_AREA_T;  (* MAX_Transporters_PER_LINE — literal required in TYPE *)
 END_STRUCT;

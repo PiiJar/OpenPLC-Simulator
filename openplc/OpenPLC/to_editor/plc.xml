@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-09T10:48:41"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-09T10:48:41">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-09T10:57:00"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-09T10:57:00">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -202,13 +202,13 @@
       <dataType name="PHYSICS_2D_T">
         <baseType>
           <struct>
-            <variable name="x_accel_s">
+            <variable name="Acceleration_X">
               <type><INT/></type>
             </variable>
-            <variable name="x_decel_s">
+            <variable name="Deceleration_X">
               <type><INT/></type>
             </variable>
-            <variable name="x_max_mm_s">
+            <variable name="SpeedMax_X">
               <type><DINT/></type>
             </variable>
             <variable name="z_total_mm">
@@ -259,22 +259,22 @@
       <dataType name="TRANSPORTER_CFG_T">
         <baseType>
           <struct>
-            <variable name="XMinDriveLimit">
+            <variable name="DrivePosMin">
               <type><DINT/></type>
             </variable>
-            <variable name="XMaxDriveLimit">
+            <variable name="DrivePosMax">
               <type><DINT/></type>
             </variable>
-            <variable name="YMinLimit">
+            <variable name="YMinDriveLimit">
               <type><DINT/></type>
             </variable>
-            <variable name="YMaxLimit">
+            <variable name="YMaxDriveLimit">
               <type><DINT/></type>
             </variable>
-            <variable name="XAvoidMm">
+            <variable name="CollisionWidth">
               <type><DINT/></type>
             </variable>
-            <variable name="YAvoidMm">
+            <variable name="AvoidanceWidth">
               <type><DINT/></type>
             </variable>
             <variable name="phys2d">
@@ -2810,15 +2810,15 @@ g_station_count := 0;
 
 (* --- Clear all transporter configs --- *)
 FOR i := 1 TO MAX_Transporters DO
-  g_cfg[i].XMinDriveLimit   := 0;
-  g_cfg[i].XMaxDriveLimit   := 0;
-  g_cfg[i].YMinLimit   := 0;
-  g_cfg[i].YMaxLimit   := 0;
-  g_cfg[i].XAvoidMm    := 0;
-  g_cfg[i].YAvoidMm    := 0;
-  g_cfg[i].phys2d.x_accel_s     := 0;
-  g_cfg[i].phys2d.x_decel_s     := 0;
-  g_cfg[i].phys2d.x_max_mm_s    := 0;
+  g_cfg[i].DrivePosMin   := 0;
+  g_cfg[i].DrivePosMax   := 0;
+  g_cfg[i].YMinDriveLimit   := 0;
+  g_cfg[i].YMaxDriveLimit   := 0;
+  g_cfg[i].CollisionWidth    := 0;
+  g_cfg[i].AvoidanceWidth    := 0;
+  g_cfg[i].phys2d.Acceleration_X     := 0;
+  g_cfg[i].phys2d.Deceleration_X     := 0;
+  g_cfg[i].phys2d.SpeedMax_X    := 0;
   g_cfg[i].phys2d.z_total_mm    := 0;
   g_cfg[i].phys2d.z_slow_dry_mm := 0;
   g_cfg[i].phys2d.z_slow_wet_mm := 0;
@@ -3146,9 +3146,9 @@ FOR i := 1 TO MAX_Transporters DO
         x_target := g_transporter[i].XFinalTarget,
         x_min    := g_transporter[i].XMinDriveLimit,
         x_max    := g_transporter[i].XMaxDriveLimit,
-        v_max    := g_cfg[i].phys2d.x_max_mm_s,
-        t_acc    := g_cfg[i].phys2d.x_accel_s,
-        t_dec    := g_cfg[i].phys2d.x_decel_s,
+        v_max    := g_cfg[i].phys2d.SpeedMax_X,
+        t_acc    := g_cfg[i].phys2d.Acceleration_X,
+        t_dec    := g_cfg[i].phys2d.Deceleration_X,
         x_pos    := tmp_x,
         v_x      := tmp_vx
       );
@@ -3159,9 +3159,9 @@ FOR i := 1 TO MAX_Transporters DO
         x_target := g_transporter[i].XFinalTarget,
         x_min    := g_transporter[i].XMinDriveLimit,
         x_max    := g_transporter[i].XMaxDriveLimit,
-        v_max    := g_cfg[i].phys2d.x_max_mm_s,
-        t_acc    := g_cfg[i].phys2d.x_accel_s,
-        t_dec    := g_cfg[i].phys2d.x_decel_s,
+        v_max    := g_cfg[i].phys2d.SpeedMax_X,
+        t_acc    := g_cfg[i].phys2d.Acceleration_X,
+        t_dec    := g_cfg[i].phys2d.Deceleration_X,
         x_pos    := tmp_x,
         v_x      := tmp_vx
       );
@@ -3172,9 +3172,9 @@ FOR i := 1 TO MAX_Transporters DO
         x_target := g_transporter[i].XFinalTarget,
         x_min    := g_transporter[i].XMinDriveLimit,
         x_max    := g_transporter[i].XMaxDriveLimit,
-        v_max    := g_cfg[i].phys2d.x_max_mm_s,
-        t_acc    := g_cfg[i].phys2d.x_accel_s,
-        t_dec    := g_cfg[i].phys2d.x_decel_s,
+        v_max    := g_cfg[i].phys2d.SpeedMax_X,
+        t_acc    := g_cfg[i].phys2d.Acceleration_X,
+        t_dec    := g_cfg[i].phys2d.Deceleration_X,
         x_pos    := tmp_x,
         v_x      := tmp_vx
       );
@@ -3333,9 +3333,9 @@ FOR i := 1 TO MAX_Transporters DO
         x_target := g_transporter[i].XFinalTarget,
         x_min    := g_transporter[i].XMinDriveLimit,
         x_max    := g_transporter[i].XMaxDriveLimit,
-        v_max    := g_cfg[i].phys2d.x_max_mm_s,
-        t_acc    := g_cfg[i].phys2d.x_accel_s,
-        t_dec    := g_cfg[i].phys2d.x_decel_s,
+        v_max    := g_cfg[i].phys2d.SpeedMax_X,
+        t_acc    := g_cfg[i].phys2d.Acceleration_X,
+        t_dec    := g_cfg[i].phys2d.Deceleration_X,
         x_pos    := tmp_x,
         v_x      := tmp_vx
       );
@@ -3346,9 +3346,9 @@ FOR i := 1 TO MAX_Transporters DO
         x_target := g_transporter[i].XFinalTarget,
         x_min    := g_transporter[i].XMinDriveLimit,
         x_max    := g_transporter[i].XMaxDriveLimit,
-        v_max    := g_cfg[i].phys2d.x_max_mm_s,
-        t_acc    := g_cfg[i].phys2d.x_accel_s,
-        t_dec    := g_cfg[i].phys2d.x_decel_s,
+        v_max    := g_cfg[i].phys2d.SpeedMax_X,
+        t_acc    := g_cfg[i].phys2d.Acceleration_X,
+        t_dec    := g_cfg[i].phys2d.Deceleration_X,
         x_pos    := tmp_x,
         v_x      := tmp_vx
       );
@@ -3359,9 +3359,9 @@ FOR i := 1 TO MAX_Transporters DO
         x_target := g_transporter[i].XFinalTarget,
         x_min    := g_transporter[i].XMinDriveLimit,
         x_max    := g_transporter[i].XMaxDriveLimit,
-        v_max    := g_cfg[i].phys2d.x_max_mm_s,
-        t_acc    := g_cfg[i].phys2d.x_accel_s,
-        t_dec    := g_cfg[i].phys2d.x_decel_s,
+        v_max    := g_cfg[i].phys2d.SpeedMax_X,
+        t_acc    := g_cfg[i].phys2d.Acceleration_X,
+        t_dec    := g_cfg[i].phys2d.Deceleration_X,
         x_pos    := tmp_x,
         v_x      := tmp_vx
       );
@@ -3472,9 +3472,9 @@ FOR i := 1 TO MAX_Transporters DO
         x_target := tmp_x,
         x_min    := g_transporter[i].XMinDriveLimit,
         x_max    := g_transporter[i].XMaxDriveLimit,
-        v_max    := g_cfg[i].phys2d.x_max_mm_s,
-        t_acc    := g_cfg[i].phys2d.x_accel_s,
-        t_dec    := g_cfg[i].phys2d.x_decel_s,
+        v_max    := g_cfg[i].phys2d.SpeedMax_X,
+        t_acc    := g_cfg[i].phys2d.Acceleration_X,
+        t_dec    := g_cfg[i].phys2d.Deceleration_X,
         x_pos    := tmp_x,
         v_x      := tmp_vx
       );
@@ -3484,9 +3484,9 @@ FOR i := 1 TO MAX_Transporters DO
         x_target := tmp_x,
         x_min    := g_transporter[i].XMinDriveLimit,
         x_max    := g_transporter[i].XMaxDriveLimit,
-        v_max    := g_cfg[i].phys2d.x_max_mm_s,
-        t_acc    := g_cfg[i].phys2d.x_accel_s,
-        t_dec    := g_cfg[i].phys2d.x_decel_s,
+        v_max    := g_cfg[i].phys2d.SpeedMax_X,
+        t_acc    := g_cfg[i].phys2d.Acceleration_X,
+        t_dec    := g_cfg[i].phys2d.Deceleration_X,
         x_pos    := tmp_x,
         v_x      := tmp_vx
       );
@@ -3496,9 +3496,9 @@ FOR i := 1 TO MAX_Transporters DO
         x_target := tmp_x,
         x_min    := g_transporter[i].XMinDriveLimit,
         x_max    := g_transporter[i].XMaxDriveLimit,
-        v_max    := g_cfg[i].phys2d.x_max_mm_s,
-        t_acc    := g_cfg[i].phys2d.x_accel_s,
-        t_dec    := g_cfg[i].phys2d.x_decel_s,
+        v_max    := g_cfg[i].phys2d.SpeedMax_X,
+        t_acc    := g_cfg[i].phys2d.Acceleration_X,
+        t_dec    := g_cfg[i].phys2d.Deceleration_X,
         x_pos    := tmp_x,
         v_x      := tmp_vx
       );
@@ -8252,10 +8252,10 @@ FOR i := 1 TO MAX_Transporters DO
     CONTINUE;
   END_IF;
 
-  min_x := g_cfg[i].XMinDriveLimit;
-  max_x := g_cfg[i].XMaxDriveLimit;
+  min_x := g_cfg[i].DrivePosMin;
+  max_x := g_cfg[i].DrivePosMax;
   current_x := g_transporter[i].XPosition;
-  avoid_dist := g_cfg[i].XAvoidMm;
+  avoid_dist := g_cfg[i].CollisionWidth;
 
   (* If no limits configured, lock to current position *)
   IF (min_x < 1) OR (max_x < 1) THEN
@@ -8398,7 +8398,7 @@ FOR i := 1 TO MAX_Transporters DO
 
   current_x := g_transporter[i].XPosition;
   current_y := g_transporter[i].YPosition;
-  avoid_dist := g_cfg[i].XAvoidMm;
+  avoid_dist := g_cfg[i].CollisionWidth;
 
   FOR j := 1 TO MAX_Transporters DO
     IF j = i THEN CONTINUE; END_IF;
@@ -8441,7 +8441,7 @@ FOR i := 1 TO MAX_Transporters DO
     w_status[n_active] := g_transporter[i].Status;
     w_ypos[n_active] := g_transporter[i].YPosition;
     w_target[n_active] := g_transporter[i].XFinalTarget;
-    w_avoid[n_active] := g_cfg[i].XAvoidMm;
+    w_avoid[n_active] := g_cfg[i].CollisionWidth;
   END_IF;
 END_FOR;
 
@@ -11900,14 +11900,14 @@ IF iw_cfg_seq <> last_cfg_seq THEN
        d6 = avoid_mm *)
     j := iw_cfg_param;
     IF (j >= 1) AND (j <= 3) THEN
-      g_cfg[j].XMinDriveLimit          := INT_TO_DINT(iw_cfg_d0);
-      g_cfg[j].XMaxDriveLimit          := INT_TO_DINT(iw_cfg_d1);
-      g_cfg[j].phys2d.x_accel_s     := iw_cfg_d2;
-      g_cfg[j].phys2d.x_decel_s     := iw_cfg_d3;
-      g_cfg[j].phys2d.x_max_mm_s    := INT_TO_DINT(iw_cfg_d4);
+      g_cfg[j].DrivePosMin          := INT_TO_DINT(iw_cfg_d0);
+      g_cfg[j].DrivePosMax          := INT_TO_DINT(iw_cfg_d1);
+      g_cfg[j].phys2d.Acceleration_X     := iw_cfg_d2;
+      g_cfg[j].phys2d.Deceleration_X     := iw_cfg_d3;
+      g_cfg[j].phys2d.SpeedMax_X    := INT_TO_DINT(iw_cfg_d4);
       g_cfg[j].phys2d.z_total_mm    := INT_TO_DINT(iw_cfg_d5);
       g_cfg[j].phys2d.avoid_mm      := INT_TO_DINT(iw_cfg_d6);
-      g_cfg[j].XAvoidMm           := INT_TO_DINT(iw_cfg_d6);
+      g_cfg[j].CollisionWidth           := INT_TO_DINT(iw_cfg_d6);
     END_IF;
 
   ELSIF iw_cfg_cmd = 5 THEN
@@ -12030,11 +12030,11 @@ IF iw_cfg_seq <> last_cfg_seq THEN
       g_sim_trans[i].z_stage := 0;
       g_sim_trans[i].XVelocity := 0;
       g_sim_trans[i].z_timer_s := 0.0;
-      g_transporter[i].XMinDriveLimit := g_cfg[i].XMinDriveLimit;
-      g_transporter[i].XMaxDriveLimit := g_cfg[i].XMaxDriveLimit;
+      g_transporter[i].XMinDriveLimit := g_cfg[i].DrivePosMin;
+      g_transporter[i].XMaxDriveLimit := g_cfg[i].DrivePosMax;
 
       (* Start position: at own area minimum, z=0 *)
-      g_transporter[i].XPosition := g_cfg[i].XMinDriveLimit;
+      g_transporter[i].XPosition := g_cfg[i].DrivePosMin;
       g_transporter[i].ZPosition := 0;
       g_transporter[i].CurrentStation := 0;
     END_FOR;
@@ -12468,15 +12468,15 @@ qw_cal_t3_x_acc := g_cal[3].x_accel_s;
 qw_cal_t3_x_dec := g_cal[3].x_decel_s;
 qw_cal_t3_x_max := DINT_TO_INT(g_cal[3].x_max_mm_s);
 (* === Per-transporter config (g_cfg) — limits, physics, task areas === *)
-qw_cfg_t1_x_min := DINT_TO_INT(g_cfg[1].XMinDriveLimit);
-qw_cfg_t1_x_max := DINT_TO_INT(g_cfg[1].XMaxDriveLimit);
-qw_cfg_t1_y_min := DINT_TO_INT(g_cfg[1].YMinLimit);
-qw_cfg_t1_y_max := DINT_TO_INT(g_cfg[1].YMaxLimit);
-qw_cfg_t1_x_avoid := DINT_TO_INT(g_cfg[1].XAvoidMm);
-qw_cfg_t1_y_avoid := DINT_TO_INT(g_cfg[1].YAvoidMm);
-qw_cfg_t1_ph_xacc_x100 := g_cfg[1].phys2d.x_accel_s * 10;
-qw_cfg_t1_ph_xdec_x100 := g_cfg[1].phys2d.x_decel_s * 10;
-qw_cfg_t1_ph_xmax := DINT_TO_INT(g_cfg[1].phys2d.x_max_mm_s);
+qw_cfg_t1_x_min := DINT_TO_INT(g_cfg[1].DrivePosMin);
+qw_cfg_t1_x_max := DINT_TO_INT(g_cfg[1].DrivePosMax);
+qw_cfg_t1_y_min := DINT_TO_INT(g_cfg[1].YMinDriveLimit);
+qw_cfg_t1_y_max := DINT_TO_INT(g_cfg[1].YMaxDriveLimit);
+qw_cfg_t1_x_avoid := DINT_TO_INT(g_cfg[1].CollisionWidth);
+qw_cfg_t1_y_avoid := DINT_TO_INT(g_cfg[1].AvoidanceWidth);
+qw_cfg_t1_ph_xacc_x100 := g_cfg[1].phys2d.Acceleration_X * 10;
+qw_cfg_t1_ph_xdec_x100 := g_cfg[1].phys2d.Deceleration_X * 10;
+qw_cfg_t1_ph_xmax := DINT_TO_INT(g_cfg[1].phys2d.SpeedMax_X);
 qw_cfg_t1_ph_ztot := DINT_TO_INT(g_cfg[1].phys2d.z_total_mm);
 qw_cfg_t1_ph_zsdry := DINT_TO_INT(g_cfg[1].phys2d.z_slow_dry_mm);
 qw_cfg_t1_ph_zswet := DINT_TO_INT(g_cfg[1].phys2d.z_slow_wet_mm);
@@ -12497,15 +12497,15 @@ qw_cfg_t1_ta3_min_lift := g_cfg[1].task_area[3].min_lift;
 qw_cfg_t1_ta3_max_lift := g_cfg[1].task_area[3].max_lift;
 qw_cfg_t1_ta3_min_sink := g_cfg[1].task_area[3].min_sink;
 qw_cfg_t1_ta3_max_sink := g_cfg[1].task_area[3].max_sink;
-qw_cfg_t2_x_min := DINT_TO_INT(g_cfg[2].XMinDriveLimit);
-qw_cfg_t2_x_max := DINT_TO_INT(g_cfg[2].XMaxDriveLimit);
-qw_cfg_t2_y_min := DINT_TO_INT(g_cfg[2].YMinLimit);
-qw_cfg_t2_y_max := DINT_TO_INT(g_cfg[2].YMaxLimit);
-qw_cfg_t2_x_avoid := DINT_TO_INT(g_cfg[2].XAvoidMm);
-qw_cfg_t2_y_avoid := DINT_TO_INT(g_cfg[2].YAvoidMm);
-qw_cfg_t2_ph_xacc_x100 := g_cfg[2].phys2d.x_accel_s * 10;
-qw_cfg_t2_ph_xdec_x100 := g_cfg[2].phys2d.x_decel_s * 10;
-qw_cfg_t2_ph_xmax := DINT_TO_INT(g_cfg[2].phys2d.x_max_mm_s);
+qw_cfg_t2_x_min := DINT_TO_INT(g_cfg[2].DrivePosMin);
+qw_cfg_t2_x_max := DINT_TO_INT(g_cfg[2].DrivePosMax);
+qw_cfg_t2_y_min := DINT_TO_INT(g_cfg[2].YMinDriveLimit);
+qw_cfg_t2_y_max := DINT_TO_INT(g_cfg[2].YMaxDriveLimit);
+qw_cfg_t2_x_avoid := DINT_TO_INT(g_cfg[2].CollisionWidth);
+qw_cfg_t2_y_avoid := DINT_TO_INT(g_cfg[2].AvoidanceWidth);
+qw_cfg_t2_ph_xacc_x100 := g_cfg[2].phys2d.Acceleration_X * 10;
+qw_cfg_t2_ph_xdec_x100 := g_cfg[2].phys2d.Deceleration_X * 10;
+qw_cfg_t2_ph_xmax := DINT_TO_INT(g_cfg[2].phys2d.SpeedMax_X);
 qw_cfg_t2_ph_ztot := DINT_TO_INT(g_cfg[2].phys2d.z_total_mm);
 qw_cfg_t2_ph_zsdry := DINT_TO_INT(g_cfg[2].phys2d.z_slow_dry_mm);
 qw_cfg_t2_ph_zswet := DINT_TO_INT(g_cfg[2].phys2d.z_slow_wet_mm);
@@ -12526,15 +12526,15 @@ qw_cfg_t2_ta3_min_lift := g_cfg[2].task_area[3].min_lift;
 qw_cfg_t2_ta3_max_lift := g_cfg[2].task_area[3].max_lift;
 qw_cfg_t2_ta3_min_sink := g_cfg[2].task_area[3].min_sink;
 qw_cfg_t2_ta3_max_sink := g_cfg[2].task_area[3].max_sink;
-qw_cfg_t3_x_min := DINT_TO_INT(g_cfg[3].XMinDriveLimit);
-qw_cfg_t3_x_max := DINT_TO_INT(g_cfg[3].XMaxDriveLimit);
-qw_cfg_t3_y_min := DINT_TO_INT(g_cfg[3].YMinLimit);
-qw_cfg_t3_y_max := DINT_TO_INT(g_cfg[3].YMaxLimit);
-qw_cfg_t3_x_avoid := DINT_TO_INT(g_cfg[3].XAvoidMm);
-qw_cfg_t3_y_avoid := DINT_TO_INT(g_cfg[3].YAvoidMm);
-qw_cfg_t3_ph_xacc_x100 := g_cfg[3].phys2d.x_accel_s * 10;
-qw_cfg_t3_ph_xdec_x100 := g_cfg[3].phys2d.x_decel_s * 10;
-qw_cfg_t3_ph_xmax := DINT_TO_INT(g_cfg[3].phys2d.x_max_mm_s);
+qw_cfg_t3_x_min := DINT_TO_INT(g_cfg[3].DrivePosMin);
+qw_cfg_t3_x_max := DINT_TO_INT(g_cfg[3].DrivePosMax);
+qw_cfg_t3_y_min := DINT_TO_INT(g_cfg[3].YMinDriveLimit);
+qw_cfg_t3_y_max := DINT_TO_INT(g_cfg[3].YMaxDriveLimit);
+qw_cfg_t3_x_avoid := DINT_TO_INT(g_cfg[3].CollisionWidth);
+qw_cfg_t3_y_avoid := DINT_TO_INT(g_cfg[3].AvoidanceWidth);
+qw_cfg_t3_ph_xacc_x100 := g_cfg[3].phys2d.Acceleration_X * 10;
+qw_cfg_t3_ph_xdec_x100 := g_cfg[3].phys2d.Deceleration_X * 10;
+qw_cfg_t3_ph_xmax := DINT_TO_INT(g_cfg[3].phys2d.SpeedMax_X);
 qw_cfg_t3_ph_ztot := DINT_TO_INT(g_cfg[3].phys2d.z_total_mm);
 qw_cfg_t3_ph_zsdry := DINT_TO_INT(g_cfg[3].phys2d.z_slow_dry_mm);
 qw_cfg_t3_ph_zswet := DINT_TO_INT(g_cfg[3].phys2d.z_slow_wet_mm);

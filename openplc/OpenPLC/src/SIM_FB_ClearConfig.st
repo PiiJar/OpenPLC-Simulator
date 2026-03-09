@@ -65,15 +65,15 @@ g_station_count := 0;
 
 (* --- Clear all transporter configs --- *)
 FOR i := 1 TO MAX_Transporters DO
-  g_cfg[i].XMinDriveLimit   := 0;
-  g_cfg[i].XMaxDriveLimit   := 0;
-  g_cfg[i].YMinLimit   := 0;
-  g_cfg[i].YMaxLimit   := 0;
-  g_cfg[i].XAvoidMm    := 0;
-  g_cfg[i].YAvoidMm    := 0;
-  g_cfg[i].phys2d.x_accel_s     := 0;
-  g_cfg[i].phys2d.x_decel_s     := 0;
-  g_cfg[i].phys2d.x_max_mm_s    := 0;
+  g_cfg[i].DrivePosMin   := 0;
+  g_cfg[i].DrivePosMax   := 0;
+  g_cfg[i].YMinDriveLimit   := 0;
+  g_cfg[i].YMaxDriveLimit   := 0;
+  g_cfg[i].CollisionWidth    := 0;
+  g_cfg[i].AvoidanceWidth    := 0;
+  g_cfg[i].phys2d.Acceleration_X     := 0;
+  g_cfg[i].phys2d.Deceleration_X     := 0;
+  g_cfg[i].phys2d.SpeedMax_X    := 0;
   g_cfg[i].phys2d.z_total_mm    := 0;
   g_cfg[i].phys2d.z_slow_dry_mm := 0;
   g_cfg[i].phys2d.z_slow_wet_mm := 0;
