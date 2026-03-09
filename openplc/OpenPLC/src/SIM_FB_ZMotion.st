@@ -10,9 +10,9 @@
    
    LIFT sequence (z_stage 1-5):
      1: Init delay  (device_delay + dropping_time)
-     2: Slow lift    0 → slow_zone
-     3: Fast lift    → (z_total - z_slow_end_mm)
-     4: Slow end     → z_total_mm
+     2: Slow lift    0 → ZPosSlowUp/ZPosSlowDown
+     3: Fast lift    → (z_total - ZPosSlowEnd)
+     4: Slow end     → z_total
      5: Drip delay   at top position
    
    SINK sequence (z_stage 6-8):
@@ -26,15 +26,16 @@
 
 FUNCTION_BLOCK SIM_FB_ZMotion
 VAR_INPUT
-  delta_t       : REAL;    (* Cycle time in seconds — simulation internal *)
-  station_kind  : INT;     (* KIND_DRY=0, KIND_WET=1 *)
-  z_total_mm    : DINT;    (* Total Z travel distance mm *)
-  z_slow_dry_mm : DINT;    (* Slow zone for dry stations mm *)
-  z_slow_wet_mm : DINT;    (* Slow zone for wet stations mm *)
-  z_slow_end_mm : DINT;    (* Slow zone at end of travel mm *)
-  z_slow_mm_s   : DINT;    (* Slow speed mm/s *)
-  z_fast_mm_s   : DINT;    (* Fast speed mm/s *)
-  drip_delay_s  : INT;     (* Drip delay ×10 = tenths of second *)
+  delta_t         : REAL;    (* Cycle time in seconds — simulation internal *)
+  station_kind    : INT;     (* KIND_DRY=0, KIND_WET=1 *)
+  ZPosUp          : DINT;    (* Z position at full up mm *)
+  ZPosDown        : DINT;    (* Z position at full down mm *)
+  ZPosSlowUp      : DINT;    (* Slow zone when going up (dry) mm *)
+  ZPosSlowDown    : DINT;    (* Slow zone when going down (wet) mm *)
+  ZPosSlowEnd     : DINT;    (* Slow zone at end of travel mm *)
+  SpeedLiftSlow_Z : DINT;    (* Slow speed mm/s *)
+  SpeedLiftFast_Z : DINT;    (* Fast speed mm/s *)
+  DripTrayDelay   : INT;     (* Drip tray open/close delay ×10 = tenths of second *)
 END_VAR
 VAR_IN_OUT
   z_mm      : DINT;        (* Current Z position mm *)
@@ -56,23 +57,25 @@ VAR
   r_slow_spd   : REAL;
   r_fast_spd   : REAL;
   r_drip       : REAL;
+  z_total_mm   : DINT;     (* computed: ZPosDown - ZPosUp *)
 END_VAR
 
   done := FALSE;
+  z_total_mm := ZPosDown - ZPosUp;
 
   (* Convert DINT/INT inputs to REAL for physics *)
   r_z         := DINT_TO_REAL(z_mm);
   r_total     := DINT_TO_REAL(z_total_mm);
-  r_slow_end  := DINT_TO_REAL(z_slow_end_mm);
-  r_slow_spd  := DINT_TO_REAL(z_slow_mm_s);
-  r_fast_spd  := DINT_TO_REAL(z_fast_mm_s);
-  r_drip      := INT_TO_REAL(drip_delay_s) / 10.0;
+  r_slow_end  := DINT_TO_REAL(ZPosSlowEnd);
+  r_slow_spd  := DINT_TO_REAL(SpeedLiftSlow_Z);
+  r_fast_spd  := DINT_TO_REAL(SpeedLiftFast_Z);
+  r_drip      := INT_TO_REAL(DripTrayDelay) / 10.0;
 
   (* Select slow zone based on station kind *)
   IF station_kind = KIND_WET THEN
-    r_slow_zone := DINT_TO_REAL(z_slow_wet_mm);
+    r_slow_zone := DINT_TO_REAL(ZPosSlowDown);
   ELSE
-    r_slow_zone := DINT_TO_REAL(z_slow_dry_mm);
+    r_slow_zone := DINT_TO_REAL(ZPosSlowUp);
   END_IF;
 
   CASE z_stage OF

@@ -28,7 +28,7 @@ VAR
   ai          : INT;
   cover_count : INT;
   covered     : BOOL;
-  area        : TASK_AREA_T;
+  area        : UDT_TaskArea;
 END_VAR
 
 g_dep_overlap.count := 0;
@@ -45,10 +45,10 @@ FOR stn := MIN_StationIndex TO MAX_StationIndex DO
     covered := FALSE;
     FOR ai := 1 TO 4 DO
       IF NOT covered THEN
-        area := g_cfg[ti].task_area[ai];
+        area := g_cfg[ti].TaskArea[ai];
         (* Station is covered if within lift OR sink range *)
-        IF (area.min_lift > 0 AND stn >= area.min_lift AND stn <= area.max_lift)
-           OR (area.min_sink > 0 AND stn >= area.min_sink AND stn <= area.max_sink) THEN
+        IF (area.MinLift > 0 AND stn >= area.MinLift AND stn <= area.MaxLift)
+           OR (area.MinSink > 0 AND stn >= area.MinSink AND stn <= area.MaxSink) THEN
           covered := TRUE;
         END_IF;
       END_IF;

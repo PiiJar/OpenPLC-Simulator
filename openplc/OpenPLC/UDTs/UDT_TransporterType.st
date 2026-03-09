@@ -1,16 +1,29 @@
 (* TransporterType - Consolidated transporter configuration *)
 (* Merged from: UDT_TransporterType, UDT_TransporterConfigType, UDT_Transporter2DConfigType *)
+
+TYPE UDT_TaskArea :
+STRUCT
+    MinLift  : INT;   (* minimum lift station number *)
+    MaxLift  : INT;   (* maximum lift station number *)
+    MinSink  : INT;   (* minimum sink station number *)
+    MaxSink  : INT;   (* maximum sink station number *)
+END_STRUCT
+END_TYPE
+
 TYPE UDT_TransporterType :
 STRUCT
     (* ===== Identity ===== *)
     TransporterId : INT; (* Primary key *)
-    EquipmentCode : STRING(30); (* Equipment code *)
+    EquipmentCode : STRING; (* Equipment code *)
     AliasNumber : INT; (* Alias number e.g. 21 = 200-line 1st *)
     IsInUse : BOOL; (* Transporter enabled *)
     Model : INT; (* 1=1D (X only), 2=2D (X+Y), 3=3D (X+Y+Z) *)
     LineNumber : INT; (* Line number / StationLine *)
     MinStation : INT; (* Minimum station *)
     MaxStation : INT; (* Maximum station *)
+    
+    (* ===== Task Areas (per transporter-per-line) ===== *)
+    TaskArea : ARRAY[1..3] OF UDT_TaskArea;  (* lift/sink station ranges per slot *)
     
     (* ===== Sensor Limits ===== *)
     ZSensorLowLimit : INT; (* Z sensor low limit *)
@@ -139,5 +152,8 @@ STRUCT
     SpeedDriveMax : DINT; (* Maximum drive speed = SpeedMax_X *)
     DriveAcceleration : DINT; (* Drive acceleration = Acceleration_X *)
     DriveDeceleration : DINT; (* Drive deceleration = Deceleration_X *)
+    
+    (* ===== Drip tray ===== *)
+    DripTrayDelay  : INT;  (* Drip tray open/close delay x10 = tenths of second *)
 END_STRUCT
 END_TYPE

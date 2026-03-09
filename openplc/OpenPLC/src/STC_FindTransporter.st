@@ -2,7 +2,7 @@
    STC_FindTransporter — Find covering transporter (FB)
    ============================================================
    Finds which transporter (1..3) can handle a lift→sink pair
-   by checking cfg[].task_area[] coverage.
+   by checking cfg[].TaskArea[] coverage.
 
    If i_sink_stn = 0, only lift coverage is checked (used when
    looking for the transporter covering a single station).
@@ -31,7 +31,7 @@ END_VAR
 VAR
   ti       : INT;
   ai       : INT;
-  area     : TASK_AREA_T;
+  area     : UDT_TaskArea;
   can_lift : BOOL;
   can_sink : BOOL;
 END_VAR
@@ -41,15 +41,15 @@ FOR ti := 1 TO MAX_Transporters DO
   IF o_trans = 0 THEN
     FOR ai := 1 TO 4 DO
       IF o_trans = 0 THEN
-        area := g_cfg[ti].task_area[ai];
-        IF area.min_lift > 0 OR area.max_lift > 0 THEN
-          can_lift := (i_lift_stn >= area.min_lift) AND (i_lift_stn <= area.max_lift);
+        area := g_cfg[ti].TaskArea[ai];
+        IF area.MinLift > 0 OR area.MaxLift > 0 THEN
+          can_lift := (i_lift_stn >= area.MinLift) AND (i_lift_stn <= area.MaxLift);
           IF i_sink_stn = 0 THEN
             IF can_lift THEN
               o_trans := ti;
             END_IF;
           ELSE
-            can_sink := (i_sink_stn >= area.min_sink) AND (i_sink_stn <= area.max_sink);
+            can_sink := (i_sink_stn >= area.MinSink) AND (i_sink_stn <= area.MaxSink);
             IF can_lift AND can_sink THEN
               o_trans := ti;
             END_IF;

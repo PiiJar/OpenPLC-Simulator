@@ -77,16 +77,15 @@ FOR i := 1 TO MAX_Transporters DO
   g_cfg[i].phys2d.z_total_mm    := 0;
   g_cfg[i].phys2d.z_slow_dry_mm := 0;
   g_cfg[i].phys2d.z_slow_wet_mm := 0;
-  g_cfg[i].phys2d.z_slow_end_mm := 0;
+  g_cfg[i].phys2d.ZPosSlowEnd := 0;
   g_cfg[i].phys2d.z_slow_mm_s   := 0;
   g_cfg[i].phys2d.z_fast_mm_s   := 0;
-  g_cfg[i].phys2d.drip_delay_s  := 0;
-  g_cfg[i].phys2d.avoid_mm      := 0;
+  g_cfg[i].phys2d.DripTrayDelay  := 0;
   FOR j := 1 TO 4 DO
-    g_cfg[i].task_area[j].min_lift := 0;
-    g_cfg[i].task_area[j].max_lift := 0;
-    g_cfg[i].task_area[j].min_sink := 0;
-    g_cfg[i].task_area[j].max_sink := 0;
+    g_cfg[i].TaskArea[j].MinLift := 0;
+    g_cfg[i].TaskArea[j].MaxLift := 0;
+    g_cfg[i].TaskArea[j].MinSink := 0;
+    g_cfg[i].TaskArea[j].MaxSink := 0;
   END_FOR;
 END_FOR;
 

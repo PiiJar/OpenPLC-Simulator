@@ -1154,16 +1154,16 @@ IF iw_cfg_seq <> last_cfg_seq THEN
        d0 = x_min_limit mm      d1 = x_max_limit mm
        d2 = x_accel_s × 10      d3 = x_decel_s × 10
        d4 = x_max_mm_s           d5 = z_total_mm
-       d6 = avoid_mm *)
+       d6 = AvoidanceWidth/CollisionWidth *)
     j := iw_cfg_param;
     IF (j >= 1) AND (j <= 3) THEN
       g_cfg[j].DrivePosMin          := INT_TO_DINT(iw_cfg_d0);
       g_cfg[j].DrivePosMax          := INT_TO_DINT(iw_cfg_d1);
-      g_cfg[j].phys2d.Acceleration_X     := iw_cfg_d2;
-      g_cfg[j].phys2d.Deceleration_X     := iw_cfg_d3;
+      g_cfg[j].phys2d.Acceleration_X     := INT_TO_DINT(iw_cfg_d2);
+      g_cfg[j].phys2d.Deceleration_X     := INT_TO_DINT(iw_cfg_d3);
       g_cfg[j].phys2d.SpeedMax_X    := INT_TO_DINT(iw_cfg_d4);
       g_cfg[j].phys2d.z_total_mm    := INT_TO_DINT(iw_cfg_d5);
-      g_cfg[j].phys2d.avoid_mm      := INT_TO_DINT(iw_cfg_d6);
+      g_cfg[j].AvoidanceWidth          := INT_TO_DINT(iw_cfg_d6);
       g_cfg[j].CollisionWidth           := INT_TO_DINT(iw_cfg_d6);
     END_IF;
 
@@ -1171,17 +1171,17 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     (* --- Write transporter physics page 2 --- *)
     (* param = transporter_id (1..3)
        d0 = z_slow_dry_mm        d1 = z_slow_wet_mm
-       d2 = z_slow_end_mm        d3 = z_slow_mm_s
-       d4 = z_fast_mm_s          d5 = drip_delay_s × 10
+       d2 = ZPosSlowEnd        d3 = z_slow_mm_s
+       d4 = z_fast_mm_s          d5 = DripTrayDelay × 10
        d6 = (reserved) *)
     j := iw_cfg_param;
     IF (j >= 1) AND (j <= 3) THEN
       g_cfg[j].phys2d.z_slow_dry_mm := INT_TO_DINT(iw_cfg_d0);
       g_cfg[j].phys2d.z_slow_wet_mm := INT_TO_DINT(iw_cfg_d1);
-      g_cfg[j].phys2d.z_slow_end_mm := INT_TO_DINT(iw_cfg_d2);
+      g_cfg[j].phys2d.ZPosSlowEnd := INT_TO_DINT(iw_cfg_d2);
       g_cfg[j].phys2d.z_slow_mm_s   := INT_TO_DINT(iw_cfg_d3);
       g_cfg[j].phys2d.z_fast_mm_s   := INT_TO_DINT(iw_cfg_d4);
-      g_cfg[j].phys2d.drip_delay_s  := iw_cfg_d5;
+      g_cfg[j].phys2d.DripTrayDelay  := iw_cfg_d5;
     END_IF;
 
   ELSIF iw_cfg_cmd = 6 THEN
@@ -1193,10 +1193,10 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     j := iw_cfg_param / 10;
     k := iw_cfg_param MOD 10;
     IF (j >= 1) AND (j <= 3) AND (k >= 1) AND (k <= 4) THEN
-      g_cfg[j].task_area[k].min_lift := iw_cfg_d0;
-      g_cfg[j].task_area[k].max_lift := iw_cfg_d1;
-      g_cfg[j].task_area[k].min_sink := iw_cfg_d2;
-      g_cfg[j].task_area[k].max_sink := iw_cfg_d3;
+      g_cfg[j].TaskArea[k].MinLift := iw_cfg_d0;
+      g_cfg[j].TaskArea[k].MaxLift := iw_cfg_d1;
+      g_cfg[j].TaskArea[k].MinSink := iw_cfg_d2;
+      g_cfg[j].TaskArea[k].MaxSink := iw_cfg_d3;
     END_IF;
 
   ELSIF iw_cfg_cmd = 7 THEN
@@ -1276,7 +1276,7 @@ IF iw_cfg_seq <> last_cfg_seq THEN
 
     FOR i := 1 TO MAX_Transporters DO
       (* Active if task_area[1] has non-zero stations *)
-      IF g_cfg[i].task_area[1].min_lift > 0 THEN
+      IF g_cfg[i].TaskArea[1].MinLift > 0 THEN
         g_transporter[i].IsActive := TRUE;
         g_transporter[i].Status := 3;  (* auto_idle *)
       ELSE
@@ -1731,87 +1731,87 @@ qw_cfg_t1_y_min := DINT_TO_INT(g_cfg[1].YMinDriveLimit);
 qw_cfg_t1_y_max := DINT_TO_INT(g_cfg[1].YMaxDriveLimit);
 qw_cfg_t1_x_avoid := DINT_TO_INT(g_cfg[1].CollisionWidth);
 qw_cfg_t1_y_avoid := DINT_TO_INT(g_cfg[1].AvoidanceWidth);
-qw_cfg_t1_ph_xacc_x100 := g_cfg[1].phys2d.Acceleration_X * 10;
-qw_cfg_t1_ph_xdec_x100 := g_cfg[1].phys2d.Deceleration_X * 10;
+qw_cfg_t1_ph_xacc_x100 := DINT_TO_INT(g_cfg[1].phys2d.Acceleration_X * 10);
+qw_cfg_t1_ph_xdec_x100 := DINT_TO_INT(g_cfg[1].phys2d.Deceleration_X * 10);
 qw_cfg_t1_ph_xmax := DINT_TO_INT(g_cfg[1].phys2d.SpeedMax_X);
 qw_cfg_t1_ph_ztot := DINT_TO_INT(g_cfg[1].phys2d.z_total_mm);
 qw_cfg_t1_ph_zsdry := DINT_TO_INT(g_cfg[1].phys2d.z_slow_dry_mm);
 qw_cfg_t1_ph_zswet := DINT_TO_INT(g_cfg[1].phys2d.z_slow_wet_mm);
-qw_cfg_t1_ph_zsend := DINT_TO_INT(g_cfg[1].phys2d.z_slow_end_mm);
+qw_cfg_t1_ph_zsend := DINT_TO_INT(g_cfg[1].phys2d.ZPosSlowEnd);
 qw_cfg_t1_ph_zslow := DINT_TO_INT(g_cfg[1].phys2d.z_slow_mm_s);
 qw_cfg_t1_ph_zfast := DINT_TO_INT(g_cfg[1].phys2d.z_fast_mm_s);
-qw_cfg_t1_ph_drip_x10 := g_cfg[1].phys2d.drip_delay_s;
-qw_cfg_t1_ph_avoid := DINT_TO_INT(g_cfg[1].phys2d.avoid_mm);
-qw_cfg_t1_ta1_min_lift := g_cfg[1].task_area[1].min_lift;
-qw_cfg_t1_ta1_max_lift := g_cfg[1].task_area[1].max_lift;
-qw_cfg_t1_ta1_min_sink := g_cfg[1].task_area[1].min_sink;
-qw_cfg_t1_ta1_max_sink := g_cfg[1].task_area[1].max_sink;
-qw_cfg_t1_ta2_min_lift := g_cfg[1].task_area[2].min_lift;
-qw_cfg_t1_ta2_max_lift := g_cfg[1].task_area[2].max_lift;
-qw_cfg_t1_ta2_min_sink := g_cfg[1].task_area[2].min_sink;
-qw_cfg_t1_ta2_max_sink := g_cfg[1].task_area[2].max_sink;
-qw_cfg_t1_ta3_min_lift := g_cfg[1].task_area[3].min_lift;
-qw_cfg_t1_ta3_max_lift := g_cfg[1].task_area[3].max_lift;
-qw_cfg_t1_ta3_min_sink := g_cfg[1].task_area[3].min_sink;
-qw_cfg_t1_ta3_max_sink := g_cfg[1].task_area[3].max_sink;
+qw_cfg_t1_ph_drip_x10 := g_cfg[1].phys2d.DripTrayDelay;
+qw_cfg_t1_ph_avoid := DINT_TO_INT(g_cfg[1].AvoidanceWidth);
+qw_cfg_t1_ta1_min_lift := g_cfg[1].TaskArea[1].MinLift;
+qw_cfg_t1_ta1_max_lift := g_cfg[1].TaskArea[1].MaxLift;
+qw_cfg_t1_ta1_min_sink := g_cfg[1].TaskArea[1].MinSink;
+qw_cfg_t1_ta1_max_sink := g_cfg[1].TaskArea[1].MaxSink;
+qw_cfg_t1_ta2_min_lift := g_cfg[1].TaskArea[2].MinLift;
+qw_cfg_t1_ta2_max_lift := g_cfg[1].TaskArea[2].MaxLift;
+qw_cfg_t1_ta2_min_sink := g_cfg[1].TaskArea[2].MinSink;
+qw_cfg_t1_ta2_max_sink := g_cfg[1].TaskArea[2].MaxSink;
+qw_cfg_t1_ta3_min_lift := g_cfg[1].TaskArea[3].MinLift;
+qw_cfg_t1_ta3_max_lift := g_cfg[1].TaskArea[3].MaxLift;
+qw_cfg_t1_ta3_min_sink := g_cfg[1].TaskArea[3].MinSink;
+qw_cfg_t1_ta3_max_sink := g_cfg[1].TaskArea[3].MaxSink;
 qw_cfg_t2_x_min := DINT_TO_INT(g_cfg[2].DrivePosMin);
 qw_cfg_t2_x_max := DINT_TO_INT(g_cfg[2].DrivePosMax);
 qw_cfg_t2_y_min := DINT_TO_INT(g_cfg[2].YMinDriveLimit);
 qw_cfg_t2_y_max := DINT_TO_INT(g_cfg[2].YMaxDriveLimit);
 qw_cfg_t2_x_avoid := DINT_TO_INT(g_cfg[2].CollisionWidth);
 qw_cfg_t2_y_avoid := DINT_TO_INT(g_cfg[2].AvoidanceWidth);
-qw_cfg_t2_ph_xacc_x100 := g_cfg[2].phys2d.Acceleration_X * 10;
-qw_cfg_t2_ph_xdec_x100 := g_cfg[2].phys2d.Deceleration_X * 10;
+qw_cfg_t2_ph_xacc_x100 := DINT_TO_INT(g_cfg[2].phys2d.Acceleration_X * 10);
+qw_cfg_t2_ph_xdec_x100 := DINT_TO_INT(g_cfg[2].phys2d.Deceleration_X * 10);
 qw_cfg_t2_ph_xmax := DINT_TO_INT(g_cfg[2].phys2d.SpeedMax_X);
 qw_cfg_t2_ph_ztot := DINT_TO_INT(g_cfg[2].phys2d.z_total_mm);
 qw_cfg_t2_ph_zsdry := DINT_TO_INT(g_cfg[2].phys2d.z_slow_dry_mm);
 qw_cfg_t2_ph_zswet := DINT_TO_INT(g_cfg[2].phys2d.z_slow_wet_mm);
-qw_cfg_t2_ph_zsend := DINT_TO_INT(g_cfg[2].phys2d.z_slow_end_mm);
+qw_cfg_t2_ph_zsend := DINT_TO_INT(g_cfg[2].phys2d.ZPosSlowEnd);
 qw_cfg_t2_ph_zslow := DINT_TO_INT(g_cfg[2].phys2d.z_slow_mm_s);
 qw_cfg_t2_ph_zfast := DINT_TO_INT(g_cfg[2].phys2d.z_fast_mm_s);
-qw_cfg_t2_ph_drip_x10 := g_cfg[2].phys2d.drip_delay_s;
-qw_cfg_t2_ph_avoid := DINT_TO_INT(g_cfg[2].phys2d.avoid_mm);
-qw_cfg_t2_ta1_min_lift := g_cfg[2].task_area[1].min_lift;
-qw_cfg_t2_ta1_max_lift := g_cfg[2].task_area[1].max_lift;
-qw_cfg_t2_ta1_min_sink := g_cfg[2].task_area[1].min_sink;
-qw_cfg_t2_ta1_max_sink := g_cfg[2].task_area[1].max_sink;
-qw_cfg_t2_ta2_min_lift := g_cfg[2].task_area[2].min_lift;
-qw_cfg_t2_ta2_max_lift := g_cfg[2].task_area[2].max_lift;
-qw_cfg_t2_ta2_min_sink := g_cfg[2].task_area[2].min_sink;
-qw_cfg_t2_ta2_max_sink := g_cfg[2].task_area[2].max_sink;
-qw_cfg_t2_ta3_min_lift := g_cfg[2].task_area[3].min_lift;
-qw_cfg_t2_ta3_max_lift := g_cfg[2].task_area[3].max_lift;
-qw_cfg_t2_ta3_min_sink := g_cfg[2].task_area[3].min_sink;
-qw_cfg_t2_ta3_max_sink := g_cfg[2].task_area[3].max_sink;
+qw_cfg_t2_ph_drip_x10 := g_cfg[2].phys2d.DripTrayDelay;
+qw_cfg_t2_ph_avoid := DINT_TO_INT(g_cfg[2].AvoidanceWidth);
+qw_cfg_t2_ta1_min_lift := g_cfg[2].TaskArea[1].MinLift;
+qw_cfg_t2_ta1_max_lift := g_cfg[2].TaskArea[1].MaxLift;
+qw_cfg_t2_ta1_min_sink := g_cfg[2].TaskArea[1].MinSink;
+qw_cfg_t2_ta1_max_sink := g_cfg[2].TaskArea[1].MaxSink;
+qw_cfg_t2_ta2_min_lift := g_cfg[2].TaskArea[2].MinLift;
+qw_cfg_t2_ta2_max_lift := g_cfg[2].TaskArea[2].MaxLift;
+qw_cfg_t2_ta2_min_sink := g_cfg[2].TaskArea[2].MinSink;
+qw_cfg_t2_ta2_max_sink := g_cfg[2].TaskArea[2].MaxSink;
+qw_cfg_t2_ta3_min_lift := g_cfg[2].TaskArea[3].MinLift;
+qw_cfg_t2_ta3_max_lift := g_cfg[2].TaskArea[3].MaxLift;
+qw_cfg_t2_ta3_min_sink := g_cfg[2].TaskArea[3].MinSink;
+qw_cfg_t2_ta3_max_sink := g_cfg[2].TaskArea[3].MaxSink;
 qw_cfg_t3_x_min := DINT_TO_INT(g_cfg[3].DrivePosMin);
 qw_cfg_t3_x_max := DINT_TO_INT(g_cfg[3].DrivePosMax);
 qw_cfg_t3_y_min := DINT_TO_INT(g_cfg[3].YMinDriveLimit);
 qw_cfg_t3_y_max := DINT_TO_INT(g_cfg[3].YMaxDriveLimit);
 qw_cfg_t3_x_avoid := DINT_TO_INT(g_cfg[3].CollisionWidth);
 qw_cfg_t3_y_avoid := DINT_TO_INT(g_cfg[3].AvoidanceWidth);
-qw_cfg_t3_ph_xacc_x100 := g_cfg[3].phys2d.Acceleration_X * 10;
-qw_cfg_t3_ph_xdec_x100 := g_cfg[3].phys2d.Deceleration_X * 10;
+qw_cfg_t3_ph_xacc_x100 := DINT_TO_INT(g_cfg[3].phys2d.Acceleration_X * 10);
+qw_cfg_t3_ph_xdec_x100 := DINT_TO_INT(g_cfg[3].phys2d.Deceleration_X * 10);
 qw_cfg_t3_ph_xmax := DINT_TO_INT(g_cfg[3].phys2d.SpeedMax_X);
 qw_cfg_t3_ph_ztot := DINT_TO_INT(g_cfg[3].phys2d.z_total_mm);
 qw_cfg_t3_ph_zsdry := DINT_TO_INT(g_cfg[3].phys2d.z_slow_dry_mm);
 qw_cfg_t3_ph_zswet := DINT_TO_INT(g_cfg[3].phys2d.z_slow_wet_mm);
-qw_cfg_t3_ph_zsend := DINT_TO_INT(g_cfg[3].phys2d.z_slow_end_mm);
+qw_cfg_t3_ph_zsend := DINT_TO_INT(g_cfg[3].phys2d.ZPosSlowEnd);
 qw_cfg_t3_ph_zslow := DINT_TO_INT(g_cfg[3].phys2d.z_slow_mm_s);
 qw_cfg_t3_ph_zfast := DINT_TO_INT(g_cfg[3].phys2d.z_fast_mm_s);
-qw_cfg_t3_ph_drip_x10 := g_cfg[3].phys2d.drip_delay_s;
-qw_cfg_t3_ph_avoid := DINT_TO_INT(g_cfg[3].phys2d.avoid_mm);
-qw_cfg_t3_ta1_min_lift := g_cfg[3].task_area[1].min_lift;
-qw_cfg_t3_ta1_max_lift := g_cfg[3].task_area[1].max_lift;
-qw_cfg_t3_ta1_min_sink := g_cfg[3].task_area[1].min_sink;
-qw_cfg_t3_ta1_max_sink := g_cfg[3].task_area[1].max_sink;
-qw_cfg_t3_ta2_min_lift := g_cfg[3].task_area[2].min_lift;
-qw_cfg_t3_ta2_max_lift := g_cfg[3].task_area[2].max_lift;
-qw_cfg_t3_ta2_min_sink := g_cfg[3].task_area[2].min_sink;
-qw_cfg_t3_ta2_max_sink := g_cfg[3].task_area[2].max_sink;
-qw_cfg_t3_ta3_min_lift := g_cfg[3].task_area[3].min_lift;
-qw_cfg_t3_ta3_max_lift := g_cfg[3].task_area[3].max_lift;
-qw_cfg_t3_ta3_min_sink := g_cfg[3].task_area[3].min_sink;
-qw_cfg_t3_ta3_max_sink := g_cfg[3].task_area[3].max_sink;
+qw_cfg_t3_ph_drip_x10 := g_cfg[3].phys2d.DripTrayDelay;
+qw_cfg_t3_ph_avoid := DINT_TO_INT(g_cfg[3].AvoidanceWidth);
+qw_cfg_t3_ta1_min_lift := g_cfg[3].TaskArea[1].MinLift;
+qw_cfg_t3_ta1_max_lift := g_cfg[3].TaskArea[1].MaxLift;
+qw_cfg_t3_ta1_min_sink := g_cfg[3].TaskArea[1].MinSink;
+qw_cfg_t3_ta1_max_sink := g_cfg[3].TaskArea[1].MaxSink;
+qw_cfg_t3_ta2_min_lift := g_cfg[3].TaskArea[2].MinLift;
+qw_cfg_t3_ta2_max_lift := g_cfg[3].TaskArea[2].MaxLift;
+qw_cfg_t3_ta2_min_sink := g_cfg[3].TaskArea[2].MinSink;
+qw_cfg_t3_ta2_max_sink := g_cfg[3].TaskArea[2].MaxSink;
+qw_cfg_t3_ta3_min_lift := g_cfg[3].TaskArea[3].MinLift;
+qw_cfg_t3_ta3_max_lift := g_cfg[3].TaskArea[3].MaxLift;
+qw_cfg_t3_ta3_min_sink := g_cfg[3].TaskArea[3].MinSink;
+qw_cfg_t3_ta3_max_sink := g_cfg[3].TaskArea[3].MaxSink;
 (* === Per-station avoid flags readback (g_avoid_status) — 30 stations === *)
 qw_s101_val := g_avoid_status[101];
 qw_s102_val := g_avoid_status[102];

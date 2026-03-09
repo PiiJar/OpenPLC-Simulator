@@ -92,26 +92,148 @@ END_TYPE
 
 TYPE PHYSICS_2D_T :
 STRUCT
-  Acceleration_X : INT;    (* acceleration time ×10 = tenths of second *)
-  Deceleration_X : INT;    (* deceleration time ×10 = tenths of second *)
+  Acceleration_X : DINT;   (* acceleration time ×10 = tenths of second *)
+  Deceleration_X : DINT;   (* deceleration time ×10 = tenths of second *)
   SpeedMax_X     : DINT;   (* max X velocity mm/s *)
   z_total_mm     : DINT;   (* total Z travel mm *)
   z_slow_dry_mm  : DINT;   (* Z slow zone dry mm *)
   z_slow_wet_mm  : DINT;   (* Z slow zone wet mm *)
-  z_slow_end_mm  : DINT;   (* Z slow zone end mm *)
+  ZPosSlowEnd    : DINT;   (* Z slow zone end mm *)
   z_slow_mm_s    : DINT;   (* Z slow speed mm/s *)
   z_fast_mm_s    : DINT;   (* Z fast speed mm/s *)
-  drip_delay_s   : INT;    (* drip delay ×10 = tenths of second *)
-  avoid_mm       : DINT;   (* avoid distance mm *)
+  DripTrayDelay  : INT;    (* drip tray open/close delay ×10 = tenths of second *)
 END_STRUCT;
 END_TYPE
 
-TYPE TASK_AREA_T :
+TYPE UDT_TaskArea :
 STRUCT
-  min_lift : INT;
-  max_lift : INT;
-  min_sink : INT;
-  max_sink : INT;
+  MinLift  : INT;
+  MaxLift  : INT;
+  MinSink  : INT;
+  MaxSink  : INT;
+END_STRUCT;
+END_TYPE
+
+(* ── Transporter configuration — matches UDT_TransporterType ── *)
+TYPE UDT_TransporterType :
+STRUCT
+  (* ===== Identity ===== *)
+  TransporterId  : INT;      (* Primary key *)
+  EquipmentCode  : STRING;   (* Equipment code *)
+  AliasNumber    : INT;      (* Alias number e.g. 21 = 200-line 1st *)
+  IsInUse        : BOOL;     (* Transporter enabled *)
+  Model          : INT;      (* 1=1D, 2=2D, 3=3D *)
+  LineNumber     : INT;      (* Line number / StationLine *)
+  MinStation     : INT;      (* Minimum station *)
+  MaxStation     : INT;      (* Maximum station *)
+  (* ===== Task Areas ===== *)
+  TaskArea       : ARRAY[1..3] OF UDT_TaskArea;
+  (* ===== Sensor Limits ===== *)
+  ZSensorLowLimit          : INT;
+  ZSensorHighLimit         : INT;
+  XSensorLineLimitBackward : INT;
+  XSensorLineLimitForward  : INT;
+  (* ===== Position Limits ===== *)
+  DrivePosMin    : DINT;     (* Minimum allowed drive position mm *)
+  DrivePosMax    : DINT;     (* Maximum allowed drive position mm *)
+  CrashPosMin    : DINT;     (* Crash position minimum mm *)
+  CrashPosMax    : DINT;     (* Crash position maximum mm *)
+  YMinDriveLimit : DINT;     (* Minimum Y drive limit mm *)
+  YMaxDriveLimit : DINT;     (* Maximum Y drive limit mm *)
+  (* ===== Position Tolerances ===== *)
+  PosTolerance_X          : DINT;
+  PosTolerance_Y          : DINT;
+  PosLiftSinkTolerance_X  : DINT;
+  (* ===== Position Validation ===== *)
+  PosValidationEnable_X   : BOOL;
+  PosMaxChangeRate_X      : DINT;
+  PosJumpThreshold_X      : DINT;
+  PosValidationEnable_Z   : BOOL;
+  PosMaxChangeRate_Z      : DINT;
+  PosJumpThreshold_Z      : DINT;
+  (* ===== Collision Avoidance ===== *)
+  CollisionWidth : DINT;     (* Physical width for collision detection mm *)
+  AvoidanceWidth : DINT;     (* Safety distance to maintain mm *)
+  (* ===== Absolute to Position Conversion ===== *)
+  AbsToPosDirection_X : DINT;
+  AbsToPosOffset_X    : DINT;
+  AbsToPosDirection_Y : DINT;
+  AbsToPosOffset_Y    : DINT;
+  PosMaxSensor_X      : DINT;
+  PosMaxSensor_Y      : DINT;
+  (* ===== Maximum Speeds per Axis ===== *)
+  SpeedMax_X     : DINT;     (* X axis maximum speed *)
+  SpeedMax_Y     : DINT;
+  SpeedMax_Z     : DINT;
+  MaximumSpeed   : INT;      (* Legacy maximum speed *)
+  (* ===== Semi-Auto Speeds ===== *)
+  SpeedSemiAuto_X : DINT;
+  SpeedSemiAuto_Y : DINT;
+  SpeedSemiAuto_Z : DINT;
+  (* ===== Manual Speeds ===== *)
+  SpeedManual_X      : DINT;
+  SpeedManualFast_X  : DINT;
+  SpeedManual_Y      : DINT;
+  SpeedManualFast_Y  : DINT;
+  SpeedManual_Z      : DINT;
+  SpeedManualFast_Z  : DINT;
+  (* ===== Deceleration and Crawl ===== *)
+  DecelerationDistance_X : DINT;
+  CrawlDistance_X        : DINT;
+  SpeedCrawl_X           : DINT;
+  (* ===== Acceleration per Axis ===== *)
+  Acceleration_X : DINT;     (* X axis acceleration *)
+  Acceleration_Y : DINT;
+  Acceleration_Z : DINT;
+  (* ===== Deceleration per Axis ===== *)
+  Deceleration_X : DINT;     (* X axis deceleration *)
+  Deceleration_Y : DINT;
+  Deceleration_Z : DINT;
+  (* ===== Lift Speeds - Z Axis ===== *)
+  SpeedLiftSlow_Z : DINT;
+  SpeedLiftMid_Z  : DINT;
+  SpeedLiftFast_Z : DINT;
+  (* ===== Sink Speeds - Z Axis ===== *)
+  SpeedSinkSlow_Z : DINT;
+  SpeedSinkMid_Z  : DINT;
+  SpeedSinkFast_Z : DINT;
+  (* ===== Wet Lift Timing ===== *)
+  LiftWetSlowTime : DINT;
+  LiftWetMidTime  : DINT;
+  LiftWetFastTime : DINT;
+  (* ===== Dry Lift Timing ===== *)
+  LiftDrySlowTime : DINT;
+  LiftDryFastTime : DINT;
+  (* ===== Sink Timing ===== *)
+  SinkWetMidTime  : DINT;
+  SinkWetFastTime : DINT;
+  SinkDryFastTime : DINT;
+  (* ===== Hooking ===== *)
+  HookingInUse   : BOOL;
+  HookingOffset  : DINT;
+  (* ===== Feature Flags ===== *)
+  BarrelRotationInUse : BOOL;
+  DripTrayInUse       : BOOL;
+  MovesEmptyAtDown    : BOOL;
+  (* ===== Z-Axis Encoder Position Control ===== *)
+  ZAxisHasEncoder : BOOL;
+  ZPosUp          : DINT;
+  ZPosDown        : DINT;
+  ZPosSlowUp      : DINT;
+  ZPosSlowDown    : DINT;
+  ZPosProduct     : DINT;
+  ZPosDrip        : DINT;
+  ZPosTolerance   : DINT;
+  (* ===== Stall Detection ===== *)
+  StallFilterTime_X  : DINT;
+  StallMinDistance_X  : DINT;
+  StallFilterTime_Z  : DINT;
+  StallMinDistance_Z  : DINT;
+  (* ===== Legacy Aliases ===== *)
+  SpeedLiftMax      : DINT;
+  SpeedDriveMax     : DINT;
+  DriveAcceleration : DINT;
+  DriveDeceleration : DINT;
 END_STRUCT;
 END_TYPE
 
@@ -124,7 +246,7 @@ STRUCT
   CollisionWidth   : DINT;
   AvoidanceWidth   : DINT;
   phys2d      : PHYSICS_2D_T;
-  task_area   : ARRAY[1..3] OF TASK_AREA_T;  (* MAX_Transporters_PER_LINE — literal required in TYPE *)
+  TaskArea   : ARRAY[1..3] OF UDT_TaskArea;  (* MAX_Transporters_PER_LINE — literal required in TYPE *)
 END_STRUCT;
 END_TYPE
 
@@ -152,38 +274,39 @@ END_TYPE
 (* g_transporter : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType      *)
 TYPE UDT_TransporterStatusType :
 STRUCT
-  (* --- Identity --- *)
-  TransporterId      : INT;      (* reference to transporter config index *)
-  (* --- Command (scheduler → transporter) --- *)
-  TaskId             : LINT;     (* g_time_s at assignment — sync key *)
-  LiftStationTarget  : INT;     (* pickup station number *)
-  SinkStationTarget  : INT;     (* putdown station number *)
-  DrippingTime       : INT;      (* dripping time ×10 = tenths of second *)
-  (* --- Status (transporter → outside world) --- *)
-  Status             : INT;      (* 0=not_used 1=manual 2=half_manual 3=auto_idle 4=auto_run *)
-  Phase              : INT;      (* 0=idle 1=to_lift 2=lifting 3=to_sink 4=sinking *)
-  CurrentStation     : INT;      (* nearest station number *)
-  TaskRemainingTime  : DINT;     (* remaining treatment time (seconds) *)
-  LiftStationRemainingTime : DINT; (* remaining time at lift station (seconds) *)
-  (* --- Drive (runtime / TWA) --- *)
-  XFinalTarget       : DINT;     (* destination X (station position) mm *)
-  XDriveTarget       : DINT;     (* TWA-clamped X drive target mm *)
-  YFinalTarget       : DINT;     (* destination Y (3D transporter) mm *)
-  YDriveTarget       : DINT;     (* TWA-clamped Y drive target mm *)
-  XPosition          : DINT;     (* current X position mm *)
-  YPosition          : DINT;     (* current Y position mm *)
-  ZPosition          : DINT;     (* current Z position mm *)
-  XMinDriveLimit     : DINT;     (* TWA lower X limit mm *)
-  XMaxDriveLimit     : DINT;     (* TWA upper X limit mm *)
+  TransporterId            : INT;      (* reference to transporter config index *)
+  (* --- Current positions in mm --- *)
+  XPosition                : DINT;     (* current X position mm *)
+  YPosition                : DINT;     (* current Y position mm *)
+  ZPosition                : DINT;     (* current Z position mm *)
+  (* --- Station tracking --- *)
+  CurrentStation           : INT;      (* nearest station number *)
+  LiftStationTarget        : INT;      (* pickup station number *)
+  SinkStationTarget        : INT;      (* putdown station number *)
+  (* --- Phase and Status --- *)
+  Status                   : INT;      (* 0=not_used 1=manual 2=half_manual 3=auto_idle 4=auto_run *)
+  Phase                    : INT;      (* 0=idle 1=to_lift 2=lifting 3=to_sink 4=sinking *)
+  TaskId                   : LINT;     (* g_time_s at assignment — sync key *)
+  TaskRemainingTime        : DINT;     (* remaining treatment time (seconds) *)
+  LiftStationRemainingTime : DINT;     (* remaining time at lift station (seconds) *)
+  DrippingTime             : INT;      (* dripping time ×10 = tenths of second *)
+  (* --- Target positions --- *)
+  XDriveTarget             : DINT;     (* TWA-clamped X drive target mm *)
+  XFinalTarget             : DINT;     (* destination X (station position) mm *)
+  YDriveTarget             : DINT;     (* TWA-clamped Y drive target mm *)
+  YFinalTarget             : DINT;     (* destination Y (3D transporter) mm *)
+  (* --- Working area limits --- *)
+  XMinDriveLimit           : DINT;     (* TWA lower X limit mm *)
+  XMaxDriveLimit           : DINT;     (* TWA upper X limit mm *)
   (* --- Runtime status --- *)
-  Busy               : BOOL;     (* transporter busy *)
-  Fault              : BOOL;     (* transporter fault *)
-  AtPosition         : BOOL;     (* at target position *)
-  CanEvade           : BOOL;     (* can perform evasion maneuver *)
-  Priority           : DINT;     (* collision avoidance priority *)
+  Busy                     : BOOL;     (* transporter busy *)
+  Fault                    : BOOL;     (* transporter fault *)
+  AtPosition               : BOOL;     (* at target position *)
+  CanEvade                 : BOOL;     (* can perform evasion maneuver *)
+  Priority                 : DINT;     (* collision avoidance priority *)
   (* --- General --- *)
-  IsActive           : BOOL;     (* transporter enabled *)
-  IsCarrying         : BOOL;     (* transporter is carrying product *)
+  IsActive                 : BOOL;     (* transporter enabled *)
+  IsCarrying               : BOOL;     (* transporter is carrying product *)
 END_STRUCT;
 END_TYPE
 

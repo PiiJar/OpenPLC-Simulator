@@ -106,7 +106,7 @@ FOR i := 1 TO MAX_Transporters DO
   min_x := g_cfg[i].DrivePosMin;
   max_x := g_cfg[i].DrivePosMax;
   current_x := g_transporter[i].XPosition;
-  avoid_dist := g_cfg[i].CollisionWidth;
+  avoid_dist := g_cfg[i].AvoidanceWidth;
 
   (* If no limits configured, lock to current position *)
   IF (min_x < 1) OR (max_x < 1) THEN
@@ -249,7 +249,7 @@ FOR i := 1 TO MAX_Transporters DO
 
   current_x := g_transporter[i].XPosition;
   current_y := g_transporter[i].YPosition;
-  avoid_dist := g_cfg[i].CollisionWidth;
+  avoid_dist := g_cfg[i].AvoidanceWidth;
 
   FOR j := 1 TO MAX_Transporters DO
     IF j = i THEN CONTINUE; END_IF;
@@ -292,7 +292,7 @@ FOR i := 1 TO MAX_Transporters DO
     w_status[n_active] := g_transporter[i].Status;
     w_ypos[n_active] := g_transporter[i].YPosition;
     w_target[n_active] := g_transporter[i].XFinalTarget;
-    w_avoid[n_active] := g_cfg[i].CollisionWidth;
+    w_avoid[n_active] := g_cfg[i].AvoidanceWidth;
   END_IF;
 END_FOR;
 

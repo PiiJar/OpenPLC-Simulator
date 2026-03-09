@@ -24,15 +24,20 @@ TYPE UDT_TankType :
 STRUCT
     (* === Tank Identification === *)
     TankId : INT;                       (* Primary key *)
-    EquipmentCode : STRING(30);         (* Equipment code matching PID *)
-    TankName : STRING(30);              (* Optional descriptive name *)
+    EquipmentCode : STRING;             (* Equipment code matching PID *)
+    TankName : STRING;                  (* Optional descriptive name *)
     TypeId : INT;                       (* Tank type identifier *)
     IsInUse : BOOL;                     (* TRUE = in use *)
     LineId : INT;                       (* Process line identifier *)
     GroupId : INT;                      (* Reference to tank_group.GroupId *)
     RinseId : INT;                      (* Rinse tank reference *)
     FilterUnitId : INT;                 (* Filter unit reference *)
-    Color : STRING(8);                  (* Display color RGB hex *)
+    Color : STRING;                     (* Display color RGB hex *)
+    
+    (* === Position in mm === *)
+    XPosition : DINT;                   (* X position mm *)
+    YPosition : DINT;                   (* Y position mm *)
+    ZPosition : DINT;                   (* Z position mm *)
     
     (* === Temperature Control (x2) === *)
     TemperatureControl1Id : INT;        (* Reference to GVL_Parameters.TemperatureControls[id], 0 = none *)

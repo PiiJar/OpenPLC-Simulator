@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-09T11:36:04"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-09T11:36:04">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-09T13:27:34"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-09T13:27:34">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -203,10 +203,10 @@
         <baseType>
           <struct>
             <variable name="Acceleration_X">
-              <type><INT/></type>
+              <type><DINT/></type>
             </variable>
             <variable name="Deceleration_X">
-              <type><INT/></type>
+              <type><DINT/></type>
             </variable>
             <variable name="SpeedMax_X">
               <type><DINT/></type>
@@ -220,7 +220,7 @@
             <variable name="z_slow_wet_mm">
               <type><DINT/></type>
             </variable>
-            <variable name="z_slow_end_mm">
+            <variable name="ZPosSlowEnd">
               <type><DINT/></type>
             </variable>
             <variable name="z_slow_mm_s">
@@ -229,29 +229,316 @@
             <variable name="z_fast_mm_s">
               <type><DINT/></type>
             </variable>
-            <variable name="drip_delay_s">
+            <variable name="DripTrayDelay">
               <type><INT/></type>
-            </variable>
-            <variable name="avoid_mm">
-              <type><DINT/></type>
             </variable>
           </struct>
         </baseType>
       </dataType>
-      <dataType name="TASK_AREA_T">
+      <dataType name="UDT_TaskArea">
         <baseType>
           <struct>
-            <variable name="min_lift">
+            <variable name="MinLift">
               <type><INT/></type>
             </variable>
-            <variable name="max_lift">
+            <variable name="MaxLift">
               <type><INT/></type>
             </variable>
-            <variable name="min_sink">
+            <variable name="MinSink">
               <type><INT/></type>
             </variable>
-            <variable name="max_sink">
+            <variable name="MaxSink">
               <type><INT/></type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
+      <dataType name="UDT_TransporterType">
+        <baseType>
+          <struct>
+            <variable name="TransporterId">
+              <type><INT/></type>
+            </variable>
+            <variable name="EquipmentCode">
+              <type><STRING/></type>
+            </variable>
+            <variable name="AliasNumber">
+              <type><INT/></type>
+            </variable>
+            <variable name="IsInUse">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="Model">
+              <type><INT/></type>
+            </variable>
+            <variable name="LineNumber">
+              <type><INT/></type>
+            </variable>
+            <variable name="MinStation">
+              <type><INT/></type>
+            </variable>
+            <variable name="MaxStation">
+              <type><INT/></type>
+            </variable>
+            <variable name="TaskArea">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><derived name="UDT_TaskArea"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="ZSensorLowLimit">
+              <type><INT/></type>
+            </variable>
+            <variable name="ZSensorHighLimit">
+              <type><INT/></type>
+            </variable>
+            <variable name="XSensorLineLimitBackward">
+              <type><INT/></type>
+            </variable>
+            <variable name="XSensorLineLimitForward">
+              <type><INT/></type>
+            </variable>
+            <variable name="DrivePosMin">
+              <type><DINT/></type>
+            </variable>
+            <variable name="DrivePosMax">
+              <type><DINT/></type>
+            </variable>
+            <variable name="CrashPosMin">
+              <type><DINT/></type>
+            </variable>
+            <variable name="CrashPosMax">
+              <type><DINT/></type>
+            </variable>
+            <variable name="YMinDriveLimit">
+              <type><DINT/></type>
+            </variable>
+            <variable name="YMaxDriveLimit">
+              <type><DINT/></type>
+            </variable>
+            <variable name="PosTolerance_X">
+              <type><DINT/></type>
+            </variable>
+            <variable name="PosTolerance_Y">
+              <type><DINT/></type>
+            </variable>
+            <variable name="PosLiftSinkTolerance_X">
+              <type><DINT/></type>
+            </variable>
+            <variable name="PosValidationEnable_X">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="PosMaxChangeRate_X">
+              <type><DINT/></type>
+            </variable>
+            <variable name="PosJumpThreshold_X">
+              <type><DINT/></type>
+            </variable>
+            <variable name="PosValidationEnable_Z">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="PosMaxChangeRate_Z">
+              <type><DINT/></type>
+            </variable>
+            <variable name="PosJumpThreshold_Z">
+              <type><DINT/></type>
+            </variable>
+            <variable name="CollisionWidth">
+              <type><DINT/></type>
+            </variable>
+            <variable name="AvoidanceWidth">
+              <type><DINT/></type>
+            </variable>
+            <variable name="AbsToPosDirection_X">
+              <type><DINT/></type>
+            </variable>
+            <variable name="AbsToPosOffset_X">
+              <type><DINT/></type>
+            </variable>
+            <variable name="AbsToPosDirection_Y">
+              <type><DINT/></type>
+            </variable>
+            <variable name="AbsToPosOffset_Y">
+              <type><DINT/></type>
+            </variable>
+            <variable name="PosMaxSensor_X">
+              <type><DINT/></type>
+            </variable>
+            <variable name="PosMaxSensor_Y">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SpeedMax_X">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SpeedMax_Y">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SpeedMax_Z">
+              <type><DINT/></type>
+            </variable>
+            <variable name="MaximumSpeed">
+              <type><INT/></type>
+            </variable>
+            <variable name="SpeedSemiAuto_X">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SpeedSemiAuto_Y">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SpeedSemiAuto_Z">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SpeedManual_X">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SpeedManualFast_X">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SpeedManual_Y">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SpeedManualFast_Y">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SpeedManual_Z">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SpeedManualFast_Z">
+              <type><DINT/></type>
+            </variable>
+            <variable name="DecelerationDistance_X">
+              <type><DINT/></type>
+            </variable>
+            <variable name="CrawlDistance_X">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SpeedCrawl_X">
+              <type><DINT/></type>
+            </variable>
+            <variable name="Acceleration_X">
+              <type><DINT/></type>
+            </variable>
+            <variable name="Acceleration_Y">
+              <type><DINT/></type>
+            </variable>
+            <variable name="Acceleration_Z">
+              <type><DINT/></type>
+            </variable>
+            <variable name="Deceleration_X">
+              <type><DINT/></type>
+            </variable>
+            <variable name="Deceleration_Y">
+              <type><DINT/></type>
+            </variable>
+            <variable name="Deceleration_Z">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SpeedLiftSlow_Z">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SpeedLiftMid_Z">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SpeedLiftFast_Z">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SpeedSinkSlow_Z">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SpeedSinkMid_Z">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SpeedSinkFast_Z">
+              <type><DINT/></type>
+            </variable>
+            <variable name="LiftWetSlowTime">
+              <type><DINT/></type>
+            </variable>
+            <variable name="LiftWetMidTime">
+              <type><DINT/></type>
+            </variable>
+            <variable name="LiftWetFastTime">
+              <type><DINT/></type>
+            </variable>
+            <variable name="LiftDrySlowTime">
+              <type><DINT/></type>
+            </variable>
+            <variable name="LiftDryFastTime">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SinkWetMidTime">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SinkWetFastTime">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SinkDryFastTime">
+              <type><DINT/></type>
+            </variable>
+            <variable name="HookingInUse">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="HookingOffset">
+              <type><DINT/></type>
+            </variable>
+            <variable name="BarrelRotationInUse">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="DripTrayInUse">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="MovesEmptyAtDown">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="ZAxisHasEncoder">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="ZPosUp">
+              <type><DINT/></type>
+            </variable>
+            <variable name="ZPosDown">
+              <type><DINT/></type>
+            </variable>
+            <variable name="ZPosSlowUp">
+              <type><DINT/></type>
+            </variable>
+            <variable name="ZPosSlowDown">
+              <type><DINT/></type>
+            </variable>
+            <variable name="ZPosProduct">
+              <type><DINT/></type>
+            </variable>
+            <variable name="ZPosDrip">
+              <type><DINT/></type>
+            </variable>
+            <variable name="ZPosTolerance">
+              <type><DINT/></type>
+            </variable>
+            <variable name="StallFilterTime_X">
+              <type><DINT/></type>
+            </variable>
+            <variable name="StallMinDistance_X">
+              <type><DINT/></type>
+            </variable>
+            <variable name="StallFilterTime_Z">
+              <type><DINT/></type>
+            </variable>
+            <variable name="StallMinDistance_Z">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SpeedLiftMax">
+              <type><DINT/></type>
+            </variable>
+            <variable name="SpeedDriveMax">
+              <type><DINT/></type>
+            </variable>
+            <variable name="DriveAcceleration">
+              <type><DINT/></type>
+            </variable>
+            <variable name="DriveDeceleration">
+              <type><DINT/></type>
             </variable>
           </struct>
         </baseType>
@@ -280,11 +567,11 @@
             <variable name="phys2d">
               <type><derived name="PHYSICS_2D_T"/></type>
             </variable>
-            <variable name="task_area">
+            <variable name="TaskArea">
               <type>
                 <array>
                   <dimension lower="1" upper="3"/>
-                  <baseType><derived name="TASK_AREA_T"/></baseType>
+                  <baseType><derived name="UDT_TaskArea"/></baseType>
                 </array>
               </type>
             </variable>
@@ -330,16 +617,22 @@
             <variable name="TransporterId">
               <type><INT/></type>
             </variable>
-            <variable name="TaskId">
-              <type><LINT/></type>
+            <variable name="XPosition">
+              <type><DINT/></type>
+            </variable>
+            <variable name="YPosition">
+              <type><DINT/></type>
+            </variable>
+            <variable name="ZPosition">
+              <type><DINT/></type>
+            </variable>
+            <variable name="CurrentStation">
+              <type><INT/></type>
             </variable>
             <variable name="LiftStationTarget">
               <type><INT/></type>
             </variable>
             <variable name="SinkStationTarget">
-              <type><INT/></type>
-            </variable>
-            <variable name="DrippingTime">
               <type><INT/></type>
             </variable>
             <variable name="Status">
@@ -348,8 +641,8 @@
             <variable name="Phase">
               <type><INT/></type>
             </variable>
-            <variable name="CurrentStation">
-              <type><INT/></type>
+            <variable name="TaskId">
+              <type><LINT/></type>
             </variable>
             <variable name="TaskRemainingTime">
               <type><DINT/></type>
@@ -357,25 +650,19 @@
             <variable name="LiftStationRemainingTime">
               <type><DINT/></type>
             </variable>
-            <variable name="XFinalTarget">
-              <type><DINT/></type>
+            <variable name="DrippingTime">
+              <type><INT/></type>
             </variable>
             <variable name="XDriveTarget">
               <type><DINT/></type>
             </variable>
-            <variable name="YFinalTarget">
+            <variable name="XFinalTarget">
               <type><DINT/></type>
             </variable>
             <variable name="YDriveTarget">
               <type><DINT/></type>
             </variable>
-            <variable name="XPosition">
-              <type><DINT/></type>
-            </variable>
-            <variable name="YPosition">
-              <type><DINT/></type>
-            </variable>
-            <variable name="ZPosition">
+            <variable name="YFinalTarget">
               <type><DINT/></type>
             </variable>
             <variable name="XMinDriveLimit">
@@ -1290,7 +1577,7 @@ g_dep_idle_slot[i_trans].count := si;]]></xhtml:p>
               <type><BOOL/></type>
             </variable>
             <variable name="area">
-              <type><derived name="TASK_AREA_T"/></type>
+              <type><derived name="UDT_TaskArea"/></type>
             </variable>
           </localVars>
         </interface>
@@ -1310,10 +1597,10 @@ FOR stn := MIN_StationIndex TO MAX_StationIndex DO
     covered := FALSE;
     FOR ai := 1 TO 4 DO
       IF NOT covered THEN
-        area := g_cfg[ti].task_area[ai];
+        area := g_cfg[ti].TaskArea[ai];
         (* Station is covered if within lift OR sink range *)
-        IF (area.min_lift > 0 AND stn >= area.min_lift AND stn <= area.max_lift)
-           OR (area.min_sink > 0 AND stn >= area.min_sink AND stn <= area.max_sink) THEN
+        IF (area.MinLift > 0 AND stn >= area.MinLift AND stn <= area.MaxLift)
+           OR (area.MinSink > 0 AND stn >= area.MinSink AND stn <= area.MaxSink) THEN
           covered := TRUE;
         END_IF;
       END_IF;
@@ -2822,16 +3109,15 @@ FOR i := 1 TO MAX_Transporters DO
   g_cfg[i].phys2d.z_total_mm    := 0;
   g_cfg[i].phys2d.z_slow_dry_mm := 0;
   g_cfg[i].phys2d.z_slow_wet_mm := 0;
-  g_cfg[i].phys2d.z_slow_end_mm := 0;
+  g_cfg[i].phys2d.ZPosSlowEnd := 0;
   g_cfg[i].phys2d.z_slow_mm_s   := 0;
   g_cfg[i].phys2d.z_fast_mm_s   := 0;
-  g_cfg[i].phys2d.drip_delay_s  := 0;
-  g_cfg[i].phys2d.avoid_mm      := 0;
+  g_cfg[i].phys2d.DripTrayDelay  := 0;
   FOR j := 1 TO 4 DO
-    g_cfg[i].task_area[j].min_lift := 0;
-    g_cfg[i].task_area[j].max_lift := 0;
-    g_cfg[i].task_area[j].min_sink := 0;
-    g_cfg[i].task_area[j].max_sink := 0;
+    g_cfg[i].TaskArea[j].MinLift := 0;
+    g_cfg[i].TaskArea[j].MaxLift := 0;
+    g_cfg[i].TaskArea[j].MinSink := 0;
+    g_cfg[i].TaskArea[j].MaxSink := 0;
   END_FOR;
 END_FOR;
 
@@ -3269,13 +3555,14 @@ FOR i := 1 TO MAX_Transporters DO
       fb_z1(
         delta_t       := 0.02,
         station_kind  := station_kind,
-        z_total_mm    := g_cfg[i].phys2d.z_total_mm,
-        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
-        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
-        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
-        z_slow_mm_s   := g_cfg[i].phys2d.z_slow_mm_s,
-        z_fast_mm_s   := g_cfg[i].phys2d.z_fast_mm_s,
-        drip_delay_s  := g_cfg[i].phys2d.drip_delay_s,
+        ZPosDown        := g_cfg[i].phys2d.z_total_mm,
+        ZPosUp          := 0,
+        ZPosSlowUp      := g_cfg[i].phys2d.z_slow_dry_mm,
+        ZPosSlowDown    := g_cfg[i].phys2d.z_slow_wet_mm,
+        ZPosSlowEnd     := g_cfg[i].phys2d.ZPosSlowEnd,
+        SpeedLiftSlow_Z := g_cfg[i].phys2d.z_slow_mm_s,
+        SpeedLiftFast_Z := g_cfg[i].phys2d.z_fast_mm_s,
+        DripTrayDelay   := g_cfg[i].phys2d.DripTrayDelay,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -3285,13 +3572,14 @@ FOR i := 1 TO MAX_Transporters DO
       fb_z2(
         delta_t       := 0.02,
         station_kind  := station_kind,
-        z_total_mm    := g_cfg[i].phys2d.z_total_mm,
-        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
-        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
-        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
-        z_slow_mm_s   := g_cfg[i].phys2d.z_slow_mm_s,
-        z_fast_mm_s   := g_cfg[i].phys2d.z_fast_mm_s,
-        drip_delay_s  := g_cfg[i].phys2d.drip_delay_s,
+        ZPosDown        := g_cfg[i].phys2d.z_total_mm,
+        ZPosUp          := 0,
+        ZPosSlowUp      := g_cfg[i].phys2d.z_slow_dry_mm,
+        ZPosSlowDown    := g_cfg[i].phys2d.z_slow_wet_mm,
+        ZPosSlowEnd     := g_cfg[i].phys2d.ZPosSlowEnd,
+        SpeedLiftSlow_Z := g_cfg[i].phys2d.z_slow_mm_s,
+        SpeedLiftFast_Z := g_cfg[i].phys2d.z_fast_mm_s,
+        DripTrayDelay   := g_cfg[i].phys2d.DripTrayDelay,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -3301,13 +3589,14 @@ FOR i := 1 TO MAX_Transporters DO
       fb_z3(
         delta_t       := 0.02,
         station_kind  := station_kind,
-        z_total_mm    := g_cfg[i].phys2d.z_total_mm,
-        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
-        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
-        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
-        z_slow_mm_s   := g_cfg[i].phys2d.z_slow_mm_s,
-        z_fast_mm_s   := g_cfg[i].phys2d.z_fast_mm_s,
-        drip_delay_s  := g_cfg[i].phys2d.drip_delay_s,
+        ZPosDown        := g_cfg[i].phys2d.z_total_mm,
+        ZPosUp          := 0,
+        ZPosSlowUp      := g_cfg[i].phys2d.z_slow_dry_mm,
+        ZPosSlowDown    := g_cfg[i].phys2d.z_slow_wet_mm,
+        ZPosSlowEnd     := g_cfg[i].phys2d.ZPosSlowEnd,
+        SpeedLiftSlow_Z := g_cfg[i].phys2d.z_slow_mm_s,
+        SpeedLiftFast_Z := g_cfg[i].phys2d.z_fast_mm_s,
+        DripTrayDelay   := g_cfg[i].phys2d.DripTrayDelay,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -3377,7 +3666,7 @@ FOR i := 1 TO MAX_Transporters DO
       g_transporter[i].CurrentStation := g_transporter[i].SinkStationTarget;
       lookup(station_number := g_transporter[i].SinkStationTarget);
       device_delay := lookup.device_delay_s;
-      g_sim_trans[i].z_timer_s := device_delay + INT_TO_REAL(g_cfg[i].phys2d.drip_delay_s) / 10.0;
+      g_sim_trans[i].z_timer_s := device_delay + INT_TO_REAL(g_cfg[i].phys2d.DripTrayDelay) / 10.0;
       g_sim_trans[i].z_stage := 6;
       g_transporter[i].Phase := 4;
     END_IF;
@@ -3394,13 +3683,14 @@ FOR i := 1 TO MAX_Transporters DO
       fb_z1(
         delta_t       := 0.02,
         station_kind  := station_kind,
-        z_total_mm    := g_cfg[i].phys2d.z_total_mm,
-        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
-        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
-        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
-        z_slow_mm_s   := g_cfg[i].phys2d.z_slow_mm_s,
-        z_fast_mm_s   := g_cfg[i].phys2d.z_fast_mm_s,
-        drip_delay_s  := g_cfg[i].phys2d.drip_delay_s,
+        ZPosDown        := g_cfg[i].phys2d.z_total_mm,
+        ZPosUp          := 0,
+        ZPosSlowUp      := g_cfg[i].phys2d.z_slow_dry_mm,
+        ZPosSlowDown    := g_cfg[i].phys2d.z_slow_wet_mm,
+        ZPosSlowEnd     := g_cfg[i].phys2d.ZPosSlowEnd,
+        SpeedLiftSlow_Z := g_cfg[i].phys2d.z_slow_mm_s,
+        SpeedLiftFast_Z := g_cfg[i].phys2d.z_fast_mm_s,
+        DripTrayDelay   := g_cfg[i].phys2d.DripTrayDelay,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -3410,13 +3700,14 @@ FOR i := 1 TO MAX_Transporters DO
       fb_z2(
         delta_t       := 0.02,
         station_kind  := station_kind,
-        z_total_mm    := g_cfg[i].phys2d.z_total_mm,
-        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
-        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
-        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
-        z_slow_mm_s   := g_cfg[i].phys2d.z_slow_mm_s,
-        z_fast_mm_s   := g_cfg[i].phys2d.z_fast_mm_s,
-        drip_delay_s  := g_cfg[i].phys2d.drip_delay_s,
+        ZPosDown        := g_cfg[i].phys2d.z_total_mm,
+        ZPosUp          := 0,
+        ZPosSlowUp      := g_cfg[i].phys2d.z_slow_dry_mm,
+        ZPosSlowDown    := g_cfg[i].phys2d.z_slow_wet_mm,
+        ZPosSlowEnd     := g_cfg[i].phys2d.ZPosSlowEnd,
+        SpeedLiftSlow_Z := g_cfg[i].phys2d.z_slow_mm_s,
+        SpeedLiftFast_Z := g_cfg[i].phys2d.z_fast_mm_s,
+        DripTrayDelay   := g_cfg[i].phys2d.DripTrayDelay,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -3426,13 +3717,14 @@ FOR i := 1 TO MAX_Transporters DO
       fb_z3(
         delta_t       := 0.02,
         station_kind  := station_kind,
-        z_total_mm    := g_cfg[i].phys2d.z_total_mm,
-        z_slow_dry_mm := g_cfg[i].phys2d.z_slow_dry_mm,
-        z_slow_wet_mm := g_cfg[i].phys2d.z_slow_wet_mm,
-        z_slow_end_mm := g_cfg[i].phys2d.z_slow_end_mm,
-        z_slow_mm_s   := g_cfg[i].phys2d.z_slow_mm_s,
-        z_fast_mm_s   := g_cfg[i].phys2d.z_fast_mm_s,
-        drip_delay_s  := g_cfg[i].phys2d.drip_delay_s,
+        ZPosDown        := g_cfg[i].phys2d.z_total_mm,
+        ZPosUp          := 0,
+        ZPosSlowUp      := g_cfg[i].phys2d.z_slow_dry_mm,
+        ZPosSlowDown    := g_cfg[i].phys2d.z_slow_wet_mm,
+        ZPosSlowEnd     := g_cfg[i].phys2d.ZPosSlowEnd,
+        SpeedLiftSlow_Z := g_cfg[i].phys2d.z_slow_mm_s,
+        SpeedLiftFast_Z := g_cfg[i].phys2d.z_fast_mm_s,
+        DripTrayDelay   := g_cfg[i].phys2d.DripTrayDelay,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -3566,10 +3858,10 @@ END_FOR;]]></xhtml:p>
               <type><DINT/></type>
             </variable>
             <variable name="t_acc">
-              <type><INT/></type>
+              <type><DINT/></type>
             </variable>
             <variable name="t_dec">
-              <type><INT/></type>
+              <type><DINT/></type>
             </variable>
           </inputVars>
           <outputVars>
@@ -3643,8 +3935,8 @@ r_target := DINT_TO_REAL(x_target);
 r_min    := DINT_TO_REAL(x_min);
 r_max    := DINT_TO_REAL(x_max);
 r_vmax   := DINT_TO_REAL(v_max);
-r_tacc   := INT_TO_REAL(t_acc) / 10.0;
-r_tdec   := INT_TO_REAL(t_dec) / 10.0;
+r_tacc   := DINT_TO_REAL(t_acc) / 10.0;
+r_tdec   := DINT_TO_REAL(t_dec) / 10.0;
 r_pos    := DINT_TO_REAL(x_pos);
 r_vel    := DINT_TO_REAL(v_x);
 
@@ -3723,25 +4015,28 @@ END_IF;]]></xhtml:p>
             <variable name="station_kind">
               <type><INT/></type>
             </variable>
-            <variable name="z_total_mm">
+            <variable name="ZPosUp">
               <type><DINT/></type>
             </variable>
-            <variable name="z_slow_dry_mm">
+            <variable name="ZPosDown">
               <type><DINT/></type>
             </variable>
-            <variable name="z_slow_wet_mm">
+            <variable name="ZPosSlowUp">
               <type><DINT/></type>
             </variable>
-            <variable name="z_slow_end_mm">
+            <variable name="ZPosSlowDown">
               <type><DINT/></type>
             </variable>
-            <variable name="z_slow_mm_s">
+            <variable name="ZPosSlowEnd">
               <type><DINT/></type>
             </variable>
-            <variable name="z_fast_mm_s">
+            <variable name="SpeedLiftSlow_Z">
               <type><DINT/></type>
             </variable>
-            <variable name="drip_delay_s">
+            <variable name="SpeedLiftFast_Z">
+              <type><DINT/></type>
+            </variable>
+            <variable name="DripTrayDelay">
               <type><INT/></type>
             </variable>
           </inputVars>
@@ -3788,25 +4083,29 @@ END_IF;]]></xhtml:p>
             <variable name="r_drip">
               <type><REAL/></type>
             </variable>
+            <variable name="z_total_mm">
+              <type><DINT/></type>
+            </variable>
           </localVars>
         </interface>
         <body>
           <ST>
             <xhtml:p><![CDATA[done := FALSE;
+z_total_mm := ZPosDown - ZPosUp;
 
 (* Convert DINT/INT inputs to REAL for physics *)
 r_z         := DINT_TO_REAL(z_mm);
 r_total     := DINT_TO_REAL(z_total_mm);
-r_slow_end  := DINT_TO_REAL(z_slow_end_mm);
-r_slow_spd  := DINT_TO_REAL(z_slow_mm_s);
-r_fast_spd  := DINT_TO_REAL(z_fast_mm_s);
-r_drip      := INT_TO_REAL(drip_delay_s) / 10.0;
+r_slow_end  := DINT_TO_REAL(ZPosSlowEnd);
+r_slow_spd  := DINT_TO_REAL(SpeedLiftSlow_Z);
+r_fast_spd  := DINT_TO_REAL(SpeedLiftFast_Z);
+r_drip      := INT_TO_REAL(DripTrayDelay) / 10.0;
 
 (* Select slow zone based on station kind *)
 IF station_kind = KIND_WET THEN
-  r_slow_zone := DINT_TO_REAL(z_slow_wet_mm);
+  r_slow_zone := DINT_TO_REAL(ZPosSlowDown);
 ELSE
-  r_slow_zone := DINT_TO_REAL(z_slow_dry_mm);
+  r_slow_zone := DINT_TO_REAL(ZPosSlowUp);
 END_IF;
 
 CASE z_stage OF
@@ -5931,7 +6230,7 @@ END_IF;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="area">
-              <type><derived name="TASK_AREA_T"/></type>
+              <type><derived name="UDT_TaskArea"/></type>
             </variable>
             <variable name="can_lift">
               <type><BOOL/></type>
@@ -5948,15 +6247,15 @@ FOR ti := 1 TO MAX_Transporters DO
   IF o_trans = 0 THEN
     FOR ai := 1 TO 4 DO
       IF o_trans = 0 THEN
-        area := g_cfg[ti].task_area[ai];
-        IF area.min_lift > 0 OR area.max_lift > 0 THEN
-          can_lift := (i_lift_stn >= area.min_lift) AND (i_lift_stn <= area.max_lift);
+        area := g_cfg[ti].TaskArea[ai];
+        IF area.MinLift > 0 OR area.MaxLift > 0 THEN
+          can_lift := (i_lift_stn >= area.MinLift) AND (i_lift_stn <= area.MaxLift);
           IF i_sink_stn = 0 THEN
             IF can_lift THEN
               o_trans := ti;
             END_IF;
           ELSE
-            can_sink := (i_sink_stn >= area.min_sink) AND (i_sink_stn <= area.max_sink);
+            can_sink := (i_sink_stn >= area.MinSink) AND (i_sink_stn <= area.MaxSink);
             IF can_lift AND can_sink THEN
               o_trans := ti;
             END_IF;
@@ -7036,8 +7335,8 @@ END_FOR;]]></xhtml:p>
       covers := FALSE;
       FOR ai := 1 TO 4 DO
         IF NOT covers THEN
-          IF g_cfg[cov_t].task_area[ai].min_lift > 0 OR g_cfg[cov_t].task_area[ai].max_lift > 0 THEN
-            IF loc >= g_cfg[cov_t].task_area[ai].min_lift AND loc <= g_cfg[cov_t].task_area[ai].max_lift THEN
+          IF g_cfg[cov_t].TaskArea[ai].MinLift > 0 OR g_cfg[cov_t].TaskArea[ai].MaxLift > 0 THEN
+            IF loc >= g_cfg[cov_t].TaskArea[ai].MinLift AND loc <= g_cfg[cov_t].TaskArea[ai].MaxLift THEN
               covers := TRUE;
             END_IF;
           END_IF;
@@ -8255,7 +8554,7 @@ FOR i := 1 TO MAX_Transporters DO
   min_x := g_cfg[i].DrivePosMin;
   max_x := g_cfg[i].DrivePosMax;
   current_x := g_transporter[i].XPosition;
-  avoid_dist := g_cfg[i].CollisionWidth;
+  avoid_dist := g_cfg[i].AvoidanceWidth;
 
   (* If no limits configured, lock to current position *)
   IF (min_x < 1) OR (max_x < 1) THEN
@@ -8398,7 +8697,7 @@ FOR i := 1 TO MAX_Transporters DO
 
   current_x := g_transporter[i].XPosition;
   current_y := g_transporter[i].YPosition;
-  avoid_dist := g_cfg[i].CollisionWidth;
+  avoid_dist := g_cfg[i].AvoidanceWidth;
 
   FOR j := 1 TO MAX_Transporters DO
     IF j = i THEN CONTINUE; END_IF;
@@ -8441,7 +8740,7 @@ FOR i := 1 TO MAX_Transporters DO
     w_status[n_active] := g_transporter[i].Status;
     w_ypos[n_active] := g_transporter[i].YPosition;
     w_target[n_active] := g_transporter[i].XFinalTarget;
-    w_avoid[n_active] := g_cfg[i].CollisionWidth;
+    w_avoid[n_active] := g_cfg[i].AvoidanceWidth;
   END_IF;
 END_FOR;
 
@@ -11897,16 +12196,16 @@ IF iw_cfg_seq <> last_cfg_seq THEN
        d0 = x_min_limit mm      d1 = x_max_limit mm
        d2 = x_accel_s × 10      d3 = x_decel_s × 10
        d4 = x_max_mm_s           d5 = z_total_mm
-       d6 = avoid_mm *)
+       d6 = AvoidanceWidth/CollisionWidth *)
     j := iw_cfg_param;
     IF (j >= 1) AND (j <= 3) THEN
       g_cfg[j].DrivePosMin          := INT_TO_DINT(iw_cfg_d0);
       g_cfg[j].DrivePosMax          := INT_TO_DINT(iw_cfg_d1);
-      g_cfg[j].phys2d.Acceleration_X     := iw_cfg_d2;
-      g_cfg[j].phys2d.Deceleration_X     := iw_cfg_d3;
+      g_cfg[j].phys2d.Acceleration_X     := INT_TO_DINT(iw_cfg_d2);
+      g_cfg[j].phys2d.Deceleration_X     := INT_TO_DINT(iw_cfg_d3);
       g_cfg[j].phys2d.SpeedMax_X    := INT_TO_DINT(iw_cfg_d4);
       g_cfg[j].phys2d.z_total_mm    := INT_TO_DINT(iw_cfg_d5);
-      g_cfg[j].phys2d.avoid_mm      := INT_TO_DINT(iw_cfg_d6);
+      g_cfg[j].AvoidanceWidth          := INT_TO_DINT(iw_cfg_d6);
       g_cfg[j].CollisionWidth           := INT_TO_DINT(iw_cfg_d6);
     END_IF;
 
@@ -11914,17 +12213,17 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     (* --- Write transporter physics page 2 --- *)
     (* param = transporter_id (1..3)
        d0 = z_slow_dry_mm        d1 = z_slow_wet_mm
-       d2 = z_slow_end_mm        d3 = z_slow_mm_s
-       d4 = z_fast_mm_s          d5 = drip_delay_s × 10
+       d2 = ZPosSlowEnd        d3 = z_slow_mm_s
+       d4 = z_fast_mm_s          d5 = DripTrayDelay × 10
        d6 = (reserved) *)
     j := iw_cfg_param;
     IF (j >= 1) AND (j <= 3) THEN
       g_cfg[j].phys2d.z_slow_dry_mm := INT_TO_DINT(iw_cfg_d0);
       g_cfg[j].phys2d.z_slow_wet_mm := INT_TO_DINT(iw_cfg_d1);
-      g_cfg[j].phys2d.z_slow_end_mm := INT_TO_DINT(iw_cfg_d2);
+      g_cfg[j].phys2d.ZPosSlowEnd := INT_TO_DINT(iw_cfg_d2);
       g_cfg[j].phys2d.z_slow_mm_s   := INT_TO_DINT(iw_cfg_d3);
       g_cfg[j].phys2d.z_fast_mm_s   := INT_TO_DINT(iw_cfg_d4);
-      g_cfg[j].phys2d.drip_delay_s  := iw_cfg_d5;
+      g_cfg[j].phys2d.DripTrayDelay  := iw_cfg_d5;
     END_IF;
 
   ELSIF iw_cfg_cmd = 6 THEN
@@ -11936,10 +12235,10 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     j := iw_cfg_param / 10;
     k := iw_cfg_param MOD 10;
     IF (j >= 1) AND (j <= 3) AND (k >= 1) AND (k <= 4) THEN
-      g_cfg[j].task_area[k].min_lift := iw_cfg_d0;
-      g_cfg[j].task_area[k].max_lift := iw_cfg_d1;
-      g_cfg[j].task_area[k].min_sink := iw_cfg_d2;
-      g_cfg[j].task_area[k].max_sink := iw_cfg_d3;
+      g_cfg[j].TaskArea[k].MinLift := iw_cfg_d0;
+      g_cfg[j].TaskArea[k].MaxLift := iw_cfg_d1;
+      g_cfg[j].TaskArea[k].MinSink := iw_cfg_d2;
+      g_cfg[j].TaskArea[k].MaxSink := iw_cfg_d3;
     END_IF;
 
   ELSIF iw_cfg_cmd = 7 THEN
@@ -12019,7 +12318,7 @@ IF iw_cfg_seq <> last_cfg_seq THEN
 
     FOR i := 1 TO MAX_Transporters DO
       (* Active if task_area[1] has non-zero stations *)
-      IF g_cfg[i].task_area[1].min_lift > 0 THEN
+      IF g_cfg[i].TaskArea[1].MinLift > 0 THEN
         g_transporter[i].IsActive := TRUE;
         g_transporter[i].Status := 3;  (* auto_idle *)
       ELSE
@@ -12474,87 +12773,87 @@ qw_cfg_t1_y_min := DINT_TO_INT(g_cfg[1].YMinDriveLimit);
 qw_cfg_t1_y_max := DINT_TO_INT(g_cfg[1].YMaxDriveLimit);
 qw_cfg_t1_x_avoid := DINT_TO_INT(g_cfg[1].CollisionWidth);
 qw_cfg_t1_y_avoid := DINT_TO_INT(g_cfg[1].AvoidanceWidth);
-qw_cfg_t1_ph_xacc_x100 := g_cfg[1].phys2d.Acceleration_X * 10;
-qw_cfg_t1_ph_xdec_x100 := g_cfg[1].phys2d.Deceleration_X * 10;
+qw_cfg_t1_ph_xacc_x100 := DINT_TO_INT(g_cfg[1].phys2d.Acceleration_X * 10);
+qw_cfg_t1_ph_xdec_x100 := DINT_TO_INT(g_cfg[1].phys2d.Deceleration_X * 10);
 qw_cfg_t1_ph_xmax := DINT_TO_INT(g_cfg[1].phys2d.SpeedMax_X);
 qw_cfg_t1_ph_ztot := DINT_TO_INT(g_cfg[1].phys2d.z_total_mm);
 qw_cfg_t1_ph_zsdry := DINT_TO_INT(g_cfg[1].phys2d.z_slow_dry_mm);
 qw_cfg_t1_ph_zswet := DINT_TO_INT(g_cfg[1].phys2d.z_slow_wet_mm);
-qw_cfg_t1_ph_zsend := DINT_TO_INT(g_cfg[1].phys2d.z_slow_end_mm);
+qw_cfg_t1_ph_zsend := DINT_TO_INT(g_cfg[1].phys2d.ZPosSlowEnd);
 qw_cfg_t1_ph_zslow := DINT_TO_INT(g_cfg[1].phys2d.z_slow_mm_s);
 qw_cfg_t1_ph_zfast := DINT_TO_INT(g_cfg[1].phys2d.z_fast_mm_s);
-qw_cfg_t1_ph_drip_x10 := g_cfg[1].phys2d.drip_delay_s;
-qw_cfg_t1_ph_avoid := DINT_TO_INT(g_cfg[1].phys2d.avoid_mm);
-qw_cfg_t1_ta1_min_lift := g_cfg[1].task_area[1].min_lift;
-qw_cfg_t1_ta1_max_lift := g_cfg[1].task_area[1].max_lift;
-qw_cfg_t1_ta1_min_sink := g_cfg[1].task_area[1].min_sink;
-qw_cfg_t1_ta1_max_sink := g_cfg[1].task_area[1].max_sink;
-qw_cfg_t1_ta2_min_lift := g_cfg[1].task_area[2].min_lift;
-qw_cfg_t1_ta2_max_lift := g_cfg[1].task_area[2].max_lift;
-qw_cfg_t1_ta2_min_sink := g_cfg[1].task_area[2].min_sink;
-qw_cfg_t1_ta2_max_sink := g_cfg[1].task_area[2].max_sink;
-qw_cfg_t1_ta3_min_lift := g_cfg[1].task_area[3].min_lift;
-qw_cfg_t1_ta3_max_lift := g_cfg[1].task_area[3].max_lift;
-qw_cfg_t1_ta3_min_sink := g_cfg[1].task_area[3].min_sink;
-qw_cfg_t1_ta3_max_sink := g_cfg[1].task_area[3].max_sink;
+qw_cfg_t1_ph_drip_x10 := g_cfg[1].phys2d.DripTrayDelay;
+qw_cfg_t1_ph_avoid := DINT_TO_INT(g_cfg[1].AvoidanceWidth);
+qw_cfg_t1_ta1_min_lift := g_cfg[1].TaskArea[1].MinLift;
+qw_cfg_t1_ta1_max_lift := g_cfg[1].TaskArea[1].MaxLift;
+qw_cfg_t1_ta1_min_sink := g_cfg[1].TaskArea[1].MinSink;
+qw_cfg_t1_ta1_max_sink := g_cfg[1].TaskArea[1].MaxSink;
+qw_cfg_t1_ta2_min_lift := g_cfg[1].TaskArea[2].MinLift;
+qw_cfg_t1_ta2_max_lift := g_cfg[1].TaskArea[2].MaxLift;
+qw_cfg_t1_ta2_min_sink := g_cfg[1].TaskArea[2].MinSink;
+qw_cfg_t1_ta2_max_sink := g_cfg[1].TaskArea[2].MaxSink;
+qw_cfg_t1_ta3_min_lift := g_cfg[1].TaskArea[3].MinLift;
+qw_cfg_t1_ta3_max_lift := g_cfg[1].TaskArea[3].MaxLift;
+qw_cfg_t1_ta3_min_sink := g_cfg[1].TaskArea[3].MinSink;
+qw_cfg_t1_ta3_max_sink := g_cfg[1].TaskArea[3].MaxSink;
 qw_cfg_t2_x_min := DINT_TO_INT(g_cfg[2].DrivePosMin);
 qw_cfg_t2_x_max := DINT_TO_INT(g_cfg[2].DrivePosMax);
 qw_cfg_t2_y_min := DINT_TO_INT(g_cfg[2].YMinDriveLimit);
 qw_cfg_t2_y_max := DINT_TO_INT(g_cfg[2].YMaxDriveLimit);
 qw_cfg_t2_x_avoid := DINT_TO_INT(g_cfg[2].CollisionWidth);
 qw_cfg_t2_y_avoid := DINT_TO_INT(g_cfg[2].AvoidanceWidth);
-qw_cfg_t2_ph_xacc_x100 := g_cfg[2].phys2d.Acceleration_X * 10;
-qw_cfg_t2_ph_xdec_x100 := g_cfg[2].phys2d.Deceleration_X * 10;
+qw_cfg_t2_ph_xacc_x100 := DINT_TO_INT(g_cfg[2].phys2d.Acceleration_X * 10);
+qw_cfg_t2_ph_xdec_x100 := DINT_TO_INT(g_cfg[2].phys2d.Deceleration_X * 10);
 qw_cfg_t2_ph_xmax := DINT_TO_INT(g_cfg[2].phys2d.SpeedMax_X);
 qw_cfg_t2_ph_ztot := DINT_TO_INT(g_cfg[2].phys2d.z_total_mm);
 qw_cfg_t2_ph_zsdry := DINT_TO_INT(g_cfg[2].phys2d.z_slow_dry_mm);
 qw_cfg_t2_ph_zswet := DINT_TO_INT(g_cfg[2].phys2d.z_slow_wet_mm);
-qw_cfg_t2_ph_zsend := DINT_TO_INT(g_cfg[2].phys2d.z_slow_end_mm);
+qw_cfg_t2_ph_zsend := DINT_TO_INT(g_cfg[2].phys2d.ZPosSlowEnd);
 qw_cfg_t2_ph_zslow := DINT_TO_INT(g_cfg[2].phys2d.z_slow_mm_s);
 qw_cfg_t2_ph_zfast := DINT_TO_INT(g_cfg[2].phys2d.z_fast_mm_s);
-qw_cfg_t2_ph_drip_x10 := g_cfg[2].phys2d.drip_delay_s;
-qw_cfg_t2_ph_avoid := DINT_TO_INT(g_cfg[2].phys2d.avoid_mm);
-qw_cfg_t2_ta1_min_lift := g_cfg[2].task_area[1].min_lift;
-qw_cfg_t2_ta1_max_lift := g_cfg[2].task_area[1].max_lift;
-qw_cfg_t2_ta1_min_sink := g_cfg[2].task_area[1].min_sink;
-qw_cfg_t2_ta1_max_sink := g_cfg[2].task_area[1].max_sink;
-qw_cfg_t2_ta2_min_lift := g_cfg[2].task_area[2].min_lift;
-qw_cfg_t2_ta2_max_lift := g_cfg[2].task_area[2].max_lift;
-qw_cfg_t2_ta2_min_sink := g_cfg[2].task_area[2].min_sink;
-qw_cfg_t2_ta2_max_sink := g_cfg[2].task_area[2].max_sink;
-qw_cfg_t2_ta3_min_lift := g_cfg[2].task_area[3].min_lift;
-qw_cfg_t2_ta3_max_lift := g_cfg[2].task_area[3].max_lift;
-qw_cfg_t2_ta3_min_sink := g_cfg[2].task_area[3].min_sink;
-qw_cfg_t2_ta3_max_sink := g_cfg[2].task_area[3].max_sink;
+qw_cfg_t2_ph_drip_x10 := g_cfg[2].phys2d.DripTrayDelay;
+qw_cfg_t2_ph_avoid := DINT_TO_INT(g_cfg[2].AvoidanceWidth);
+qw_cfg_t2_ta1_min_lift := g_cfg[2].TaskArea[1].MinLift;
+qw_cfg_t2_ta1_max_lift := g_cfg[2].TaskArea[1].MaxLift;
+qw_cfg_t2_ta1_min_sink := g_cfg[2].TaskArea[1].MinSink;
+qw_cfg_t2_ta1_max_sink := g_cfg[2].TaskArea[1].MaxSink;
+qw_cfg_t2_ta2_min_lift := g_cfg[2].TaskArea[2].MinLift;
+qw_cfg_t2_ta2_max_lift := g_cfg[2].TaskArea[2].MaxLift;
+qw_cfg_t2_ta2_min_sink := g_cfg[2].TaskArea[2].MinSink;
+qw_cfg_t2_ta2_max_sink := g_cfg[2].TaskArea[2].MaxSink;
+qw_cfg_t2_ta3_min_lift := g_cfg[2].TaskArea[3].MinLift;
+qw_cfg_t2_ta3_max_lift := g_cfg[2].TaskArea[3].MaxLift;
+qw_cfg_t2_ta3_min_sink := g_cfg[2].TaskArea[3].MinSink;
+qw_cfg_t2_ta3_max_sink := g_cfg[2].TaskArea[3].MaxSink;
 qw_cfg_t3_x_min := DINT_TO_INT(g_cfg[3].DrivePosMin);
 qw_cfg_t3_x_max := DINT_TO_INT(g_cfg[3].DrivePosMax);
 qw_cfg_t3_y_min := DINT_TO_INT(g_cfg[3].YMinDriveLimit);
 qw_cfg_t3_y_max := DINT_TO_INT(g_cfg[3].YMaxDriveLimit);
 qw_cfg_t3_x_avoid := DINT_TO_INT(g_cfg[3].CollisionWidth);
 qw_cfg_t3_y_avoid := DINT_TO_INT(g_cfg[3].AvoidanceWidth);
-qw_cfg_t3_ph_xacc_x100 := g_cfg[3].phys2d.Acceleration_X * 10;
-qw_cfg_t3_ph_xdec_x100 := g_cfg[3].phys2d.Deceleration_X * 10;
+qw_cfg_t3_ph_xacc_x100 := DINT_TO_INT(g_cfg[3].phys2d.Acceleration_X * 10);
+qw_cfg_t3_ph_xdec_x100 := DINT_TO_INT(g_cfg[3].phys2d.Deceleration_X * 10);
 qw_cfg_t3_ph_xmax := DINT_TO_INT(g_cfg[3].phys2d.SpeedMax_X);
 qw_cfg_t3_ph_ztot := DINT_TO_INT(g_cfg[3].phys2d.z_total_mm);
 qw_cfg_t3_ph_zsdry := DINT_TO_INT(g_cfg[3].phys2d.z_slow_dry_mm);
 qw_cfg_t3_ph_zswet := DINT_TO_INT(g_cfg[3].phys2d.z_slow_wet_mm);
-qw_cfg_t3_ph_zsend := DINT_TO_INT(g_cfg[3].phys2d.z_slow_end_mm);
+qw_cfg_t3_ph_zsend := DINT_TO_INT(g_cfg[3].phys2d.ZPosSlowEnd);
 qw_cfg_t3_ph_zslow := DINT_TO_INT(g_cfg[3].phys2d.z_slow_mm_s);
 qw_cfg_t3_ph_zfast := DINT_TO_INT(g_cfg[3].phys2d.z_fast_mm_s);
-qw_cfg_t3_ph_drip_x10 := g_cfg[3].phys2d.drip_delay_s;
-qw_cfg_t3_ph_avoid := DINT_TO_INT(g_cfg[3].phys2d.avoid_mm);
-qw_cfg_t3_ta1_min_lift := g_cfg[3].task_area[1].min_lift;
-qw_cfg_t3_ta1_max_lift := g_cfg[3].task_area[1].max_lift;
-qw_cfg_t3_ta1_min_sink := g_cfg[3].task_area[1].min_sink;
-qw_cfg_t3_ta1_max_sink := g_cfg[3].task_area[1].max_sink;
-qw_cfg_t3_ta2_min_lift := g_cfg[3].task_area[2].min_lift;
-qw_cfg_t3_ta2_max_lift := g_cfg[3].task_area[2].max_lift;
-qw_cfg_t3_ta2_min_sink := g_cfg[3].task_area[2].min_sink;
-qw_cfg_t3_ta2_max_sink := g_cfg[3].task_area[2].max_sink;
-qw_cfg_t3_ta3_min_lift := g_cfg[3].task_area[3].min_lift;
-qw_cfg_t3_ta3_max_lift := g_cfg[3].task_area[3].max_lift;
-qw_cfg_t3_ta3_min_sink := g_cfg[3].task_area[3].min_sink;
-qw_cfg_t3_ta3_max_sink := g_cfg[3].task_area[3].max_sink;
+qw_cfg_t3_ph_drip_x10 := g_cfg[3].phys2d.DripTrayDelay;
+qw_cfg_t3_ph_avoid := DINT_TO_INT(g_cfg[3].AvoidanceWidth);
+qw_cfg_t3_ta1_min_lift := g_cfg[3].TaskArea[1].MinLift;
+qw_cfg_t3_ta1_max_lift := g_cfg[3].TaskArea[1].MaxLift;
+qw_cfg_t3_ta1_min_sink := g_cfg[3].TaskArea[1].MinSink;
+qw_cfg_t3_ta1_max_sink := g_cfg[3].TaskArea[1].MaxSink;
+qw_cfg_t3_ta2_min_lift := g_cfg[3].TaskArea[2].MinLift;
+qw_cfg_t3_ta2_max_lift := g_cfg[3].TaskArea[2].MaxLift;
+qw_cfg_t3_ta2_min_sink := g_cfg[3].TaskArea[2].MinSink;
+qw_cfg_t3_ta2_max_sink := g_cfg[3].TaskArea[2].MaxSink;
+qw_cfg_t3_ta3_min_lift := g_cfg[3].TaskArea[3].MinLift;
+qw_cfg_t3_ta3_max_lift := g_cfg[3].TaskArea[3].MaxLift;
+qw_cfg_t3_ta3_min_sink := g_cfg[3].TaskArea[3].MinSink;
+qw_cfg_t3_ta3_max_sink := g_cfg[3].TaskArea[3].MaxSink;
 (* === Per-station avoid flags readback (g_avoid_status) — 30 stations === *)
 qw_s101_val := g_avoid_status[101];
 qw_s102_val := g_avoid_status[102];

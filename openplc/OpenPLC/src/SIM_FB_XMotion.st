@@ -9,8 +9,8 @@ VAR_INPUT
   x_min    : DINT;     (* TWA lower limit mm *)
   x_max    : DINT;     (* TWA upper limit mm *)
   v_max    : DINT;     (* max velocity mm/s *)
-  t_acc    : INT;      (* acceleration time ×10 = tenths of second *)
-  t_dec    : INT;      (* deceleration time ×10 = tenths of second *)
+  t_acc    : DINT;     (* acceleration time ×10 = tenths of second *)
+  t_dec    : DINT;     (* deceleration time ×10 = tenths of second *)
 END_VAR
 VAR_IN_OUT
   x_pos : DINT;        (* current X position mm *)
@@ -43,8 +43,8 @@ END_VAR
   r_min    := DINT_TO_REAL(x_min);
   r_max    := DINT_TO_REAL(x_max);
   r_vmax   := DINT_TO_REAL(v_max);
-  r_tacc   := INT_TO_REAL(t_acc) / 10.0;
-  r_tdec   := INT_TO_REAL(t_dec) / 10.0;
+  r_tacc   := DINT_TO_REAL(t_acc) / 10.0;
+  r_tdec   := DINT_TO_REAL(t_dec) / 10.0;
   r_pos    := DINT_TO_REAL(x_pos);
   r_vel    := DINT_TO_REAL(v_x);
 

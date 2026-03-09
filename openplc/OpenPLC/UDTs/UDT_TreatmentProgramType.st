@@ -3,8 +3,8 @@
 TYPE UDT_TreatmentProgramType :
 STRUCT
     ProgramId   : INT;                                                                           (* Treatment program number *)
-    ProgramName : STRING(30);                                                                    (* Treatment program name *)
+    ProgramName : STRING;                                                                    (* Treatment program name *)
     StepCount   : INT;                                                                           (* Number of valid steps in Steps array *)
-    Steps       : ARRAY[0..GVL_Constants.MAX_STEPS_PER_PROGRAM] OF UDT_TreatmentProgramStepType; (* Embedded step array *)
+    Steps       : ARRAY[0..30] OF UDT_TreatmentProgramStepType; (* Embedded step array *)
 END_STRUCT
 END_TYPE

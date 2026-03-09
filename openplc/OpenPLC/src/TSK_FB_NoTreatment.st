@@ -136,8 +136,8 @@ FOR ui := 1 TO MAX_Units DO
       covers := FALSE;
       FOR ai := 1 TO 4 DO
         IF NOT covers THEN
-          IF g_cfg[cov_t].task_area[ai].min_lift > 0 OR g_cfg[cov_t].task_area[ai].max_lift > 0 THEN
-            IF loc >= g_cfg[cov_t].task_area[ai].min_lift AND loc <= g_cfg[cov_t].task_area[ai].max_lift THEN
+          IF g_cfg[cov_t].TaskArea[ai].MinLift > 0 OR g_cfg[cov_t].TaskArea[ai].MaxLift > 0 THEN
+            IF loc >= g_cfg[cov_t].TaskArea[ai].MinLift AND loc <= g_cfg[cov_t].TaskArea[ai].MaxLift THEN
               covers := TRUE;
             END_IF;
           END_IF;
