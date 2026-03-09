@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-09T10:40:00"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-09T10:40:00">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-09T10:48:41"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-09T10:48:41">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -327,6 +327,9 @@
       <dataType name="UDT_TransporterStatusType">
         <baseType>
           <struct>
+            <variable name="TransporterId">
+              <type><INT/></type>
+            </variable>
             <variable name="TaskId">
               <type><LINT/></type>
             </variable>
@@ -349,6 +352,9 @@
               <type><INT/></type>
             </variable>
             <variable name="TaskRemainingTime">
+              <type><DINT/></type>
+            </variable>
+            <variable name="LiftStationRemainingTime">
               <type><DINT/></type>
             </variable>
             <variable name="XFinalTarget">
@@ -378,7 +384,25 @@
             <variable name="XMaxDriveLimit">
               <type><DINT/></type>
             </variable>
+            <variable name="Busy">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="Fault">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="AtPosition">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="CanEvade">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="Priority">
+              <type><DINT/></type>
+            </variable>
             <variable name="IsActive">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="IsCarrying">
               <type><BOOL/></type>
             </variable>
           </struct>

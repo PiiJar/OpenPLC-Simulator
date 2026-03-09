@@ -152,6 +152,8 @@ END_TYPE
 (* g_transporter : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType      *)
 TYPE UDT_TransporterStatusType :
 STRUCT
+  (* --- Identity --- *)
+  TransporterId      : INT;      (* reference to transporter config index *)
   (* --- Command (scheduler → transporter) --- *)
   TaskId             : LINT;     (* g_time_s at assignment — sync key *)
   LiftStationTarget  : INT;     (* pickup station number *)
@@ -162,6 +164,7 @@ STRUCT
   Phase              : INT;      (* 0=idle 1=to_lift 2=lifting 3=to_sink 4=sinking *)
   CurrentStation     : INT;      (* nearest station number *)
   TaskRemainingTime  : DINT;     (* remaining treatment time (seconds) *)
+  LiftStationRemainingTime : DINT; (* remaining time at lift station (seconds) *)
   (* --- Drive (runtime / TWA) --- *)
   XFinalTarget       : DINT;     (* destination X (station position) mm *)
   XDriveTarget       : DINT;     (* TWA-clamped X drive target mm *)
@@ -172,8 +175,15 @@ STRUCT
   ZPosition          : DINT;     (* current Z position mm *)
   XMinDriveLimit     : DINT;     (* TWA lower X limit mm *)
   XMaxDriveLimit     : DINT;     (* TWA upper X limit mm *)
+  (* --- Runtime status --- *)
+  Busy               : BOOL;     (* transporter busy *)
+  Fault              : BOOL;     (* transporter fault *)
+  AtPosition         : BOOL;     (* at target position *)
+  CanEvade           : BOOL;     (* can perform evasion maneuver *)
+  Priority           : DINT;     (* collision avoidance priority *)
   (* --- General --- *)
   IsActive           : BOOL;     (* transporter enabled *)
+  IsCarrying         : BOOL;     (* transporter is carrying product *)
 END_STRUCT;
 END_TYPE
 
