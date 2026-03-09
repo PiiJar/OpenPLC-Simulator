@@ -19,6 +19,7 @@ END_VAR
 VAR_EXTERNAL
   g_station_count    : INT;
   g_station         : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
+  g_station_loc     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation;
   g_cfg              : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
   g_transporter      : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
   g_unit            : ARRAY[1..MAX_Units] OF UNIT_T;
@@ -52,8 +53,12 @@ FOR i := MIN_StationIndex TO MAX_StationIndex DO
   g_station[i].StationType     := 0;
   g_station[i].DrippingTime := 0;
   g_station[i].DeviceDelay  := 0;
-  g_station[i].UnitId       := 0;
-  g_station[i].ChangeTime   := 0;
+END_FOR;
+
+(* --- Clear station unit locations --- *)
+FOR i := MIN_StationIndex TO MAX_StationIndex DO
+  g_station_loc[i].UnitId     := 0;
+  g_station_loc[i].ChangeTime := 0;
 END_FOR;
 g_station_count := 0;
 
@@ -153,13 +158,16 @@ END_FOR;
 (* --- Clear all treatment programs --- *)
 FOR i := 1 TO MAX_Units DO
   g_program[i].program_id := 0;
-  FOR j := 1 TO 30 DO
-    FOR k := 1 TO 5 DO
-      g_program[i].stages[j].stations[k] := 0;
+  g_program[i].ProgramName := '';
+  g_program[i].StepCount := 0;
+  FOR j := 0 TO 30 DO
+    FOR k := 0 TO 4 DO
+      g_program[i].Steps[j].Stations[k] := 0;
     END_FOR;
-    g_program[i].stages[j].min_time := 0;
-    g_program[i].stages[j].max_time := 0;
-    g_program[i].stages[j].cal_time := 0;
+    g_program[i].Steps[j].StationCount := 0;
+    g_program[i].Steps[j].MinTime := 0;
+    g_program[i].Steps[j].MaxTime := 0;
+    g_program[i].Steps[j].CalTime := 0;
   END_FOR;
 END_FOR;
 

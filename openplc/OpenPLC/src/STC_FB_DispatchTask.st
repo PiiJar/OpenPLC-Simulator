@@ -10,7 +10,7 @@
      3. Sink station free check:
         a) Original sink free → use it
         b) Not free → search alternative parallel stations
-           (from g_program[].stages[] or g_ntt[] for stage=0)
+           (from g_program[].Steps[] or g_ntt[] for stage=0)
         c) Pick the station with oldest change_time (longest empty)
         d) No free alternative → skip, don't dispatch
      4. Conflict check: no other active transporter targeting
@@ -34,6 +34,7 @@ VAR_EXTERNAL
   g_transporter : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
   g_task        : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
   g_station     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
+  g_station_loc : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation;
   g_unit        : ARRAY[1..MAX_Units] OF UNIT_T;
   g_program     : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
   g_ntt         : ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T;
@@ -130,8 +131,8 @@ FOR ti := 1 TO MAX_Transporters DO
         IF t_stage >= 1 AND t_stage <= MAX_STEPS_PER_PROGRAM
            AND t_unit >= 1 AND t_unit <= MAX_Units THEN
           (* Treatment task — look in g_program for parallel stations *)
-          FOR si := 1 TO MAX_STATIONS_PER_STEP DO
-            cand_stn := g_program[t_unit].stages[t_stage].stations[si];
+          FOR si := 0 TO MAX_STATIONS_PER_STEP - 1 DO
+            cand_stn := g_program[t_unit].Steps[t_stage - 1].Stations[si];
             IF cand_stn > 0 AND cand_stn <> t_sink THEN
               IF cand_stn >= MIN_StationIndex AND cand_stn <= MAX_StationIndex THEN
                 cand_free := TRUE;
@@ -141,8 +142,8 @@ FOR ti := 1 TO MAX_Transporters DO
                   END_IF;
                 END_FOR;
                 IF cand_free THEN
-                  IF g_station[cand_stn].ChangeTime < best_change THEN
-                    best_change := g_station[cand_stn].ChangeTime;
+                  IF g_station_loc[cand_stn].ChangeTime < best_change THEN
+                    best_change := g_station_loc[cand_stn].ChangeTime;
                     best_stn := cand_stn;
                   END_IF;
                 END_IF;
@@ -180,8 +181,8 @@ FOR ti := 1 TO MAX_Transporters DO
                       END_IF;
                     END_FOR;
                     IF cand_free THEN
-                      IF g_station[cand_stn].ChangeTime < best_change THEN
-                        best_change := g_station[cand_stn].ChangeTime;
+                      IF g_station_loc[cand_stn].ChangeTime < best_change THEN
+                        best_change := g_station_loc[cand_stn].ChangeTime;
                         best_stn := cand_stn;
                       END_IF;
                     END_IF;
@@ -203,8 +204,8 @@ FOR ti := 1 TO MAX_Transporters DO
                       END_IF;
                     END_FOR;
                     IF cand_free THEN
-                      IF g_station[cand_stn].ChangeTime < best_change THEN
-                        best_change := g_station[cand_stn].ChangeTime;
+                      IF g_station_loc[cand_stn].ChangeTime < best_change THEN
+                        best_change := g_station_loc[cand_stn].ChangeTime;
                         best_stn := cand_stn;
                       END_IF;
                     END_IF;

@@ -19,8 +19,6 @@ STRUCT
   TankId               : INT;   (* Reference to tanks.TankId *)
   IsInUse              : BOOL;  (* Station enabled *)
   StationType          : INT;   (* 0=Reserve, 1=Buffer, 2=Process, etc. *)
-  UnitId               : INT;   (* unit currently at this station, 0 = none *)
-  ChangeTime           : LINT;  (* timestamp of last unit arrival/departure (unix seconds) *)
   (* Position in mm *)
   XPosition            : DINT;  (* X position mm *)
   YPosition            : DINT;  (* Y position mm *)
@@ -145,17 +143,20 @@ END_TYPE
 
 TYPE PROGRAM_STAGE_T :
 STRUCT
-  stations : ARRAY[1..5] OF INT;   (* up to MAX_STATIONS_PER_STEP station numbers *)
-  min_time : DINT;                  (* minimum processing time (seconds) *)
-  max_time : DINT;                  (* maximum processing time (seconds) *)
-  cal_time : DINT;                  (* calculated / target time (seconds) *)
+  Stations     : ARRAY[0..4] OF INT;   (* up to MAX_STATIONS_PER_STEP station numbers, 0-based *)
+  StationCount : INT;                   (* number of valid stations in Stations array *)
+  MinTime      : DINT;                  (* minimum processing time (seconds) *)
+  MaxTime      : DINT;                  (* maximum processing time (seconds) *)
+  CalTime      : DINT;                  (* calculated / target time (seconds) *)
 END_STRUCT;
 END_TYPE
 
 TYPE TREATMENT_PROGRAM_T :
 STRUCT
-  program_id : INT;                      (* treatment program number *)
-  stages     : ARRAY[1..30] OF PROGRAM_STAGE_T;  (* up to MAX_STEPS_PER_PROGRAM *)
+  program_id  : INT;                       (* treatment program number *)
+  ProgramName : STRING;                    (* treatment program name, max 254 chars *)
+  StepCount   : INT;                       (* number of valid steps in Steps array *)
+  Steps       : ARRAY[0..30] OF PROGRAM_STAGE_T;  (* 0-based, up to MAX_STEPS_PER_PROGRAM *)
 END_STRUCT;
 END_TYPE
 

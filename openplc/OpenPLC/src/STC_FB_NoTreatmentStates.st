@@ -34,6 +34,7 @@ FUNCTION_BLOCK STC_FB_NoTreatmentStates
     g_batch            : ARRAY[1..MAX_Units] OF BATCH_T;
     g_program          : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
     g_station          : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
+    g_station_loc      : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation;
     g_time_s           : LINT;
     g_production_queue : INT;
   END_VAR
@@ -79,12 +80,12 @@ FUNCTION_BLOCK STC_FB_NoTreatmentStates
     IF snap[u].on_station THEN
       snap[u].loc_op    := g_station[snap[u].loc].StationType;
       snap[u].in_buffer := snap[u].loc_op >= 44 AND snap[u].loc_op <= 47;
-      IF g_station[snap[u].loc].ChangeTime > 0 THEN
-        snap[u].elapsed := g_time_s - g_station[snap[u].loc].ChangeTime;
+      IF g_station_loc[snap[u].loc].ChangeTime > 0 THEN
+        snap[u].elapsed := g_time_s - g_station_loc[snap[u].loc].ChangeTime;
       ELSE
         snap[u].elapsed := 0;
       END_IF;
-      snap[u].cal := g_program[u].stages[snap[u].cur_stage].cal_time;
+      snap[u].cal := g_program[u].Steps[snap[u].cur_stage - 1].CalTime;
     ELSE
       snap[u].loc_op    := 0;
       snap[u].in_buffer := FALSE;
@@ -111,7 +112,7 @@ FUNCTION_BLOCK STC_FB_NoTreatmentStates
       CONTINUE;
     END_IF;
     IF snap[u].cur_stage >= 1 AND snap[u].cur_stage < MAX_STEPS_PER_PROGRAM THEN
-      IF g_program[u].stages[snap[u].cur_stage + 1].stations[1] = 0 THEN
+      IF snap[u].cur_stage >= g_program[u].StepCount THEN
         IF snap[u].elapsed > 0 AND snap[u].elapsed >= DINT_TO_LINT(snap[u].cal) THEN
           g_batch[u].state := PROCESSED;
           snap[u].bstate   := PROCESSED;  (* update snapshot *)
@@ -138,24 +139,24 @@ FUNCTION_BLOCK STC_FB_NoTreatmentStates
     IF snap[u].cur_stage < 1 OR snap[u].cur_stage >= MAX_STEPS_PER_PROGRAM THEN
       CONTINUE;
     END_IF;
-    IF g_program[u].stages[snap[u].cur_stage + 1].stations[1] = 0 THEN
+    IF snap[u].cur_stage >= g_program[u].StepCount THEN
       CONTINUE;  (* no next stage *)
     END_IF;
 
     (* — Pass 1: any next-stage station free or being cleared? — *)
     free_found := FALSE;
     avoid_uid  := 0;
-    FOR p := 1 TO MAX_STATIONS_PER_STEP DO
-      next_stn := g_program[u].stages[snap[u].cur_stage + 1].stations[p];
+    FOR p := 0 TO MAX_STATIONS_PER_STEP - 1 DO
+      next_stn := g_program[u].Steps[snap[u].cur_stage].Stations[p];
       IF next_stn = 0 THEN
         EXIT;
       END_IF;
       IF next_stn >= MIN_StationIndex AND next_stn <= MAX_StationIndex THEN
-        IF g_station[next_stn].UnitId = 0 THEN
+        IF g_station_loc[next_stn].UnitId = 0 THEN
           free_found := TRUE;
           EXIT;
         END_IF;
-        occ_uid := g_station[next_stn].UnitId;
+        occ_uid := g_station_loc[next_stn].UnitId;
         IF occ_uid >= 1 AND occ_uid <= MAX_Units THEN
           IF snap[occ_uid].tgt = TO_AVOID THEN
             free_found := TRUE;
@@ -167,13 +168,13 @@ FUNCTION_BLOCK STC_FB_NoTreatmentStates
 
     (* — Pass 2: all occupied → mark ONE movable unit TO_AVOID — *)
     IF NOT free_found THEN
-      FOR p := 1 TO MAX_STATIONS_PER_STEP DO
-        next_stn := g_program[u].stages[snap[u].cur_stage + 1].stations[p];
+      FOR p := 0 TO MAX_STATIONS_PER_STEP - 1 DO
+        next_stn := g_program[u].Steps[snap[u].cur_stage].Stations[p];
         IF next_stn = 0 THEN
           EXIT;
         END_IF;
         IF next_stn >= MIN_StationIndex AND next_stn <= MAX_StationIndex THEN
-          occ_uid := g_station[next_stn].UnitId;
+          occ_uid := g_station_loc[next_stn].UnitId;
           IF occ_uid >= 1 AND occ_uid <= MAX_Units THEN
             IF NOT snap[occ_uid].has_batch AND snap[occ_uid].tgt = TO_NONE THEN
               avoid_uid := occ_uid;
@@ -203,7 +204,7 @@ FUNCTION_BLOCK STC_FB_NoTreatmentStates
     FOR stk := MIN_StationIndex TO MAX_StationIndex DO
       op := g_station[stk].StationType;
       IF (op = OP_LOADING OR op = OP_LOADING_UNLOADING)
-         AND g_station[stk].UnitId = 0 THEN
+         AND g_station_loc[stk].UnitId = 0 THEN
         load_free := TRUE;
         EXIT;
       END_IF;

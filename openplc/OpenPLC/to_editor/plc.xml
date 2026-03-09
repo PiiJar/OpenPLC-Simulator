@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-09T07:16:49"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-09T07:16:49">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-09T08:14:15"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-09T08:14:15">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -54,12 +54,6 @@
             </variable>
             <variable name="StationType">
               <type><INT/></type>
-            </variable>
-            <variable name="UnitId">
-              <type><INT/></type>
-            </variable>
-            <variable name="ChangeTime">
-              <type><LINT/></type>
             </variable>
             <variable name="XPosition">
               <type><DINT/></type>
@@ -342,21 +336,24 @@
       <dataType name="PROGRAM_STAGE_T">
         <baseType>
           <struct>
-            <variable name="stations">
+            <variable name="Stations">
               <type>
                 <array>
-                  <dimension lower="1" upper="5"/>
+                  <dimension lower="0" upper="4"/>
                   <baseType><INT/></baseType>
                 </array>
               </type>
             </variable>
-            <variable name="min_time">
+            <variable name="StationCount">
+              <type><INT/></type>
+            </variable>
+            <variable name="MinTime">
               <type><DINT/></type>
             </variable>
-            <variable name="max_time">
+            <variable name="MaxTime">
               <type><DINT/></type>
             </variable>
-            <variable name="cal_time">
+            <variable name="CalTime">
               <type><DINT/></type>
             </variable>
           </struct>
@@ -368,10 +365,16 @@
             <variable name="program_id">
               <type><INT/></type>
             </variable>
-            <variable name="stages">
+            <variable name="ProgramName">
+              <type><STRING/></type>
+            </variable>
+            <variable name="StepCount">
+              <type><INT/></type>
+            </variable>
+            <variable name="Steps">
               <type>
                 <array>
-                  <dimension lower="1" upper="30"/>
+                  <dimension lower="0" upper="30"/>
                   <baseType><derived name="PROGRAM_STAGE_T"/></baseType>
                 </array>
               </type>
@@ -2450,13 +2453,13 @@ ELSIF phase = 2001 THEN
               ELSIF chain_delays[ci].target = 1 THEN
                 prog_idx := chain_delays[ci].stage;
                 IF prog_idx >= 1 AND prog_idx <= 30 THEN
-                  old_cal := g_program[cur_wait_unit].stages[prog_idx].cal_time;
-                  max_cal := g_program[cur_wait_unit].stages[prog_idx].max_time;
+                  old_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].CalTime;
+                  max_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].MaxTime;
                   new_cal := old_cal + chain_delays[ci].delay_s;
                   IF new_cal > max_cal AND max_cal > 0 THEN
                     new_cal := max_cal;
                   END_IF;
-                  g_program[cur_wait_unit].stages[prog_idx].cal_time := new_cal;
+                  g_program[cur_wait_unit].Steps[prog_idx - 1].CalTime := new_cal;
                 END_IF;
               END_IF;
             END_IF;
@@ -2495,13 +2498,13 @@ ELSIF phase = 3000 THEN
       (* Program stage delay: increase cal_time *)
       prog_idx := delay_stage;
       IF prog_idx >= 1 AND prog_idx <= 30 THEN
-        old_cal := g_program[cur_wait_unit].stages[prog_idx].cal_time;
-        max_cal := g_program[cur_wait_unit].stages[prog_idx].max_time;
+        old_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].CalTime;
+        max_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].MaxTime;
         new_cal := old_cal + REAL_TO_DINT(delay_amount);
         IF new_cal > max_cal AND max_cal > 0 THEN
           new_cal := max_cal;
         END_IF;
-        g_program[cur_wait_unit].stages[prog_idx].cal_time := new_cal;
+        g_program[cur_wait_unit].Steps[prog_idx - 1].CalTime := new_cal;
       END_IF;
     END_IF;
     (* Recalculate: schedule → tasks → idle → fit *)
@@ -2614,6 +2617,9 @@ o_phase := phase;]]></xhtml:p>
             <variable name="g_station">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
             </variable>
+            <variable name="g_station_loc">
+              <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation"/></type>
+            </variable>
             <variable name="g_cfg">
               <type><derived name="ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T"/></type>
             </variable>
@@ -2685,8 +2691,12 @@ FOR i := MIN_StationIndex TO MAX_StationIndex DO
   g_station[i].StationType     := 0;
   g_station[i].DrippingTime := 0;
   g_station[i].DeviceDelay  := 0;
-  g_station[i].UnitId       := 0;
-  g_station[i].ChangeTime   := 0;
+END_FOR;
+
+(* --- Clear station unit locations --- *)
+FOR i := MIN_StationIndex TO MAX_StationIndex DO
+  g_station_loc[i].UnitId     := 0;
+  g_station_loc[i].ChangeTime := 0;
 END_FOR;
 g_station_count := 0;
 
@@ -2786,13 +2796,16 @@ END_FOR;
 (* --- Clear all treatment programs --- *)
 FOR i := 1 TO MAX_Units DO
   g_program[i].program_id := 0;
-  FOR j := 1 TO 30 DO
-    FOR k := 1 TO 5 DO
-      g_program[i].stages[j].stations[k] := 0;
+  g_program[i].ProgramName := '';
+  g_program[i].StepCount := 0;
+  FOR j := 0 TO 30 DO
+    FOR k := 0 TO 4 DO
+      g_program[i].Steps[j].Stations[k] := 0;
     END_FOR;
-    g_program[i].stages[j].min_time := 0;
-    g_program[i].stages[j].max_time := 0;
-    g_program[i].stages[j].cal_time := 0;
+    g_program[i].Steps[j].StationCount := 0;
+    g_program[i].Steps[j].MinTime := 0;
+    g_program[i].Steps[j].MaxTime := 0;
+    g_program[i].Steps[j].CalTime := 0;
   END_FOR;
 END_FOR;
 
@@ -2856,9 +2869,6 @@ END_FOR;]]></xhtml:p>
             </variable>
             <variable name="g_station">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
-            </variable>
-            <variable name="g_cfg">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T"/></type>
             </variable>
             <variable name="g_move">
               <type><derived name="ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T"/></type>
@@ -3074,14 +3084,14 @@ FOR i := 1 TO MAX_Transporters DO
          treatment cal_time has not yet elapsed, stay at station
          and do NOT begin the lift sequence. *)
       can_lift := TRUE;
-      lift_uid := g_station[g_transporter[i].lift_station].UnitId;
+      lift_uid := g_station_loc[g_transporter[i].lift_station].UnitId;
       IF lift_uid >= 1 AND lift_uid <= MAX_Units THEN
         IF g_batch[lift_uid].state = IN_PROCESS
            AND g_batch[lift_uid].cur_stage >= 1
            AND g_batch[lift_uid].cur_stage <= MAX_STEPS_PER_PROGRAM THEN
-          treat_cal := g_program[lift_uid].stages[g_batch[lift_uid].cur_stage].cal_time;
+          treat_cal := g_program[lift_uid].Steps[g_batch[lift_uid].cur_stage - 1].CalTime;
           IF treat_cal > 0 THEN
-            treat_elapsed := g_time_s - g_station[g_transporter[i].lift_station].ChangeTime;
+            treat_elapsed := g_time_s - g_station_loc[g_transporter[i].lift_station].ChangeTime;
             IF treat_elapsed < DINT_TO_LINT(treat_cal) THEN
               can_lift := FALSE;
             END_IF;
@@ -3098,7 +3108,7 @@ FOR i := 1 TO MAX_Transporters DO
       g_transporter[i].phase := 2;
 
       (* ── Emit LIFT event (msg_type=2) ── *)
-      evt_unit := g_station[g_transporter[i].lift_station].UnitId;
+      evt_unit := g_station_loc[g_transporter[i].lift_station].UnitId;
       IF NOT g_event_pending_valid AND evt_unit >= 1 THEN
         g_event_pending.msg_type := 2;
         g_event_pending.ts_hi := LINT_TO_INT(g_time_s / LINT#65536);
@@ -3110,7 +3120,7 @@ FOR i := 1 TO MAX_Transporters DO
         g_event_pending.f[5]  := g_batch[evt_unit].state;
         g_event_pending.f[6]  := g_batch[evt_unit].prog_id;
         g_event_pending.f[7]  := g_batch[evt_unit].cur_stage;
-        evt_diff := g_time_s - g_station[g_transporter[i].lift_station].ChangeTime;
+        evt_diff := g_time_s - g_station_loc[g_transporter[i].lift_station].ChangeTime;
         IF evt_diff > LINT#32000 THEN
           g_event_pending.f[8] := 32000;
         ELSE
@@ -3124,7 +3134,7 @@ FOR i := 1 TO MAX_Transporters DO
       END_IF;
 
       (* Unit moves from lift station → transporter *)
-      pick_unit_id := g_station[g_transporter[i].lift_station].UnitId;
+      pick_unit_id := g_station_loc[g_transporter[i].lift_station].UnitId;
       IF pick_unit_id >= 1 THEN
         IF i = 1 THEN
           upd_loc1(i_unit := pick_unit_id, i_location := i);
@@ -4423,6 +4433,9 @@ END_FOR;]]></xhtml:p>
             <variable name="g_station">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
             </variable>
+            <variable name="g_station_loc">
+              <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation"/></type>
+            </variable>
             <variable name="g_unit">
               <type><derived name="ARRAY[1..MAX_Units] OF UNIT_T"/></type>
             </variable>
@@ -4590,8 +4603,8 @@ END_FOR;]]></xhtml:p>
         IF t_stage >= 1 AND t_stage <= MAX_STEPS_PER_PROGRAM
            AND t_unit >= 1 AND t_unit <= MAX_Units THEN
           (* Treatment task — look in g_program for parallel stations *)
-          FOR si := 1 TO MAX_STATIONS_PER_STEP DO
-            cand_stn := g_program[t_unit].stages[t_stage].stations[si];
+          FOR si := 0 TO MAX_STATIONS_PER_STEP - 1 DO
+            cand_stn := g_program[t_unit].Steps[t_stage - 1].Stations[si];
             IF cand_stn > 0 AND cand_stn <> t_sink THEN
               IF cand_stn >= MIN_StationIndex AND cand_stn <= MAX_StationIndex THEN
                 cand_free := TRUE;
@@ -4601,8 +4614,8 @@ END_FOR;]]></xhtml:p>
                   END_IF;
                 END_FOR;
                 IF cand_free THEN
-                  IF g_station[cand_stn].ChangeTime < best_change THEN
-                    best_change := g_station[cand_stn].ChangeTime;
+                  IF g_station_loc[cand_stn].ChangeTime < best_change THEN
+                    best_change := g_station_loc[cand_stn].ChangeTime;
                     best_stn := cand_stn;
                   END_IF;
                 END_IF;
@@ -4640,8 +4653,8 @@ END_FOR;]]></xhtml:p>
                       END_IF;
                     END_FOR;
                     IF cand_free THEN
-                      IF g_station[cand_stn].ChangeTime < best_change THEN
-                        best_change := g_station[cand_stn].ChangeTime;
+                      IF g_station_loc[cand_stn].ChangeTime < best_change THEN
+                        best_change := g_station_loc[cand_stn].ChangeTime;
                         best_stn := cand_stn;
                       END_IF;
                     END_IF;
@@ -4663,8 +4676,8 @@ END_FOR;]]></xhtml:p>
                       END_IF;
                     END_FOR;
                     IF cand_free THEN
-                      IF g_station[cand_stn].ChangeTime < best_change THEN
-                        best_change := g_station[cand_stn].ChangeTime;
+                      IF g_station_loc[cand_stn].ChangeTime < best_change THEN
+                        best_change := g_station_loc[cand_stn].ChangeTime;
                         best_stn := cand_stn;
                       END_IF;
                     END_IF;
@@ -5303,6 +5316,9 @@ END_IF;]]></xhtml:p>
             <variable name="g_station">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
             </variable>
+            <variable name="g_station_loc">
+              <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation"/></type>
+            </variable>
             <variable name="g_time_s">
               <type><LINT/></type>
             </variable>
@@ -5376,12 +5392,12 @@ FOR u := 1 TO MAX_Units DO
   IF snap[u].on_station THEN
     snap[u].loc_op    := g_station[snap[u].loc].StationType;
     snap[u].in_buffer := snap[u].loc_op >= 44 AND snap[u].loc_op <= 47;
-    IF g_station[snap[u].loc].ChangeTime > 0 THEN
-      snap[u].elapsed := g_time_s - g_station[snap[u].loc].ChangeTime;
+    IF g_station_loc[snap[u].loc].ChangeTime > 0 THEN
+      snap[u].elapsed := g_time_s - g_station_loc[snap[u].loc].ChangeTime;
     ELSE
       snap[u].elapsed := 0;
     END_IF;
-    snap[u].cal := g_program[u].stages[snap[u].cur_stage].cal_time;
+    snap[u].cal := g_program[u].Steps[snap[u].cur_stage - 1].CalTime;
   ELSE
     snap[u].loc_op    := 0;
     snap[u].in_buffer := FALSE;
@@ -5408,7 +5424,7 @@ FOR u := 1 TO MAX_Units DO
     CONTINUE;
   END_IF;
   IF snap[u].cur_stage >= 1 AND snap[u].cur_stage < MAX_STEPS_PER_PROGRAM THEN
-    IF g_program[u].stages[snap[u].cur_stage + 1].stations[1] = 0 THEN
+    IF snap[u].cur_stage >= g_program[u].StepCount THEN
       IF snap[u].elapsed > 0 AND snap[u].elapsed >= DINT_TO_LINT(snap[u].cal) THEN
         g_batch[u].state := PROCESSED;
         snap[u].bstate   := PROCESSED;  (* update snapshot *)
@@ -5435,24 +5451,24 @@ FOR u := 1 TO MAX_Units DO
   IF snap[u].cur_stage < 1 OR snap[u].cur_stage >= MAX_STEPS_PER_PROGRAM THEN
     CONTINUE;
   END_IF;
-  IF g_program[u].stages[snap[u].cur_stage + 1].stations[1] = 0 THEN
+  IF snap[u].cur_stage >= g_program[u].StepCount THEN
     CONTINUE;  (* no next stage *)
   END_IF;
 
   (* — Pass 1: any next-stage station free or being cleared? — *)
   free_found := FALSE;
   avoid_uid  := 0;
-  FOR p := 1 TO MAX_STATIONS_PER_STEP DO
-    next_stn := g_program[u].stages[snap[u].cur_stage + 1].stations[p];
+  FOR p := 0 TO MAX_STATIONS_PER_STEP - 1 DO
+    next_stn := g_program[u].Steps[snap[u].cur_stage].Stations[p];
     IF next_stn = 0 THEN
       EXIT;
     END_IF;
     IF next_stn >= MIN_StationIndex AND next_stn <= MAX_StationIndex THEN
-      IF g_station[next_stn].UnitId = 0 THEN
+      IF g_station_loc[next_stn].UnitId = 0 THEN
         free_found := TRUE;
         EXIT;
       END_IF;
-      occ_uid := g_station[next_stn].UnitId;
+      occ_uid := g_station_loc[next_stn].UnitId;
       IF occ_uid >= 1 AND occ_uid <= MAX_Units THEN
         IF snap[occ_uid].tgt = TO_AVOID THEN
           free_found := TRUE;
@@ -5464,13 +5480,13 @@ FOR u := 1 TO MAX_Units DO
 
   (* — Pass 2: all occupied → mark ONE movable unit TO_AVOID — *)
   IF NOT free_found THEN
-    FOR p := 1 TO MAX_STATIONS_PER_STEP DO
-      next_stn := g_program[u].stages[snap[u].cur_stage + 1].stations[p];
+    FOR p := 0 TO MAX_STATIONS_PER_STEP - 1 DO
+      next_stn := g_program[u].Steps[snap[u].cur_stage].Stations[p];
       IF next_stn = 0 THEN
         EXIT;
       END_IF;
       IF next_stn >= MIN_StationIndex AND next_stn <= MAX_StationIndex THEN
-        occ_uid := g_station[next_stn].UnitId;
+        occ_uid := g_station_loc[next_stn].UnitId;
         IF occ_uid >= 1 AND occ_uid <= MAX_Units THEN
           IF NOT snap[occ_uid].has_batch AND snap[occ_uid].tgt = TO_NONE THEN
             avoid_uid := occ_uid;
@@ -5500,7 +5516,7 @@ IF g_production_queue = 1 AND NOT has_loading THEN
   FOR stk := MIN_StationIndex TO MAX_StationIndex DO
     op := g_station[stk].StationType;
     IF (op = OP_LOADING OR op = OP_LOADING_UNLOADING)
-       AND g_station[stk].UnitId = 0 THEN
+       AND g_station_loc[stk].UnitId = 0 THEN
       load_free := TRUE;
       EXIT;
     END_IF;
@@ -5682,6 +5698,9 @@ END_FOR;]]></xhtml:p>
             <variable name="g_station">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
             </variable>
+            <variable name="g_station_loc">
+              <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation"/></type>
+            </variable>
             <variable name="g_transporter">
               <type><derived name="ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T"/></type>
             </variable>
@@ -5712,8 +5731,8 @@ END_FOR;]]></xhtml:p>
   (* --- Clear unit_id from old location --- *)
   IF (old_loc >= MIN_StationIndex) AND (old_loc <= MAX_StationIndex) THEN
     (* Was on a station — clear station unit_id, stamp change_time *)
-    g_station[old_loc].UnitId     := 0;
-    g_station[old_loc].ChangeTime := g_time_s;
+    g_station_loc[old_loc].UnitId     := 0;
+    g_station_loc[old_loc].ChangeTime := g_time_s;
   ELSIF (old_loc >= 1) AND (old_loc <= MAX_Transporters) THEN
     (* Was on a transporter — clear transporter unit_id *)
     g_transporter[old_loc].UnitId := 0;
@@ -5725,8 +5744,8 @@ END_FOR;]]></xhtml:p>
   (* --- Set unit_id on new location --- *)
   IF (i_location >= MIN_StationIndex) AND (i_location <= MAX_StationIndex) THEN
     (* Moving to a station (sink completion) *)
-    g_station[i_location].UnitId     := i_unit;
-    g_station[i_location].ChangeTime := g_time_s;
+    g_station_loc[i_location].UnitId     := i_unit;
+    g_station_loc[i_location].ChangeTime := g_time_s;
 
     (* Advance batch stage if unit is USED with an active batch *)
     IF (g_unit[i_unit].status = 1)  (* USED *)
@@ -5743,9 +5762,9 @@ END_FOR;]]></xhtml:p>
          AND (g_program[i_unit].program_id > 0) THEN
         new_stg := g_batch[i_unit].cur_stage;
         IF (new_stg >= 1) AND (new_stg <= MAX_STEPS_PER_PROGRAM) THEN
-          g_batch[i_unit].min_time := g_program[i_unit].stages[new_stg].min_time;
-          g_batch[i_unit].max_time := g_program[i_unit].stages[new_stg].max_time;
-          g_batch[i_unit].cal_time := g_program[i_unit].stages[new_stg].cal_time;
+          g_batch[i_unit].min_time := g_program[i_unit].Steps[new_stg - 1].MinTime;
+          g_batch[i_unit].max_time := g_program[i_unit].Steps[new_stg - 1].MaxTime;
+          g_batch[i_unit].cal_time := g_program[i_unit].Steps[new_stg - 1].CalTime;
         END_IF;
       END_IF;
     END_IF;
@@ -6254,6 +6273,9 @@ checked_count := total_tasks;]]></xhtml:p>
             <variable name="g_station">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
             </variable>
+            <variable name="g_station_loc">
+              <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation"/></type>
+            </variable>
             <variable name="g_schedule">
               <type><derived name="ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T"/></type>
             </variable>
@@ -6421,7 +6443,7 @@ IF is_on_stn THEN
   prev_stn := location;
 ELSIF cur_stage >= 1 AND cur_stage <= 30 THEN
   (* On transporter: use previous stage station *)
-  prev_stn := g_program[i_unit].stages[cur_stage].stations[1];
+  prev_stn := g_program[i_unit].Steps[cur_stage - 1].Stations[0];
 ELSE
   prev_stn := 0;
 END_IF;
@@ -6444,8 +6466,8 @@ is_first := TRUE;
    CreateTasks generates a move-to-first-station task. *)
 IF is_on_stn AND start_st >= 1 THEN
   stn_num := 0;
-  FOR p := 1 TO 5 DO
-    IF g_program[i_unit].stages[start_st].stations[p] = location THEN
+  FOR p := 0 TO 4 DO
+    IF g_program[i_unit].Steps[start_st - 1].Stations[p] = location THEN
       stn_num := location;  (* flag: already on first treatment station *)
     END_IF;
   END_FOR;
@@ -6465,14 +6487,14 @@ END_IF;
 (* ============================================================
    MAIN LOOP: Calculate schedule for each program stage
    ============================================================ *)
-FOR st := start_st TO 30 DO
+FOR st := start_st TO g_program[i_unit].StepCount DO
 
   (* Check if stage has valid stations — parallel selection *)
   cand_cnt := 0;
-  FOR p := 1 TO 5 DO
-    IF g_program[i_unit].stages[st].stations[p] > 0 THEN
+  FOR p := 0 TO 4 DO
+    IF g_program[i_unit].Steps[st - 1].Stations[p] > 0 THEN
       cand_cnt := cand_cnt + 1;
-      cand_arr[cand_cnt] := g_program[i_unit].stages[st].stations[p];
+      cand_arr[cand_cnt] := g_program[i_unit].Steps[st - 1].Stations[p];
       sched_occupied[cand_cnt] := FALSE;
       phys_occupied[cand_cnt] := FALSE;
     END_IF;
@@ -6487,7 +6509,7 @@ FOR st := start_st TO 30 DO
     chosen_stn := cand_arr[1];
   ELSE
     (* Read treatment times early — needed for time window estimate *)
-    calc_s := DINT_TO_REAL(g_program[i_unit].stages[st].cal_time);
+    calc_s := DINT_TO_REAL(g_program[i_unit].Steps[st - 1].CalTime);
 
     (* Estimate this stage's time window *)
     tmp_move := g_move[i_trans];
@@ -6531,8 +6553,8 @@ FOR st := start_st TO 30 DO
     FOR p := 1 TO cand_cnt DO
       IF NOT sched_occupied[p] AND NOT phys_occupied[p] THEN
         IF cand_arr[p] >= MIN_StationIndex AND cand_arr[p] <= MAX_StationIndex THEN
-          IF g_station[cand_arr[p]].ChangeTime < best_change_time THEN
-            best_change_time := g_station[cand_arr[p]].ChangeTime;
+          IF g_station_loc[cand_arr[p]].ChangeTime < best_change_time THEN
+            best_change_time := g_station_loc[cand_arr[p]].ChangeTime;
             chosen_stn := cand_arr[p];
           END_IF;
         END_IF;
@@ -6557,9 +6579,9 @@ FOR st := start_st TO 30 DO
   stn_num := chosen_stn;
 
   (* Read treatment times from program *)
-  calc_s := DINT_TO_REAL(g_program[i_unit].stages[st].cal_time);
-  min_s  := DINT_TO_REAL(g_program[i_unit].stages[st].min_time);
-  max_s  := DINT_TO_REAL(g_program[i_unit].stages[st].max_time);
+  calc_s := DINT_TO_REAL(g_program[i_unit].Steps[st - 1].CalTime);
+  min_s  := DINT_TO_REAL(g_program[i_unit].Steps[st - 1].MinTime);
+  max_s  := DINT_TO_REAL(g_program[i_unit].Steps[st - 1].MaxTime);
 
   (* -- Calculate transfer time from prev_stn to stn_num -- *)
   tmp_move := g_move[i_trans];
@@ -8488,6 +8510,9 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
             </variable>
             <variable name="g_station">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
+            </variable>
+            <variable name="g_station_loc">
+              <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation"/></type>
             </variable>
             <variable name="g_cfg">
               <type><derived name="ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T"/></type>
@@ -11976,7 +12001,7 @@ IF iw_unit_seq <> last_unit_seq THEN
   IF (iw_unit_id >= 1) AND (iw_unit_id <= MAX_Units) THEN
     (* Clear unit_id from old station if unit had a valid location *)
     IF (g_unit[iw_unit_id].location >= MIN_StationIndex) AND (g_unit[iw_unit_id].location <= MAX_StationIndex) THEN
-      g_station[g_unit[iw_unit_id].location].UnitId := 0;
+      g_station_loc[g_unit[iw_unit_id].location].UnitId := 0;
     END_IF;
 
     g_unit[iw_unit_id].location := iw_unit_loc;
@@ -11985,7 +12010,7 @@ IF iw_unit_seq <> last_unit_seq THEN
 
     (* Set unit_id on the new station *)
     IF (iw_unit_loc >= MIN_StationIndex) AND (iw_unit_loc <= MAX_StationIndex) THEN
-      g_station[iw_unit_loc].UnitId := iw_unit_id;
+      g_station_loc[iw_unit_loc].UnitId := iw_unit_id;
     END_IF;
   END_IF;
 END_IF;
@@ -12002,14 +12027,16 @@ IF iw_batch_seq <> last_batch_seq THEN
     g_batch[iw_batch_unit].prog_id    := iw_batch_prog_id;
     g_batch[iw_batch_unit].cur_stage      := 0;
     g_program[iw_batch_unit].program_id := iw_batch_prog_id;
-    (* Clear all stages *)
-    FOR j := 1 TO 30 DO
-      FOR k := 1 TO 5 DO
-        g_program[iw_batch_unit].stages[j].stations[k] := 0;
+    (* Clear all steps *)
+    g_program[iw_batch_unit].StepCount := 0;
+    FOR j := 0 TO 30 DO
+      FOR k := 0 TO 4 DO
+        g_program[iw_batch_unit].Steps[j].Stations[k] := 0;
       END_FOR;
-      g_program[iw_batch_unit].stages[j].min_time := 0;
-      g_program[iw_batch_unit].stages[j].max_time := 0;
-      g_program[iw_batch_unit].stages[j].cal_time := 0;
+      g_program[iw_batch_unit].Steps[j].StationCount := 0;
+      g_program[iw_batch_unit].Steps[j].MinTime := 0;
+      g_program[iw_batch_unit].Steps[j].MaxTime := 0;
+      g_program[iw_batch_unit].Steps[j].CalTime := 0;
     END_FOR;
   END_IF;
 END_IF;
@@ -12021,14 +12048,26 @@ IF iw_prog_seq <> last_prog_seq THEN
   last_prog_seq := iw_prog_seq;
   IF (iw_prog_unit >= 1) AND (iw_prog_unit <= MAX_Units) AND
      (iw_prog_stage >= 1) AND (iw_prog_stage <= 30) THEN
-    g_program[iw_prog_unit].stages[iw_prog_stage].stations[1] := iw_prog_s1;
-    g_program[iw_prog_unit].stages[iw_prog_stage].stations[2] := iw_prog_s2;
-    g_program[iw_prog_unit].stages[iw_prog_stage].stations[3] := iw_prog_s3;
-    g_program[iw_prog_unit].stages[iw_prog_stage].stations[4] := iw_prog_s4;
-    g_program[iw_prog_unit].stages[iw_prog_stage].stations[5] := iw_prog_s5;
-    g_program[iw_prog_unit].stages[iw_prog_stage].min_time := INT_TO_DINT(iw_prog_min_time);
-    g_program[iw_prog_unit].stages[iw_prog_stage].max_time := INT_TO_DINT(iw_prog_max_time);
-    g_program[iw_prog_unit].stages[iw_prog_stage].cal_time := INT_TO_DINT(iw_prog_cal_time);
+    g_program[iw_prog_unit].Steps[iw_prog_stage - 1].Stations[0] := iw_prog_s1;
+    g_program[iw_prog_unit].Steps[iw_prog_stage - 1].Stations[1] := iw_prog_s2;
+    g_program[iw_prog_unit].Steps[iw_prog_stage - 1].Stations[2] := iw_prog_s3;
+    g_program[iw_prog_unit].Steps[iw_prog_stage - 1].Stations[3] := iw_prog_s4;
+    g_program[iw_prog_unit].Steps[iw_prog_stage - 1].Stations[4] := iw_prog_s5;
+    (* Compute StationCount from non-zero entries *)
+    j := 0;
+    IF iw_prog_s1 <> 0 THEN j := j + 1; END_IF;
+    IF iw_prog_s2 <> 0 THEN j := j + 1; END_IF;
+    IF iw_prog_s3 <> 0 THEN j := j + 1; END_IF;
+    IF iw_prog_s4 <> 0 THEN j := j + 1; END_IF;
+    IF iw_prog_s5 <> 0 THEN j := j + 1; END_IF;
+    g_program[iw_prog_unit].Steps[iw_prog_stage - 1].StationCount := j;
+    g_program[iw_prog_unit].Steps[iw_prog_stage - 1].MinTime := INT_TO_DINT(iw_prog_min_time);
+    g_program[iw_prog_unit].Steps[iw_prog_stage - 1].MaxTime := INT_TO_DINT(iw_prog_max_time);
+    g_program[iw_prog_unit].Steps[iw_prog_stage - 1].CalTime := INT_TO_DINT(iw_prog_cal_time);
+    (* Update StepCount: gateway writes stages sequentially 1,2,...N *)
+    IF iw_prog_stage > g_program[iw_prog_unit].StepCount THEN
+      g_program[iw_prog_unit].StepCount := iw_prog_stage;
+    END_IF;
   END_IF;
 END_IF;
 
@@ -13257,6 +13296,9 @@ END_IF;]]></xhtml:p>
           </variable>
           <variable name="g_station">
             <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
+          </variable>
+          <variable name="g_station_loc">
+            <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation"/></type>
           </variable>
           <variable name="g_cfg">
             <type><derived name="ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T"/></type>

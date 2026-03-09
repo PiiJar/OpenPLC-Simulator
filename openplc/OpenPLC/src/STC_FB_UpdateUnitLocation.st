@@ -27,6 +27,7 @@ END_VAR
 VAR_EXTERNAL
   g_unit        : ARRAY[1..MAX_Units] OF UNIT_T;
   g_station     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
+  g_station_loc : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation;
   g_transporter : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
   g_batch       : ARRAY[1..MAX_Units] OF BATCH_T;
   g_program     : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
@@ -43,8 +44,8 @@ IF (i_unit >= 1) AND (i_unit <= MAX_Units) THEN
   (* --- Clear unit_id from old location --- *)
   IF (old_loc >= MIN_StationIndex) AND (old_loc <= MAX_StationIndex) THEN
     (* Was on a station — clear station unit_id, stamp change_time *)
-    g_station[old_loc].UnitId     := 0;
-    g_station[old_loc].ChangeTime := g_time_s;
+    g_station_loc[old_loc].UnitId     := 0;
+    g_station_loc[old_loc].ChangeTime := g_time_s;
   ELSIF (old_loc >= 1) AND (old_loc <= MAX_Transporters) THEN
     (* Was on a transporter — clear transporter unit_id *)
     g_transporter[old_loc].UnitId := 0;
@@ -56,8 +57,8 @@ IF (i_unit >= 1) AND (i_unit <= MAX_Units) THEN
   (* --- Set unit_id on new location --- *)
   IF (i_location >= MIN_StationIndex) AND (i_location <= MAX_StationIndex) THEN
     (* Moving to a station (sink completion) *)
-    g_station[i_location].UnitId     := i_unit;
-    g_station[i_location].ChangeTime := g_time_s;
+    g_station_loc[i_location].UnitId     := i_unit;
+    g_station_loc[i_location].ChangeTime := g_time_s;
 
     (* Advance batch stage if unit is USED with an active batch *)
     IF (g_unit[i_unit].status = 1)  (* USED *)
@@ -74,9 +75,9 @@ IF (i_unit >= 1) AND (i_unit <= MAX_Units) THEN
          AND (g_program[i_unit].program_id > 0) THEN
         new_stg := g_batch[i_unit].cur_stage;
         IF (new_stg >= 1) AND (new_stg <= MAX_STEPS_PER_PROGRAM) THEN
-          g_batch[i_unit].min_time := g_program[i_unit].stages[new_stg].min_time;
-          g_batch[i_unit].max_time := g_program[i_unit].stages[new_stg].max_time;
-          g_batch[i_unit].cal_time := g_program[i_unit].stages[new_stg].cal_time;
+          g_batch[i_unit].min_time := g_program[i_unit].Steps[new_stg - 1].MinTime;
+          g_batch[i_unit].max_time := g_program[i_unit].Steps[new_stg - 1].MaxTime;
+          g_batch[i_unit].cal_time := g_program[i_unit].Steps[new_stg - 1].CalTime;
         END_IF;
       END_IF;
     END_IF;

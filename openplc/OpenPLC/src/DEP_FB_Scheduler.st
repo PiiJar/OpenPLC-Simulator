@@ -623,13 +623,13 @@ ELSIF phase = 2001 THEN
               ELSIF chain_delays[ci].target = 1 THEN
                 prog_idx := chain_delays[ci].stage;
                 IF prog_idx >= 1 AND prog_idx <= 30 THEN
-                  old_cal := g_program[cur_wait_unit].stages[prog_idx].cal_time;
-                  max_cal := g_program[cur_wait_unit].stages[prog_idx].max_time;
+                  old_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].CalTime;
+                  max_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].MaxTime;
                   new_cal := old_cal + chain_delays[ci].delay_s;
                   IF new_cal > max_cal AND max_cal > 0 THEN
                     new_cal := max_cal;
                   END_IF;
-                  g_program[cur_wait_unit].stages[prog_idx].cal_time := new_cal;
+                  g_program[cur_wait_unit].Steps[prog_idx - 1].CalTime := new_cal;
                 END_IF;
               END_IF;
             END_IF;
@@ -668,13 +668,13 @@ ELSIF phase = 3000 THEN
       (* Program stage delay: increase cal_time *)
       prog_idx := delay_stage;
       IF prog_idx >= 1 AND prog_idx <= 30 THEN
-        old_cal := g_program[cur_wait_unit].stages[prog_idx].cal_time;
-        max_cal := g_program[cur_wait_unit].stages[prog_idx].max_time;
+        old_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].CalTime;
+        max_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].MaxTime;
         new_cal := old_cal + REAL_TO_DINT(delay_amount);
         IF new_cal > max_cal AND max_cal > 0 THEN
           new_cal := max_cal;
         END_IF;
-        g_program[cur_wait_unit].stages[prog_idx].cal_time := new_cal;
+        g_program[cur_wait_unit].Steps[prog_idx - 1].CalTime := new_cal;
       END_IF;
     END_IF;
     (* Recalculate: schedule → tasks → idle → fit *)

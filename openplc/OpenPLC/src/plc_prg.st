@@ -16,6 +16,7 @@ VAR_EXTERNAL
   (* --- Shared data arrays --- *)
   g_station_count    : INT;
   g_station         : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
+  g_station_loc     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation;
   g_cfg              : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
   g_transporter      : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
   g_unit            : ARRAY[1..MAX_Units] OF UNIT_T;
@@ -1374,7 +1375,7 @@ IF iw_unit_seq <> last_unit_seq THEN
   IF (iw_unit_id >= 1) AND (iw_unit_id <= MAX_Units) THEN
     (* Clear unit_id from old station if unit had a valid location *)
     IF (g_unit[iw_unit_id].location >= MIN_StationIndex) AND (g_unit[iw_unit_id].location <= MAX_StationIndex) THEN
-      g_station[g_unit[iw_unit_id].location].UnitId := 0;
+      g_station_loc[g_unit[iw_unit_id].location].UnitId := 0;
     END_IF;
 
     g_unit[iw_unit_id].location := iw_unit_loc;
@@ -1383,7 +1384,7 @@ IF iw_unit_seq <> last_unit_seq THEN
 
     (* Set unit_id on the new station *)
     IF (iw_unit_loc >= MIN_StationIndex) AND (iw_unit_loc <= MAX_StationIndex) THEN
-      g_station[iw_unit_loc].UnitId := iw_unit_id;
+      g_station_loc[iw_unit_loc].UnitId := iw_unit_id;
     END_IF;
   END_IF;
 END_IF;
@@ -1400,14 +1401,16 @@ IF iw_batch_seq <> last_batch_seq THEN
     g_batch[iw_batch_unit].prog_id    := iw_batch_prog_id;
     g_batch[iw_batch_unit].cur_stage      := 0;
     g_program[iw_batch_unit].program_id := iw_batch_prog_id;
-    (* Clear all stages *)
-    FOR j := 1 TO 30 DO
-      FOR k := 1 TO 5 DO
-        g_program[iw_batch_unit].stages[j].stations[k] := 0;
+    (* Clear all steps *)
+    g_program[iw_batch_unit].StepCount := 0;
+    FOR j := 0 TO 30 DO
+      FOR k := 0 TO 4 DO
+        g_program[iw_batch_unit].Steps[j].Stations[k] := 0;
       END_FOR;
-      g_program[iw_batch_unit].stages[j].min_time := 0;
-      g_program[iw_batch_unit].stages[j].max_time := 0;
-      g_program[iw_batch_unit].stages[j].cal_time := 0;
+      g_program[iw_batch_unit].Steps[j].StationCount := 0;
+      g_program[iw_batch_unit].Steps[j].MinTime := 0;
+      g_program[iw_batch_unit].Steps[j].MaxTime := 0;
+      g_program[iw_batch_unit].Steps[j].CalTime := 0;
     END_FOR;
   END_IF;
 END_IF;
@@ -1419,14 +1422,26 @@ IF iw_prog_seq <> last_prog_seq THEN
   last_prog_seq := iw_prog_seq;
   IF (iw_prog_unit >= 1) AND (iw_prog_unit <= MAX_Units) AND
      (iw_prog_stage >= 1) AND (iw_prog_stage <= 30) THEN
-    g_program[iw_prog_unit].stages[iw_prog_stage].stations[1] := iw_prog_s1;
-    g_program[iw_prog_unit].stages[iw_prog_stage].stations[2] := iw_prog_s2;
-    g_program[iw_prog_unit].stages[iw_prog_stage].stations[3] := iw_prog_s3;
-    g_program[iw_prog_unit].stages[iw_prog_stage].stations[4] := iw_prog_s4;
-    g_program[iw_prog_unit].stages[iw_prog_stage].stations[5] := iw_prog_s5;
-    g_program[iw_prog_unit].stages[iw_prog_stage].min_time := INT_TO_DINT(iw_prog_min_time);
-    g_program[iw_prog_unit].stages[iw_prog_stage].max_time := INT_TO_DINT(iw_prog_max_time);
-    g_program[iw_prog_unit].stages[iw_prog_stage].cal_time := INT_TO_DINT(iw_prog_cal_time);
+    g_program[iw_prog_unit].Steps[iw_prog_stage - 1].Stations[0] := iw_prog_s1;
+    g_program[iw_prog_unit].Steps[iw_prog_stage - 1].Stations[1] := iw_prog_s2;
+    g_program[iw_prog_unit].Steps[iw_prog_stage - 1].Stations[2] := iw_prog_s3;
+    g_program[iw_prog_unit].Steps[iw_prog_stage - 1].Stations[3] := iw_prog_s4;
+    g_program[iw_prog_unit].Steps[iw_prog_stage - 1].Stations[4] := iw_prog_s5;
+    (* Compute StationCount from non-zero entries *)
+    j := 0;
+    IF iw_prog_s1 <> 0 THEN j := j + 1; END_IF;
+    IF iw_prog_s2 <> 0 THEN j := j + 1; END_IF;
+    IF iw_prog_s3 <> 0 THEN j := j + 1; END_IF;
+    IF iw_prog_s4 <> 0 THEN j := j + 1; END_IF;
+    IF iw_prog_s5 <> 0 THEN j := j + 1; END_IF;
+    g_program[iw_prog_unit].Steps[iw_prog_stage - 1].StationCount := j;
+    g_program[iw_prog_unit].Steps[iw_prog_stage - 1].MinTime := INT_TO_DINT(iw_prog_min_time);
+    g_program[iw_prog_unit].Steps[iw_prog_stage - 1].MaxTime := INT_TO_DINT(iw_prog_max_time);
+    g_program[iw_prog_unit].Steps[iw_prog_stage - 1].CalTime := INT_TO_DINT(iw_prog_cal_time);
+    (* Update StepCount: gateway writes stages sequentially 1,2,...N *)
+    IF iw_prog_stage > g_program[iw_prog_unit].StepCount THEN
+      g_program[iw_prog_unit].StepCount := iw_prog_stage;
+    END_IF;
   END_IF;
 END_IF;
 

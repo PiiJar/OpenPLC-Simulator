@@ -31,6 +31,7 @@ VAR_EXTERNAL
   g_program : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
   g_unit    : ARRAY[1..MAX_Units] OF UNIT_T;
   g_station : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
+  g_station_loc : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation;
   g_schedule : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
   g_station_count : INT;
   g_move    : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
@@ -114,7 +115,7 @@ IF is_on_stn THEN
   prev_stn := location;
 ELSIF cur_stage >= 1 AND cur_stage <= 30 THEN
   (* On transporter: use previous stage station *)
-  prev_stn := g_program[i_unit].stages[cur_stage].stations[1];
+  prev_stn := g_program[i_unit].Steps[cur_stage - 1].Stations[0];
 ELSE
   prev_stn := 0;
 END_IF;
@@ -137,8 +138,8 @@ is_first := TRUE;
    CreateTasks generates a move-to-first-station task. *)
 IF is_on_stn AND start_st >= 1 THEN
   stn_num := 0;
-  FOR p := 1 TO 5 DO
-    IF g_program[i_unit].stages[start_st].stations[p] = location THEN
+  FOR p := 0 TO 4 DO
+    IF g_program[i_unit].Steps[start_st - 1].Stations[p] = location THEN
       stn_num := location;  (* flag: already on first treatment station *)
     END_IF;
   END_FOR;
@@ -158,14 +159,14 @@ END_IF;
 (* ============================================================
    MAIN LOOP: Calculate schedule for each program stage
    ============================================================ *)
-FOR st := start_st TO 30 DO
+FOR st := start_st TO g_program[i_unit].StepCount DO
 
   (* Check if stage has valid stations — parallel selection *)
   cand_cnt := 0;
-  FOR p := 1 TO 5 DO
-    IF g_program[i_unit].stages[st].stations[p] > 0 THEN
+  FOR p := 0 TO 4 DO
+    IF g_program[i_unit].Steps[st - 1].Stations[p] > 0 THEN
       cand_cnt := cand_cnt + 1;
-      cand_arr[cand_cnt] := g_program[i_unit].stages[st].stations[p];
+      cand_arr[cand_cnt] := g_program[i_unit].Steps[st - 1].Stations[p];
       sched_occupied[cand_cnt] := FALSE;
       phys_occupied[cand_cnt] := FALSE;
     END_IF;
@@ -180,7 +181,7 @@ FOR st := start_st TO 30 DO
     chosen_stn := cand_arr[1];
   ELSE
     (* Read treatment times early — needed for time window estimate *)
-    calc_s := DINT_TO_REAL(g_program[i_unit].stages[st].cal_time);
+    calc_s := DINT_TO_REAL(g_program[i_unit].Steps[st - 1].CalTime);
 
     (* Estimate this stage's time window *)
     tmp_move := g_move[i_trans];
@@ -224,8 +225,8 @@ FOR st := start_st TO 30 DO
     FOR p := 1 TO cand_cnt DO
       IF NOT sched_occupied[p] AND NOT phys_occupied[p] THEN
         IF cand_arr[p] >= MIN_StationIndex AND cand_arr[p] <= MAX_StationIndex THEN
-          IF g_station[cand_arr[p]].ChangeTime < best_change_time THEN
-            best_change_time := g_station[cand_arr[p]].ChangeTime;
+          IF g_station_loc[cand_arr[p]].ChangeTime < best_change_time THEN
+            best_change_time := g_station_loc[cand_arr[p]].ChangeTime;
             chosen_stn := cand_arr[p];
           END_IF;
         END_IF;
@@ -250,9 +251,9 @@ FOR st := start_st TO 30 DO
   stn_num := chosen_stn;
 
   (* Read treatment times from program *)
-  calc_s := DINT_TO_REAL(g_program[i_unit].stages[st].cal_time);
-  min_s  := DINT_TO_REAL(g_program[i_unit].stages[st].min_time);
-  max_s  := DINT_TO_REAL(g_program[i_unit].stages[st].max_time);
+  calc_s := DINT_TO_REAL(g_program[i_unit].Steps[st - 1].CalTime);
+  min_s  := DINT_TO_REAL(g_program[i_unit].Steps[st - 1].MinTime);
+  max_s  := DINT_TO_REAL(g_program[i_unit].Steps[st - 1].MaxTime);
 
   (* -- Calculate transfer time from prev_stn to stn_num -- *)
   tmp_move := g_move[i_trans];

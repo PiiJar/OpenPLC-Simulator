@@ -31,8 +31,7 @@ END_VAR
 
 VAR_EXTERNAL
   g_transporter  : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
-  g_station     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
-  g_cfg          : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
+  g_station     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;    g_station_loc  : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation;  g_cfg          : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
   g_move         : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
   g_unit         : ARRAY[1..MAX_Units] OF UNIT_T;
   g_batch        : ARRAY[1..MAX_Units] OF BATCH_T;
@@ -165,14 +164,14 @@ FOR i := 1 TO MAX_Transporters DO
          treatment cal_time has not yet elapsed, stay at station
          and do NOT begin the lift sequence. *)
       can_lift := TRUE;
-      lift_uid := g_station[g_transporter[i].lift_station].UnitId;
+      lift_uid := g_station_loc[g_transporter[i].lift_station].UnitId;
       IF lift_uid >= 1 AND lift_uid <= MAX_Units THEN
         IF g_batch[lift_uid].state = IN_PROCESS
            AND g_batch[lift_uid].cur_stage >= 1
            AND g_batch[lift_uid].cur_stage <= MAX_STEPS_PER_PROGRAM THEN
-          treat_cal := g_program[lift_uid].stages[g_batch[lift_uid].cur_stage].cal_time;
+          treat_cal := g_program[lift_uid].Steps[g_batch[lift_uid].cur_stage - 1].CalTime;
           IF treat_cal > 0 THEN
-            treat_elapsed := g_time_s - g_station[g_transporter[i].lift_station].ChangeTime;
+            treat_elapsed := g_time_s - g_station_loc[g_transporter[i].lift_station].ChangeTime;
             IF treat_elapsed < DINT_TO_LINT(treat_cal) THEN
               can_lift := FALSE;
             END_IF;
@@ -189,7 +188,7 @@ FOR i := 1 TO MAX_Transporters DO
       g_transporter[i].phase := 2;
 
       (* ── Emit LIFT event (msg_type=2) ── *)
-      evt_unit := g_station[g_transporter[i].lift_station].UnitId;
+      evt_unit := g_station_loc[g_transporter[i].lift_station].UnitId;
       IF NOT g_event_pending_valid AND evt_unit >= 1 THEN
         g_event_pending.msg_type := 2;
         g_event_pending.ts_hi := LINT_TO_INT(g_time_s / LINT#65536);
@@ -201,7 +200,7 @@ FOR i := 1 TO MAX_Transporters DO
         g_event_pending.f[5]  := g_batch[evt_unit].state;
         g_event_pending.f[6]  := g_batch[evt_unit].prog_id;
         g_event_pending.f[7]  := g_batch[evt_unit].cur_stage;
-        evt_diff := g_time_s - g_station[g_transporter[i].lift_station].ChangeTime;
+        evt_diff := g_time_s - g_station_loc[g_transporter[i].lift_station].ChangeTime;
         IF evt_diff > LINT#32000 THEN
           g_event_pending.f[8] := 32000;
         ELSE
@@ -215,7 +214,7 @@ FOR i := 1 TO MAX_Transporters DO
       END_IF;
 
       (* Unit moves from lift station → transporter *)
-      pick_unit_id := g_station[g_transporter[i].lift_station].UnitId;
+      pick_unit_id := g_station_loc[g_transporter[i].lift_station].UnitId;
       IF pick_unit_id >= 1 THEN
         IF i = 1 THEN
           upd_loc1(i_unit := pick_unit_id, i_location := i);
