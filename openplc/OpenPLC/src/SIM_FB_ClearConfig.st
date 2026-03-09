@@ -22,6 +22,7 @@ VAR_EXTERNAL
   g_station_loc     : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
   g_cfg              : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
   g_transporter      : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
+  g_sim_trans        : ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T;
   g_unit            : ARRAY[1..MAX_Units] OF UDT_UnitType;
   g_ntt             : ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T;
   g_batch          : ARRAY[1..MAX_Units] OF UDT_BatchType;
@@ -100,12 +101,12 @@ FOR i := 1 TO MAX_Transporters DO
   g_transporter[i].Status          := 0;
   g_transporter[i].Phase           := 0;
   g_transporter[i].TaskId         := 0;
-  g_transporter[i].RunningTaskId := 0;
+  g_sim_trans[i].RunningTaskId := 0;
   g_transporter[i].LiftStationTarget    := 0;
   g_transporter[i].SinkStationTarget    := 0;
-  g_transporter[i].treatment_time  := 0;
-  g_transporter[i].lift_device_delay := 0;
-  g_transporter[i].sink_device_delay := 0;
+  g_sim_trans[i].treatment_time  := 0;
+  g_sim_trans[i].lift_device_delay := 0;
+  g_sim_trans[i].sink_device_delay := 0;
   g_transporter[i].DrippingTime   := 0;
   g_transporter[i].TaskRemainingTime  := 0;
   g_transporter[i].CurrentStation := 0;
@@ -116,9 +117,9 @@ FOR i := 1 TO MAX_Transporters DO
   g_transporter[i].XPosition            := 0;
   g_transporter[i].YPosition            := 0;
   g_transporter[i].ZPosition            := 0;
-  g_transporter[i].XVelocity           := 0;
-  g_transporter[i].z_stage         := 0;
-  g_transporter[i].z_timer_s       := 0.0;
+  g_sim_trans[i].XVelocity           := 0;
+  g_sim_trans[i].z_stage         := 0;
+  g_sim_trans[i].z_timer_s       := 0.0;
   g_transporter[i].XMinDriveLimit     := 0;
   g_transporter[i].XMaxDriveLimit     := 0;
 END_FOR;

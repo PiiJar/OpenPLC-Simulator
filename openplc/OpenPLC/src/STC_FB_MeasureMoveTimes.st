@@ -23,8 +23,8 @@
 
    Usage in plc_prg.st (one instance per transporter):
      tm1(t_id := 1, phase := g_transporter[1].Phase,
-         delta_t := 0.02, vel_x := g_transporter[1].XVelocity,
-         z_stage := g_transporter[1].z_stage,
+         delta_t := 0.02, vel_x := g_sim_trans[1].XVelocity,
+         z_stage := g_sim_trans[1].z_stage,
          lift_stn := g_transporter[1].LiftStationTarget,
          sink_stn := g_transporter[1].SinkStationTarget,
          from_stn := g_transporter[1].CurrentStation);
@@ -59,6 +59,7 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
+  g_sim_trans : ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T;
   g_move : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
 END_VAR
 

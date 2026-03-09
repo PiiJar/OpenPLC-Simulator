@@ -32,6 +32,7 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 VAR_EXTERNAL
   g_transporter : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
+  g_sim_trans   : ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T;
   g_task        : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
   g_station     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
   g_station_loc : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
@@ -271,9 +272,9 @@ FOR ti := 1 TO MAX_Transporters DO
           g_transporter[ti].LiftStationTarget := t_lift;
           g_transporter[ti].SinkStationTarget := sink_stn;
           g_station_loc[ti].UnitId      := t_unit;
-          g_transporter[ti].treatment_time := t_calc_time;
-          g_transporter[ti].min_time := g_task[ti].queue[1].min_time;
-          g_transporter[ti].max_time := g_task[ti].queue[1].max_time;
+          g_sim_trans[ti].treatment_time := t_calc_time;
+          g_sim_trans[ti].min_time := g_task[ti].queue[1].min_time;
+          g_sim_trans[ti].max_time := g_task[ti].queue[1].max_time;
           g_transporter[ti].TaskRemainingTime := t_calc_time;
 
           (* ── Update batch times: transfer duration as time bar ── *)
@@ -307,10 +308,10 @@ FOR ti := 1 TO MAX_Transporters DO
           (* Copy station-specific timing from config *)
           IF t_lift >= MIN_StationIndex AND t_lift <= MAX_StationIndex THEN
             g_transporter[ti].DrippingTime := g_station[t_lift].DrippingTime;
-            g_transporter[ti].lift_device_delay := g_station[t_lift].DeviceDelay;
+            g_sim_trans[ti].lift_device_delay := g_station[t_lift].DeviceDelay;
           END_IF;
           IF sink_stn >= MIN_StationIndex AND sink_stn <= MAX_StationIndex THEN
-            g_transporter[ti].sink_device_delay := g_station[sink_stn].DeviceDelay;
+            g_sim_trans[ti].sink_device_delay := g_station[sink_stn].DeviceDelay;
           END_IF;
 
           (* Shift queue: remove position 1, move rest up *)

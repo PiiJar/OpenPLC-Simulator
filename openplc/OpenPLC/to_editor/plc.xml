@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-09T10:28:21"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-09T10:28:21">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-09T10:40:00"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-09T10:40:00">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -291,17 +291,11 @@
           </struct>
         </baseType>
       </dataType>
-      <dataType name="UDT_TransporterStatusType">
+      <dataType name="SIM_TRANSPORTER_T">
         <baseType>
           <struct>
-            <variable name="TaskId">
+            <variable name="RunningTaskId">
               <type><LINT/></type>
-            </variable>
-            <variable name="LiftStationTarget">
-              <type><INT/></type>
-            </variable>
-            <variable name="SinkStationTarget">
-              <type><INT/></type>
             </variable>
             <variable name="treatment_time">
               <type><DINT/></type>
@@ -318,6 +312,30 @@
             <variable name="sink_device_delay">
               <type><INT/></type>
             </variable>
+            <variable name="XVelocity">
+              <type><DINT/></type>
+            </variable>
+            <variable name="z_stage">
+              <type><INT/></type>
+            </variable>
+            <variable name="z_timer_s">
+              <type><REAL/></type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
+      <dataType name="UDT_TransporterStatusType">
+        <baseType>
+          <struct>
+            <variable name="TaskId">
+              <type><LINT/></type>
+            </variable>
+            <variable name="LiftStationTarget">
+              <type><INT/></type>
+            </variable>
+            <variable name="SinkStationTarget">
+              <type><INT/></type>
+            </variable>
             <variable name="DrippingTime">
               <type><INT/></type>
             </variable>
@@ -326,9 +344,6 @@
             </variable>
             <variable name="Phase">
               <type><INT/></type>
-            </variable>
-            <variable name="RunningTaskId">
-              <type><LINT/></type>
             </variable>
             <variable name="CurrentStation">
               <type><INT/></type>
@@ -356,15 +371,6 @@
             </variable>
             <variable name="ZPosition">
               <type><DINT/></type>
-            </variable>
-            <variable name="XVelocity">
-              <type><DINT/></type>
-            </variable>
-            <variable name="z_stage">
-              <type><INT/></type>
-            </variable>
-            <variable name="z_timer_s">
-              <type><REAL/></type>
             </variable>
             <variable name="XMinDriveLimit">
               <type><DINT/></type>
@@ -2701,6 +2707,9 @@ o_phase := phase;]]></xhtml:p>
             <variable name="g_transporter">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
             </variable>
+            <variable name="g_sim_trans">
+              <type><derived name="ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T"/></type>
+            </variable>
             <variable name="g_unit">
               <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>
             </variable>
@@ -2813,12 +2822,12 @@ FOR i := 1 TO MAX_Transporters DO
   g_transporter[i].Status          := 0;
   g_transporter[i].Phase           := 0;
   g_transporter[i].TaskId         := 0;
-  g_transporter[i].RunningTaskId := 0;
+  g_sim_trans[i].RunningTaskId := 0;
   g_transporter[i].LiftStationTarget    := 0;
   g_transporter[i].SinkStationTarget    := 0;
-  g_transporter[i].treatment_time  := 0;
-  g_transporter[i].lift_device_delay := 0;
-  g_transporter[i].sink_device_delay := 0;
+  g_sim_trans[i].treatment_time  := 0;
+  g_sim_trans[i].lift_device_delay := 0;
+  g_sim_trans[i].sink_device_delay := 0;
   g_transporter[i].DrippingTime   := 0;
   g_transporter[i].TaskRemainingTime  := 0;
   g_transporter[i].CurrentStation := 0;
@@ -2829,9 +2838,9 @@ FOR i := 1 TO MAX_Transporters DO
   g_transporter[i].XPosition            := 0;
   g_transporter[i].YPosition            := 0;
   g_transporter[i].ZPosition            := 0;
-  g_transporter[i].XVelocity           := 0;
-  g_transporter[i].z_stage         := 0;
-  g_transporter[i].z_timer_s       := 0.0;
+  g_sim_trans[i].XVelocity           := 0;
+  g_sim_trans[i].z_stage         := 0;
+  g_sim_trans[i].z_timer_s       := 0.0;
   g_transporter[i].XMinDriveLimit     := 0;
   g_transporter[i].XMaxDriveLimit     := 0;
 END_FOR;
@@ -2940,6 +2949,9 @@ END_FOR;]]></xhtml:p>
           <externalVars>
             <variable name="g_transporter">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
+            </variable>
+            <variable name="g_sim_trans">
+              <type><derived name="ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T"/></type>
             </variable>
             <variable name="g_station">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
@@ -3091,19 +3103,19 @@ FOR i := 1 TO MAX_Transporters DO
 
   (* ── Phase 0 → 1: Accept new task ───────────────────────── *)
   IF (g_transporter[i].Phase = 0)
-     AND (g_transporter[i].TaskId <> g_transporter[i].RunningTaskId) THEN
-    g_transporter[i].RunningTaskId := g_transporter[i].TaskId;
+     AND (g_transporter[i].TaskId <> g_sim_trans[i].RunningTaskId) THEN
+    g_sim_trans[i].RunningTaskId := g_transporter[i].TaskId;
     lookup(station_number := g_transporter[i].LiftStationTarget);
     g_transporter[i].XFinalTarget := lookup.x_mm;
     g_transporter[i].Phase := 1;
     g_transporter[i].Status := 4;  (* auto_run *)
-    g_transporter[i].z_stage := 0;
-    g_transporter[i].z_timer_s := 0.0;
+    g_sim_trans[i].z_stage := 0;
+    g_sim_trans[i].z_timer_s := 0.0;
 
   (* ── Phase 1: Drive X towards lift station ──────────────── *)
   ELSIF g_transporter[i].Phase = 1 THEN
     tmp_x  := g_transporter[i].XPosition;
-    tmp_vx := g_transporter[i].XVelocity;
+    tmp_vx := g_sim_trans[i].XVelocity;
     IF i = 1 THEN
       fb_x1(
         delta_t  := 0.02,
@@ -3145,7 +3157,7 @@ FOR i := 1 TO MAX_Transporters DO
       arrived_x := fb_x3.arrived;
     END_IF;
     g_transporter[i].XPosition  := tmp_x;
-    g_transporter[i].XVelocity := tmp_vx;
+    g_sim_trans[i].XVelocity := tmp_vx;
 
     (* Only transition when actually at station, not just at drive limit *)
     at_station := arrived_x
@@ -3177,8 +3189,8 @@ FOR i := 1 TO MAX_Transporters DO
       lookup(station_number := g_transporter[i].LiftStationTarget);
       device_delay := lookup.device_delay_s;
       drop_time    := lookup.dropping_time_s;
-      g_transporter[i].z_timer_s := device_delay + drop_time;
-      g_transporter[i].z_stage := 1;
+      g_sim_trans[i].z_timer_s := device_delay + drop_time;
+      g_sim_trans[i].z_stage := 1;
       g_transporter[i].Phase := 2;
 
       (* ── Emit LIFT event (msg_type=2) ── *)
@@ -3200,9 +3212,9 @@ FOR i := 1 TO MAX_Transporters DO
         ELSE
           g_event_pending.f[8] := LINT_TO_INT(evt_diff);
         END_IF;
-        g_event_pending.f[9]  := DINT_TO_INT(g_transporter[i].treatment_time);
-        g_event_pending.f[10] := DINT_TO_INT(g_transporter[i].min_time);
-        g_event_pending.f[11] := DINT_TO_INT(g_transporter[i].max_time);
+        g_event_pending.f[9]  := DINT_TO_INT(g_sim_trans[i].treatment_time);
+        g_event_pending.f[10] := DINT_TO_INT(g_sim_trans[i].min_time);
+        g_event_pending.f[11] := DINT_TO_INT(g_sim_trans[i].max_time);
         g_event_pending.f[12] := 0;
         g_event_pending_valid := TRUE;
       END_IF;
@@ -3227,8 +3239,8 @@ FOR i := 1 TO MAX_Transporters DO
     lookup(station_number := g_transporter[i].LiftStationTarget);
     station_kind := lookup.skind;
     tmp_z  := g_transporter[i].ZPosition;
-    tmp_zs := g_transporter[i].z_stage;
-    tmp_zt := g_transporter[i].z_timer_s;
+    tmp_zs := g_sim_trans[i].z_stage;
+    tmp_zt := g_sim_trans[i].z_timer_s;
     IF i = 1 THEN
       fb_z1(
         delta_t       := 0.02,
@@ -3279,8 +3291,8 @@ FOR i := 1 TO MAX_Transporters DO
       arrived_z := fb_z3.done;
     END_IF;
     g_transporter[i].ZPosition      := tmp_z;
-    g_transporter[i].z_stage   := tmp_zs;
-    g_transporter[i].z_timer_s := tmp_zt;
+    g_sim_trans[i].z_stage   := tmp_zs;
+    g_sim_trans[i].z_timer_s := tmp_zt;
     IF arrived_z THEN
       lookup(station_number := g_transporter[i].SinkStationTarget);
       g_transporter[i].XFinalTarget := lookup.x_mm;
@@ -3290,7 +3302,7 @@ FOR i := 1 TO MAX_Transporters DO
   (* ── Phase 3: Drive X towards sink station ─────────────── *)
   ELSIF g_transporter[i].Phase = 3 THEN
     tmp_x  := g_transporter[i].XPosition;
-    tmp_vx := g_transporter[i].XVelocity;
+    tmp_vx := g_sim_trans[i].XVelocity;
     IF i = 1 THEN
       fb_x1(
         delta_t  := 0.02,
@@ -3332,7 +3344,7 @@ FOR i := 1 TO MAX_Transporters DO
       arrived_x := fb_x3.arrived;
     END_IF;
     g_transporter[i].XPosition  := tmp_x;
-    g_transporter[i].XVelocity := tmp_vx;
+    g_sim_trans[i].XVelocity := tmp_vx;
 
     (* Only transition when actually at station, not just at drive limit *)
     at_station := arrived_x
@@ -3341,8 +3353,8 @@ FOR i := 1 TO MAX_Transporters DO
       g_transporter[i].CurrentStation := g_transporter[i].SinkStationTarget;
       lookup(station_number := g_transporter[i].SinkStationTarget);
       device_delay := lookup.device_delay_s;
-      g_transporter[i].z_timer_s := device_delay + INT_TO_REAL(g_cfg[i].phys2d.drip_delay_s) / 10.0;
-      g_transporter[i].z_stage := 6;
+      g_sim_trans[i].z_timer_s := device_delay + INT_TO_REAL(g_cfg[i].phys2d.drip_delay_s) / 10.0;
+      g_sim_trans[i].z_stage := 6;
       g_transporter[i].Phase := 4;
     END_IF;
     (* If arrived_x but not at_station → at drive limit, wait for clearance *)
@@ -3352,8 +3364,8 @@ FOR i := 1 TO MAX_Transporters DO
     lookup(station_number := g_transporter[i].SinkStationTarget);
     station_kind := lookup.skind;
     tmp_z  := g_transporter[i].ZPosition;
-    tmp_zs := g_transporter[i].z_stage;
-    tmp_zt := g_transporter[i].z_timer_s;
+    tmp_zs := g_sim_trans[i].z_stage;
+    tmp_zt := g_sim_trans[i].z_timer_s;
     IF i = 1 THEN
       fb_z1(
         delta_t       := 0.02,
@@ -3404,8 +3416,8 @@ FOR i := 1 TO MAX_Transporters DO
       arrived_z := fb_z3.done;
     END_IF;
     g_transporter[i].ZPosition      := tmp_z;
-    g_transporter[i].z_stage   := tmp_zs;
-    g_transporter[i].z_timer_s := tmp_zt;
+    g_sim_trans[i].z_stage   := tmp_zs;
+    g_sim_trans[i].z_timer_s := tmp_zt;
     IF arrived_z THEN
       (* Unit moves from transporter → sink station *)
       sink_unit_id := g_station_loc[i].UnitId;
@@ -3428,7 +3440,7 @@ FOR i := 1 TO MAX_Transporters DO
   (* ── Phase 0 idle: drive back inside limits if outside ────── *)
   IF g_transporter[i].Phase = 0 THEN
     tmp_x  := g_transporter[i].XPosition;
-    tmp_vx := g_transporter[i].XVelocity;
+    tmp_vx := g_sim_trans[i].XVelocity;
     (* Use current position as target — XMotion will clamp to nearest limit if outside *)
     IF i = 1 THEN
       fb_x1(
@@ -3468,7 +3480,7 @@ FOR i := 1 TO MAX_Transporters DO
       );
     END_IF;
     g_transporter[i].XPosition  := tmp_x;
-    g_transporter[i].XVelocity := tmp_vx;
+    g_sim_trans[i].XVelocity := tmp_vx;
   END_IF;
 
   (* ── Nearest station tracking ──────────────────────────── *)
@@ -3488,19 +3500,19 @@ FOR i := 1 TO MAX_Transporters DO
   (* ── Measure move times (one instance per transporter) ──── *)
   IF i = 1 THEN
     tm1(t_id := 1, phase := g_transporter[1].Phase, delta_t := 0.02,
-        vel_x := g_transporter[1].XVelocity, z_stage := g_transporter[1].z_stage,
+        vel_x := g_sim_trans[1].XVelocity, z_stage := g_sim_trans[1].z_stage,
         lift_stn := g_transporter[1].LiftStationTarget,
         sink_stn := g_transporter[1].SinkStationTarget,
         from_stn := g_transporter[1].CurrentStation);
   ELSIF i = 2 THEN
     tm2(t_id := 2, phase := g_transporter[2].Phase, delta_t := 0.02,
-        vel_x := g_transporter[2].XVelocity, z_stage := g_transporter[2].z_stage,
+        vel_x := g_sim_trans[2].XVelocity, z_stage := g_sim_trans[2].z_stage,
         lift_stn := g_transporter[2].LiftStationTarget,
         sink_stn := g_transporter[2].SinkStationTarget,
         from_stn := g_transporter[2].CurrentStation);
   ELSIF i = 3 THEN
     tm3(t_id := 3, phase := g_transporter[3].Phase, delta_t := 0.02,
-        vel_x := g_transporter[3].XVelocity, z_stage := g_transporter[3].z_stage,
+        vel_x := g_sim_trans[3].XVelocity, z_stage := g_sim_trans[3].z_stage,
         lift_stn := g_transporter[3].LiftStationTarget,
         sink_stn := g_transporter[3].SinkStationTarget,
         from_stn := g_transporter[3].CurrentStation);
@@ -4017,6 +4029,9 @@ prev_run := i_run;]]></xhtml:p>
             <variable name="g_transporter">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
             </variable>
+            <variable name="g_sim_trans">
+              <type><derived name="ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T"/></type>
+            </variable>
             <variable name="g_station">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
             </variable>
@@ -4172,13 +4187,13 @@ END_IF;
 
 IF cal_step = 11 THEN
   (* Wait for task acceptance *)
-  IF g_transporter[tid].RunningTaskId = task_key THEN
+  IF g_sim_trans[tid].RunningTaskId = task_key THEN
     cal_step := 12;
   END_IF;
 END_IF;
 
 IF cal_step = 12 THEN
-  cur_v := ABS(DINT_TO_REAL(g_transporter[tid].XVelocity));
+  cur_v := ABS(DINT_TO_REAL(g_sim_trans[tid].XVelocity));
 
   (* ── Track X velocity during phase 3 (travel dry→wet) ── *)
   IF g_transporter[tid].Phase = 3 THEN
@@ -4246,7 +4261,7 @@ IF cal_step = 20 THEN
 END_IF;
 
 IF cal_step = 21 THEN
-  IF g_transporter[tid].RunningTaskId = task_key THEN
+  IF g_sim_trans[tid].RunningTaskId = task_key THEN
     cal_step := 22;
   END_IF;
 END_IF;
@@ -4500,6 +4515,9 @@ END_FOR;]]></xhtml:p>
           <externalVars>
             <variable name="g_transporter">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
+            </variable>
+            <variable name="g_sim_trans">
+              <type><derived name="ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T"/></type>
             </variable>
             <variable name="g_task">
               <type><derived name="ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T"/></type>
@@ -4817,9 +4835,9 @@ END_FOR;]]></xhtml:p>
           g_transporter[ti].LiftStationTarget := t_lift;
           g_transporter[ti].SinkStationTarget := sink_stn;
           g_station_loc[ti].UnitId      := t_unit;
-          g_transporter[ti].treatment_time := t_calc_time;
-          g_transporter[ti].min_time := g_task[ti].queue[1].min_time;
-          g_transporter[ti].max_time := g_task[ti].queue[1].max_time;
+          g_sim_trans[ti].treatment_time := t_calc_time;
+          g_sim_trans[ti].min_time := g_task[ti].queue[1].min_time;
+          g_sim_trans[ti].max_time := g_task[ti].queue[1].max_time;
           g_transporter[ti].TaskRemainingTime := t_calc_time;
 
           (* ── Update batch times: transfer duration as time bar ── *)
@@ -4853,10 +4871,10 @@ END_FOR;]]></xhtml:p>
           (* Copy station-specific timing from config *)
           IF t_lift >= MIN_StationIndex AND t_lift <= MAX_StationIndex THEN
             g_transporter[ti].DrippingTime := g_station[t_lift].DrippingTime;
-            g_transporter[ti].lift_device_delay := g_station[t_lift].DeviceDelay;
+            g_sim_trans[ti].lift_device_delay := g_station[t_lift].DeviceDelay;
           END_IF;
           IF sink_stn >= MIN_StationIndex AND sink_stn <= MAX_StationIndex THEN
-            g_transporter[ti].sink_device_delay := g_station[sink_stn].DeviceDelay;
+            g_sim_trans[ti].sink_device_delay := g_station[sink_stn].DeviceDelay;
           END_IF;
 
           (* Shift queue: remove position 1, move rest up *)
@@ -5262,6 +5280,9 @@ o_skip_cnt  := skip_cnt;]]></xhtml:p>
             </variable>
           </inputVars>
           <externalVars>
+            <variable name="g_sim_trans">
+              <type><derived name="ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T"/></type>
+            </variable>
             <variable name="g_move">
               <type><derived name="ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T"/></type>
             </variable>
@@ -8589,6 +8610,9 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
             </variable>
             <variable name="g_transporter">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
+            </variable>
+            <variable name="g_sim_trans">
+              <type><derived name="ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T"/></type>
             </variable>
             <variable name="g_unit">
               <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>
@@ -11979,9 +12003,9 @@ IF iw_cfg_seq <> last_cfg_seq THEN
         g_transporter[i].Status := 0;  (* not_used *)
       END_IF;
       g_transporter[i].Phase := 0;
-      g_transporter[i].z_stage := 0;
-      g_transporter[i].XVelocity := 0;
-      g_transporter[i].z_timer_s := 0.0;
+      g_sim_trans[i].z_stage := 0;
+      g_sim_trans[i].XVelocity := 0;
+      g_sim_trans[i].z_timer_s := 0.0;
       g_transporter[i].XMinDriveLimit := g_cfg[i].XMinDriveLimit;
       g_transporter[i].XMaxDriveLimit := g_cfg[i].XMaxDriveLimit;
 
@@ -12175,82 +12199,82 @@ IF cycle_count > 30000 THEN cycle_count := 0; END_IF;
 (* === Per-transporter live state — PLC writes, gateway reads === *)
 qw_t1_x_mm := DINT_TO_INT(g_transporter[1].XPosition);
 qw_t1_z_mm := DINT_TO_INT(g_transporter[1].ZPosition);
-qw_t1_vel_x10 := DINT_TO_INT(g_transporter[1].XVelocity) * 10;
+qw_t1_vel_x10 := DINT_TO_INT(g_sim_trans[1].XVelocity) * 10;
 qw_t1_phase := g_transporter[1].Phase;
 qw_t1_unit_id := g_station_loc[1].UnitId;
-qw_t1_z_stage := g_transporter[1].z_stage;
+qw_t1_z_stage := g_sim_trans[1].z_stage;
 qw_t1_cur_st := g_transporter[1].CurrentStation;
 qw_t1_lift_tgt := g_transporter[1].LiftStationTarget;
 qw_t1_sink_tgt := g_transporter[1].SinkStationTarget;
 IF g_transporter[1].IsActive THEN qw_t1_active := 1; ELSE qw_t1_active := 0; END_IF;
 qw_t1_status := g_transporter[1].Status;
-qw_t1_rtask_hi := LINT_TO_INT(g_transporter[1].RunningTaskId / 65536);
-qw_t1_rtask_lo := LINT_TO_INT(g_transporter[1].RunningTaskId MOD 65536);
+qw_t1_rtask_hi := LINT_TO_INT(g_sim_trans[1].RunningTaskId / 65536);
+qw_t1_rtask_lo := LINT_TO_INT(g_sim_trans[1].RunningTaskId MOD 65536);
 qw_t2_x_mm := DINT_TO_INT(g_transporter[2].XPosition);
 qw_t2_z_mm := DINT_TO_INT(g_transporter[2].ZPosition);
-qw_t2_vel_x10 := DINT_TO_INT(g_transporter[2].XVelocity) * 10;
+qw_t2_vel_x10 := DINT_TO_INT(g_sim_trans[2].XVelocity) * 10;
 qw_t2_phase := g_transporter[2].Phase;
 qw_t2_unit_id := g_station_loc[2].UnitId;
-qw_t2_z_stage := g_transporter[2].z_stage;
+qw_t2_z_stage := g_sim_trans[2].z_stage;
 qw_t2_cur_st := g_transporter[2].CurrentStation;
 qw_t2_lift_tgt := g_transporter[2].LiftStationTarget;
 qw_t2_sink_tgt := g_transporter[2].SinkStationTarget;
 IF g_transporter[2].IsActive THEN qw_t2_active := 1; ELSE qw_t2_active := 0; END_IF;
 qw_t2_status := g_transporter[2].Status;
-qw_t2_rtask_hi := LINT_TO_INT(g_transporter[2].RunningTaskId / 65536);
-qw_t2_rtask_lo := LINT_TO_INT(g_transporter[2].RunningTaskId MOD 65536);
+qw_t2_rtask_hi := LINT_TO_INT(g_sim_trans[2].RunningTaskId / 65536);
+qw_t2_rtask_lo := LINT_TO_INT(g_sim_trans[2].RunningTaskId MOD 65536);
 qw_t3_x_mm := DINT_TO_INT(g_transporter[3].XPosition);
 qw_t3_z_mm := DINT_TO_INT(g_transporter[3].ZPosition);
-qw_t3_vel_x10 := DINT_TO_INT(g_transporter[3].XVelocity) * 10;
+qw_t3_vel_x10 := DINT_TO_INT(g_sim_trans[3].XVelocity) * 10;
 qw_t3_phase := g_transporter[3].Phase;
 qw_t3_unit_id := g_station_loc[3].UnitId;
-qw_t3_z_stage := g_transporter[3].z_stage;
+qw_t3_z_stage := g_sim_trans[3].z_stage;
 qw_t3_cur_st := g_transporter[3].CurrentStation;
 qw_t3_lift_tgt := g_transporter[3].LiftStationTarget;
 qw_t3_sink_tgt := g_transporter[3].SinkStationTarget;
 IF g_transporter[3].IsActive THEN qw_t3_active := 1; ELSE qw_t3_active := 0; END_IF;
 qw_t3_status := g_transporter[3].Status;
-qw_t3_rtask_hi := LINT_TO_INT(g_transporter[3].RunningTaskId / 65536);
-qw_t3_rtask_lo := LINT_TO_INT(g_transporter[3].RunningTaskId MOD 65536);
+qw_t3_rtask_hi := LINT_TO_INT(g_sim_trans[3].RunningTaskId / 65536);
+qw_t3_rtask_lo := LINT_TO_INT(g_sim_trans[3].RunningTaskId MOD 65536);
 (* === Per-transporter extended state — remaining UDT_TransporterStatusType fields === *)
 qw_t1_remain_x10 := DINT_TO_INT(g_transporter[1].TaskRemainingTime) * 10;
-qw_t1_treat_time := DINT_TO_INT(g_transporter[1].treatment_time);
+qw_t1_treat_time := DINT_TO_INT(g_sim_trans[1].treatment_time);
 qw_t1_fintgt_x := DINT_TO_INT(g_transporter[1].XFinalTarget);
 qw_t1_drvtgt_x := DINT_TO_INT(g_transporter[1].XDriveTarget);
 qw_t1_fintgt_y := DINT_TO_INT(g_transporter[1].YFinalTarget);
 qw_t1_drvtgt_y := DINT_TO_INT(g_transporter[1].YDriveTarget);
 qw_t1_y_mm := DINT_TO_INT(g_transporter[1].YPosition);
-qw_t1_ztimer_x10 := REAL_TO_INT(g_transporter[1].z_timer_s * 10.0);
+qw_t1_ztimer_x10 := REAL_TO_INT(g_sim_trans[1].z_timer_s * 10.0);
 qw_t1_ctask_hi := LINT_TO_INT(g_transporter[1].TaskId / 65536);
 qw_t1_ctask_lo := LINT_TO_INT(g_transporter[1].TaskId MOD 65536);
-qw_t1_ldev_x10 := g_transporter[1].lift_device_delay;
-qw_t1_sdev_x10 := g_transporter[1].sink_device_delay;
+qw_t1_ldev_x10 := g_sim_trans[1].lift_device_delay;
+qw_t1_sdev_x10 := g_sim_trans[1].sink_device_delay;
 qw_t1_drop_x10 := g_transporter[1].DrippingTime;
 qw_t2_remain_x10 := DINT_TO_INT(g_transporter[2].TaskRemainingTime) * 10;
-qw_t2_treat_time := DINT_TO_INT(g_transporter[2].treatment_time);
+qw_t2_treat_time := DINT_TO_INT(g_sim_trans[2].treatment_time);
 qw_t2_fintgt_x := DINT_TO_INT(g_transporter[2].XFinalTarget);
 qw_t2_drvtgt_x := DINT_TO_INT(g_transporter[2].XDriveTarget);
 qw_t2_fintgt_y := DINT_TO_INT(g_transporter[2].YFinalTarget);
 qw_t2_drvtgt_y := DINT_TO_INT(g_transporter[2].YDriveTarget);
 qw_t2_y_mm := DINT_TO_INT(g_transporter[2].YPosition);
-qw_t2_ztimer_x10 := REAL_TO_INT(g_transporter[2].z_timer_s * 10.0);
+qw_t2_ztimer_x10 := REAL_TO_INT(g_sim_trans[2].z_timer_s * 10.0);
 qw_t2_ctask_hi := LINT_TO_INT(g_transporter[2].TaskId / 65536);
 qw_t2_ctask_lo := LINT_TO_INT(g_transporter[2].TaskId MOD 65536);
-qw_t2_ldev_x10 := g_transporter[2].lift_device_delay;
-qw_t2_sdev_x10 := g_transporter[2].sink_device_delay;
+qw_t2_ldev_x10 := g_sim_trans[2].lift_device_delay;
+qw_t2_sdev_x10 := g_sim_trans[2].sink_device_delay;
 qw_t2_drop_x10 := g_transporter[2].DrippingTime;
 qw_t3_remain_x10 := DINT_TO_INT(g_transporter[3].TaskRemainingTime) * 10;
-qw_t3_treat_time := DINT_TO_INT(g_transporter[3].treatment_time);
+qw_t3_treat_time := DINT_TO_INT(g_sim_trans[3].treatment_time);
 qw_t3_fintgt_x := DINT_TO_INT(g_transporter[3].XFinalTarget);
 qw_t3_drvtgt_x := DINT_TO_INT(g_transporter[3].XDriveTarget);
 qw_t3_fintgt_y := DINT_TO_INT(g_transporter[3].YFinalTarget);
 qw_t3_drvtgt_y := DINT_TO_INT(g_transporter[3].YDriveTarget);
 qw_t3_y_mm := DINT_TO_INT(g_transporter[3].YPosition);
-qw_t3_ztimer_x10 := REAL_TO_INT(g_transporter[3].z_timer_s * 10.0);
+qw_t3_ztimer_x10 := REAL_TO_INT(g_sim_trans[3].z_timer_s * 10.0);
 qw_t3_ctask_hi := LINT_TO_INT(g_transporter[3].TaskId / 65536);
 qw_t3_ctask_lo := LINT_TO_INT(g_transporter[3].TaskId MOD 65536);
-qw_t3_ldev_x10 := g_transporter[3].lift_device_delay;
-qw_t3_sdev_x10 := g_transporter[3].sink_device_delay;
+qw_t3_ldev_x10 := g_sim_trans[3].lift_device_delay;
+qw_t3_sdev_x10 := g_sim_trans[3].sink_device_delay;
 qw_t3_drop_x10 := g_transporter[3].DrippingTime;
 (* === TWA dynamic drive limits — PLC writes, gateway reads === *)
 qw_t1_xmin := DINT_TO_INT(g_transporter[1].XMinDriveLimit);
@@ -13375,6 +13399,9 @@ END_IF;]]></xhtml:p>
           </variable>
           <variable name="g_transporter">
             <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
+          </variable>
+          <variable name="g_sim_trans">
+            <type><derived name="ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T"/></type>
           </variable>
           <variable name="g_unit">
             <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>

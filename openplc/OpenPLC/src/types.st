@@ -128,6 +128,25 @@ STRUCT
 END_STRUCT;
 END_TYPE
 
+(* ── Simulation-internal transporter data ──────────────────── *)
+(* Scheduler command params + physics state — NOT in production UDT *)
+(* g_sim_trans : ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T *)
+TYPE SIM_TRANSPORTER_T :
+STRUCT
+  (* --- Command params (scheduler → sim) --- *)
+  RunningTaskId      : LINT;     (* copied from TaskId when accepted *)
+  treatment_time     : DINT;     (* treatment duration (seconds) *)
+  min_time           : DINT;     (* minimum treatment time (seconds) *)
+  max_time           : DINT;     (* maximum treatment time (seconds) *)
+  lift_device_delay  : INT;      (* lift station device delay ×10 = tenths of second *)
+  sink_device_delay  : INT;      (* sink station device delay ×10 = tenths of second *)
+  (* --- Physics (simulation engine) --- *)
+  XVelocity          : DINT;     (* X velocity mm/s *)
+  z_stage            : INT;      (* Z motion sub-phase *)
+  z_timer_s          : REAL;     (* Z motion timer *)
+END_STRUCT;
+END_TYPE
+
 (* ── Transporter interface — production-compatible ──────────── *)
 (* Used by scheduler, TWA, simulation, and production alike.     *)
 (* g_transporter : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType      *)
@@ -137,16 +156,10 @@ STRUCT
   TaskId             : LINT;     (* g_time_s at assignment — sync key *)
   LiftStationTarget  : INT;     (* pickup station number *)
   SinkStationTarget  : INT;     (* putdown station number *)
-  treatment_time     : DINT;     (* treatment duration (seconds) *)
-  min_time           : DINT;     (* minimum treatment time (seconds) *)
-  max_time           : DINT;     (* maximum treatment time (seconds) *)
-  lift_device_delay  : INT;      (* lift station device delay ×10 = tenths of second *)
-  sink_device_delay  : INT;      (* sink station device delay ×10 = tenths of second *)
   DrippingTime       : INT;      (* dripping time ×10 = tenths of second *)
   (* --- Status (transporter → outside world) --- *)
   Status             : INT;      (* 0=not_used 1=manual 2=half_manual 3=auto_idle 4=auto_run *)
   Phase              : INT;      (* 0=idle 1=to_lift 2=lifting 3=to_sink 4=sinking *)
-  RunningTaskId      : LINT;     (* copied from TaskId when accepted *)
   CurrentStation     : INT;      (* nearest station number *)
   TaskRemainingTime  : DINT;     (* remaining treatment time (seconds) *)
   (* --- Drive (runtime / TWA) --- *)
@@ -157,9 +170,6 @@ STRUCT
   XPosition          : DINT;     (* current X position mm *)
   YPosition          : DINT;     (* current Y position mm *)
   ZPosition          : DINT;     (* current Z position mm *)
-  XVelocity          : DINT;     (* X velocity mm/s *)
-  z_stage            : INT;      (* Z motion sub-phase *)
-  z_timer_s          : REAL;     (* Z motion timer — simulation internal *)
   XMinDriveLimit     : DINT;     (* TWA lower X limit mm *)
   XMaxDriveLimit     : DINT;     (* TWA upper X limit mm *)
   (* --- General --- *)

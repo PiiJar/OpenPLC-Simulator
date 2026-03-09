@@ -67,6 +67,7 @@ VAR_GLOBAL
   g_station_loc     : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
   g_cfg              : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
   g_transporter      : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
+  g_sim_trans        : ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T;
   g_unit            : ARRAY[1..MAX_Units] OF UDT_UnitType;
   g_ntt             : ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T;  (* no-treatment task destinations *)
   g_batch          : ARRAY[1..MAX_Units] OF UDT_BatchType;

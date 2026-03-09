@@ -56,6 +56,7 @@ END_VAR
 
 VAR_EXTERNAL
   g_transporter : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
+  g_sim_trans   : ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T;
   g_station    : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
   g_cfg         : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
   g_cal         : ARRAY[1..MAX_Transporters] OF CALIBRATION_T;
@@ -147,13 +148,13 @@ END_IF;
 
 IF cal_step = 11 THEN
   (* Wait for task acceptance *)
-  IF g_transporter[tid].RunningTaskId = task_key THEN
+  IF g_sim_trans[tid].RunningTaskId = task_key THEN
     cal_step := 12;
   END_IF;
 END_IF;
 
 IF cal_step = 12 THEN
-  cur_v := ABS(DINT_TO_REAL(g_transporter[tid].XVelocity));
+  cur_v := ABS(DINT_TO_REAL(g_sim_trans[tid].XVelocity));
 
   (* ── Track X velocity during phase 3 (travel dry→wet) ── *)
   IF g_transporter[tid].Phase = 3 THEN
@@ -221,7 +222,7 @@ IF cal_step = 20 THEN
 END_IF;
 
 IF cal_step = 21 THEN
-  IF g_transporter[tid].RunningTaskId = task_key THEN
+  IF g_sim_trans[tid].RunningTaskId = task_key THEN
     cal_step := 22;
   END_IF;
 END_IF;
