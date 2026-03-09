@@ -134,7 +134,7 @@ END_TYPE
 TYPE UDT_TransporterStatusType :
 STRUCT
   (* --- Command (scheduler → transporter) --- *)
-  task_id            : LINT;     (* g_time_s at assignment — sync key *)
+  TaskId             : LINT;     (* g_time_s at assignment — sync key *)
   LiftStationTarget  : INT;     (* pickup station number *)
   SinkStationTarget  : INT;     (* putdown station number *)
   treatment_time     : DINT;     (* treatment duration (seconds) *)
@@ -146,9 +146,9 @@ STRUCT
   (* --- Status (transporter → outside world) --- *)
   Status             : INT;      (* 0=not_used 1=manual 2=half_manual 3=auto_idle 4=auto_run *)
   Phase              : INT;      (* 0=idle 1=to_lift 2=lifting 3=to_sink 4=sinking *)
-  running_task_id    : LINT;     (* copied from task_id when accepted *)
+  RunningTaskId      : LINT;     (* copied from TaskId when accepted *)
   CurrentStation     : INT;      (* nearest station number *)
-  remaining_time     : DINT;     (* remaining treatment time (seconds) *)
+  TaskRemainingTime  : DINT;     (* remaining treatment time (seconds) *)
   (* --- Drive (runtime / TWA) --- *)
   XFinalTarget       : DINT;     (* destination X (station position) mm *)
   XDriveTarget       : DINT;     (* TWA-clamped X drive target mm *)

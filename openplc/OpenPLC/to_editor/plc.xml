@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-09T10:10:35"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-09T10:10:35">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-09T10:28:21"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-09T10:28:21">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -294,7 +294,7 @@
       <dataType name="UDT_TransporterStatusType">
         <baseType>
           <struct>
-            <variable name="task_id">
+            <variable name="TaskId">
               <type><LINT/></type>
             </variable>
             <variable name="LiftStationTarget">
@@ -327,13 +327,13 @@
             <variable name="Phase">
               <type><INT/></type>
             </variable>
-            <variable name="running_task_id">
+            <variable name="RunningTaskId">
               <type><LINT/></type>
             </variable>
             <variable name="CurrentStation">
               <type><INT/></type>
             </variable>
-            <variable name="remaining_time">
+            <variable name="TaskRemainingTime">
               <type><DINT/></type>
             </variable>
             <variable name="XFinalTarget">
@@ -2812,15 +2812,15 @@ FOR i := 1 TO MAX_Transporters DO
   g_transporter[i].IsActive          := FALSE;
   g_transporter[i].Status          := 0;
   g_transporter[i].Phase           := 0;
-  g_transporter[i].task_id         := 0;
-  g_transporter[i].running_task_id := 0;
+  g_transporter[i].TaskId         := 0;
+  g_transporter[i].RunningTaskId := 0;
   g_transporter[i].LiftStationTarget    := 0;
   g_transporter[i].SinkStationTarget    := 0;
   g_transporter[i].treatment_time  := 0;
   g_transporter[i].lift_device_delay := 0;
   g_transporter[i].sink_device_delay := 0;
   g_transporter[i].DrippingTime   := 0;
-  g_transporter[i].remaining_time  := 0;
+  g_transporter[i].TaskRemainingTime  := 0;
   g_transporter[i].CurrentStation := 0;
   g_transporter[i].XFinalTarget  := 0;
   g_transporter[i].XDriveTarget  := 0;
@@ -3091,8 +3091,8 @@ FOR i := 1 TO MAX_Transporters DO
 
   (* ── Phase 0 → 1: Accept new task ───────────────────────── *)
   IF (g_transporter[i].Phase = 0)
-     AND (g_transporter[i].task_id <> g_transporter[i].running_task_id) THEN
-    g_transporter[i].running_task_id := g_transporter[i].task_id;
+     AND (g_transporter[i].TaskId <> g_transporter[i].RunningTaskId) THEN
+    g_transporter[i].RunningTaskId := g_transporter[i].TaskId;
     lookup(station_number := g_transporter[i].LiftStationTarget);
     g_transporter[i].XFinalTarget := lookup.x_mm;
     g_transporter[i].Phase := 1;
@@ -4157,7 +4157,7 @@ END_IF;
 IF cal_step = 10 THEN
   (* Issue task 1: lift from dry, sink to wet *)
   task_key := g_time_s;
-  g_transporter[tid].task_id := task_key;
+  g_transporter[tid].TaskId := task_key;
   g_transporter[tid].LiftStationTarget := g_cal[tid].dry_station;
   g_transporter[tid].SinkStationTarget := g_cal[tid].wet_station;
   (* Reset X velocity measurement *)
@@ -4172,7 +4172,7 @@ END_IF;
 
 IF cal_step = 11 THEN
   (* Wait for task acceptance *)
-  IF g_transporter[tid].running_task_id = task_key THEN
+  IF g_transporter[tid].RunningTaskId = task_key THEN
     cal_step := 12;
   END_IF;
 END_IF;
@@ -4239,14 +4239,14 @@ END_IF;
 IF cal_step = 20 THEN
   (* Issue task 2: lift from wet, sink to dry *)
   task_key := g_time_s + LINT#1;
-  g_transporter[tid].task_id := task_key;
+  g_transporter[tid].TaskId := task_key;
   g_transporter[tid].LiftStationTarget := g_cal[tid].wet_station;
   g_transporter[tid].SinkStationTarget := g_cal[tid].dry_station;
   cal_step := 21;
 END_IF;
 
 IF cal_step = 21 THEN
-  IF g_transporter[tid].running_task_id = task_key THEN
+  IF g_transporter[tid].RunningTaskId = task_key THEN
     cal_step := 22;
   END_IF;
 END_IF;
@@ -4813,14 +4813,14 @@ END_FOR;]]></xhtml:p>
 
         IF NOT conflict THEN
           (* ── 5. Dispatch: assign task to transporter ── *)
-          g_transporter[ti].task_id      := t_start;
+          g_transporter[ti].TaskId      := t_start;
           g_transporter[ti].LiftStationTarget := t_lift;
           g_transporter[ti].SinkStationTarget := sink_stn;
           g_station_loc[ti].UnitId      := t_unit;
           g_transporter[ti].treatment_time := t_calc_time;
           g_transporter[ti].min_time := g_task[ti].queue[1].min_time;
           g_transporter[ti].max_time := g_task[ti].queue[1].max_time;
-          g_transporter[ti].remaining_time := t_calc_time;
+          g_transporter[ti].TaskRemainingTime := t_calc_time;
 
           (* ── Update batch times: transfer duration as time bar ── *)
           IF t_unit >= 1 AND t_unit <= MAX_Units THEN
@@ -12155,12 +12155,12 @@ END_IF;
 (* Note: task_id sync will be handled by SIM_FB_RunTasks later.
    For now, keep the old Modbus command interface working via direct write. *)
 IF (iw_cmd_t1_start <> 0) AND (g_transporter[1].Status = 3) THEN
-  g_transporter[1].task_id := g_time_s;
+  g_transporter[1].TaskId := g_time_s;
   g_transporter[1].LiftStationTarget := iw_cmd_t1_lift;
   g_transporter[1].SinkStationTarget := iw_cmd_t1_sink;
 END_IF;
 IF (iw_cmd_t2_start <> 0) AND (g_transporter[2].Status = 3) THEN
-  g_transporter[2].task_id := g_time_s;
+  g_transporter[2].TaskId := g_time_s;
   g_transporter[2].LiftStationTarget := iw_cmd_t2_lift;
   g_transporter[2].SinkStationTarget := iw_cmd_t2_sink;
 END_IF;
@@ -12184,8 +12184,8 @@ qw_t1_lift_tgt := g_transporter[1].LiftStationTarget;
 qw_t1_sink_tgt := g_transporter[1].SinkStationTarget;
 IF g_transporter[1].IsActive THEN qw_t1_active := 1; ELSE qw_t1_active := 0; END_IF;
 qw_t1_status := g_transporter[1].Status;
-qw_t1_rtask_hi := LINT_TO_INT(g_transporter[1].running_task_id / 65536);
-qw_t1_rtask_lo := LINT_TO_INT(g_transporter[1].running_task_id MOD 65536);
+qw_t1_rtask_hi := LINT_TO_INT(g_transporter[1].RunningTaskId / 65536);
+qw_t1_rtask_lo := LINT_TO_INT(g_transporter[1].RunningTaskId MOD 65536);
 qw_t2_x_mm := DINT_TO_INT(g_transporter[2].XPosition);
 qw_t2_z_mm := DINT_TO_INT(g_transporter[2].ZPosition);
 qw_t2_vel_x10 := DINT_TO_INT(g_transporter[2].XVelocity) * 10;
@@ -12197,8 +12197,8 @@ qw_t2_lift_tgt := g_transporter[2].LiftStationTarget;
 qw_t2_sink_tgt := g_transporter[2].SinkStationTarget;
 IF g_transporter[2].IsActive THEN qw_t2_active := 1; ELSE qw_t2_active := 0; END_IF;
 qw_t2_status := g_transporter[2].Status;
-qw_t2_rtask_hi := LINT_TO_INT(g_transporter[2].running_task_id / 65536);
-qw_t2_rtask_lo := LINT_TO_INT(g_transporter[2].running_task_id MOD 65536);
+qw_t2_rtask_hi := LINT_TO_INT(g_transporter[2].RunningTaskId / 65536);
+qw_t2_rtask_lo := LINT_TO_INT(g_transporter[2].RunningTaskId MOD 65536);
 qw_t3_x_mm := DINT_TO_INT(g_transporter[3].XPosition);
 qw_t3_z_mm := DINT_TO_INT(g_transporter[3].ZPosition);
 qw_t3_vel_x10 := DINT_TO_INT(g_transporter[3].XVelocity) * 10;
@@ -12210,10 +12210,10 @@ qw_t3_lift_tgt := g_transporter[3].LiftStationTarget;
 qw_t3_sink_tgt := g_transporter[3].SinkStationTarget;
 IF g_transporter[3].IsActive THEN qw_t3_active := 1; ELSE qw_t3_active := 0; END_IF;
 qw_t3_status := g_transporter[3].Status;
-qw_t3_rtask_hi := LINT_TO_INT(g_transporter[3].running_task_id / 65536);
-qw_t3_rtask_lo := LINT_TO_INT(g_transporter[3].running_task_id MOD 65536);
+qw_t3_rtask_hi := LINT_TO_INT(g_transporter[3].RunningTaskId / 65536);
+qw_t3_rtask_lo := LINT_TO_INT(g_transporter[3].RunningTaskId MOD 65536);
 (* === Per-transporter extended state — remaining UDT_TransporterStatusType fields === *)
-qw_t1_remain_x10 := DINT_TO_INT(g_transporter[1].remaining_time) * 10;
+qw_t1_remain_x10 := DINT_TO_INT(g_transporter[1].TaskRemainingTime) * 10;
 qw_t1_treat_time := DINT_TO_INT(g_transporter[1].treatment_time);
 qw_t1_fintgt_x := DINT_TO_INT(g_transporter[1].XFinalTarget);
 qw_t1_drvtgt_x := DINT_TO_INT(g_transporter[1].XDriveTarget);
@@ -12221,12 +12221,12 @@ qw_t1_fintgt_y := DINT_TO_INT(g_transporter[1].YFinalTarget);
 qw_t1_drvtgt_y := DINT_TO_INT(g_transporter[1].YDriveTarget);
 qw_t1_y_mm := DINT_TO_INT(g_transporter[1].YPosition);
 qw_t1_ztimer_x10 := REAL_TO_INT(g_transporter[1].z_timer_s * 10.0);
-qw_t1_ctask_hi := LINT_TO_INT(g_transporter[1].task_id / 65536);
-qw_t1_ctask_lo := LINT_TO_INT(g_transporter[1].task_id MOD 65536);
+qw_t1_ctask_hi := LINT_TO_INT(g_transporter[1].TaskId / 65536);
+qw_t1_ctask_lo := LINT_TO_INT(g_transporter[1].TaskId MOD 65536);
 qw_t1_ldev_x10 := g_transporter[1].lift_device_delay;
 qw_t1_sdev_x10 := g_transporter[1].sink_device_delay;
 qw_t1_drop_x10 := g_transporter[1].DrippingTime;
-qw_t2_remain_x10 := DINT_TO_INT(g_transporter[2].remaining_time) * 10;
+qw_t2_remain_x10 := DINT_TO_INT(g_transporter[2].TaskRemainingTime) * 10;
 qw_t2_treat_time := DINT_TO_INT(g_transporter[2].treatment_time);
 qw_t2_fintgt_x := DINT_TO_INT(g_transporter[2].XFinalTarget);
 qw_t2_drvtgt_x := DINT_TO_INT(g_transporter[2].XDriveTarget);
@@ -12234,12 +12234,12 @@ qw_t2_fintgt_y := DINT_TO_INT(g_transporter[2].YFinalTarget);
 qw_t2_drvtgt_y := DINT_TO_INT(g_transporter[2].YDriveTarget);
 qw_t2_y_mm := DINT_TO_INT(g_transporter[2].YPosition);
 qw_t2_ztimer_x10 := REAL_TO_INT(g_transporter[2].z_timer_s * 10.0);
-qw_t2_ctask_hi := LINT_TO_INT(g_transporter[2].task_id / 65536);
-qw_t2_ctask_lo := LINT_TO_INT(g_transporter[2].task_id MOD 65536);
+qw_t2_ctask_hi := LINT_TO_INT(g_transporter[2].TaskId / 65536);
+qw_t2_ctask_lo := LINT_TO_INT(g_transporter[2].TaskId MOD 65536);
 qw_t2_ldev_x10 := g_transporter[2].lift_device_delay;
 qw_t2_sdev_x10 := g_transporter[2].sink_device_delay;
 qw_t2_drop_x10 := g_transporter[2].DrippingTime;
-qw_t3_remain_x10 := DINT_TO_INT(g_transporter[3].remaining_time) * 10;
+qw_t3_remain_x10 := DINT_TO_INT(g_transporter[3].TaskRemainingTime) * 10;
 qw_t3_treat_time := DINT_TO_INT(g_transporter[3].treatment_time);
 qw_t3_fintgt_x := DINT_TO_INT(g_transporter[3].XFinalTarget);
 qw_t3_drvtgt_x := DINT_TO_INT(g_transporter[3].XDriveTarget);
@@ -12247,8 +12247,8 @@ qw_t3_fintgt_y := DINT_TO_INT(g_transporter[3].YFinalTarget);
 qw_t3_drvtgt_y := DINT_TO_INT(g_transporter[3].YDriveTarget);
 qw_t3_y_mm := DINT_TO_INT(g_transporter[3].YPosition);
 qw_t3_ztimer_x10 := REAL_TO_INT(g_transporter[3].z_timer_s * 10.0);
-qw_t3_ctask_hi := LINT_TO_INT(g_transporter[3].task_id / 65536);
-qw_t3_ctask_lo := LINT_TO_INT(g_transporter[3].task_id MOD 65536);
+qw_t3_ctask_hi := LINT_TO_INT(g_transporter[3].TaskId / 65536);
+qw_t3_ctask_lo := LINT_TO_INT(g_transporter[3].TaskId MOD 65536);
 qw_t3_ldev_x10 := g_transporter[3].lift_device_delay;
 qw_t3_sdev_x10 := g_transporter[3].sink_device_delay;
 qw_t3_drop_x10 := g_transporter[3].DrippingTime;

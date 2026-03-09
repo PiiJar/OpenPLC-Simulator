@@ -267,14 +267,14 @@ FOR ti := 1 TO MAX_Transporters DO
 
         IF NOT conflict THEN
           (* ── 5. Dispatch: assign task to transporter ── *)
-          g_transporter[ti].task_id      := t_start;
+          g_transporter[ti].TaskId      := t_start;
           g_transporter[ti].LiftStationTarget := t_lift;
           g_transporter[ti].SinkStationTarget := sink_stn;
           g_station_loc[ti].UnitId      := t_unit;
           g_transporter[ti].treatment_time := t_calc_time;
           g_transporter[ti].min_time := g_task[ti].queue[1].min_time;
           g_transporter[ti].max_time := g_task[ti].queue[1].max_time;
-          g_transporter[ti].remaining_time := t_calc_time;
+          g_transporter[ti].TaskRemainingTime := t_calc_time;
 
           (* ── Update batch times: transfer duration as time bar ── *)
           IF t_unit >= 1 AND t_unit <= MAX_Units THEN

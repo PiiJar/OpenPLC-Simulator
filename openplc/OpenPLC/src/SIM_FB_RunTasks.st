@@ -97,8 +97,8 @@ FOR i := 1 TO MAX_Transporters DO
 
   (* ── Phase 0 → 1: Accept new task ───────────────────────── *)
   IF (g_transporter[i].Phase = 0)
-     AND (g_transporter[i].task_id <> g_transporter[i].running_task_id) THEN
-    g_transporter[i].running_task_id := g_transporter[i].task_id;
+     AND (g_transporter[i].TaskId <> g_transporter[i].RunningTaskId) THEN
+    g_transporter[i].RunningTaskId := g_transporter[i].TaskId;
     lookup(station_number := g_transporter[i].LiftStationTarget);
     g_transporter[i].XFinalTarget := lookup.x_mm;
     g_transporter[i].Phase := 1;

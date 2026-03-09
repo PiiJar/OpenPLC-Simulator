@@ -132,7 +132,7 @@ END_IF;
 IF cal_step = 10 THEN
   (* Issue task 1: lift from dry, sink to wet *)
   task_key := g_time_s;
-  g_transporter[tid].task_id := task_key;
+  g_transporter[tid].TaskId := task_key;
   g_transporter[tid].LiftStationTarget := g_cal[tid].dry_station;
   g_transporter[tid].SinkStationTarget := g_cal[tid].wet_station;
   (* Reset X velocity measurement *)
@@ -147,7 +147,7 @@ END_IF;
 
 IF cal_step = 11 THEN
   (* Wait for task acceptance *)
-  IF g_transporter[tid].running_task_id = task_key THEN
+  IF g_transporter[tid].RunningTaskId = task_key THEN
     cal_step := 12;
   END_IF;
 END_IF;
@@ -214,14 +214,14 @@ END_IF;
 IF cal_step = 20 THEN
   (* Issue task 2: lift from wet, sink to dry *)
   task_key := g_time_s + LINT#1;
-  g_transporter[tid].task_id := task_key;
+  g_transporter[tid].TaskId := task_key;
   g_transporter[tid].LiftStationTarget := g_cal[tid].wet_station;
   g_transporter[tid].SinkStationTarget := g_cal[tid].dry_station;
   cal_step := 21;
 END_IF;
 
 IF cal_step = 21 THEN
-  IF g_transporter[tid].running_task_id = task_key THEN
+  IF g_transporter[tid].RunningTaskId = task_key THEN
     cal_step := 22;
   END_IF;
 END_IF;
