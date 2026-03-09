@@ -64,13 +64,13 @@ VAR_GLOBAL
   (* --- Shared data arrays --- *)
   g_station_count    : INT := 0;
   g_station         : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
-  g_station_loc     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation;
+  g_station_loc     : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
   g_cfg              : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
-  g_transporter      : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
-  g_unit            : ARRAY[1..MAX_Units] OF UNIT_T;
+  g_transporter      : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
+  g_unit            : ARRAY[1..MAX_Units] OF UDT_UnitType;
   g_ntt             : ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T;  (* no-treatment task destinations *)
-  g_batch          : ARRAY[1..MAX_Units] OF BATCH_T;
-  g_program         : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
+  g_batch          : ARRAY[1..MAX_Units] OF UDT_BatchType;
+  g_program         : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
   g_avoid_status     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF INT;  (* AVOID_None/PASS/BLOCK per station *)
   g_move             : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;  (* precomputed movement times per transporter *)
   g_schedule         : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;  (* calculated schedule per unit *)
@@ -140,7 +140,7 @@ VAR_GLOBAL
   qw_t3_status                   AT %QW36   : INT;  (* 0=not_used 1=manual 2=half 3=auto_idle 4=auto_run *)
   qw_t3_rtask_hi                 AT %QW37   : INT;  (* running task_id upper 16 bits *)
   qw_t3_rtask_lo                 AT %QW38   : INT;  (* running task_id lower 16 bits *)
-  (* --- Per-transporter extended state — remaining STC_TRANSPORTER_T fields --- *)
+  (* --- Per-transporter extended state — remaining UDT_TransporterStatusType fields --- *)
   qw_t1_remain_x10               AT %QW39   : INT;  (* remaining treatment time ×10 (0.1s) *)
   qw_t1_treat_time               AT %QW40   : INT;  (* treatment duration (s) *)
   qw_t1_fintgt_x                 AT %QW41   : INT;  (* destination X mm *)

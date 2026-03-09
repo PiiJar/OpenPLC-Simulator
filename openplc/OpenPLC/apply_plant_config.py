@@ -41,6 +41,7 @@ def load_config(path: Path) -> dict:
     # Derive computed constants
     cfg["STATION_ARRAY_START"] = 101  # always fixed
     cfg["STATION_ARRAY_END"] = cfg["MAX_LINES"] * 100 + cfg["MAX_STATIONS_PER_LINE"]
+    cfg["MAX_PARALLELS_MINUS1"] = cfg["MAX_PARALLELS"] - 1  # 0-based upper bound for Stations array
 
     return cfg
 
@@ -95,7 +96,11 @@ TYPES_PATCHES = [
     (r'(task_area\s*:\s*ARRAY\[1\.\.)\d+(\]\s*OF\s*TASK_AREA_T)',
      r'\g<1>{MAX_TRANSPORTERS_PER_LINE}\2'),
 
-    # PROGRAM_STAGE_T.stations ARRAY[1..N]  (also matches NTT_DEST_T.stations)
+    # UDT_TreatmentProgramStepType.Stations ARRAY[0..N] OF INT (0-based, capitalized)
+    (r'(Stations\s*:\s*ARRAY\[0\.\.)\d+(\]\s*OF\s*INT)',
+     r'\g<1>{MAX_PARALLELS_MINUS1}\2'),
+
+    # NTT_DEST_T.stations ARRAY[1..N] OF INT (1-based, lowercase)
     (r'(stations\s*:\s*ARRAY\[1\.\.)\d+(\]\s*OF\s*INT)',
      r'\g<1>{MAX_PARALLELS}\2'),
 
@@ -103,9 +108,9 @@ TYPES_PATCHES = [
     (r'(fallback_stations\s*:\s*ARRAY\[1\.\.)\d+(\]\s*OF\s*INT)',
      r'\g<1>{MAX_PARALLELS}\2'),
 
-    # TREATMENT_PROGRAM_T.stages ARRAY[1..N] OF PROGRAM_STAGE_T
-    (r'(stages\s*:\s*ARRAY\[1\.\.)\d+(\]\s*OF\s*PROGRAM_STAGE_T)',
-     r'\g<1>{MAX_STAGES}\2'),
+    # UDT_TreatmentProgramType.Steps ARRAY[0..N] OF UDT_TreatmentProgramStepType
+    (r'(Steps\s*:\s*ARRAY\[0\.\.)(\d+)(\]\s*OF\s*UDT_TreatmentProgramStepType)',
+     r'\g<1>{MAX_STAGES}\3'),
 
     # TSK_SCHEDULE_T.stages ARRAY[1..N] OF TSK_STAGE_T
     (r'(stages\s*:\s*ARRAY\[1\.\.)\d+(\]\s*OF\s*TSK_STAGE_T)',
@@ -143,13 +148,13 @@ TYPES_PATCHES = [
     (r'(schedule\s*:\s*ARRAY\[1\.\.)\d+(\]\s*OF\s*TSK_SCHEDULE_T)',
      r'\g<1>{MAX_UNITS}\2'),
 
-    # DEP_SANDBOX_T.batches ARRAY[1..N] OF BATCH_T
-    (r'(batches\s*:\s*ARRAY\[1\.\.)\d+(\]\s*OF\s*BATCH_T)',
+    # DEP_SANDBOX_T.batches ARRAY[1..N] OF UDT_BatchType
+    (r'(batches\s*:\s*ARRAY\[1\.\.)\d+(\]\s*OF\s*UDT_BatchType)',
      r'\g<1>{MAX_UNITS}\2'),
 
-    # DEP_SANDBOX_T.programs ARRAY[1..N] OF TREATMENT_PROGRAM_T
-    (r'(programs\s*:\s*ARRAY\[1\.\.)\d+(\]\s*OF\s*TREATMENT_PROGRAM_T)',
-     r'\g<1>{MAX_UNITS}\2'),
+    # DEP_SANDBOX_T.programs ARRAY[1..N] OF UDT_TreatmentProgramType
+    (r'(programs\s*:\s*ARRAY\[1\.\.)(\d+)(\]\s*OF\s*UDT_TreatmentProgramType)',
+     r'\g<1>{MAX_UNITS}\3'),
 
     # DEP_SANDBOX_T.tasks ARRAY[1..N] OF TSK_QUEUE_T
     (r'(tasks\s*:\s*ARRAY\[1\.\.)\d+(\]\s*OF\s*TSK_QUEUE_T)',

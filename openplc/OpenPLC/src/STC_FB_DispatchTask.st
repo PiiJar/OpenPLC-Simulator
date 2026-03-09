@@ -31,14 +31,14 @@ VAR_EXTERNAL CONSTANT
     MAX_StationIndex   : INT;
 END_VAR
 VAR_EXTERNAL
-  g_transporter : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
+  g_transporter : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
   g_task        : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
   g_station     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
-  g_station_loc : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation;
-  g_unit        : ARRAY[1..MAX_Units] OF UNIT_T;
-  g_program     : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
+  g_station_loc : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
+  g_unit        : ARRAY[1..MAX_Units] OF UDT_UnitType;
+  g_program     : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
   g_ntt         : ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T;
-  g_batch       : ARRAY[1..MAX_Units] OF BATCH_T;
+  g_batch       : ARRAY[1..MAX_Units] OF UDT_BatchType;
   g_move        : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
   g_time_s      : LINT;
   g_event_pending       : EVENT_MSG_T;
@@ -84,22 +84,22 @@ END_VAR
 FOR ti := 1 TO MAX_Transporters DO
 
   (* ── 1. Skip if not idle or queue empty ── *)
-  IF g_transporter[ti].phase = 0 AND g_task[ti].count >= 1 THEN
+  IF g_transporter[ti].Phase = 0 AND g_task[ti].count >= 1 THEN
 
     (* Read task fields from queue position 1 *)
     t_unit      := g_task[ti].queue[1].unit;
     t_stage     := g_task[ti].queue[1].stage;
-    t_lift      := g_task[ti].queue[1].lift_station;
-    t_sink      := g_task[ti].queue[1].sink_station;
+    t_lift      := g_task[ti].queue[1].LiftStationTarget;
+    t_sink      := g_task[ti].queue[1].SinkStationTarget;
     t_start     := g_task[ti].queue[1].start_time;
     t_finish    := g_task[ti].queue[1].finish_time;
     t_calc_time := g_task[ti].queue[1].calc_time;
 
     (* ── 2. Time check ── *)
     travel_s := 0.0;
-    IF g_transporter[ti].current_station > 0 AND t_lift > 0
-       AND g_transporter[ti].current_station <> t_lift THEN
-      from_idx := g_transporter[ti].current_station - 100;
+    IF g_transporter[ti].CurrentStation > 0 AND t_lift > 0
+       AND g_transporter[ti].CurrentStation <> t_lift THEN
+      from_idx := g_transporter[ti].CurrentStation - 100;
       to_idx   := t_lift - 100;
       IF from_idx >= 1 AND from_idx <= 30 AND to_idx >= 1 AND to_idx <= 30 THEN
         travel_s := INT_TO_REAL(g_move[ti].travel[from_idx].to_s[to_idx]) / 10.0;
@@ -117,7 +117,7 @@ FOR ti := 1 TO MAX_Transporters DO
       IF sink_stn >= MIN_StationIndex AND sink_stn <= MAX_StationIndex THEN
         sink_free := TRUE;
         FOR uj := 1 TO MAX_Units DO
-          IF g_unit[uj].location = sink_stn AND g_unit[uj].status = 1 THEN
+          IF g_unit[uj].location = sink_stn AND g_unit[uj].Status = 1 THEN
             sink_free := FALSE;
           END_IF;
         END_FOR;
@@ -137,7 +137,7 @@ FOR ti := 1 TO MAX_Transporters DO
               IF cand_stn >= MIN_StationIndex AND cand_stn <= MAX_StationIndex THEN
                 cand_free := TRUE;
                 FOR uj := 1 TO MAX_Units DO
-                  IF g_unit[uj].location = cand_stn AND g_unit[uj].status = 1 THEN
+                  IF g_unit[uj].location = cand_stn AND g_unit[uj].Status = 1 THEN
                     cand_free := FALSE;
                   END_IF;
                 END_FOR;
@@ -176,7 +176,7 @@ FOR ti := 1 TO MAX_Transporters DO
                   IF cand_stn >= MIN_StationIndex AND cand_stn <= MAX_StationIndex THEN
                     cand_free := TRUE;
                     FOR uj := 1 TO MAX_Units DO
-                      IF g_unit[uj].location = cand_stn AND g_unit[uj].status = 1 THEN
+                      IF g_unit[uj].location = cand_stn AND g_unit[uj].Status = 1 THEN
                         cand_free := FALSE;
                       END_IF;
                     END_FOR;
@@ -199,7 +199,7 @@ FOR ti := 1 TO MAX_Transporters DO
                   IF cand_stn >= MIN_StationIndex AND cand_stn <= MAX_StationIndex THEN
                     cand_free := TRUE;
                     FOR uj := 1 TO MAX_Units DO
-                      IF g_unit[uj].location = cand_stn AND g_unit[uj].status = 1 THEN
+                      IF g_unit[uj].location = cand_stn AND g_unit[uj].Status = 1 THEN
                         cand_free := FALSE;
                       END_IF;
                     END_FOR;
@@ -246,19 +246,19 @@ FOR ti := 1 TO MAX_Transporters DO
         END_IF;
 
         FOR cj := 1 TO MAX_Transporters DO
-          IF cj <> ti AND g_transporter[cj].phase > 0 THEN
+          IF cj <> ti AND g_transporter[cj].Phase > 0 THEN
 
             (* a) T2's entire active task inside our range → conflict *)
-            IF g_transporter[cj].lift_station >= task_min
-               AND g_transporter[cj].lift_station <= task_max
-               AND g_transporter[cj].sink_station >= task_min
-               AND g_transporter[cj].sink_station <= task_max THEN
+            IF g_transporter[cj].LiftStationTarget >= task_min
+               AND g_transporter[cj].LiftStationTarget <= task_max
+               AND g_transporter[cj].SinkStationTarget >= task_min
+               AND g_transporter[cj].SinkStationTarget <= task_max THEN
               conflict := TRUE;
             END_IF;
 
             (* b) T2 delivers to one of our exact stations → conflict *)
-            IF g_transporter[cj].sink_station = t_lift
-               OR g_transporter[cj].sink_station = sink_stn THEN
+            IF g_transporter[cj].SinkStationTarget = t_lift
+               OR g_transporter[cj].SinkStationTarget = sink_stn THEN
               conflict := TRUE;
             END_IF;
 
@@ -268,9 +268,9 @@ FOR ti := 1 TO MAX_Transporters DO
         IF NOT conflict THEN
           (* ── 5. Dispatch: assign task to transporter ── *)
           g_transporter[ti].task_id      := t_start;
-          g_transporter[ti].lift_station := t_lift;
-          g_transporter[ti].sink_station := sink_stn;
-          g_transporter[ti].UnitId      := t_unit;
+          g_transporter[ti].LiftStationTarget := t_lift;
+          g_transporter[ti].SinkStationTarget := sink_stn;
+          g_station_loc[ti].UnitId      := t_unit;
           g_transporter[ti].treatment_time := t_calc_time;
           g_transporter[ti].min_time := g_task[ti].queue[1].min_time;
           g_transporter[ti].max_time := g_task[ti].queue[1].max_time;
@@ -320,8 +320,8 @@ FOR ti := 1 TO MAX_Transporters DO
           (* Clear last slot *)
           g_task[ti].queue[g_task[ti].count].unit := 0;
           g_task[ti].queue[g_task[ti].count].stage := 0;
-          g_task[ti].queue[g_task[ti].count].lift_station := 0;
-          g_task[ti].queue[g_task[ti].count].sink_station := 0;
+          g_task[ti].queue[g_task[ti].count].LiftStationTarget := 0;
+          g_task[ti].queue[g_task[ti].count].SinkStationTarget := 0;
           g_task[ti].queue[g_task[ti].count].start_time := 0;
           g_task[ti].queue[g_task[ti].count].finish_time := 0;
           g_task[ti].queue[g_task[ti].count].calc_time := 0;

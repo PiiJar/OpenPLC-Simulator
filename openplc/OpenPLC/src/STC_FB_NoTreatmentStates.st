@@ -30,11 +30,11 @@ FUNCTION_BLOCK STC_FB_NoTreatmentStates
   END_VAR
 
   VAR_EXTERNAL
-    g_unit             : ARRAY[1..MAX_Units] OF UNIT_T;
-    g_batch            : ARRAY[1..MAX_Units] OF BATCH_T;
-    g_program          : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
+    g_unit             : ARRAY[1..MAX_Units] OF UDT_UnitType;
+    g_batch            : ARRAY[1..MAX_Units] OF UDT_BatchType;
+    g_program          : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
     g_station          : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
-    g_station_loc      : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation;
+    g_station_loc      : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
     g_time_s           : LINT;
     g_production_queue : INT;
   END_VAR
@@ -64,8 +64,8 @@ FUNCTION_BLOCK STC_FB_NoTreatmentStates
   has_loading := FALSE;
 
   FOR u := 1 TO MAX_Units DO
-    snap[u].active := g_unit[u].status <> NOT_USED;
-    IF NOT snap[u].active THEN
+    snap[u].IsActive := g_unit[u].Status <> NOT_USED;
+    IF NOT snap[u].IsActive THEN
       CONTINUE;
     END_IF;
 
@@ -105,7 +105,7 @@ FUNCTION_BLOCK STC_FB_NoTreatmentStates
        If next stage is empty (stations[1]=0) → last stage.
        If elapsed >= cal_time → set state := PROCESSED. *)
   FOR u := 1 TO MAX_Units DO
-    IF NOT snap[u].active OR NOT snap[u].has_batch THEN
+    IF NOT snap[u].IsActive OR NOT snap[u].has_batch THEN
       CONTINUE;
     END_IF;
     IF snap[u].bstate <> IN_PROCESS OR NOT snap[u].on_station THEN
@@ -130,7 +130,7 @@ FUNCTION_BLOCK STC_FB_NoTreatmentStates
        Pass 2: if all occupied, mark ONE empty-batch TO_NONE unit
                at those stations as TO_AVOID. *)
   FOR u := 1 TO MAX_Units DO
-    IF NOT snap[u].active OR NOT snap[u].has_batch THEN
+    IF NOT snap[u].IsActive OR NOT snap[u].has_batch THEN
       CONTINUE;
     END_IF;
     IF snap[u].bstate <> IN_PROCESS THEN
@@ -214,7 +214,7 @@ FUNCTION_BLOCK STC_FB_NoTreatmentStates
       load_uid    := 0;
       load_in_buf := FALSE;
       FOR u := 1 TO MAX_Units DO
-        IF snap[u].active AND NOT snap[u].has_batch
+        IF snap[u].IsActive AND NOT snap[u].has_batch
            AND snap[u].tgt = TO_NONE AND snap[u].on_station THEN
           IF snap[u].in_buffer THEN
             IF load_uid = 0 THEN

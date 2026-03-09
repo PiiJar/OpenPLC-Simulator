@@ -24,7 +24,7 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_batch  : ARRAY[1..MAX_Units] OF BATCH_T;
+  g_batch  : ARRAY[1..MAX_Units] OF UDT_BatchType;
   g_schedule : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
   g_task    : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
   g_cfg    : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
@@ -64,8 +64,8 @@ FOR si := 1 TO sc - 1 DO
       IF qi <= MAX_TASK_QUEUE THEN
         g_task[tid].queue[qi].unit         := i_unit;
         g_task[tid].queue[qi].stage        := si - 1;  (* schedule idx 1=stage0, 2=stage1, ... *)
-        g_task[tid].queue[qi].lift_station := lift_stn;
-        g_task[tid].queue[qi].sink_station := sink_stn;
+        g_task[tid].queue[qi].LiftStationTarget := lift_stn;
+        g_task[tid].queue[qi].SinkStationTarget := sink_stn;
         g_task[tid].queue[qi].start_time   := g_schedule[i_unit].stages[si].exit_time;
         g_task[tid].queue[qi].finish_time  := g_schedule[i_unit].stages[si + 1].entry_time;
         g_task[tid].queue[qi].calc_time    := g_schedule[i_unit].stages[si].calc_time;

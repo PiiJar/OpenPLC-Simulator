@@ -27,11 +27,11 @@ VAR_EXTERNAL CONSTANT
     MAX_Transporters    : INT;
 END_VAR
 VAR_EXTERNAL
-  g_batch  : ARRAY[1..MAX_Units] OF BATCH_T;
-  g_program : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
-  g_unit    : ARRAY[1..MAX_Units] OF UNIT_T;
+  g_batch  : ARRAY[1..MAX_Units] OF UDT_BatchType;
+  g_program : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
+  g_unit    : ARRAY[1..MAX_Units] OF UDT_UnitType;
   g_station : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
-  g_station_loc : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation;
+  g_station_loc : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
   g_schedule : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
   g_station_count : INT;
   g_move    : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
@@ -213,7 +213,7 @@ FOR st := start_st TO g_program[i_unit].StepCount DO
 
       (* Physical occupation *)
       FOR uj := 1 TO MAX_Units DO
-        IF g_unit[uj].location = cand_arr[p] AND g_unit[uj].status = 1 THEN
+        IF g_unit[uj].location = cand_arr[p] AND g_unit[uj].Status = 1 THEN
           phys_occupied[p] := TRUE;
         END_IF;
       END_FOR;

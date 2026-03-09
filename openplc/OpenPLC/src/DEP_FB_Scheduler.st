@@ -48,13 +48,13 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_batch          : ARRAY[1..MAX_Units] OF BATCH_T;
-  g_unit            : ARRAY[1..MAX_Units] OF UNIT_T;
-  g_program         : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
+  g_batch          : ARRAY[1..MAX_Units] OF UDT_BatchType;
+  g_unit            : ARRAY[1..MAX_Units] OF UDT_UnitType;
+  g_program         : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
   g_schedule         : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
   g_task            : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
   g_cfg              : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
-  g_transporter      : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
+  g_transporter      : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
   g_dep_sandbox      : DEP_SANDBOX_T;
   g_dep_idle_slot   : ARRAY[1..MAX_Transporters] OF DEP_IDLE_SLOT_SET_T;
   g_dep_overlap      : DEP_OVERLAP_T;
@@ -397,7 +397,7 @@ ELSIF phase = 2000 THEN
     (* ★ G07: Batch is on transporter — use transporter's current_station *)
     IF loading_stn >= 1 AND loading_stn <= MAX_Transporters THEN
       sched_trans := loading_stn;
-      loading_stn := g_transporter[loading_stn].current_station;
+      loading_stn := g_transporter[loading_stn].CurrentStation;
       IF loading_stn < 100 THEN
         next_phase := 9000;
       END_IF;
@@ -435,7 +435,7 @@ ELSIF phase = 2000 THEN
       s0_slot_end   := g_dep_idle_slot[sched_trans].slots[s0_slot_si].end_time;
       IF s0_slot_end > i_time_s THEN
         (* Travel: prev task sink → pickup station (JS: travelToPickup) *)
-        s0_from_stn := g_dep_idle_slot[sched_trans].slots[s0_slot_si].lift_station;
+        s0_from_stn := g_dep_idle_slot[sched_trans].slots[s0_slot_si].LiftStationTarget;
         s0_travel_to := 0.0;
         IF s0_from_stn > 0 AND s0_from_stn <> loading_stn THEN
           s0_travel_to := STC_CalcHorizontalTravel(i_from_stn := s0_from_stn, i_to_stn := loading_stn, i_move := tmp_move);
@@ -449,7 +449,7 @@ ELSIF phase = 2000 THEN
         END_IF;
 
         (* Travel: sink → next task lift (JS: travelFromSink) *)
-        s0_to_stn := g_dep_idle_slot[sched_trans].slots[s0_slot_si].sink_station;
+        s0_to_stn := g_dep_idle_slot[sched_trans].slots[s0_slot_si].SinkStationTarget;
         s0_travel_from := 0.0;
         IF s0_to_stn > 0 AND s0_to_stn <> first_stn THEN
           s0_travel_from := STC_CalcHorizontalTravel(i_from_stn := first_stn, i_to_stn := s0_to_stn, i_move := tmp_move);
@@ -532,8 +532,8 @@ ELSIF phase = 2001 THEN
 
     (* Overlap delay check *)
     fb_ovlp_delay(
-      i_lift_stn   := w_tasks[cur_task_idx].lift_station,
-      i_sink_stn   := w_tasks[cur_task_idx].sink_station,
+      i_lift_stn   := w_tasks[cur_task_idx].LiftStationTarget,
+      i_sink_stn   := w_tasks[cur_task_idx].SinkStationTarget,
       i_trans_id   := ti,
       i_task_start := w_tasks[cur_task_idx].start_time,
       i_task_end   := w_tasks[cur_task_idx].finish_time,
@@ -543,8 +543,8 @@ ELSIF phase = 2001 THEN
 
     (* Idle-slot fit check *)
     fb_fit(
-      i_lift_stn     := w_tasks[cur_task_idx].lift_station,
-      i_sink_stn     := w_tasks[cur_task_idx].sink_station,
+      i_lift_stn     := w_tasks[cur_task_idx].LiftStationTarget,
+      i_sink_stn     := w_tasks[cur_task_idx].SinkStationTarget,
       i_trans_id     := ti,
       i_task_start   := w_tasks[cur_task_idx].start_time,
       i_task_end     := w_tasks[cur_task_idx].finish_time,
@@ -693,7 +693,7 @@ ELSIF phase = 8000 THEN
   g_dep_pending.batch_unit  := cur_wait_unit;
   g_dep_pending.batch_stage := 0;    (* cur_stage = 0, JS: batch.stage = 0 *)
   g_dep_pending.batch_state := 1;    (* NOT_PROCESSED → IN_PROCESS *)
-  (* Stage 0 times — same naming as PROGRAM_STAGE_T: min_time, max_time, cal_time *)
+  (* Stage 0 times — same naming as UDT_TreatmentProgramStepType: MinTime, MaxTime, CalTime *)
   g_dep_pending.batch_cal_time  := REAL_TO_DINT(stage0_pending_delay);
   g_dep_pending.batch_min_time  := REAL_TO_DINT(stage0_pending_delay);
   g_dep_pending.batch_max_time  := REAL_TO_DINT(2.0 * stage0_pending_delay);

@@ -87,8 +87,8 @@ FOR round := 1 TO DEP_MAX_DELAY_ACTS DO
           EXIT;
         END_IF;
 
-        e_lift  := g_task[ti].queue[qi].lift_station;
-        e_sink  := g_task[ti].queue[qi].sink_station;
+        e_lift  := g_task[ti].queue[qi].LiftStationTarget;
+        e_sink  := g_task[ti].queue[qi].SinkStationTarget;
         e_start := g_task[ti].queue[qi].start_time;
         e_end   := g_task[ti].queue[qi].finish_time;
 

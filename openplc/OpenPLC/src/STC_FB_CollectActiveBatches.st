@@ -5,7 +5,7 @@
    mode-specific conditions into an output list.
 
    Common conditions for both modes:
-     unit.status  = USED (1)
+     unit.Status  = USED (1)
      unit.target  = TO_NONE (0)
      batch.prog_id = g_program[ui].program_id  (valid program)
 
@@ -29,9 +29,9 @@ VAR_EXTERNAL CONSTANT
     MAX_Units : INT;
 END_VAR
 VAR_EXTERNAL
-  g_batch   : ARRAY[1..MAX_Units] OF BATCH_T;
-  g_unit    : ARRAY[1..MAX_Units] OF UNIT_T;
-  g_program : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
+  g_batch   : ARRAY[1..MAX_Units] OF UDT_BatchType;
+  g_unit    : ARRAY[1..MAX_Units] OF UDT_UnitType;
+  g_program : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
 END_VAR
 VAR_OUTPUT
   o_list  : ARRAY[1..MAX_Units] OF INT;  (* unit indices *)
@@ -48,7 +48,7 @@ END_FOR;
 
 FOR ui := 1 TO MAX_Units DO
   (* Common conditions: unit USED, target TO_NONE, valid program *)
-  IF g_unit[ui].status = 1
+  IF g_unit[ui].Status = 1
      AND g_unit[ui].target = 0
      AND g_batch[ui].prog_id = g_program[ui].program_id
      AND g_program[ui].program_id > 0 THEN

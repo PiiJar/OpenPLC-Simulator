@@ -19,13 +19,13 @@ END_VAR
 VAR_EXTERNAL
   g_station_count    : INT;
   g_station         : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
-  g_station_loc     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation;
+  g_station_loc     : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
   g_cfg              : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
-  g_transporter      : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
-  g_unit            : ARRAY[1..MAX_Units] OF UNIT_T;
+  g_transporter      : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
+  g_unit            : ARRAY[1..MAX_Units] OF UDT_UnitType;
   g_ntt             : ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T;
-  g_batch          : ARRAY[1..MAX_Units] OF BATCH_T;
-  g_program         : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
+  g_batch          : ARRAY[1..MAX_Units] OF UDT_BatchType;
+  g_program         : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
   g_avoid_status     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF INT;
   g_schedule         : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
   g_task             : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
@@ -55,8 +55,8 @@ FOR i := MIN_StationIndex TO MAX_StationIndex DO
   g_station[i].DeviceDelay  := 0;
 END_FOR;
 
-(* --- Clear station unit locations --- *)
-FOR i := MIN_StationIndex TO MAX_StationIndex DO
+(* --- Clear all location tracking (transporters 1..MAX_Transporters + stations MIN..MAX) --- *)
+FOR i := 1 TO MAX_StationIndex DO
   g_station_loc[i].UnitId     := 0;
   g_station_loc[i].ChangeTime := 0;
 END_FOR;
@@ -64,8 +64,8 @@ g_station_count := 0;
 
 (* --- Clear all transporter configs --- *)
 FOR i := 1 TO MAX_Transporters DO
-  g_cfg[i].XMinLimit   := 0;
-  g_cfg[i].XMaxLimit   := 0;
+  g_cfg[i].XMinDriveLimit   := 0;
+  g_cfg[i].XMaxDriveLimit   := 0;
   g_cfg[i].YMinLimit   := 0;
   g_cfg[i].YMaxLimit   := 0;
   g_cfg[i].XAvoidMm    := 0;
@@ -96,20 +96,19 @@ END_FOR;
 
 (* --- Clear all transporter states --- *)
 FOR i := 1 TO MAX_Transporters DO
-  g_transporter[i].active          := FALSE;
-  g_transporter[i].status          := 0;
-  g_transporter[i].phase           := 0;
-  g_transporter[i].UnitId         := 0;
+  g_transporter[i].IsActive          := FALSE;
+  g_transporter[i].Status          := 0;
+  g_transporter[i].Phase           := 0;
   g_transporter[i].task_id         := 0;
   g_transporter[i].running_task_id := 0;
-  g_transporter[i].lift_station    := 0;
-  g_transporter[i].sink_station    := 0;
+  g_transporter[i].LiftStationTarget    := 0;
+  g_transporter[i].SinkStationTarget    := 0;
   g_transporter[i].treatment_time  := 0;
   g_transporter[i].lift_device_delay := 0;
   g_transporter[i].sink_device_delay := 0;
   g_transporter[i].DrippingTime   := 0;
   g_transporter[i].remaining_time  := 0;
-  g_transporter[i].current_station := 0;
+  g_transporter[i].CurrentStation := 0;
   g_transporter[i].XFinalTarget  := 0;
   g_transporter[i].XDriveTarget  := 0;
   g_transporter[i].YFinalTarget  := 0;
@@ -120,14 +119,14 @@ FOR i := 1 TO MAX_Transporters DO
   g_transporter[i].XVelocity           := 0;
   g_transporter[i].z_stage         := 0;
   g_transporter[i].z_timer_s       := 0.0;
-  g_transporter[i].XMinLimit     := 0;
-  g_transporter[i].XMaxLimit     := 0;
+  g_transporter[i].XMinDriveLimit     := 0;
+  g_transporter[i].XMaxDriveLimit     := 0;
 END_FOR;
 
 (* --- Clear all units --- *)
 FOR i := 1 TO MAX_Units DO
   g_unit[i].location := 0;
-  g_unit[i].status   := 0;
+  g_unit[i].Status   := 0;
   g_unit[i].target   := 0;
 END_FOR;
 
@@ -191,8 +190,8 @@ FOR i := 1 TO MAX_Transporters DO
   FOR j := 1 TO 60 DO
     g_task[i].queue[j].unit         := 0;
     g_task[i].queue[j].stage        := 0;
-    g_task[i].queue[j].lift_station := 0;
-    g_task[i].queue[j].sink_station := 0;
+    g_task[i].queue[j].LiftStationTarget := 0;
+    g_task[i].queue[j].SinkStationTarget := 0;
     g_task[i].queue[j].start_time   := 0;
     g_task[i].queue[j].finish_time  := 0;
     g_task[i].queue[j].calc_time    := 0;

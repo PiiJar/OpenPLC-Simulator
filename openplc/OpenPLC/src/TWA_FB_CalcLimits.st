@@ -28,7 +28,7 @@ END_VAR
 
 VAR_EXTERNAL
   g_cfg            : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
-  g_transporter          : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
+  g_transporter          : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
   g_station       : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
   g_station_count  : INT;
   g_avoid_status   : ARRAY[MIN_StationIndex..MAX_StationIndex] OF INT;
@@ -99,19 +99,19 @@ END_VAR
    and restrict x_min/x_max based on avoid_status 1 (pass) and 2 (block).
    ================================================================ *)
 FOR i := 1 TO MAX_Transporters DO
-  IF NOT g_transporter[i].active THEN
+  IF NOT g_transporter[i].IsActive THEN
     CONTINUE;
   END_IF;
 
-  min_x := g_cfg[i].XMinLimit;
-  max_x := g_cfg[i].XMaxLimit;
+  min_x := g_cfg[i].XMinDriveLimit;
+  max_x := g_cfg[i].XMaxDriveLimit;
   current_x := g_transporter[i].XPosition;
   avoid_dist := g_cfg[i].XAvoidMm;
 
   (* If no limits configured, lock to current position *)
   IF (min_x < 1) OR (max_x < 1) THEN
-    g_transporter[i].XMinLimit := current_x;
-    g_transporter[i].XMaxLimit := current_x;
+    g_transporter[i].XMinDriveLimit := current_x;
+    g_transporter[i].XMaxDriveLimit := current_x;
     CONTINUE;
   END_IF;
 
@@ -121,7 +121,7 @@ FOR i := 1 TO MAX_Transporters DO
   right_s2_x := 0;
 
   (* --- Search downward (smaller station numbers) from current_station --- *)
-  stn_num := g_transporter[i].current_station - 1;
+  stn_num := g_transporter[i].CurrentStation - 1;
   WHILE stn_num >= MIN_StationIndex DO
     IF g_station[stn_num].TankId = 0 THEN
       stn_num := stn_num - 1;
@@ -137,8 +137,8 @@ FOR i := 1 TO MAX_Transporters DO
 
     (* AVOID_Passable: passable unless it is this transporter's target station *)
     IF avoid_st = AVOID_Passable THEN
-      is_target := (stn_num = g_transporter[i].lift_station)
-               OR  (stn_num = g_transporter[i].sink_station);
+      is_target := (stn_num = g_transporter[i].LiftStationTarget)
+               OR  (stn_num = g_transporter[i].SinkStationTarget);
       IF is_target THEN
         IF current_x < stn_x THEN
           new_val := stn_x - avoid_dist;
@@ -176,7 +176,7 @@ FOR i := 1 TO MAX_Transporters DO
   END_WHILE;
 
   (* --- Search upward (larger station numbers) from current_station --- *)
-  stn_num := g_transporter[i].current_station + 1;
+  stn_num := g_transporter[i].CurrentStation + 1;
   WHILE stn_num <= MAX_StationIndex DO
     IF g_station[stn_num].TankId = 0 THEN
       stn_num := stn_num + 1;
@@ -191,8 +191,8 @@ FOR i := 1 TO MAX_Transporters DO
     avoid_st := g_avoid_status[stn_num];
 
     IF avoid_st = AVOID_Passable THEN
-      is_target := (stn_num = g_transporter[i].lift_station)
-               OR  (stn_num = g_transporter[i].sink_station);
+      is_target := (stn_num = g_transporter[i].LiftStationTarget)
+               OR  (stn_num = g_transporter[i].SinkStationTarget);
       IF is_target THEN
         IF current_x < stn_x THEN
           new_val := stn_x - avoid_dist;
@@ -234,8 +234,8 @@ FOR i := 1 TO MAX_Transporters DO
     max_x := midpoint + 5;
   END_IF;
 
-  g_transporter[i].XMinLimit := min_x;
-  g_transporter[i].XMaxLimit := max_x;
+  g_transporter[i].XMinDriveLimit := min_x;
+  g_transporter[i].XMaxDriveLimit := max_x;
 END_FOR;
 
 (* ================================================================
@@ -243,7 +243,7 @@ END_FOR;
    Every active transporter pushes neighbors away by x_avoid_mm.
    ================================================================ *)
 FOR i := 1 TO MAX_Transporters DO
-  IF NOT g_transporter[i].active THEN
+  IF NOT g_transporter[i].IsActive THEN
     CONTINUE;
   END_IF;
 
@@ -253,7 +253,7 @@ FOR i := 1 TO MAX_Transporters DO
 
   FOR j := 1 TO MAX_Transporters DO
     IF j = i THEN CONTINUE; END_IF;
-    IF NOT g_transporter[j].active THEN CONTINUE; END_IF;
+    IF NOT g_transporter[j].IsActive THEN CONTINUE; END_IF;
 
     (* Skip transporters on different line (y-position check, matches JS Step 2.0) *)
     other_y := g_transporter[j].YPosition;
@@ -264,14 +264,14 @@ FOR i := 1 TO MAX_Transporters DO
     IF other_x > current_x THEN
       (* j is to the RIGHT of i — restrict j's x_min *)
       new_val := current_x + avoid_dist;
-      IF new_val > g_transporter[j].XMinLimit THEN
-        g_transporter[j].XMinLimit := new_val;
+      IF new_val > g_transporter[j].XMinDriveLimit THEN
+        g_transporter[j].XMinDriveLimit := new_val;
       END_IF;
     ELSIF other_x < current_x THEN
       (* j is to the LEFT of i — restrict j's x_max *)
       new_val := current_x - avoid_dist;
-      IF new_val < g_transporter[j].XMaxLimit THEN
-        g_transporter[j].XMaxLimit := new_val;
+      IF new_val < g_transporter[j].XMaxDriveLimit THEN
+        g_transporter[j].XMaxDriveLimit := new_val;
       END_IF;
     END_IF;
   END_FOR;
@@ -284,12 +284,12 @@ END_FOR;
 (* --- 2.2.1: Build sorted array of active transporters by x-position --- *)
 n_active := 0;
 FOR i := 1 TO MAX_Transporters DO
-  IF g_transporter[i].active THEN
+  IF g_transporter[i].IsActive THEN
     n_active := n_active + 1;
     w_idx[n_active] := i;
     w_xpos[n_active] := g_transporter[i].XPosition;
-    w_phase[n_active] := g_transporter[i].phase;
-    w_status[n_active] := g_transporter[i].status;
+    w_phase[n_active] := g_transporter[i].Phase;
+    w_status[n_active] := g_transporter[i].Status;
     w_ypos[n_active] := g_transporter[i].YPosition;
     w_target[n_active] := g_transporter[i].XFinalTarget;
     w_avoid[n_active] := g_cfg[i].XAvoidMm;
@@ -330,7 +330,7 @@ FOR i := 1 TO n_active DO
   IF (w_status[i] = 4) AND ((w_phase[i] = 2) OR (w_phase[i] = 4)) THEN
     w_can_evade[i] := FALSE;
   END_IF;
-  work_area := g_transporter[k].XMaxLimit - g_transporter[k].XMinLimit;
+  work_area := g_transporter[k].XMaxDriveLimit - g_transporter[k].XMinDriveLimit;
   IF work_area < MIN_WorkingArea THEN
     w_can_evade[i] := FALSE;
   END_IF;
@@ -374,8 +374,8 @@ IF n_active >= 2 THEN
       END_IF;
 
       k := w_idx[j];
-      cur_min := g_transporter[k].XMinLimit;
-      cur_max := g_transporter[k].XMaxLimit;
+      cur_min := g_transporter[k].XMinDriveLimit;
+      cur_max := g_transporter[k].XMaxDriveLimit;
 
       IF w_xpos[i] < w_xpos[j] THEN
         (* i is LEFT, j is RIGHT — i sets j's x_min *)
@@ -389,11 +389,11 @@ IF n_active >= 2 THEN
 
         IF new_val > cur_min THEN
           IF new_val <= (cur_max - MIN_WorkingArea) THEN
-            g_transporter[k].XMinLimit := new_val;
+            g_transporter[k].XMinDriveLimit := new_val;
           ELSE
             adjusted := cur_max - MIN_WorkingArea;
             IF adjusted > cur_min THEN
-              g_transporter[k].XMinLimit := adjusted;
+              g_transporter[k].XMinDriveLimit := adjusted;
             END_IF;
           END_IF;
         END_IF;
@@ -410,11 +410,11 @@ IF n_active >= 2 THEN
 
         IF new_val < cur_max THEN
           IF new_val >= (cur_min + MIN_WorkingArea) THEN
-            g_transporter[k].XMaxLimit := new_val;
+            g_transporter[k].XMaxDriveLimit := new_val;
           ELSE
             adjusted := cur_min + MIN_WorkingArea;
             IF adjusted < cur_max THEN
-              g_transporter[k].XMaxLimit := adjusted;
+              g_transporter[k].XMaxDriveLimit := adjusted;
             END_IF;
           END_IF;
         END_IF;
@@ -439,8 +439,8 @@ IF n_active >= 2 THEN
       (* Both moving right — left chasing right *)
       safety_val := w_xpos[i] + w_avoid[i];
       k := w_idx[j];
-      IF safety_val > g_transporter[k].XMinLimit THEN
-        g_transporter[k].XMinLimit := safety_val;
+      IF safety_val > g_transporter[k].XMinDriveLimit THEN
+        g_transporter[k].XMinDriveLimit := safety_val;
       END_IF;
     END_IF;
 
@@ -448,8 +448,8 @@ IF n_active >= 2 THEN
       (* Both moving left — right chasing left *)
       safety_val := w_xpos[j] - w_avoid[j];
       k := w_idx[i];
-      IF safety_val < g_transporter[k].XMaxLimit THEN
-        g_transporter[k].XMaxLimit := safety_val;
+      IF safety_val < g_transporter[k].XMaxDriveLimit THEN
+        g_transporter[k].XMaxDriveLimit := safety_val;
       END_IF;
     END_IF;
   END_FOR;
@@ -457,10 +457,10 @@ IF n_active >= 2 THEN
   (* --- 2.2.5: Validate limits (trap detection) --- *)
   FOR i := 1 TO n_active DO
     k := w_idx[i];
-    IF g_transporter[k].XMinLimit > g_transporter[k].XMaxLimit THEN
+    IF g_transporter[k].XMinDriveLimit > g_transporter[k].XMaxDriveLimit THEN
       (* Trapped — lock in place *)
-      g_transporter[k].XMinLimit := g_transporter[k].XPosition;
-      g_transporter[k].XMaxLimit := g_transporter[k].XPosition;
+      g_transporter[k].XMinDriveLimit := g_transporter[k].XPosition;
+      g_transporter[k].XMaxDriveLimit := g_transporter[k].XPosition;
     END_IF;
   END_FOR;
 

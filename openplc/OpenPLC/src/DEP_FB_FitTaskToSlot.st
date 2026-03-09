@@ -97,14 +97,14 @@ FOR si := 1 TO DEP_MAX_IDLE_SLOTS DO
   slot_end   := g_dep_idle_slot[i_trans_id].slots[si].end_time;
 
   (* ── Travel time: prev task sink → this lift ── *)
-  from_stn := g_dep_idle_slot[i_trans_id].slots[si].lift_station;
+  from_stn := g_dep_idle_slot[i_trans_id].slots[si].LiftStationTarget;
   travel_to := 0.0;
   IF from_stn > 0 AND from_stn <> i_lift_stn THEN
     travel_to := STC_CalcHorizontalTravel(i_from_stn := from_stn, i_to_stn := i_lift_stn, i_move := tmp_move);
   END_IF;
 
   (* ── Travel time: this sink → next task lift ── *)
-  to_stn := g_dep_idle_slot[i_trans_id].slots[si].sink_station;
+  to_stn := g_dep_idle_slot[i_trans_id].slots[si].SinkStationTarget;
   travel_from := 0.0;
   IF to_stn > 0 AND to_stn <> i_sink_stn THEN
     travel_from := STC_CalcHorizontalTravel(i_from_stn := i_sink_stn, i_to_stn := to_stn, i_move := tmp_move);

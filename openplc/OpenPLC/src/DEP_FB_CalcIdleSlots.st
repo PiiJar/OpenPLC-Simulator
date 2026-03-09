@@ -27,7 +27,7 @@ END_VAR
 VAR_EXTERNAL
   g_task          : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
   g_dep_idle_slot : ARRAY[1..MAX_Transporters] OF DEP_IDLE_SLOT_SET_T;
-  g_transporter   : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
+  g_transporter   : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
 END_VAR
 VAR
   qi       : INT;      (* queue index *)
@@ -52,7 +52,7 @@ cnt := g_task[i_trans].count;
 
 prev_end  := i_time_s;
 (* G05: Use transporter's current station as first-slot anchor *)
-prev_sink := g_transporter[i_trans].current_station;
+prev_sink := g_transporter[i_trans].CurrentStation;
 
 FOR qi := 1 TO MAX_Units DO
   IF qi > cnt THEN
@@ -68,13 +68,13 @@ FOR qi := 1 TO MAX_Units DO
     IF si <= DEP_MAX_IDLE_SLOTS THEN
       g_dep_idle_slot[i_trans].slots[si].start_time   := gap_start;
       g_dep_idle_slot[i_trans].slots[si].end_time     := gap_end;
-      g_dep_idle_slot[i_trans].slots[si].lift_station := prev_sink;
-      g_dep_idle_slot[i_trans].slots[si].sink_station := g_task[i_trans].queue[qi].lift_station;
+      g_dep_idle_slot[i_trans].slots[si].LiftStationTarget := prev_sink;
+      g_dep_idle_slot[i_trans].slots[si].SinkStationTarget := g_task[i_trans].queue[qi].LiftStationTarget;
     END_IF;
   END_IF;
 
   prev_end  := g_task[i_trans].queue[qi].finish_time;
-  prev_sink := g_task[i_trans].queue[qi].sink_station;
+  prev_sink := g_task[i_trans].queue[qi].SinkStationTarget;
 END_FOR;
 
 (* Final slot: after last task → open-ended *)
@@ -82,8 +82,8 @@ si := si + 1;
 IF si <= DEP_MAX_IDLE_SLOTS THEN
   g_dep_idle_slot[i_trans].slots[si].start_time   := prev_end;
   g_dep_idle_slot[i_trans].slots[si].end_time     := HORIZON;
-  g_dep_idle_slot[i_trans].slots[si].lift_station := prev_sink;
-  g_dep_idle_slot[i_trans].slots[si].sink_station := 0;
+  g_dep_idle_slot[i_trans].slots[si].LiftStationTarget := prev_sink;
+  g_dep_idle_slot[i_trans].slots[si].SinkStationTarget := 0;
 END_IF;
 
 g_dep_idle_slot[i_trans].count := si;

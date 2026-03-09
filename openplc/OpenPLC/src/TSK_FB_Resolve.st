@@ -43,7 +43,7 @@ END_VAR
 VAR_EXTERNAL
   g_task    : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
   g_schedule : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
-  g_batch  : ARRAY[1..MAX_Units] OF BATCH_T;
+  g_batch  : ARRAY[1..MAX_Units] OF UDT_BatchType;
 END_VAR
 VAR_OUTPUT
   o_solved      : BOOL;

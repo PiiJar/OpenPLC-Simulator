@@ -34,10 +34,11 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_unit        : ARRAY[1..MAX_Units] OF UNIT_T;
-  g_batch       : ARRAY[1..MAX_Units] OF BATCH_T;
+  g_unit        : ARRAY[1..MAX_Units] OF UDT_UnitType;
+  g_batch       : ARRAY[1..MAX_Units] OF UDT_BatchType;
   g_ntt         : ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T;
-  g_transporter : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
+  g_transporter : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
+  g_station_loc : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
   g_cfg         : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
   g_task        : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
   g_move        : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
@@ -110,7 +111,7 @@ FOR ui := 1 TO MAX_Units DO
     FOR ti := 1 TO MAX_Transporters DO
       IF NOT already THEN
         (* Being transported right now? *)
-        IF g_transporter[ti].phase > 0 AND g_transporter[ti].UnitId = ui THEN
+        IF g_transporter[ti].Phase > 0 AND g_station_loc[ti].UnitId = ui THEN
           already := TRUE;
         END_IF;
         (* In any task queue? *)
@@ -143,8 +144,8 @@ FOR ui := 1 TO MAX_Units DO
         END_IF;
       END_FOR;
 
-      IF covers AND g_transporter[cov_t].active
-         AND (g_transporter[cov_t].phase = 0 OR tgt = 5) THEN
+      IF covers AND g_transporter[cov_t].IsActive
+         AND (g_transporter[cov_t].Phase = 0 OR tgt = 5) THEN
 
         (* ── Resolve NTT index ── *)
         (* TO_BUFFER(2) maps to 6/7/8 depending on batch state *)
@@ -191,7 +192,7 @@ FOR ui := 1 TO MAX_Units DO
             IF stn <> loc AND stn >= MIN_StationIndex AND stn <= MAX_StationIndex THEN
               stn_free := TRUE;
               FOR uj := 1 TO MAX_Units DO
-                IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
+                IF g_unit[uj].location = stn AND g_unit[uj].Status = 1 THEN
                   stn_free := FALSE;
                 END_IF;
               END_FOR;
@@ -214,7 +215,7 @@ FOR ui := 1 TO MAX_Units DO
                 IF stn <> loc AND stn >= MIN_StationIndex AND stn <= MAX_StationIndex THEN
                   stn_free := TRUE;
                   FOR uj := 1 TO MAX_Units DO
-                    IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
+                    IF g_unit[uj].location = stn AND g_unit[uj].Status = 1 THEN
                       stn_free := FALSE;
                     END_IF;
                   END_FOR;
@@ -232,7 +233,7 @@ FOR ui := 1 TO MAX_Units DO
                 IF stn <> loc AND stn >= MIN_StationIndex AND stn <= MAX_StationIndex THEN
                   stn_free := TRUE;
                   FOR uj := 1 TO MAX_Units DO
-                    IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
+                    IF g_unit[uj].location = stn AND g_unit[uj].Status = 1 THEN
                       stn_free := FALSE;
                     END_IF;
                   END_FOR;
@@ -250,7 +251,7 @@ FOR ui := 1 TO MAX_Units DO
                   IF stn <> loc AND stn >= MIN_StationIndex AND stn <= MAX_StationIndex THEN
                     stn_free := TRUE;
                     FOR uj := 1 TO MAX_Units DO
-                      IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
+                      IF g_unit[uj].location = stn AND g_unit[uj].Status = 1 THEN
                         stn_free := FALSE;
                       END_IF;
                     END_FOR;
@@ -289,7 +290,7 @@ FOR ui := 1 TO MAX_Units DO
                 (* Travel from NTT sink to first task's lift *)
                 travel_from_sink := STC_CalcHorizontalTravel(
                   i_from_stn := dest_stn,
-                  i_to_stn   := g_task[cov_t].queue[1].lift_station,
+                  i_to_stn   := g_task[cov_t].queue[1].LiftStationTarget,
                   i_move     := g_move[cov_t]
                 );
                 latest_end := slot_end - REAL_TO_LINT(travel_from_sink) - 1;
@@ -304,7 +305,7 @@ FOR ui := 1 TO MAX_Units DO
                  this NTT unit sits, we MUST move it first or we deadlock.
                  Force-insert; future scheduling will re-stabilize the list. *)
               IF g_task[cov_t].count > 0
-                 AND g_task[cov_t].queue[1].sink_station = loc THEN
+                 AND g_task[cov_t].queue[1].SinkStationTarget = loc THEN
                 slot_ok := TRUE;  (* force — deadlock prevention *)
               ELSE
                 dest_stn := 0;  (* NTT doesn't fit → skip *)
@@ -321,8 +322,8 @@ FOR ui := 1 TO MAX_Units DO
               END_FOR;
               g_task[cov_t].queue[1].unit         := ui;
               g_task[cov_t].queue[1].stage        := 0;  (* no program stage *)
-              g_task[cov_t].queue[1].lift_station := loc;
-              g_task[cov_t].queue[1].sink_station := dest_stn;
+              g_task[cov_t].queue[1].LiftStationTarget := loc;
+              g_task[cov_t].queue[1].SinkStationTarget := dest_stn;
               g_task[cov_t].queue[1].start_time   := task_start;
               g_task[cov_t].queue[1].finish_time  := task_end;
               g_task[cov_t].queue[1].calc_time    := 0;

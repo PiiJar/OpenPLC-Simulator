@@ -2,8 +2,8 @@
    STC_FB_UpdateUnitLocation — Update a unit's location
    ============================================================
    Sets g_unit[i_unit].location to the given new location.
-   Location < 100 = transporter, >= 100 = station.
-   Updates unit_id + change_time on the relevant station(s).
+   Location 1..MAX_Transporters = transporter, MIN_StationIndex..MAX_StationIndex = station.
+   Updates g_station_loc[location].UnitId + ChangeTime for both.
 
    When moving to a station (sink / task completion):
      - Advances batch cur_stage if batch is IN_PROCESS
@@ -18,19 +18,17 @@ VAR_INPUT
 END_VAR
 VAR_EXTERNAL CONSTANT
     MAX_Units           : INT;
-    MAX_Transporters    : INT;
     MAX_STEPS_PER_PROGRAM          : INT;
     MIN_StationIndex : INT;
     MAX_StationIndex   : INT;
     IN_PROCESS          : INT;
 END_VAR
 VAR_EXTERNAL
-  g_unit        : ARRAY[1..MAX_Units] OF UNIT_T;
+  g_unit        : ARRAY[1..MAX_Units] OF UDT_UnitType;
   g_station     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
-  g_station_loc : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation;
-  g_transporter : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
-  g_batch       : ARRAY[1..MAX_Units] OF BATCH_T;
-  g_program     : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
+  g_station_loc : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
+  g_batch       : ARRAY[1..MAX_Units] OF UDT_BatchType;
+  g_program     : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
   g_time_s      : LINT;
 END_VAR
 VAR
@@ -41,27 +39,25 @@ END_VAR
 IF (i_unit >= 1) AND (i_unit <= MAX_Units) THEN
   old_loc := g_unit[i_unit].location;
 
-  (* --- Clear unit_id from old location --- *)
-  IF (old_loc >= MIN_StationIndex) AND (old_loc <= MAX_StationIndex) THEN
-    (* Was on a station — clear station unit_id, stamp change_time *)
+  (* --- Clear unit_id from old location (unified: transporter or station) --- *)
+  IF (old_loc >= 1) AND (old_loc <= MAX_StationIndex) THEN
     g_station_loc[old_loc].UnitId     := 0;
     g_station_loc[old_loc].ChangeTime := g_time_s;
-  ELSIF (old_loc >= 1) AND (old_loc <= MAX_Transporters) THEN
-    (* Was on a transporter — clear transporter unit_id *)
-    g_transporter[old_loc].UnitId := 0;
   END_IF;
 
   (* --- Update unit location --- *)
   g_unit[i_unit].location := i_location;
 
-  (* --- Set unit_id on new location --- *)
-  IF (i_location >= MIN_StationIndex) AND (i_location <= MAX_StationIndex) THEN
-    (* Moving to a station (sink completion) *)
+  (* --- Set unit_id on new location (unified: transporter or station) --- *)
+  IF (i_location >= 1) AND (i_location <= MAX_StationIndex) THEN
     g_station_loc[i_location].UnitId     := i_unit;
     g_station_loc[i_location].ChangeTime := g_time_s;
 
+    (* Station-specific: batch stage advance only when landing on a station *)
+    IF (i_location >= MIN_StationIndex) THEN
+
     (* Advance batch stage if unit is USED with an active batch *)
-    IF (g_unit[i_unit].status = 1)  (* USED *)
+    IF (g_unit[i_unit].Status = 1)  (* USED *)
        AND (g_batch[i_unit].batch_code <> 0)
        AND (g_batch[i_unit].state = IN_PROCESS)
        AND (g_batch[i_unit].cur_stage < MAX_STEPS_PER_PROGRAM) THEN
@@ -96,10 +92,8 @@ IF (i_unit >= 1) AND (i_unit <= MAX_Units) THEN
       g_unit[i_unit].target := 0;  (* TO_NONE *)
     END_IF;
 
-  ELSIF (i_location >= 1) AND (i_location <= MAX_Transporters) THEN
-    (* Moving to a transporter (lift start) *)
-    g_transporter[i_location].UnitId := i_unit;
-  END_IF;
+    END_IF; (* i_location >= MIN_StationIndex — station-specific block *)
+  END_IF; (* i_location valid *)
 END_IF;
 
 END_FUNCTION_BLOCK

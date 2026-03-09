@@ -118,8 +118,8 @@ FOR ti := 1 TO MAX_Transporters DO
   FOR qi := 1 TO g_task[ti].count - 1 DO
     IF g_task[ti].queue[qi].unit > 0 AND g_task[ti].queue[qi + 1].unit > 0 THEN
 
-      prev_sink := g_task[ti].queue[qi].sink_station;
-      next_lift := g_task[ti].queue[qi + 1].lift_station;
+      prev_sink := g_task[ti].queue[qi].SinkStationTarget;
+      next_lift := g_task[ti].queue[qi + 1].LiftStationTarget;
 
       tmp_move := g_move[ti];
       travel_s := STC_CalcHorizontalTravel(i_from_stn := prev_sink, i_to_stn := next_lift, i_move := tmp_move);
@@ -155,15 +155,15 @@ FOR ti := 1 TO MAX_Transporters DO
     IF g_task[ti].queue[qi].unit > 0 THEN
 
       (* X range for task A *)
-      l_idx := g_task[ti].queue[qi].lift_station - 100;
-      s_idx := g_task[ti].queue[qi].sink_station - 100;
+      l_idx := g_task[ti].queue[qi].LiftStationTarget - 100;
+      s_idx := g_task[ti].queue[qi].SinkStationTarget - 100;
       IF l_idx >= 1 AND l_idx <= 30 THEN
-        lift_x := DINT_TO_REAL(g_station[g_task[ti].queue[qi].lift_station].XPosition);
+        lift_x := DINT_TO_REAL(g_station[g_task[ti].queue[qi].LiftStationTarget].XPosition);
       ELSE
         lift_x := 0.0;
       END_IF;
       IF s_idx >= 1 AND s_idx <= 30 THEN
-        sink_x := DINT_TO_REAL(g_station[g_task[ti].queue[qi].sink_station].XPosition);
+        sink_x := DINT_TO_REAL(g_station[g_task[ti].queue[qi].SinkStationTarget].XPosition);
       ELSE
         sink_x := 0.0;
       END_IF;
@@ -180,15 +180,15 @@ FOR ti := 1 TO MAX_Transporters DO
           IF g_task[tj].queue[qj].unit > 0 THEN
 
             (* X range for task B *)
-            l_idx2 := g_task[tj].queue[qj].lift_station - 100;
-            s_idx2 := g_task[tj].queue[qj].sink_station - 100;
+            l_idx2 := g_task[tj].queue[qj].LiftStationTarget - 100;
+            s_idx2 := g_task[tj].queue[qj].SinkStationTarget - 100;
             IF l_idx2 >= 1 AND l_idx2 <= 30 THEN
-              lift_x2 := DINT_TO_REAL(g_station[g_task[tj].queue[qj].lift_station].XPosition);
+              lift_x2 := DINT_TO_REAL(g_station[g_task[tj].queue[qj].LiftStationTarget].XPosition);
             ELSE
               lift_x2 := 0.0;
             END_IF;
             IF s_idx2 >= 1 AND s_idx2 <= 30 THEN
-              sink_x2 := DINT_TO_REAL(g_station[g_task[tj].queue[qj].sink_station].XPosition);
+              sink_x2 := DINT_TO_REAL(g_station[g_task[tj].queue[qj].SinkStationTarget].XPosition);
             ELSE
               sink_x2 := 0.0;
             END_IF;
@@ -276,7 +276,7 @@ FOR ti := 1 TO MAX_Transporters DO
                       IF NOT has_recv_prev OR g_task[tj].queue[rk].finish_time > recv_prev_end THEN
                         has_recv_prev := TRUE;
                         recv_prev_end  := g_task[tj].queue[rk].finish_time;
-                        recv_prev_sink := g_task[tj].queue[rk].sink_station;
+                        recv_prev_sink := g_task[tj].queue[rk].SinkStationTarget;
                       END_IF;
                     END_IF;
                   END_IF;
@@ -286,7 +286,7 @@ FOR ti := 1 TO MAX_Transporters DO
                   (* Travel from receiver's prev sink to handoff station (= ti's current sink) *)
                   recv_travel := STC_CalcHorizontalTravel(
                     i_from_stn := recv_prev_sink,
-                    i_to_stn   := g_task[ti].queue[qi].sink_station,
+                    i_to_stn   := g_task[ti].queue[qi].SinkStationTarget,
                     i_move     := g_move[tj]
                   );
                   recv_earliest := recv_prev_end + REAL_TO_LINT(recv_travel);

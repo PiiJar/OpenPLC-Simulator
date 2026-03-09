@@ -37,9 +37,9 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_batch  : ARRAY[1..MAX_Units] OF BATCH_T;
-  g_unit    : ARRAY[1..MAX_Units] OF UNIT_T;
-  g_program : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
+  g_batch  : ARRAY[1..MAX_Units] OF UDT_BatchType;
+  g_unit    : ARRAY[1..MAX_Units] OF UDT_UnitType;
+  g_program : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
   g_task    : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
   g_schedule : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
   g_cfg    : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;

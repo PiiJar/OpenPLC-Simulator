@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-09T08:14:15"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-09T08:14:15">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-09T10:10:35"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-09T10:10:35">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -16,14 +16,38 @@
   </contentHeader>
   <types>
     <dataTypes>
-      <dataType name="TANK_T">
+      <dataType name="UDT_TankType">
         <baseType>
           <struct>
             <variable name="TankId">
               <type><INT/></type>
             </variable>
-            <variable name="status">
+            <variable name="EquipmentCode">
+              <type><STRING/></type>
+            </variable>
+            <variable name="TankName">
+              <type><STRING/></type>
+            </variable>
+            <variable name="TypeId">
               <type><INT/></type>
+            </variable>
+            <variable name="IsInUse">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="LineId">
+              <type><INT/></type>
+            </variable>
+            <variable name="GroupId">
+              <type><INT/></type>
+            </variable>
+            <variable name="RinseId">
+              <type><INT/></type>
+            </variable>
+            <variable name="FilterUnitId">
+              <type><INT/></type>
+            </variable>
+            <variable name="Color">
+              <type><STRING/></type>
             </variable>
             <variable name="XPosition">
               <type><DINT/></type>
@@ -34,7 +58,61 @@
             <variable name="ZPosition">
               <type><DINT/></type>
             </variable>
-            <variable name="kind">
+            <variable name="TemperatureControl1Id">
+              <type><INT/></type>
+            </variable>
+            <variable name="TemperatureControl2Id">
+              <type><INT/></type>
+            </variable>
+            <variable name="LevelControlId">
+              <type><INT/></type>
+            </variable>
+            <variable name="PHControlId">
+              <type><INT/></type>
+            </variable>
+            <variable name="ConductivityControlId">
+              <type><INT/></type>
+            </variable>
+            <variable name="Measurement1Id">
+              <type><INT/></type>
+            </variable>
+            <variable name="Measurement2Id">
+              <type><INT/></type>
+            </variable>
+            <variable name="Measurement3Id">
+              <type><INT/></type>
+            </variable>
+            <variable name="Pump1Idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="Pump2Idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="Pump3Idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="ChemicalDosing1Id">
+              <type><INT/></type>
+            </variable>
+            <variable name="ChemicalDosing2Id">
+              <type><INT/></type>
+            </variable>
+            <variable name="ChemicalDosing3Id">
+              <type><INT/></type>
+            </variable>
+            <variable name="AgitationId">
+              <type><INT/></type>
+            </variable>
+            <variable name="MixerId">
+              <type><INT/></type>
+            </variable>
+            <variable name="BlowerId">
+              <type><INT/></type>
+            </variable>
+            <variable name="CoverId">
+              <type><INT/></type>
+            </variable>
+            <variable name="RectifierId">
               <type><INT/></type>
             </variable>
           </struct>
@@ -181,10 +259,10 @@
       <dataType name="TRANSPORTER_CFG_T">
         <baseType>
           <struct>
-            <variable name="XMinLimit">
+            <variable name="XMinDriveLimit">
               <type><DINT/></type>
             </variable>
-            <variable name="XMaxLimit">
+            <variable name="XMaxDriveLimit">
               <type><DINT/></type>
             </variable>
             <variable name="YMinLimit">
@@ -213,16 +291,16 @@
           </struct>
         </baseType>
       </dataType>
-      <dataType name="STC_TRANSPORTER_T">
+      <dataType name="UDT_TransporterStatusType">
         <baseType>
           <struct>
             <variable name="task_id">
               <type><LINT/></type>
             </variable>
-            <variable name="lift_station">
+            <variable name="LiftStationTarget">
               <type><INT/></type>
             </variable>
-            <variable name="sink_station">
+            <variable name="SinkStationTarget">
               <type><INT/></type>
             </variable>
             <variable name="treatment_time">
@@ -243,19 +321,16 @@
             <variable name="DrippingTime">
               <type><INT/></type>
             </variable>
-            <variable name="status">
+            <variable name="Status">
               <type><INT/></type>
             </variable>
-            <variable name="phase">
-              <type><INT/></type>
-            </variable>
-            <variable name="UnitId">
+            <variable name="Phase">
               <type><INT/></type>
             </variable>
             <variable name="running_task_id">
               <type><LINT/></type>
             </variable>
-            <variable name="current_station">
+            <variable name="CurrentStation">
               <type><INT/></type>
             </variable>
             <variable name="remaining_time">
@@ -291,19 +366,19 @@
             <variable name="z_timer_s">
               <type><REAL/></type>
             </variable>
-            <variable name="XMinLimit">
+            <variable name="XMinDriveLimit">
               <type><DINT/></type>
             </variable>
-            <variable name="XMaxLimit">
+            <variable name="XMaxDriveLimit">
               <type><DINT/></type>
             </variable>
-            <variable name="active">
+            <variable name="IsActive">
               <type><BOOL/></type>
             </variable>
           </struct>
         </baseType>
       </dataType>
-      <dataType name="BATCH_T">
+      <dataType name="UDT_BatchType">
         <baseType>
           <struct>
             <variable name="batch_code">
@@ -333,20 +408,9 @@
           </struct>
         </baseType>
       </dataType>
-      <dataType name="PROGRAM_STAGE_T">
+      <dataType name="UDT_TreatmentProgramStepType">
         <baseType>
           <struct>
-            <variable name="Stations">
-              <type>
-                <array>
-                  <dimension lower="0" upper="4"/>
-                  <baseType><INT/></baseType>
-                </array>
-              </type>
-            </variable>
-            <variable name="StationCount">
-              <type><INT/></type>
-            </variable>
             <variable name="MinTime">
               <type><DINT/></type>
             </variable>
@@ -356,10 +420,21 @@
             <variable name="CalTime">
               <type><DINT/></type>
             </variable>
+            <variable name="StationCount">
+              <type><INT/></type>
+            </variable>
+            <variable name="Stations">
+              <type>
+                <array>
+                  <dimension lower="0" upper="4"/>
+                  <baseType><INT/></baseType>
+                </array>
+              </type>
+            </variable>
           </struct>
         </baseType>
       </dataType>
-      <dataType name="TREATMENT_PROGRAM_T">
+      <dataType name="UDT_TreatmentProgramType">
         <baseType>
           <struct>
             <variable name="program_id">
@@ -375,14 +450,14 @@
               <type>
                 <array>
                   <dimension lower="0" upper="30"/>
-                  <baseType><derived name="PROGRAM_STAGE_T"/></baseType>
+                  <baseType><derived name="UDT_TreatmentProgramStepType"/></baseType>
                 </array>
               </type>
             </variable>
           </struct>
         </baseType>
       </dataType>
-      <dataType name="UNIT_T">
+      <dataType name="UDT_UnitType">
         <baseType>
           <struct>
             <variable name="location">
@@ -400,7 +475,7 @@
       <dataType name="UNIT_SNAP_T">
         <baseType>
           <struct>
-            <variable name="active">
+            <variable name="IsActive">
               <type><BOOL/></type>
             </variable>
             <variable name="loc">
@@ -546,10 +621,10 @@
             <variable name="stage">
               <type><INT/></type>
             </variable>
-            <variable name="lift_station">
+            <variable name="LiftStationTarget">
               <type><INT/></type>
             </variable>
-            <variable name="sink_station">
+            <variable name="SinkStationTarget">
               <type><INT/></type>
             </variable>
             <variable name="start_time">
@@ -676,10 +751,10 @@
             <variable name="end_time">
               <type><LINT/></type>
             </variable>
-            <variable name="lift_station">
+            <variable name="LiftStationTarget">
               <type><INT/></type>
             </variable>
-            <variable name="sink_station">
+            <variable name="SinkStationTarget">
               <type><INT/></type>
             </variable>
           </struct>
@@ -776,7 +851,7 @@
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
-                  <baseType><derived name="BATCH_T"/></baseType>
+                  <baseType><derived name="UDT_BatchType"/></baseType>
                 </array>
               </type>
             </variable>
@@ -784,7 +859,7 @@
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
-                  <baseType><derived name="TREATMENT_PROGRAM_T"/></baseType>
+                  <baseType><derived name="UDT_TreatmentProgramType"/></baseType>
                 </array>
               </type>
             </variable>
@@ -812,7 +887,7 @@
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
-                  <baseType><derived name="TREATMENT_PROGRAM_T"/></baseType>
+                  <baseType><derived name="UDT_TreatmentProgramType"/></baseType>
                 </array>
               </type>
             </variable>
@@ -1075,7 +1150,7 @@ END_IF;]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_Transporters] OF DEP_IDLE_SLOT_SET_T"/></type>
             </variable>
             <variable name="g_transporter">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -1120,7 +1195,7 @@ cnt := g_task[i_trans].count;
 
 prev_end  := i_time_s;
 (* G05: Use transporter's current station as first-slot anchor *)
-prev_sink := g_transporter[i_trans].current_station;
+prev_sink := g_transporter[i_trans].CurrentStation;
 
 FOR qi := 1 TO MAX_Units DO
   IF qi > cnt THEN
@@ -1136,13 +1211,13 @@ FOR qi := 1 TO MAX_Units DO
     IF si <= DEP_MAX_IDLE_SLOTS THEN
       g_dep_idle_slot[i_trans].slots[si].start_time   := gap_start;
       g_dep_idle_slot[i_trans].slots[si].end_time     := gap_end;
-      g_dep_idle_slot[i_trans].slots[si].lift_station := prev_sink;
-      g_dep_idle_slot[i_trans].slots[si].sink_station := g_task[i_trans].queue[qi].lift_station;
+      g_dep_idle_slot[i_trans].slots[si].LiftStationTarget := prev_sink;
+      g_dep_idle_slot[i_trans].slots[si].SinkStationTarget := g_task[i_trans].queue[qi].LiftStationTarget;
     END_IF;
   END_IF;
 
   prev_end  := g_task[i_trans].queue[qi].finish_time;
-  prev_sink := g_task[i_trans].queue[qi].sink_station;
+  prev_sink := g_task[i_trans].queue[qi].SinkStationTarget;
 END_FOR;
 
 (* Final slot: after last task → open-ended *)
@@ -1150,8 +1225,8 @@ si := si + 1;
 IF si <= DEP_MAX_IDLE_SLOTS THEN
   g_dep_idle_slot[i_trans].slots[si].start_time   := prev_end;
   g_dep_idle_slot[i_trans].slots[si].end_time     := HORIZON;
-  g_dep_idle_slot[i_trans].slots[si].lift_station := prev_sink;
-  g_dep_idle_slot[i_trans].slots[si].sink_station := 0;
+  g_dep_idle_slot[i_trans].slots[si].LiftStationTarget := prev_sink;
+  g_dep_idle_slot[i_trans].slots[si].SinkStationTarget := 0;
 END_IF;
 
 g_dep_idle_slot[i_trans].count := si;]]></xhtml:p>
@@ -1374,14 +1449,14 @@ FOR si := 1 TO DEP_MAX_IDLE_SLOTS DO
   slot_end   := g_dep_idle_slot[i_trans_id].slots[si].end_time;
 
   (* ── Travel time: prev task sink → this lift ── *)
-  from_stn := g_dep_idle_slot[i_trans_id].slots[si].lift_station;
+  from_stn := g_dep_idle_slot[i_trans_id].slots[si].LiftStationTarget;
   travel_to := 0.0;
   IF from_stn > 0 AND from_stn <> i_lift_stn THEN
     travel_to := STC_CalcHorizontalTravel(i_from_stn := from_stn, i_to_stn := i_lift_stn, i_move := tmp_move);
   END_IF;
 
   (* ── Travel time: this sink → next task lift ── *)
-  to_stn := g_dep_idle_slot[i_trans_id].slots[si].sink_station;
+  to_stn := g_dep_idle_slot[i_trans_id].slots[si].SinkStationTarget;
   travel_from := 0.0;
   IF to_stn > 0 AND to_stn <> i_sink_stn THEN
     travel_from := STC_CalcHorizontalTravel(i_from_stn := i_sink_stn, i_to_stn := to_stn, i_move := tmp_move);
@@ -1563,8 +1638,8 @@ FOR round := 1 TO DEP_MAX_DELAY_ACTS DO
           EXIT;
         END_IF;
 
-        e_lift  := g_task[ti].queue[qi].lift_station;
-        e_sink  := g_task[ti].queue[qi].sink_station;
+        e_lift  := g_task[ti].queue[qi].LiftStationTarget;
+        e_sink  := g_task[ti].queue[qi].SinkStationTarget;
         e_start := g_task[ti].queue[qi].start_time;
         e_end   := g_task[ti].queue[qi].finish_time;
 
@@ -1616,10 +1691,10 @@ END_FOR;  (* round *)]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T"/></type>
             </variable>
             <variable name="g_batch">
-              <type><derived name="ARRAY[1..MAX_Units] OF BATCH_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
             </variable>
             <variable name="g_program">
-              <type><derived name="ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType"/></type>
             </variable>
             <variable name="g_task">
               <type><derived name="ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T"/></type>
@@ -1698,13 +1773,13 @@ END_IF;]]></xhtml:p>
           </outputVars>
           <externalVars>
             <variable name="g_batch">
-              <type><derived name="ARRAY[1..MAX_Units] OF BATCH_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
             </variable>
             <variable name="g_unit">
-              <type><derived name="ARRAY[1..MAX_Units] OF UNIT_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>
             </variable>
             <variable name="g_program">
-              <type><derived name="ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType"/></type>
             </variable>
             <variable name="g_schedule">
               <type><derived name="ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T"/></type>
@@ -1716,7 +1791,7 @@ END_IF;]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T"/></type>
             </variable>
             <variable name="g_transporter">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
             </variable>
             <variable name="g_dep_sandbox">
               <type><derived name="DEP_SANDBOX_T"/></type>
@@ -2227,7 +2302,7 @@ ELSIF phase = 2000 THEN
     (* ★ G07: Batch is on transporter — use transporter's current_station *)
     IF loading_stn >= 1 AND loading_stn <= MAX_Transporters THEN
       sched_trans := loading_stn;
-      loading_stn := g_transporter[loading_stn].current_station;
+      loading_stn := g_transporter[loading_stn].CurrentStation;
       IF loading_stn < 100 THEN
         next_phase := 9000;
       END_IF;
@@ -2265,7 +2340,7 @@ ELSIF phase = 2000 THEN
       s0_slot_end   := g_dep_idle_slot[sched_trans].slots[s0_slot_si].end_time;
       IF s0_slot_end > i_time_s THEN
         (* Travel: prev task sink → pickup station (JS: travelToPickup) *)
-        s0_from_stn := g_dep_idle_slot[sched_trans].slots[s0_slot_si].lift_station;
+        s0_from_stn := g_dep_idle_slot[sched_trans].slots[s0_slot_si].LiftStationTarget;
         s0_travel_to := 0.0;
         IF s0_from_stn > 0 AND s0_from_stn <> loading_stn THEN
           s0_travel_to := STC_CalcHorizontalTravel(i_from_stn := s0_from_stn, i_to_stn := loading_stn, i_move := tmp_move);
@@ -2279,7 +2354,7 @@ ELSIF phase = 2000 THEN
         END_IF;
 
         (* Travel: sink → next task lift (JS: travelFromSink) *)
-        s0_to_stn := g_dep_idle_slot[sched_trans].slots[s0_slot_si].sink_station;
+        s0_to_stn := g_dep_idle_slot[sched_trans].slots[s0_slot_si].SinkStationTarget;
         s0_travel_from := 0.0;
         IF s0_to_stn > 0 AND s0_to_stn <> first_stn THEN
           s0_travel_from := STC_CalcHorizontalTravel(i_from_stn := first_stn, i_to_stn := s0_to_stn, i_move := tmp_move);
@@ -2362,8 +2437,8 @@ ELSIF phase = 2001 THEN
 
     (* Overlap delay check *)
     fb_ovlp_delay(
-      i_lift_stn   := w_tasks[cur_task_idx].lift_station,
-      i_sink_stn   := w_tasks[cur_task_idx].sink_station,
+      i_lift_stn   := w_tasks[cur_task_idx].LiftStationTarget,
+      i_sink_stn   := w_tasks[cur_task_idx].SinkStationTarget,
       i_trans_id   := ti,
       i_task_start := w_tasks[cur_task_idx].start_time,
       i_task_end   := w_tasks[cur_task_idx].finish_time,
@@ -2373,8 +2448,8 @@ ELSIF phase = 2001 THEN
 
     (* Idle-slot fit check *)
     fb_fit(
-      i_lift_stn     := w_tasks[cur_task_idx].lift_station,
-      i_sink_stn     := w_tasks[cur_task_idx].sink_station,
+      i_lift_stn     := w_tasks[cur_task_idx].LiftStationTarget,
+      i_sink_stn     := w_tasks[cur_task_idx].SinkStationTarget,
       i_trans_id     := ti,
       i_task_start   := w_tasks[cur_task_idx].start_time,
       i_task_end     := w_tasks[cur_task_idx].finish_time,
@@ -2523,7 +2598,7 @@ ELSIF phase = 8000 THEN
   g_dep_pending.batch_unit  := cur_wait_unit;
   g_dep_pending.batch_stage := 0;    (* cur_stage = 0, JS: batch.stage = 0 *)
   g_dep_pending.batch_state := 1;    (* NOT_PROCESSED → IN_PROCESS *)
-  (* Stage 0 times — same naming as PROGRAM_STAGE_T: min_time, max_time, cal_time *)
+  (* Stage 0 times — same naming as UDT_TreatmentProgramStepType: MinTime, MaxTime, CalTime *)
   g_dep_pending.batch_cal_time  := REAL_TO_DINT(stage0_pending_delay);
   g_dep_pending.batch_min_time  := REAL_TO_DINT(stage0_pending_delay);
   g_dep_pending.batch_max_time  := REAL_TO_DINT(2.0 * stage0_pending_delay);
@@ -2618,25 +2693,25 @@ o_phase := phase;]]></xhtml:p>
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
             </variable>
             <variable name="g_station_loc">
-              <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation"/></type>
+              <type><derived name="ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation"/></type>
             </variable>
             <variable name="g_cfg">
               <type><derived name="ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T"/></type>
             </variable>
             <variable name="g_transporter">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
             </variable>
             <variable name="g_unit">
-              <type><derived name="ARRAY[1..MAX_Units] OF UNIT_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>
             </variable>
             <variable name="g_ntt">
               <type><derived name="ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T"/></type>
             </variable>
             <variable name="g_batch">
-              <type><derived name="ARRAY[1..MAX_Units] OF BATCH_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
             </variable>
             <variable name="g_program">
-              <type><derived name="ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType"/></type>
             </variable>
             <variable name="g_avoid_status">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF INT"/></type>
@@ -2693,8 +2768,8 @@ FOR i := MIN_StationIndex TO MAX_StationIndex DO
   g_station[i].DeviceDelay  := 0;
 END_FOR;
 
-(* --- Clear station unit locations --- *)
-FOR i := MIN_StationIndex TO MAX_StationIndex DO
+(* --- Clear all location tracking (transporters 1..MAX_Transporters + stations MIN..MAX) --- *)
+FOR i := 1 TO MAX_StationIndex DO
   g_station_loc[i].UnitId     := 0;
   g_station_loc[i].ChangeTime := 0;
 END_FOR;
@@ -2702,8 +2777,8 @@ g_station_count := 0;
 
 (* --- Clear all transporter configs --- *)
 FOR i := 1 TO MAX_Transporters DO
-  g_cfg[i].XMinLimit   := 0;
-  g_cfg[i].XMaxLimit   := 0;
+  g_cfg[i].XMinDriveLimit   := 0;
+  g_cfg[i].XMaxDriveLimit   := 0;
   g_cfg[i].YMinLimit   := 0;
   g_cfg[i].YMaxLimit   := 0;
   g_cfg[i].XAvoidMm    := 0;
@@ -2734,20 +2809,19 @@ END_FOR;
 
 (* --- Clear all transporter states --- *)
 FOR i := 1 TO MAX_Transporters DO
-  g_transporter[i].active          := FALSE;
-  g_transporter[i].status          := 0;
-  g_transporter[i].phase           := 0;
-  g_transporter[i].UnitId         := 0;
+  g_transporter[i].IsActive          := FALSE;
+  g_transporter[i].Status          := 0;
+  g_transporter[i].Phase           := 0;
   g_transporter[i].task_id         := 0;
   g_transporter[i].running_task_id := 0;
-  g_transporter[i].lift_station    := 0;
-  g_transporter[i].sink_station    := 0;
+  g_transporter[i].LiftStationTarget    := 0;
+  g_transporter[i].SinkStationTarget    := 0;
   g_transporter[i].treatment_time  := 0;
   g_transporter[i].lift_device_delay := 0;
   g_transporter[i].sink_device_delay := 0;
   g_transporter[i].DrippingTime   := 0;
   g_transporter[i].remaining_time  := 0;
-  g_transporter[i].current_station := 0;
+  g_transporter[i].CurrentStation := 0;
   g_transporter[i].XFinalTarget  := 0;
   g_transporter[i].XDriveTarget  := 0;
   g_transporter[i].YFinalTarget  := 0;
@@ -2758,14 +2832,14 @@ FOR i := 1 TO MAX_Transporters DO
   g_transporter[i].XVelocity           := 0;
   g_transporter[i].z_stage         := 0;
   g_transporter[i].z_timer_s       := 0.0;
-  g_transporter[i].XMinLimit     := 0;
-  g_transporter[i].XMaxLimit     := 0;
+  g_transporter[i].XMinDriveLimit     := 0;
+  g_transporter[i].XMaxDriveLimit     := 0;
 END_FOR;
 
 (* --- Clear all units --- *)
 FOR i := 1 TO MAX_Units DO
   g_unit[i].location := 0;
-  g_unit[i].status   := 0;
+  g_unit[i].Status   := 0;
   g_unit[i].target   := 0;
 END_FOR;
 
@@ -2829,8 +2903,8 @@ FOR i := 1 TO MAX_Transporters DO
   FOR j := 1 TO 60 DO
     g_task[i].queue[j].unit         := 0;
     g_task[i].queue[j].stage        := 0;
-    g_task[i].queue[j].lift_station := 0;
-    g_task[i].queue[j].sink_station := 0;
+    g_task[i].queue[j].LiftStationTarget := 0;
+    g_task[i].queue[j].SinkStationTarget := 0;
     g_task[i].queue[j].start_time   := 0;
     g_task[i].queue[j].finish_time  := 0;
     g_task[i].queue[j].calc_time    := 0;
@@ -2865,7 +2939,7 @@ END_FOR;]]></xhtml:p>
           </inputVars>
           <externalVars>
             <variable name="g_transporter">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
             </variable>
             <variable name="g_station">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
@@ -2874,13 +2948,13 @@ END_FOR;]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T"/></type>
             </variable>
             <variable name="g_unit">
-              <type><derived name="ARRAY[1..MAX_Units] OF UNIT_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>
             </variable>
             <variable name="g_batch">
-              <type><derived name="ARRAY[1..MAX_Units] OF BATCH_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
             </variable>
             <variable name="g_program">
-              <type><derived name="ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType"/></type>
             </variable>
             <variable name="g_time_s">
               <type><LINT/></type>
@@ -3013,29 +3087,29 @@ END_FOR;]]></xhtml:p>
 END_IF;
 
 FOR i := 1 TO MAX_Transporters DO
-  IF g_transporter[i].active THEN
+  IF g_transporter[i].IsActive THEN
 
   (* ── Phase 0 → 1: Accept new task ───────────────────────── *)
-  IF (g_transporter[i].phase = 0)
+  IF (g_transporter[i].Phase = 0)
      AND (g_transporter[i].task_id <> g_transporter[i].running_task_id) THEN
     g_transporter[i].running_task_id := g_transporter[i].task_id;
-    lookup(station_number := g_transporter[i].lift_station);
+    lookup(station_number := g_transporter[i].LiftStationTarget);
     g_transporter[i].XFinalTarget := lookup.x_mm;
-    g_transporter[i].phase := 1;
-    g_transporter[i].status := 4;  (* auto_run *)
+    g_transporter[i].Phase := 1;
+    g_transporter[i].Status := 4;  (* auto_run *)
     g_transporter[i].z_stage := 0;
     g_transporter[i].z_timer_s := 0.0;
 
   (* ── Phase 1: Drive X towards lift station ──────────────── *)
-  ELSIF g_transporter[i].phase = 1 THEN
+  ELSIF g_transporter[i].Phase = 1 THEN
     tmp_x  := g_transporter[i].XPosition;
     tmp_vx := g_transporter[i].XVelocity;
     IF i = 1 THEN
       fb_x1(
         delta_t  := 0.02,
         x_target := g_transporter[i].XFinalTarget,
-        x_min    := g_transporter[i].XMinLimit,
-        x_max    := g_transporter[i].XMaxLimit,
+        x_min    := g_transporter[i].XMinDriveLimit,
+        x_max    := g_transporter[i].XMaxDriveLimit,
         v_max    := g_cfg[i].phys2d.x_max_mm_s,
         t_acc    := g_cfg[i].phys2d.x_accel_s,
         t_dec    := g_cfg[i].phys2d.x_decel_s,
@@ -3047,8 +3121,8 @@ FOR i := 1 TO MAX_Transporters DO
       fb_x2(
         delta_t  := 0.02,
         x_target := g_transporter[i].XFinalTarget,
-        x_min    := g_transporter[i].XMinLimit,
-        x_max    := g_transporter[i].XMaxLimit,
+        x_min    := g_transporter[i].XMinDriveLimit,
+        x_max    := g_transporter[i].XMaxDriveLimit,
         v_max    := g_cfg[i].phys2d.x_max_mm_s,
         t_acc    := g_cfg[i].phys2d.x_accel_s,
         t_dec    := g_cfg[i].phys2d.x_decel_s,
@@ -3060,8 +3134,8 @@ FOR i := 1 TO MAX_Transporters DO
       fb_x3(
         delta_t  := 0.02,
         x_target := g_transporter[i].XFinalTarget,
-        x_min    := g_transporter[i].XMinLimit,
-        x_max    := g_transporter[i].XMaxLimit,
+        x_min    := g_transporter[i].XMinDriveLimit,
+        x_max    := g_transporter[i].XMaxDriveLimit,
         v_max    := g_cfg[i].phys2d.x_max_mm_s,
         t_acc    := g_cfg[i].phys2d.x_accel_s,
         t_dec    := g_cfg[i].phys2d.x_decel_s,
@@ -3077,21 +3151,21 @@ FOR i := 1 TO MAX_Transporters DO
     at_station := arrived_x
                   AND (ABS(g_transporter[i].XPosition - g_transporter[i].XFinalTarget) <= 6);
     IF at_station THEN
-      g_transporter[i].current_station := g_transporter[i].lift_station;
+      g_transporter[i].CurrentStation := g_transporter[i].LiftStationTarget;
 
       (* ── Wait for treatment time before lifting ──────────────
          If the unit at the lift station is IN_PROCESS and its
          treatment cal_time has not yet elapsed, stay at station
          and do NOT begin the lift sequence. *)
       can_lift := TRUE;
-      lift_uid := g_station_loc[g_transporter[i].lift_station].UnitId;
+      lift_uid := g_station_loc[g_transporter[i].LiftStationTarget].UnitId;
       IF lift_uid >= 1 AND lift_uid <= MAX_Units THEN
         IF g_batch[lift_uid].state = IN_PROCESS
            AND g_batch[lift_uid].cur_stage >= 1
            AND g_batch[lift_uid].cur_stage <= MAX_STEPS_PER_PROGRAM THEN
           treat_cal := g_program[lift_uid].Steps[g_batch[lift_uid].cur_stage - 1].CalTime;
           IF treat_cal > 0 THEN
-            treat_elapsed := g_time_s - g_station_loc[g_transporter[i].lift_station].ChangeTime;
+            treat_elapsed := g_time_s - g_station_loc[g_transporter[i].LiftStationTarget].ChangeTime;
             IF treat_elapsed < DINT_TO_LINT(treat_cal) THEN
               can_lift := FALSE;
             END_IF;
@@ -3100,27 +3174,27 @@ FOR i := 1 TO MAX_Transporters DO
       END_IF;
 
       IF can_lift THEN
-      lookup(station_number := g_transporter[i].lift_station);
+      lookup(station_number := g_transporter[i].LiftStationTarget);
       device_delay := lookup.device_delay_s;
       drop_time    := lookup.dropping_time_s;
       g_transporter[i].z_timer_s := device_delay + drop_time;
       g_transporter[i].z_stage := 1;
-      g_transporter[i].phase := 2;
+      g_transporter[i].Phase := 2;
 
       (* ── Emit LIFT event (msg_type=2) ── *)
-      evt_unit := g_station_loc[g_transporter[i].lift_station].UnitId;
+      evt_unit := g_station_loc[g_transporter[i].LiftStationTarget].UnitId;
       IF NOT g_event_pending_valid AND evt_unit >= 1 THEN
         g_event_pending.msg_type := 2;
         g_event_pending.ts_hi := LINT_TO_INT(g_time_s / LINT#65536);
         g_event_pending.ts_lo := LINT_TO_INT(g_time_s MOD LINT#65536);
         g_event_pending.f[1]  := i;
         g_event_pending.f[2]  := evt_unit;
-        g_event_pending.f[3]  := g_transporter[i].lift_station;
+        g_event_pending.f[3]  := g_transporter[i].LiftStationTarget;
         g_event_pending.f[4]  := g_batch[evt_unit].batch_code;
         g_event_pending.f[5]  := g_batch[evt_unit].state;
         g_event_pending.f[6]  := g_batch[evt_unit].prog_id;
         g_event_pending.f[7]  := g_batch[evt_unit].cur_stage;
-        evt_diff := g_time_s - g_station_loc[g_transporter[i].lift_station].ChangeTime;
+        evt_diff := g_time_s - g_station_loc[g_transporter[i].LiftStationTarget].ChangeTime;
         IF evt_diff > LINT#32000 THEN
           g_event_pending.f[8] := 32000;
         ELSE
@@ -3134,7 +3208,7 @@ FOR i := 1 TO MAX_Transporters DO
       END_IF;
 
       (* Unit moves from lift station → transporter *)
-      pick_unit_id := g_station_loc[g_transporter[i].lift_station].UnitId;
+      pick_unit_id := g_station_loc[g_transporter[i].LiftStationTarget].UnitId;
       IF pick_unit_id >= 1 THEN
         IF i = 1 THEN
           upd_loc1(i_unit := pick_unit_id, i_location := i);
@@ -3149,8 +3223,8 @@ FOR i := 1 TO MAX_Transporters DO
     (* If arrived_x but not at_station → at drive limit, wait for clearance *)
 
   (* ── Phase 2: Lift Z at lift station ────────────────────── *)
-  ELSIF g_transporter[i].phase = 2 THEN
-    lookup(station_number := g_transporter[i].lift_station);
+  ELSIF g_transporter[i].Phase = 2 THEN
+    lookup(station_number := g_transporter[i].LiftStationTarget);
     station_kind := lookup.skind;
     tmp_z  := g_transporter[i].ZPosition;
     tmp_zs := g_transporter[i].z_stage;
@@ -3208,21 +3282,21 @@ FOR i := 1 TO MAX_Transporters DO
     g_transporter[i].z_stage   := tmp_zs;
     g_transporter[i].z_timer_s := tmp_zt;
     IF arrived_z THEN
-      lookup(station_number := g_transporter[i].sink_station);
+      lookup(station_number := g_transporter[i].SinkStationTarget);
       g_transporter[i].XFinalTarget := lookup.x_mm;
-      g_transporter[i].phase := 3;
+      g_transporter[i].Phase := 3;
     END_IF;
 
   (* ── Phase 3: Drive X towards sink station ─────────────── *)
-  ELSIF g_transporter[i].phase = 3 THEN
+  ELSIF g_transporter[i].Phase = 3 THEN
     tmp_x  := g_transporter[i].XPosition;
     tmp_vx := g_transporter[i].XVelocity;
     IF i = 1 THEN
       fb_x1(
         delta_t  := 0.02,
         x_target := g_transporter[i].XFinalTarget,
-        x_min    := g_transporter[i].XMinLimit,
-        x_max    := g_transporter[i].XMaxLimit,
+        x_min    := g_transporter[i].XMinDriveLimit,
+        x_max    := g_transporter[i].XMaxDriveLimit,
         v_max    := g_cfg[i].phys2d.x_max_mm_s,
         t_acc    := g_cfg[i].phys2d.x_accel_s,
         t_dec    := g_cfg[i].phys2d.x_decel_s,
@@ -3234,8 +3308,8 @@ FOR i := 1 TO MAX_Transporters DO
       fb_x2(
         delta_t  := 0.02,
         x_target := g_transporter[i].XFinalTarget,
-        x_min    := g_transporter[i].XMinLimit,
-        x_max    := g_transporter[i].XMaxLimit,
+        x_min    := g_transporter[i].XMinDriveLimit,
+        x_max    := g_transporter[i].XMaxDriveLimit,
         v_max    := g_cfg[i].phys2d.x_max_mm_s,
         t_acc    := g_cfg[i].phys2d.x_accel_s,
         t_dec    := g_cfg[i].phys2d.x_decel_s,
@@ -3247,8 +3321,8 @@ FOR i := 1 TO MAX_Transporters DO
       fb_x3(
         delta_t  := 0.02,
         x_target := g_transporter[i].XFinalTarget,
-        x_min    := g_transporter[i].XMinLimit,
-        x_max    := g_transporter[i].XMaxLimit,
+        x_min    := g_transporter[i].XMinDriveLimit,
+        x_max    := g_transporter[i].XMaxDriveLimit,
         v_max    := g_cfg[i].phys2d.x_max_mm_s,
         t_acc    := g_cfg[i].phys2d.x_accel_s,
         t_dec    := g_cfg[i].phys2d.x_decel_s,
@@ -3264,18 +3338,18 @@ FOR i := 1 TO MAX_Transporters DO
     at_station := arrived_x
                   AND (ABS(g_transporter[i].XPosition - g_transporter[i].XFinalTarget) <= 6);
     IF at_station THEN
-      g_transporter[i].current_station := g_transporter[i].sink_station;
-      lookup(station_number := g_transporter[i].sink_station);
+      g_transporter[i].CurrentStation := g_transporter[i].SinkStationTarget;
+      lookup(station_number := g_transporter[i].SinkStationTarget);
       device_delay := lookup.device_delay_s;
       g_transporter[i].z_timer_s := device_delay + INT_TO_REAL(g_cfg[i].phys2d.drip_delay_s) / 10.0;
       g_transporter[i].z_stage := 6;
-      g_transporter[i].phase := 4;
+      g_transporter[i].Phase := 4;
     END_IF;
     (* If arrived_x but not at_station → at drive limit, wait for clearance *)
 
   (* ── Phase 4: Sink Z at sink station ───────────────────── *)
-  ELSIF g_transporter[i].phase = 4 THEN
-    lookup(station_number := g_transporter[i].sink_station);
+  ELSIF g_transporter[i].Phase = 4 THEN
+    lookup(station_number := g_transporter[i].SinkStationTarget);
     station_kind := lookup.skind;
     tmp_z  := g_transporter[i].ZPosition;
     tmp_zs := g_transporter[i].z_stage;
@@ -3334,25 +3408,25 @@ FOR i := 1 TO MAX_Transporters DO
     g_transporter[i].z_timer_s := tmp_zt;
     IF arrived_z THEN
       (* Unit moves from transporter → sink station *)
-      sink_unit_id := g_transporter[i].UnitId;
+      sink_unit_id := g_station_loc[i].UnitId;
       IF sink_unit_id >= 1 THEN
         IF i = 1 THEN
-          upd_loc1(i_unit := sink_unit_id, i_location := g_transporter[i].sink_station);
+          upd_loc1(i_unit := sink_unit_id, i_location := g_transporter[i].SinkStationTarget);
         ELSIF i = 2 THEN
-          upd_loc2(i_unit := sink_unit_id, i_location := g_transporter[i].sink_station);
+          upd_loc2(i_unit := sink_unit_id, i_location := g_transporter[i].SinkStationTarget);
         ELSIF i = 3 THEN
-          upd_loc3(i_unit := sink_unit_id, i_location := g_transporter[i].sink_station);
+          upd_loc3(i_unit := sink_unit_id, i_location := g_transporter[i].SinkStationTarget);
         END_IF;
       END_IF;
 
-      g_transporter[i].phase := 0;
-      g_transporter[i].status := 3;  (* auto_idle *)
+      g_transporter[i].Phase := 0;
+      g_transporter[i].Status := 3;  (* auto_idle *)
 
     END_IF;
   END_IF;  (* ELSIF chain: phases 0→1→2→3→4 *)
 
   (* ── Phase 0 idle: drive back inside limits if outside ────── *)
-  IF g_transporter[i].phase = 0 THEN
+  IF g_transporter[i].Phase = 0 THEN
     tmp_x  := g_transporter[i].XPosition;
     tmp_vx := g_transporter[i].XVelocity;
     (* Use current position as target — XMotion will clamp to nearest limit if outside *)
@@ -3360,8 +3434,8 @@ FOR i := 1 TO MAX_Transporters DO
       fb_x1(
         delta_t  := 0.02,
         x_target := tmp_x,
-        x_min    := g_transporter[i].XMinLimit,
-        x_max    := g_transporter[i].XMaxLimit,
+        x_min    := g_transporter[i].XMinDriveLimit,
+        x_max    := g_transporter[i].XMaxDriveLimit,
         v_max    := g_cfg[i].phys2d.x_max_mm_s,
         t_acc    := g_cfg[i].phys2d.x_accel_s,
         t_dec    := g_cfg[i].phys2d.x_decel_s,
@@ -3372,8 +3446,8 @@ FOR i := 1 TO MAX_Transporters DO
       fb_x2(
         delta_t  := 0.02,
         x_target := tmp_x,
-        x_min    := g_transporter[i].XMinLimit,
-        x_max    := g_transporter[i].XMaxLimit,
+        x_min    := g_transporter[i].XMinDriveLimit,
+        x_max    := g_transporter[i].XMaxDriveLimit,
         v_max    := g_cfg[i].phys2d.x_max_mm_s,
         t_acc    := g_cfg[i].phys2d.x_accel_s,
         t_dec    := g_cfg[i].phys2d.x_decel_s,
@@ -3384,8 +3458,8 @@ FOR i := 1 TO MAX_Transporters DO
       fb_x3(
         delta_t  := 0.02,
         x_target := tmp_x,
-        x_min    := g_transporter[i].XMinLimit,
-        x_max    := g_transporter[i].XMaxLimit,
+        x_min    := g_transporter[i].XMinDriveLimit,
+        x_max    := g_transporter[i].XMaxDriveLimit,
         v_max    := g_cfg[i].phys2d.x_max_mm_s,
         t_acc    := g_cfg[i].phys2d.x_accel_s,
         t_dec    := g_cfg[i].phys2d.x_decel_s,
@@ -3399,7 +3473,7 @@ FOR i := 1 TO MAX_Transporters DO
 
   (* ── Nearest station tracking ──────────────────────────── *)
   min_dist := 999999999;
-  nearest_num := g_transporter[i].current_station;
+  nearest_num := g_transporter[i].CurrentStation;
   FOR idx := MIN_StationIndex TO MAX_StationIndex DO
     IF g_station[idx].TankId <> 0 THEN
       dx := g_station[idx].XPosition - g_transporter[i].XPosition;
@@ -3409,27 +3483,27 @@ FOR i := 1 TO MAX_Transporters DO
       END_IF;
     END_IF;
   END_FOR;
-  g_transporter[i].current_station := nearest_num;
+  g_transporter[i].CurrentStation := nearest_num;
 
   (* ── Measure move times (one instance per transporter) ──── *)
   IF i = 1 THEN
-    tm1(t_id := 1, phase := g_transporter[1].phase, delta_t := 0.02,
+    tm1(t_id := 1, phase := g_transporter[1].Phase, delta_t := 0.02,
         vel_x := g_transporter[1].XVelocity, z_stage := g_transporter[1].z_stage,
-        lift_stn := g_transporter[1].lift_station,
-        sink_stn := g_transporter[1].sink_station,
-        from_stn := g_transporter[1].current_station);
+        lift_stn := g_transporter[1].LiftStationTarget,
+        sink_stn := g_transporter[1].SinkStationTarget,
+        from_stn := g_transporter[1].CurrentStation);
   ELSIF i = 2 THEN
-    tm2(t_id := 2, phase := g_transporter[2].phase, delta_t := 0.02,
+    tm2(t_id := 2, phase := g_transporter[2].Phase, delta_t := 0.02,
         vel_x := g_transporter[2].XVelocity, z_stage := g_transporter[2].z_stage,
-        lift_stn := g_transporter[2].lift_station,
-        sink_stn := g_transporter[2].sink_station,
-        from_stn := g_transporter[2].current_station);
+        lift_stn := g_transporter[2].LiftStationTarget,
+        sink_stn := g_transporter[2].SinkStationTarget,
+        from_stn := g_transporter[2].CurrentStation);
   ELSIF i = 3 THEN
-    tm3(t_id := 3, phase := g_transporter[3].phase, delta_t := 0.02,
+    tm3(t_id := 3, phase := g_transporter[3].Phase, delta_t := 0.02,
         vel_x := g_transporter[3].XVelocity, z_stage := g_transporter[3].z_stage,
-        lift_stn := g_transporter[3].lift_station,
-        sink_stn := g_transporter[3].sink_station,
-        from_stn := g_transporter[3].current_station);
+        lift_stn := g_transporter[3].LiftStationTarget,
+        sink_stn := g_transporter[3].SinkStationTarget,
+        from_stn := g_transporter[3].CurrentStation);
   END_IF;
 
   END_IF;  (* active *)
@@ -3941,7 +4015,7 @@ prev_run := i_run;]]></xhtml:p>
           </outputVars>
           <externalVars>
             <variable name="g_transporter">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
             </variable>
             <variable name="g_station">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
@@ -4051,7 +4125,7 @@ IF i_cmd = 1 AND cal_step = 0 THEN
   (* Start calibration — find first active transporter with plan *)
   tid := 0;
   FOR ci := 1 TO MAX_Transporters DO
-    IF g_transporter[ci].active AND tid = 0 THEN
+    IF g_transporter[ci].IsActive AND tid = 0 THEN
       IF g_cal[ci].wet_station > 0 AND g_cal[ci].dry_station > 0 THEN
         tid := ci;
       END_IF;
@@ -4084,8 +4158,8 @@ IF cal_step = 10 THEN
   (* Issue task 1: lift from dry, sink to wet *)
   task_key := g_time_s;
   g_transporter[tid].task_id := task_key;
-  g_transporter[tid].lift_station := g_cal[tid].dry_station;
-  g_transporter[tid].sink_station := g_cal[tid].wet_station;
+  g_transporter[tid].LiftStationTarget := g_cal[tid].dry_station;
+  g_transporter[tid].SinkStationTarget := g_cal[tid].wet_station;
   (* Reset X velocity measurement *)
   x_meas_ph := 0;
   x_timer   := 0.0;
@@ -4107,7 +4181,7 @@ IF cal_step = 12 THEN
   cur_v := ABS(DINT_TO_REAL(g_transporter[tid].XVelocity));
 
   (* ── Track X velocity during phase 3 (travel dry→wet) ── *)
-  IF g_transporter[tid].phase = 3 THEN
+  IF g_transporter[tid].Phase = 3 THEN
     IF x_meas_ph = 0 AND cur_v > 0.5 THEN
       (* Acceleration started *)
       x_meas_ph := 1;
@@ -4141,7 +4215,7 @@ IF cal_step = 12 THEN
   END_IF;
 
   (* ── Phase 3 ended or phase 4 reached: store X results ── *)
-  IF g_transporter[tid].phase >= 4 AND x_meas_ph >= 1 THEN
+  IF g_transporter[tid].Phase >= 4 AND x_meas_ph >= 1 THEN
     IF x_meas_ph = 3 THEN
       x_dec_t := x_timer;
     END_IF;
@@ -4153,7 +4227,7 @@ IF cal_step = 12 THEN
   END_IF;
 
   (* ── Wait for full task completion (phase returns to 0) ── *)
-  IF g_transporter[tid].phase = 0 AND x_meas_ph >= 99 THEN
+  IF g_transporter[tid].Phase = 0 AND x_meas_ph >= 99 THEN
     cal_step := 20;
   END_IF;
 END_IF;
@@ -4166,8 +4240,8 @@ IF cal_step = 20 THEN
   (* Issue task 2: lift from wet, sink to dry *)
   task_key := g_time_s + LINT#1;
   g_transporter[tid].task_id := task_key;
-  g_transporter[tid].lift_station := g_cal[tid].wet_station;
-  g_transporter[tid].sink_station := g_cal[tid].dry_station;
+  g_transporter[tid].LiftStationTarget := g_cal[tid].wet_station;
+  g_transporter[tid].SinkStationTarget := g_cal[tid].dry_station;
   cal_step := 21;
 END_IF;
 
@@ -4179,7 +4253,7 @@ END_IF;
 
 IF cal_step = 22 THEN
   (* Wait for task completion *)
-  IF g_transporter[tid].phase = 0 THEN
+  IF g_transporter[tid].Phase = 0 THEN
     cal_step := 30;
   END_IF;
 END_IF;
@@ -4212,7 +4286,7 @@ IF cal_step = 40 THEN
   (* Find next active transporter after current tid with plan *)
   next_tid := 0;
   FOR ci := tid + 1 TO MAX_Transporters DO
-    IF g_transporter[ci].active AND next_tid = 0 THEN
+    IF g_transporter[ci].IsActive AND next_tid = 0 THEN
       IF g_cal[ci].wet_station > 0 AND g_cal[ci].dry_station > 0 THEN
         next_tid := ci;
       END_IF;
@@ -4239,7 +4313,7 @@ END_IF;
    ================================================================ *)
 IF cal_step = 200 THEN
   FOR ci := 1 TO MAX_Transporters DO
-    IF g_transporter[ci].active AND g_cal[ci].x_max_mm_s > 0 THEN
+    IF g_transporter[ci].IsActive AND g_cal[ci].x_max_mm_s > 0 THEN
 
       vm := DINT_TO_REAL(g_cal[ci].x_max_mm_s);
       ta := INT_TO_REAL(g_cal[ci].x_accel_s) / 10.0;
@@ -4343,8 +4417,8 @@ END_IF;]]></xhtml:p>
   FOR qi := 1 TO MAX_TASK_QUEUE DO
     g_task[ti].queue[qi].unit         := 0;
     g_task[ti].queue[qi].stage        := 0;
-    g_task[ti].queue[qi].lift_station := 0;
-    g_task[ti].queue[qi].sink_station := 0;
+    g_task[ti].queue[qi].LiftStationTarget := 0;
+    g_task[ti].queue[qi].SinkStationTarget := 0;
     g_task[ti].queue[qi].start_time   := 0;
     g_task[ti].queue[qi].finish_time  := 0;
     g_task[ti].queue[qi].calc_time    := 0;
@@ -4372,13 +4446,13 @@ END_FOR;]]></xhtml:p>
           </outputVars>
           <externalVars>
             <variable name="g_batch">
-              <type><derived name="ARRAY[1..MAX_Units] OF BATCH_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
             </variable>
             <variable name="g_unit">
-              <type><derived name="ARRAY[1..MAX_Units] OF UNIT_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>
             </variable>
             <variable name="g_program">
-              <type><derived name="ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -4396,7 +4470,7 @@ END_FOR;
 
 FOR ui := 1 TO MAX_Units DO
   (* Common conditions: unit USED, target TO_NONE, valid program *)
-  IF g_unit[ui].status = 1
+  IF g_unit[ui].Status = 1
      AND g_unit[ui].target = 0
      AND g_batch[ui].prog_id = g_program[ui].program_id
      AND g_program[ui].program_id > 0 THEN
@@ -4425,7 +4499,7 @@ END_FOR;]]></xhtml:p>
         <interface>
           <externalVars>
             <variable name="g_transporter">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
             </variable>
             <variable name="g_task">
               <type><derived name="ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T"/></type>
@@ -4434,19 +4508,19 @@ END_FOR;]]></xhtml:p>
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
             </variable>
             <variable name="g_station_loc">
-              <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation"/></type>
+              <type><derived name="ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation"/></type>
             </variable>
             <variable name="g_unit">
-              <type><derived name="ARRAY[1..MAX_Units] OF UNIT_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>
             </variable>
             <variable name="g_program">
-              <type><derived name="ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType"/></type>
             </variable>
             <variable name="g_ntt">
               <type><derived name="ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T"/></type>
             </variable>
             <variable name="g_batch">
-              <type><derived name="ARRAY[1..MAX_Units] OF BATCH_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
             </variable>
             <variable name="g_move">
               <type><derived name="ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T"/></type>
@@ -4556,22 +4630,22 @@ END_FOR;]]></xhtml:p>
             <xhtml:p><![CDATA[FOR ti := 1 TO MAX_Transporters DO
 
   (* ── 1. Skip if not idle or queue empty ── *)
-  IF g_transporter[ti].phase = 0 AND g_task[ti].count >= 1 THEN
+  IF g_transporter[ti].Phase = 0 AND g_task[ti].count >= 1 THEN
 
     (* Read task fields from queue position 1 *)
     t_unit      := g_task[ti].queue[1].unit;
     t_stage     := g_task[ti].queue[1].stage;
-    t_lift      := g_task[ti].queue[1].lift_station;
-    t_sink      := g_task[ti].queue[1].sink_station;
+    t_lift      := g_task[ti].queue[1].LiftStationTarget;
+    t_sink      := g_task[ti].queue[1].SinkStationTarget;
     t_start     := g_task[ti].queue[1].start_time;
     t_finish    := g_task[ti].queue[1].finish_time;
     t_calc_time := g_task[ti].queue[1].calc_time;
 
     (* ── 2. Time check ── *)
     travel_s := 0.0;
-    IF g_transporter[ti].current_station > 0 AND t_lift > 0
-       AND g_transporter[ti].current_station <> t_lift THEN
-      from_idx := g_transporter[ti].current_station - 100;
+    IF g_transporter[ti].CurrentStation > 0 AND t_lift > 0
+       AND g_transporter[ti].CurrentStation <> t_lift THEN
+      from_idx := g_transporter[ti].CurrentStation - 100;
       to_idx   := t_lift - 100;
       IF from_idx >= 1 AND from_idx <= 30 AND to_idx >= 1 AND to_idx <= 30 THEN
         travel_s := INT_TO_REAL(g_move[ti].travel[from_idx].to_s[to_idx]) / 10.0;
@@ -4589,7 +4663,7 @@ END_FOR;]]></xhtml:p>
       IF sink_stn >= MIN_StationIndex AND sink_stn <= MAX_StationIndex THEN
         sink_free := TRUE;
         FOR uj := 1 TO MAX_Units DO
-          IF g_unit[uj].location = sink_stn AND g_unit[uj].status = 1 THEN
+          IF g_unit[uj].location = sink_stn AND g_unit[uj].Status = 1 THEN
             sink_free := FALSE;
           END_IF;
         END_FOR;
@@ -4609,7 +4683,7 @@ END_FOR;]]></xhtml:p>
               IF cand_stn >= MIN_StationIndex AND cand_stn <= MAX_StationIndex THEN
                 cand_free := TRUE;
                 FOR uj := 1 TO MAX_Units DO
-                  IF g_unit[uj].location = cand_stn AND g_unit[uj].status = 1 THEN
+                  IF g_unit[uj].location = cand_stn AND g_unit[uj].Status = 1 THEN
                     cand_free := FALSE;
                   END_IF;
                 END_FOR;
@@ -4648,7 +4722,7 @@ END_FOR;]]></xhtml:p>
                   IF cand_stn >= MIN_StationIndex AND cand_stn <= MAX_StationIndex THEN
                     cand_free := TRUE;
                     FOR uj := 1 TO MAX_Units DO
-                      IF g_unit[uj].location = cand_stn AND g_unit[uj].status = 1 THEN
+                      IF g_unit[uj].location = cand_stn AND g_unit[uj].Status = 1 THEN
                         cand_free := FALSE;
                       END_IF;
                     END_FOR;
@@ -4671,7 +4745,7 @@ END_FOR;]]></xhtml:p>
                   IF cand_stn >= MIN_StationIndex AND cand_stn <= MAX_StationIndex THEN
                     cand_free := TRUE;
                     FOR uj := 1 TO MAX_Units DO
-                      IF g_unit[uj].location = cand_stn AND g_unit[uj].status = 1 THEN
+                      IF g_unit[uj].location = cand_stn AND g_unit[uj].Status = 1 THEN
                         cand_free := FALSE;
                       END_IF;
                     END_FOR;
@@ -4718,19 +4792,19 @@ END_FOR;]]></xhtml:p>
         END_IF;
 
         FOR cj := 1 TO MAX_Transporters DO
-          IF cj <> ti AND g_transporter[cj].phase > 0 THEN
+          IF cj <> ti AND g_transporter[cj].Phase > 0 THEN
 
             (* a) T2's entire active task inside our range → conflict *)
-            IF g_transporter[cj].lift_station >= task_min
-               AND g_transporter[cj].lift_station <= task_max
-               AND g_transporter[cj].sink_station >= task_min
-               AND g_transporter[cj].sink_station <= task_max THEN
+            IF g_transporter[cj].LiftStationTarget >= task_min
+               AND g_transporter[cj].LiftStationTarget <= task_max
+               AND g_transporter[cj].SinkStationTarget >= task_min
+               AND g_transporter[cj].SinkStationTarget <= task_max THEN
               conflict := TRUE;
             END_IF;
 
             (* b) T2 delivers to one of our exact stations → conflict *)
-            IF g_transporter[cj].sink_station = t_lift
-               OR g_transporter[cj].sink_station = sink_stn THEN
+            IF g_transporter[cj].SinkStationTarget = t_lift
+               OR g_transporter[cj].SinkStationTarget = sink_stn THEN
               conflict := TRUE;
             END_IF;
 
@@ -4740,9 +4814,9 @@ END_FOR;]]></xhtml:p>
         IF NOT conflict THEN
           (* ── 5. Dispatch: assign task to transporter ── *)
           g_transporter[ti].task_id      := t_start;
-          g_transporter[ti].lift_station := t_lift;
-          g_transporter[ti].sink_station := sink_stn;
-          g_transporter[ti].UnitId      := t_unit;
+          g_transporter[ti].LiftStationTarget := t_lift;
+          g_transporter[ti].SinkStationTarget := sink_stn;
+          g_station_loc[ti].UnitId      := t_unit;
           g_transporter[ti].treatment_time := t_calc_time;
           g_transporter[ti].min_time := g_task[ti].queue[1].min_time;
           g_transporter[ti].max_time := g_task[ti].queue[1].max_time;
@@ -4792,8 +4866,8 @@ END_FOR;]]></xhtml:p>
           (* Clear last slot *)
           g_task[ti].queue[g_task[ti].count].unit := 0;
           g_task[ti].queue[g_task[ti].count].stage := 0;
-          g_task[ti].queue[g_task[ti].count].lift_station := 0;
-          g_task[ti].queue[g_task[ti].count].sink_station := 0;
+          g_task[ti].queue[g_task[ti].count].LiftStationTarget := 0;
+          g_task[ti].queue[g_task[ti].count].SinkStationTarget := 0;
           g_task[ti].queue[g_task[ti].count].start_time := 0;
           g_task[ti].queue[g_task[ti].count].finish_time := 0;
           g_task[ti].queue[g_task[ti].count].calc_time := 0;
@@ -5305,19 +5379,19 @@ END_IF;]]></xhtml:p>
         <interface>
           <externalVars>
             <variable name="g_unit">
-              <type><derived name="ARRAY[1..MAX_Units] OF UNIT_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>
             </variable>
             <variable name="g_batch">
-              <type><derived name="ARRAY[1..MAX_Units] OF BATCH_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
             </variable>
             <variable name="g_program">
-              <type><derived name="ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType"/></type>
             </variable>
             <variable name="g_station">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
             </variable>
             <variable name="g_station_loc">
-              <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation"/></type>
+              <type><derived name="ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation"/></type>
             </variable>
             <variable name="g_time_s">
               <type><LINT/></type>
@@ -5376,8 +5450,8 @@ END_IF;]]></xhtml:p>
 has_loading := FALSE;
 
 FOR u := 1 TO MAX_Units DO
-  snap[u].active := g_unit[u].status <> NOT_USED;
-  IF NOT snap[u].active THEN
+  snap[u].IsActive := g_unit[u].Status <> NOT_USED;
+  IF NOT snap[u].IsActive THEN
     CONTINUE;
   END_IF;
 
@@ -5417,7 +5491,7 @@ END_FOR;
      If next stage is empty (stations[1]=0) → last stage.
      If elapsed >= cal_time → set state := PROCESSED. *)
 FOR u := 1 TO MAX_Units DO
-  IF NOT snap[u].active OR NOT snap[u].has_batch THEN
+  IF NOT snap[u].IsActive OR NOT snap[u].has_batch THEN
     CONTINUE;
   END_IF;
   IF snap[u].bstate <> IN_PROCESS OR NOT snap[u].on_station THEN
@@ -5442,7 +5516,7 @@ END_FOR;
      Pass 2: if all occupied, mark ONE empty-batch TO_NONE unit
              at those stations as TO_AVOID. *)
 FOR u := 1 TO MAX_Units DO
-  IF NOT snap[u].active OR NOT snap[u].has_batch THEN
+  IF NOT snap[u].IsActive OR NOT snap[u].has_batch THEN
     CONTINUE;
   END_IF;
   IF snap[u].bstate <> IN_PROCESS THEN
@@ -5526,7 +5600,7 @@ IF g_production_queue = 1 AND NOT has_loading THEN
     load_uid    := 0;
     load_in_buf := FALSE;
     FOR u := 1 TO MAX_Units DO
-      IF snap[u].active AND NOT snap[u].has_batch
+      IF snap[u].IsActive AND NOT snap[u].has_batch
          AND snap[u].tgt = TO_NONE AND snap[u].on_station THEN
         IF snap[u].in_buffer THEN
           IF load_uid = 0 THEN
@@ -5693,22 +5767,19 @@ END_FOR;]]></xhtml:p>
           </inputVars>
           <externalVars>
             <variable name="g_unit">
-              <type><derived name="ARRAY[1..MAX_Units] OF UNIT_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>
             </variable>
             <variable name="g_station">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
             </variable>
             <variable name="g_station_loc">
-              <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation"/></type>
-            </variable>
-            <variable name="g_transporter">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation"/></type>
             </variable>
             <variable name="g_batch">
-              <type><derived name="ARRAY[1..MAX_Units] OF BATCH_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
             </variable>
             <variable name="g_program">
-              <type><derived name="ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType"/></type>
             </variable>
             <variable name="g_time_s">
               <type><LINT/></type>
@@ -5728,27 +5799,25 @@ END_FOR;]]></xhtml:p>
             <xhtml:p><![CDATA[IF (i_unit >= 1) AND (i_unit <= MAX_Units) THEN
   old_loc := g_unit[i_unit].location;
 
-  (* --- Clear unit_id from old location --- *)
-  IF (old_loc >= MIN_StationIndex) AND (old_loc <= MAX_StationIndex) THEN
-    (* Was on a station — clear station unit_id, stamp change_time *)
+  (* --- Clear unit_id from old location (unified: transporter or station) --- *)
+  IF (old_loc >= 1) AND (old_loc <= MAX_StationIndex) THEN
     g_station_loc[old_loc].UnitId     := 0;
     g_station_loc[old_loc].ChangeTime := g_time_s;
-  ELSIF (old_loc >= 1) AND (old_loc <= MAX_Transporters) THEN
-    (* Was on a transporter — clear transporter unit_id *)
-    g_transporter[old_loc].UnitId := 0;
   END_IF;
 
   (* --- Update unit location --- *)
   g_unit[i_unit].location := i_location;
 
-  (* --- Set unit_id on new location --- *)
-  IF (i_location >= MIN_StationIndex) AND (i_location <= MAX_StationIndex) THEN
-    (* Moving to a station (sink completion) *)
+  (* --- Set unit_id on new location (unified: transporter or station) --- *)
+  IF (i_location >= 1) AND (i_location <= MAX_StationIndex) THEN
     g_station_loc[i_location].UnitId     := i_unit;
     g_station_loc[i_location].ChangeTime := g_time_s;
 
+    (* Station-specific: batch stage advance only when landing on a station *)
+    IF (i_location >= MIN_StationIndex) THEN
+
     (* Advance batch stage if unit is USED with an active batch *)
-    IF (g_unit[i_unit].status = 1)  (* USED *)
+    IF (g_unit[i_unit].Status = 1)  (* USED *)
        AND (g_batch[i_unit].batch_code <> 0)
        AND (g_batch[i_unit].state = IN_PROCESS)
        AND (g_batch[i_unit].cur_stage < MAX_STEPS_PER_PROGRAM) THEN
@@ -5783,10 +5852,8 @@ END_FOR;]]></xhtml:p>
       g_unit[i_unit].target := 0;  (* TO_NONE *)
     END_IF;
 
-  ELSIF (i_location >= 1) AND (i_location <= MAX_Transporters) THEN
-    (* Moving to a transporter (lift start) *)
-    g_transporter[i_location].UnitId := i_unit;
-  END_IF;
+    END_IF; (* i_location >= MIN_StationIndex — station-specific block *)
+  END_IF; (* i_location valid *)
 END_IF;]]></xhtml:p>
           </ST>
         </body>
@@ -6039,8 +6106,8 @@ FOR ti := 1 TO MAX_Transporters DO
   FOR qi := 1 TO g_task[ti].count - 1 DO
     IF g_task[ti].queue[qi].unit > 0 AND g_task[ti].queue[qi + 1].unit > 0 THEN
 
-      prev_sink := g_task[ti].queue[qi].sink_station;
-      next_lift := g_task[ti].queue[qi + 1].lift_station;
+      prev_sink := g_task[ti].queue[qi].SinkStationTarget;
+      next_lift := g_task[ti].queue[qi + 1].LiftStationTarget;
 
       tmp_move := g_move[ti];
       travel_s := STC_CalcHorizontalTravel(i_from_stn := prev_sink, i_to_stn := next_lift, i_move := tmp_move);
@@ -6076,15 +6143,15 @@ FOR ti := 1 TO MAX_Transporters DO
     IF g_task[ti].queue[qi].unit > 0 THEN
 
       (* X range for task A *)
-      l_idx := g_task[ti].queue[qi].lift_station - 100;
-      s_idx := g_task[ti].queue[qi].sink_station - 100;
+      l_idx := g_task[ti].queue[qi].LiftStationTarget - 100;
+      s_idx := g_task[ti].queue[qi].SinkStationTarget - 100;
       IF l_idx >= 1 AND l_idx <= 30 THEN
-        lift_x := DINT_TO_REAL(g_station[g_task[ti].queue[qi].lift_station].XPosition);
+        lift_x := DINT_TO_REAL(g_station[g_task[ti].queue[qi].LiftStationTarget].XPosition);
       ELSE
         lift_x := 0.0;
       END_IF;
       IF s_idx >= 1 AND s_idx <= 30 THEN
-        sink_x := DINT_TO_REAL(g_station[g_task[ti].queue[qi].sink_station].XPosition);
+        sink_x := DINT_TO_REAL(g_station[g_task[ti].queue[qi].SinkStationTarget].XPosition);
       ELSE
         sink_x := 0.0;
       END_IF;
@@ -6101,15 +6168,15 @@ FOR ti := 1 TO MAX_Transporters DO
           IF g_task[tj].queue[qj].unit > 0 THEN
 
             (* X range for task B *)
-            l_idx2 := g_task[tj].queue[qj].lift_station - 100;
-            s_idx2 := g_task[tj].queue[qj].sink_station - 100;
+            l_idx2 := g_task[tj].queue[qj].LiftStationTarget - 100;
+            s_idx2 := g_task[tj].queue[qj].SinkStationTarget - 100;
             IF l_idx2 >= 1 AND l_idx2 <= 30 THEN
-              lift_x2 := DINT_TO_REAL(g_station[g_task[tj].queue[qj].lift_station].XPosition);
+              lift_x2 := DINT_TO_REAL(g_station[g_task[tj].queue[qj].LiftStationTarget].XPosition);
             ELSE
               lift_x2 := 0.0;
             END_IF;
             IF s_idx2 >= 1 AND s_idx2 <= 30 THEN
-              sink_x2 := DINT_TO_REAL(g_station[g_task[tj].queue[qj].sink_station].XPosition);
+              sink_x2 := DINT_TO_REAL(g_station[g_task[tj].queue[qj].SinkStationTarget].XPosition);
             ELSE
               sink_x2 := 0.0;
             END_IF;
@@ -6197,7 +6264,7 @@ FOR ti := 1 TO MAX_Transporters DO
                       IF NOT has_recv_prev OR g_task[tj].queue[rk].finish_time > recv_prev_end THEN
                         has_recv_prev := TRUE;
                         recv_prev_end  := g_task[tj].queue[rk].finish_time;
-                        recv_prev_sink := g_task[tj].queue[rk].sink_station;
+                        recv_prev_sink := g_task[tj].queue[rk].SinkStationTarget;
                       END_IF;
                     END_IF;
                   END_IF;
@@ -6207,7 +6274,7 @@ FOR ti := 1 TO MAX_Transporters DO
                   (* Travel from receiver's prev sink to handoff station (= ti's current sink) *)
                   recv_travel := STC_CalcHorizontalTravel(
                     i_from_stn := recv_prev_sink,
-                    i_to_stn   := g_task[ti].queue[qi].sink_station,
+                    i_to_stn   := g_task[ti].queue[qi].SinkStationTarget,
                     i_move     := g_move[tj]
                   );
                   recv_earliest := recv_prev_end + REAL_TO_LINT(recv_travel);
@@ -6262,19 +6329,19 @@ checked_count := total_tasks;]]></xhtml:p>
           </inputVars>
           <externalVars>
             <variable name="g_batch">
-              <type><derived name="ARRAY[1..MAX_Units] OF BATCH_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
             </variable>
             <variable name="g_program">
-              <type><derived name="ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType"/></type>
             </variable>
             <variable name="g_unit">
-              <type><derived name="ARRAY[1..MAX_Units] OF UNIT_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>
             </variable>
             <variable name="g_station">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
             </variable>
             <variable name="g_station_loc">
-              <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation"/></type>
+              <type><derived name="ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation"/></type>
             </variable>
             <variable name="g_schedule">
               <type><derived name="ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T"/></type>
@@ -6541,7 +6608,7 @@ FOR st := start_st TO g_program[i_unit].StepCount DO
 
       (* Physical occupation *)
       FOR uj := 1 TO MAX_Units DO
-        IF g_unit[uj].location = cand_arr[p] AND g_unit[uj].status = 1 THEN
+        IF g_unit[uj].location = cand_arr[p] AND g_unit[uj].Status = 1 THEN
           phys_occupied[p] := TRUE;
         END_IF;
       END_FOR;
@@ -6641,7 +6708,7 @@ g_schedule[i_unit].stage_count := out_count;]]></xhtml:p>
           </inputVars>
           <externalVars>
             <variable name="g_batch">
-              <type><derived name="ARRAY[1..MAX_Units] OF BATCH_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
             </variable>
             <variable name="g_schedule">
               <type><derived name="ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T"/></type>
@@ -6704,8 +6771,8 @@ FOR si := 1 TO sc - 1 DO
       IF qi <= MAX_TASK_QUEUE THEN
         g_task[tid].queue[qi].unit         := i_unit;
         g_task[tid].queue[qi].stage        := si - 1;  (* schedule idx 1=stage0, 2=stage1, ... *)
-        g_task[tid].queue[qi].lift_station := lift_stn;
-        g_task[tid].queue[qi].sink_station := sink_stn;
+        g_task[tid].queue[qi].LiftStationTarget := lift_stn;
+        g_task[tid].queue[qi].SinkStationTarget := sink_stn;
         g_task[tid].queue[qi].start_time   := g_schedule[i_unit].stages[si].exit_time;
         g_task[tid].queue[qi].finish_time  := g_schedule[i_unit].stages[si + 1].entry_time;
         g_task[tid].queue[qi].calc_time    := g_schedule[i_unit].stages[si].calc_time;
@@ -6728,16 +6795,19 @@ END_FOR;]]></xhtml:p>
           </inputVars>
           <externalVars>
             <variable name="g_unit">
-              <type><derived name="ARRAY[1..MAX_Units] OF UNIT_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>
             </variable>
             <variable name="g_batch">
-              <type><derived name="ARRAY[1..MAX_Units] OF BATCH_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
             </variable>
             <variable name="g_ntt">
               <type><derived name="ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T"/></type>
             </variable>
             <variable name="g_transporter">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
+            </variable>
+            <variable name="g_station_loc">
+              <type><derived name="ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation"/></type>
             </variable>
             <variable name="g_cfg">
               <type><derived name="ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T"/></type>
@@ -6896,7 +6966,7 @@ END_FOR;]]></xhtml:p>
     FOR ti := 1 TO MAX_Transporters DO
       IF NOT already THEN
         (* Being transported right now? *)
-        IF g_transporter[ti].phase > 0 AND g_transporter[ti].UnitId = ui THEN
+        IF g_transporter[ti].Phase > 0 AND g_station_loc[ti].UnitId = ui THEN
           already := TRUE;
         END_IF;
         (* In any task queue? *)
@@ -6929,8 +6999,8 @@ END_FOR;]]></xhtml:p>
         END_IF;
       END_FOR;
 
-      IF covers AND g_transporter[cov_t].active
-         AND (g_transporter[cov_t].phase = 0 OR tgt = 5) THEN
+      IF covers AND g_transporter[cov_t].IsActive
+         AND (g_transporter[cov_t].Phase = 0 OR tgt = 5) THEN
 
         (* ── Resolve NTT index ── *)
         (* TO_BUFFER(2) maps to 6/7/8 depending on batch state *)
@@ -6977,7 +7047,7 @@ END_FOR;]]></xhtml:p>
             IF stn <> loc AND stn >= MIN_StationIndex AND stn <= MAX_StationIndex THEN
               stn_free := TRUE;
               FOR uj := 1 TO MAX_Units DO
-                IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
+                IF g_unit[uj].location = stn AND g_unit[uj].Status = 1 THEN
                   stn_free := FALSE;
                 END_IF;
               END_FOR;
@@ -7000,7 +7070,7 @@ END_FOR;]]></xhtml:p>
                 IF stn <> loc AND stn >= MIN_StationIndex AND stn <= MAX_StationIndex THEN
                   stn_free := TRUE;
                   FOR uj := 1 TO MAX_Units DO
-                    IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
+                    IF g_unit[uj].location = stn AND g_unit[uj].Status = 1 THEN
                       stn_free := FALSE;
                     END_IF;
                   END_FOR;
@@ -7018,7 +7088,7 @@ END_FOR;]]></xhtml:p>
                 IF stn <> loc AND stn >= MIN_StationIndex AND stn <= MAX_StationIndex THEN
                   stn_free := TRUE;
                   FOR uj := 1 TO MAX_Units DO
-                    IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
+                    IF g_unit[uj].location = stn AND g_unit[uj].Status = 1 THEN
                       stn_free := FALSE;
                     END_IF;
                   END_FOR;
@@ -7036,7 +7106,7 @@ END_FOR;]]></xhtml:p>
                   IF stn <> loc AND stn >= MIN_StationIndex AND stn <= MAX_StationIndex THEN
                     stn_free := TRUE;
                     FOR uj := 1 TO MAX_Units DO
-                      IF g_unit[uj].location = stn AND g_unit[uj].status = 1 THEN
+                      IF g_unit[uj].location = stn AND g_unit[uj].Status = 1 THEN
                         stn_free := FALSE;
                       END_IF;
                     END_FOR;
@@ -7075,7 +7145,7 @@ END_FOR;]]></xhtml:p>
                 (* Travel from NTT sink to first task's lift *)
                 travel_from_sink := STC_CalcHorizontalTravel(
                   i_from_stn := dest_stn,
-                  i_to_stn   := g_task[cov_t].queue[1].lift_station,
+                  i_to_stn   := g_task[cov_t].queue[1].LiftStationTarget,
                   i_move     := g_move[cov_t]
                 );
                 latest_end := slot_end - REAL_TO_LINT(travel_from_sink) - 1;
@@ -7090,7 +7160,7 @@ END_FOR;]]></xhtml:p>
                  this NTT unit sits, we MUST move it first or we deadlock.
                  Force-insert; future scheduling will re-stabilize the list. *)
               IF g_task[cov_t].count > 0
-                 AND g_task[cov_t].queue[1].sink_station = loc THEN
+                 AND g_task[cov_t].queue[1].SinkStationTarget = loc THEN
                 slot_ok := TRUE;  (* force — deadlock prevention *)
               ELSE
                 dest_stn := 0;  (* NTT doesn't fit → skip *)
@@ -7107,8 +7177,8 @@ END_FOR;]]></xhtml:p>
               END_FOR;
               g_task[cov_t].queue[1].unit         := ui;
               g_task[cov_t].queue[1].stage        := 0;  (* no program stage *)
-              g_task[cov_t].queue[1].lift_station := loc;
-              g_task[cov_t].queue[1].sink_station := dest_stn;
+              g_task[cov_t].queue[1].LiftStationTarget := loc;
+              g_task[cov_t].queue[1].SinkStationTarget := dest_stn;
               g_task[cov_t].queue[1].start_time   := task_start;
               g_task[cov_t].queue[1].finish_time  := task_end;
               g_task[cov_t].queue[1].calc_time    := 0;
@@ -7187,7 +7257,7 @@ END_FOR;]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T"/></type>
             </variable>
             <variable name="g_batch">
-              <type><derived name="ARRAY[1..MAX_Units] OF BATCH_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -7556,13 +7626,13 @@ END_IF;
           </outputVars>
           <externalVars>
             <variable name="g_batch">
-              <type><derived name="ARRAY[1..MAX_Units] OF BATCH_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
             </variable>
             <variable name="g_unit">
-              <type><derived name="ARRAY[1..MAX_Units] OF UNIT_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>
             </variable>
             <variable name="g_program">
-              <type><derived name="ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType"/></type>
             </variable>
             <variable name="g_task">
               <type><derived name="ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T"/></type>
@@ -7946,7 +8016,7 @@ FOR ti := 1 TO MAX_Transporters DO
     FOR qi := 1 TO cnt - 1 DO
       (* Check: different units AND prev.sink == next.lift *)
       IF g_task[ti].queue[qi].unit <> g_task[ti].queue[qi + 1].unit
-         AND g_task[ti].queue[qi].sink_station = g_task[ti].queue[qi + 1].lift_station THEN
+         AND g_task[ti].queue[qi].SinkStationTarget = g_task[ti].queue[qi + 1].LiftStationTarget THEN
         (* Swap *)
         tmp := g_task[ti].queue[qi];
         g_task[ti].queue[qi] := g_task[ti].queue[qi + 1];
@@ -7966,7 +8036,7 @@ END_FOR;]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T"/></type>
             </variable>
             <variable name="g_transporter">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
             </variable>
             <variable name="g_station">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
@@ -8133,19 +8203,19 @@ END_FOR;]]></xhtml:p>
    and restrict x_min/x_max based on avoid_status 1 (pass) and 2 (block).
    ================================================================ *)
 FOR i := 1 TO MAX_Transporters DO
-  IF NOT g_transporter[i].active THEN
+  IF NOT g_transporter[i].IsActive THEN
     CONTINUE;
   END_IF;
 
-  min_x := g_cfg[i].XMinLimit;
-  max_x := g_cfg[i].XMaxLimit;
+  min_x := g_cfg[i].XMinDriveLimit;
+  max_x := g_cfg[i].XMaxDriveLimit;
   current_x := g_transporter[i].XPosition;
   avoid_dist := g_cfg[i].XAvoidMm;
 
   (* If no limits configured, lock to current position *)
   IF (min_x < 1) OR (max_x < 1) THEN
-    g_transporter[i].XMinLimit := current_x;
-    g_transporter[i].XMaxLimit := current_x;
+    g_transporter[i].XMinDriveLimit := current_x;
+    g_transporter[i].XMaxDriveLimit := current_x;
     CONTINUE;
   END_IF;
 
@@ -8155,7 +8225,7 @@ FOR i := 1 TO MAX_Transporters DO
   right_s2_x := 0;
 
   (* --- Search downward (smaller station numbers) from current_station --- *)
-  stn_num := g_transporter[i].current_station - 1;
+  stn_num := g_transporter[i].CurrentStation - 1;
   WHILE stn_num >= MIN_StationIndex DO
     IF g_station[stn_num].TankId = 0 THEN
       stn_num := stn_num - 1;
@@ -8171,8 +8241,8 @@ FOR i := 1 TO MAX_Transporters DO
 
     (* AVOID_Passable: passable unless it is this transporter's target station *)
     IF avoid_st = AVOID_Passable THEN
-      is_target := (stn_num = g_transporter[i].lift_station)
-               OR  (stn_num = g_transporter[i].sink_station);
+      is_target := (stn_num = g_transporter[i].LiftStationTarget)
+               OR  (stn_num = g_transporter[i].SinkStationTarget);
       IF is_target THEN
         IF current_x < stn_x THEN
           new_val := stn_x - avoid_dist;
@@ -8210,7 +8280,7 @@ FOR i := 1 TO MAX_Transporters DO
   END_WHILE;
 
   (* --- Search upward (larger station numbers) from current_station --- *)
-  stn_num := g_transporter[i].current_station + 1;
+  stn_num := g_transporter[i].CurrentStation + 1;
   WHILE stn_num <= MAX_StationIndex DO
     IF g_station[stn_num].TankId = 0 THEN
       stn_num := stn_num + 1;
@@ -8225,8 +8295,8 @@ FOR i := 1 TO MAX_Transporters DO
     avoid_st := g_avoid_status[stn_num];
 
     IF avoid_st = AVOID_Passable THEN
-      is_target := (stn_num = g_transporter[i].lift_station)
-               OR  (stn_num = g_transporter[i].sink_station);
+      is_target := (stn_num = g_transporter[i].LiftStationTarget)
+               OR  (stn_num = g_transporter[i].SinkStationTarget);
       IF is_target THEN
         IF current_x < stn_x THEN
           new_val := stn_x - avoid_dist;
@@ -8268,8 +8338,8 @@ FOR i := 1 TO MAX_Transporters DO
     max_x := midpoint + 5;
   END_IF;
 
-  g_transporter[i].XMinLimit := min_x;
-  g_transporter[i].XMaxLimit := max_x;
+  g_transporter[i].XMinDriveLimit := min_x;
+  g_transporter[i].XMaxDriveLimit := max_x;
 END_FOR;
 
 (* ================================================================
@@ -8277,7 +8347,7 @@ END_FOR;
    Every active transporter pushes neighbors away by x_avoid_mm.
    ================================================================ *)
 FOR i := 1 TO MAX_Transporters DO
-  IF NOT g_transporter[i].active THEN
+  IF NOT g_transporter[i].IsActive THEN
     CONTINUE;
   END_IF;
 
@@ -8287,7 +8357,7 @@ FOR i := 1 TO MAX_Transporters DO
 
   FOR j := 1 TO MAX_Transporters DO
     IF j = i THEN CONTINUE; END_IF;
-    IF NOT g_transporter[j].active THEN CONTINUE; END_IF;
+    IF NOT g_transporter[j].IsActive THEN CONTINUE; END_IF;
 
     (* Skip transporters on different line (y-position check, matches JS Step 2.0) *)
     other_y := g_transporter[j].YPosition;
@@ -8298,14 +8368,14 @@ FOR i := 1 TO MAX_Transporters DO
     IF other_x > current_x THEN
       (* j is to the RIGHT of i — restrict j's x_min *)
       new_val := current_x + avoid_dist;
-      IF new_val > g_transporter[j].XMinLimit THEN
-        g_transporter[j].XMinLimit := new_val;
+      IF new_val > g_transporter[j].XMinDriveLimit THEN
+        g_transporter[j].XMinDriveLimit := new_val;
       END_IF;
     ELSIF other_x < current_x THEN
       (* j is to the LEFT of i — restrict j's x_max *)
       new_val := current_x - avoid_dist;
-      IF new_val < g_transporter[j].XMaxLimit THEN
-        g_transporter[j].XMaxLimit := new_val;
+      IF new_val < g_transporter[j].XMaxDriveLimit THEN
+        g_transporter[j].XMaxDriveLimit := new_val;
       END_IF;
     END_IF;
   END_FOR;
@@ -8318,12 +8388,12 @@ END_FOR;
 (* --- 2.2.1: Build sorted array of active transporters by x-position --- *)
 n_active := 0;
 FOR i := 1 TO MAX_Transporters DO
-  IF g_transporter[i].active THEN
+  IF g_transporter[i].IsActive THEN
     n_active := n_active + 1;
     w_idx[n_active] := i;
     w_xpos[n_active] := g_transporter[i].XPosition;
-    w_phase[n_active] := g_transporter[i].phase;
-    w_status[n_active] := g_transporter[i].status;
+    w_phase[n_active] := g_transporter[i].Phase;
+    w_status[n_active] := g_transporter[i].Status;
     w_ypos[n_active] := g_transporter[i].YPosition;
     w_target[n_active] := g_transporter[i].XFinalTarget;
     w_avoid[n_active] := g_cfg[i].XAvoidMm;
@@ -8364,7 +8434,7 @@ FOR i := 1 TO n_active DO
   IF (w_status[i] = 4) AND ((w_phase[i] = 2) OR (w_phase[i] = 4)) THEN
     w_can_evade[i] := FALSE;
   END_IF;
-  work_area := g_transporter[k].XMaxLimit - g_transporter[k].XMinLimit;
+  work_area := g_transporter[k].XMaxDriveLimit - g_transporter[k].XMinDriveLimit;
   IF work_area < MIN_WorkingArea THEN
     w_can_evade[i] := FALSE;
   END_IF;
@@ -8408,8 +8478,8 @@ IF n_active >= 2 THEN
       END_IF;
 
       k := w_idx[j];
-      cur_min := g_transporter[k].XMinLimit;
-      cur_max := g_transporter[k].XMaxLimit;
+      cur_min := g_transporter[k].XMinDriveLimit;
+      cur_max := g_transporter[k].XMaxDriveLimit;
 
       IF w_xpos[i] < w_xpos[j] THEN
         (* i is LEFT, j is RIGHT — i sets j's x_min *)
@@ -8423,11 +8493,11 @@ IF n_active >= 2 THEN
 
         IF new_val > cur_min THEN
           IF new_val <= (cur_max - MIN_WorkingArea) THEN
-            g_transporter[k].XMinLimit := new_val;
+            g_transporter[k].XMinDriveLimit := new_val;
           ELSE
             adjusted := cur_max - MIN_WorkingArea;
             IF adjusted > cur_min THEN
-              g_transporter[k].XMinLimit := adjusted;
+              g_transporter[k].XMinDriveLimit := adjusted;
             END_IF;
           END_IF;
         END_IF;
@@ -8444,11 +8514,11 @@ IF n_active >= 2 THEN
 
         IF new_val < cur_max THEN
           IF new_val >= (cur_min + MIN_WorkingArea) THEN
-            g_transporter[k].XMaxLimit := new_val;
+            g_transporter[k].XMaxDriveLimit := new_val;
           ELSE
             adjusted := cur_min + MIN_WorkingArea;
             IF adjusted < cur_max THEN
-              g_transporter[k].XMaxLimit := adjusted;
+              g_transporter[k].XMaxDriveLimit := adjusted;
             END_IF;
           END_IF;
         END_IF;
@@ -8473,8 +8543,8 @@ IF n_active >= 2 THEN
       (* Both moving right — left chasing right *)
       safety_val := w_xpos[i] + w_avoid[i];
       k := w_idx[j];
-      IF safety_val > g_transporter[k].XMinLimit THEN
-        g_transporter[k].XMinLimit := safety_val;
+      IF safety_val > g_transporter[k].XMinDriveLimit THEN
+        g_transporter[k].XMinDriveLimit := safety_val;
       END_IF;
     END_IF;
 
@@ -8482,8 +8552,8 @@ IF n_active >= 2 THEN
       (* Both moving left — right chasing left *)
       safety_val := w_xpos[j] - w_avoid[j];
       k := w_idx[i];
-      IF safety_val < g_transporter[k].XMaxLimit THEN
-        g_transporter[k].XMaxLimit := safety_val;
+      IF safety_val < g_transporter[k].XMaxDriveLimit THEN
+        g_transporter[k].XMaxDriveLimit := safety_val;
       END_IF;
     END_IF;
   END_FOR;
@@ -8491,10 +8561,10 @@ IF n_active >= 2 THEN
   (* --- 2.2.5: Validate limits (trap detection) --- *)
   FOR i := 1 TO n_active DO
     k := w_idx[i];
-    IF g_transporter[k].XMinLimit > g_transporter[k].XMaxLimit THEN
+    IF g_transporter[k].XMinDriveLimit > g_transporter[k].XMaxDriveLimit THEN
       (* Trapped — lock in place *)
-      g_transporter[k].XMinLimit := g_transporter[k].XPosition;
-      g_transporter[k].XMaxLimit := g_transporter[k].XPosition;
+      g_transporter[k].XMinDriveLimit := g_transporter[k].XPosition;
+      g_transporter[k].XMaxDriveLimit := g_transporter[k].XPosition;
     END_IF;
   END_FOR;
 
@@ -8512,25 +8582,25 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
             </variable>
             <variable name="g_station_loc">
-              <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation"/></type>
+              <type><derived name="ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation"/></type>
             </variable>
             <variable name="g_cfg">
               <type><derived name="ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T"/></type>
             </variable>
             <variable name="g_transporter">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
             </variable>
             <variable name="g_unit">
-              <type><derived name="ARRAY[1..MAX_Units] OF UNIT_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>
             </variable>
             <variable name="g_ntt">
               <type><derived name="ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T"/></type>
             </variable>
             <variable name="g_batch">
-              <type><derived name="ARRAY[1..MAX_Units] OF BATCH_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
             </variable>
             <variable name="g_program">
-              <type><derived name="ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType"/></type>
             </variable>
             <variable name="g_avoid_status">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF INT"/></type>
@@ -11782,8 +11852,8 @@ IF iw_cfg_seq <> last_cfg_seq THEN
        d6 = avoid_mm *)
     j := iw_cfg_param;
     IF (j >= 1) AND (j <= 3) THEN
-      g_cfg[j].XMinLimit          := INT_TO_DINT(iw_cfg_d0);
-      g_cfg[j].XMaxLimit          := INT_TO_DINT(iw_cfg_d1);
+      g_cfg[j].XMinDriveLimit          := INT_TO_DINT(iw_cfg_d0);
+      g_cfg[j].XMaxDriveLimit          := INT_TO_DINT(iw_cfg_d1);
       g_cfg[j].phys2d.x_accel_s     := iw_cfg_d2;
       g_cfg[j].phys2d.x_decel_s     := iw_cfg_d3;
       g_cfg[j].phys2d.x_max_mm_s    := INT_TO_DINT(iw_cfg_d4);
@@ -11902,23 +11972,23 @@ IF iw_cfg_seq <> last_cfg_seq THEN
     FOR i := 1 TO MAX_Transporters DO
       (* Active if task_area[1] has non-zero stations *)
       IF g_cfg[i].task_area[1].min_lift > 0 THEN
-        g_transporter[i].active := TRUE;
-        g_transporter[i].status := 3;  (* auto_idle *)
+        g_transporter[i].IsActive := TRUE;
+        g_transporter[i].Status := 3;  (* auto_idle *)
       ELSE
-        g_transporter[i].active := FALSE;
-        g_transporter[i].status := 0;  (* not_used *)
+        g_transporter[i].IsActive := FALSE;
+        g_transporter[i].Status := 0;  (* not_used *)
       END_IF;
-      g_transporter[i].phase := 0;
+      g_transporter[i].Phase := 0;
       g_transporter[i].z_stage := 0;
       g_transporter[i].XVelocity := 0;
       g_transporter[i].z_timer_s := 0.0;
-      g_transporter[i].XMinLimit := g_cfg[i].XMinLimit;
-      g_transporter[i].XMaxLimit := g_cfg[i].XMaxLimit;
+      g_transporter[i].XMinDriveLimit := g_cfg[i].XMinDriveLimit;
+      g_transporter[i].XMaxDriveLimit := g_cfg[i].XMaxDriveLimit;
 
       (* Start position: at own area minimum, z=0 *)
-      g_transporter[i].XPosition := g_cfg[i].XMinLimit;
+      g_transporter[i].XPosition := g_cfg[i].XMinDriveLimit;
       g_transporter[i].ZPosition := 0;
-      g_transporter[i].current_station := 0;
+      g_transporter[i].CurrentStation := 0;
     END_FOR;
 
     init_done := TRUE;
@@ -12005,7 +12075,7 @@ IF iw_unit_seq <> last_unit_seq THEN
     END_IF;
 
     g_unit[iw_unit_id].location := iw_unit_loc;
-    g_unit[iw_unit_id].status   := iw_unit_status;
+    g_unit[iw_unit_id].Status   := iw_unit_status;
     g_unit[iw_unit_id].target   := iw_unit_target;
 
     (* Set unit_id on the new station *)
@@ -12084,15 +12154,15 @@ END_IF;
 (* === MODBUS INPUT: Read commands → g_transporter command fields === *)
 (* Note: task_id sync will be handled by SIM_FB_RunTasks later.
    For now, keep the old Modbus command interface working via direct write. *)
-IF (iw_cmd_t1_start <> 0) AND (g_transporter[1].status = 3) THEN
+IF (iw_cmd_t1_start <> 0) AND (g_transporter[1].Status = 3) THEN
   g_transporter[1].task_id := g_time_s;
-  g_transporter[1].lift_station := iw_cmd_t1_lift;
-  g_transporter[1].sink_station := iw_cmd_t1_sink;
+  g_transporter[1].LiftStationTarget := iw_cmd_t1_lift;
+  g_transporter[1].SinkStationTarget := iw_cmd_t1_sink;
 END_IF;
-IF (iw_cmd_t2_start <> 0) AND (g_transporter[2].status = 3) THEN
+IF (iw_cmd_t2_start <> 0) AND (g_transporter[2].Status = 3) THEN
   g_transporter[2].task_id := g_time_s;
-  g_transporter[2].lift_station := iw_cmd_t2_lift;
-  g_transporter[2].sink_station := iw_cmd_t2_sink;
+  g_transporter[2].LiftStationTarget := iw_cmd_t2_lift;
+  g_transporter[2].SinkStationTarget := iw_cmd_t2_sink;
 END_IF;
 
 (* ── Cycle counter ── *)
@@ -12106,43 +12176,43 @@ IF cycle_count > 30000 THEN cycle_count := 0; END_IF;
 qw_t1_x_mm := DINT_TO_INT(g_transporter[1].XPosition);
 qw_t1_z_mm := DINT_TO_INT(g_transporter[1].ZPosition);
 qw_t1_vel_x10 := DINT_TO_INT(g_transporter[1].XVelocity) * 10;
-qw_t1_phase := g_transporter[1].phase;
-qw_t1_unit_id := g_transporter[1].UnitId;
+qw_t1_phase := g_transporter[1].Phase;
+qw_t1_unit_id := g_station_loc[1].UnitId;
 qw_t1_z_stage := g_transporter[1].z_stage;
-qw_t1_cur_st := g_transporter[1].current_station;
-qw_t1_lift_tgt := g_transporter[1].lift_station;
-qw_t1_sink_tgt := g_transporter[1].sink_station;
-IF g_transporter[1].active THEN qw_t1_active := 1; ELSE qw_t1_active := 0; END_IF;
-qw_t1_status := g_transporter[1].status;
+qw_t1_cur_st := g_transporter[1].CurrentStation;
+qw_t1_lift_tgt := g_transporter[1].LiftStationTarget;
+qw_t1_sink_tgt := g_transporter[1].SinkStationTarget;
+IF g_transporter[1].IsActive THEN qw_t1_active := 1; ELSE qw_t1_active := 0; END_IF;
+qw_t1_status := g_transporter[1].Status;
 qw_t1_rtask_hi := LINT_TO_INT(g_transporter[1].running_task_id / 65536);
 qw_t1_rtask_lo := LINT_TO_INT(g_transporter[1].running_task_id MOD 65536);
 qw_t2_x_mm := DINT_TO_INT(g_transporter[2].XPosition);
 qw_t2_z_mm := DINT_TO_INT(g_transporter[2].ZPosition);
 qw_t2_vel_x10 := DINT_TO_INT(g_transporter[2].XVelocity) * 10;
-qw_t2_phase := g_transporter[2].phase;
-qw_t2_unit_id := g_transporter[2].UnitId;
+qw_t2_phase := g_transporter[2].Phase;
+qw_t2_unit_id := g_station_loc[2].UnitId;
 qw_t2_z_stage := g_transporter[2].z_stage;
-qw_t2_cur_st := g_transporter[2].current_station;
-qw_t2_lift_tgt := g_transporter[2].lift_station;
-qw_t2_sink_tgt := g_transporter[2].sink_station;
-IF g_transporter[2].active THEN qw_t2_active := 1; ELSE qw_t2_active := 0; END_IF;
-qw_t2_status := g_transporter[2].status;
+qw_t2_cur_st := g_transporter[2].CurrentStation;
+qw_t2_lift_tgt := g_transporter[2].LiftStationTarget;
+qw_t2_sink_tgt := g_transporter[2].SinkStationTarget;
+IF g_transporter[2].IsActive THEN qw_t2_active := 1; ELSE qw_t2_active := 0; END_IF;
+qw_t2_status := g_transporter[2].Status;
 qw_t2_rtask_hi := LINT_TO_INT(g_transporter[2].running_task_id / 65536);
 qw_t2_rtask_lo := LINT_TO_INT(g_transporter[2].running_task_id MOD 65536);
 qw_t3_x_mm := DINT_TO_INT(g_transporter[3].XPosition);
 qw_t3_z_mm := DINT_TO_INT(g_transporter[3].ZPosition);
 qw_t3_vel_x10 := DINT_TO_INT(g_transporter[3].XVelocity) * 10;
-qw_t3_phase := g_transporter[3].phase;
-qw_t3_unit_id := g_transporter[3].UnitId;
+qw_t3_phase := g_transporter[3].Phase;
+qw_t3_unit_id := g_station_loc[3].UnitId;
 qw_t3_z_stage := g_transporter[3].z_stage;
-qw_t3_cur_st := g_transporter[3].current_station;
-qw_t3_lift_tgt := g_transporter[3].lift_station;
-qw_t3_sink_tgt := g_transporter[3].sink_station;
-IF g_transporter[3].active THEN qw_t3_active := 1; ELSE qw_t3_active := 0; END_IF;
-qw_t3_status := g_transporter[3].status;
+qw_t3_cur_st := g_transporter[3].CurrentStation;
+qw_t3_lift_tgt := g_transporter[3].LiftStationTarget;
+qw_t3_sink_tgt := g_transporter[3].SinkStationTarget;
+IF g_transporter[3].IsActive THEN qw_t3_active := 1; ELSE qw_t3_active := 0; END_IF;
+qw_t3_status := g_transporter[3].Status;
 qw_t3_rtask_hi := LINT_TO_INT(g_transporter[3].running_task_id / 65536);
 qw_t3_rtask_lo := LINT_TO_INT(g_transporter[3].running_task_id MOD 65536);
-(* === Per-transporter extended state — remaining STC_TRANSPORTER_T fields === *)
+(* === Per-transporter extended state — remaining UDT_TransporterStatusType fields === *)
 qw_t1_remain_x10 := DINT_TO_INT(g_transporter[1].remaining_time) * 10;
 qw_t1_treat_time := DINT_TO_INT(g_transporter[1].treatment_time);
 qw_t1_fintgt_x := DINT_TO_INT(g_transporter[1].XFinalTarget);
@@ -12183,12 +12253,12 @@ qw_t3_ldev_x10 := g_transporter[3].lift_device_delay;
 qw_t3_sdev_x10 := g_transporter[3].sink_device_delay;
 qw_t3_drop_x10 := g_transporter[3].DrippingTime;
 (* === TWA dynamic drive limits — PLC writes, gateway reads === *)
-qw_t1_xmin := DINT_TO_INT(g_transporter[1].XMinLimit);
-qw_t1_xmax := DINT_TO_INT(g_transporter[1].XMaxLimit);
-qw_t2_xmin := DINT_TO_INT(g_transporter[2].XMinLimit);
-qw_t2_xmax := DINT_TO_INT(g_transporter[2].XMaxLimit);
-qw_t3_xmin := DINT_TO_INT(g_transporter[3].XMinLimit);
-qw_t3_xmax := DINT_TO_INT(g_transporter[3].XMaxLimit);
+qw_t1_xmin := DINT_TO_INT(g_transporter[1].XMinDriveLimit);
+qw_t1_xmax := DINT_TO_INT(g_transporter[1].XMaxDriveLimit);
+qw_t2_xmin := DINT_TO_INT(g_transporter[2].XMinDriveLimit);
+qw_t2_xmax := DINT_TO_INT(g_transporter[2].XMaxDriveLimit);
+qw_t3_xmin := DINT_TO_INT(g_transporter[3].XMinDriveLimit);
+qw_t3_xmax := DINT_TO_INT(g_transporter[3].XMaxDriveLimit);
 (* === PLC status + acks — PLC writes, gateway reads === *)
 qw_plc_status_station_cnt := g_station_count;
 IF init_done THEN qw_plc_status_init_done := 1; ELSE qw_plc_status_init_done := 0; END_IF;
@@ -12204,34 +12274,34 @@ qw_plc_status_time_hi := LINT_TO_INT(g_time_s / 65536);
 qw_plc_status_time_lo := LINT_TO_INT(g_time_s MOD 65536);
 (* === Per-unit live state — PLC writes, gateway reads === *)
 qw_u1_loc := g_unit[1].location;
-qw_u1_status := g_unit[1].status;
+qw_u1_status := g_unit[1].Status;
 qw_u1_target := g_unit[1].target;
 qw_u2_loc := g_unit[2].location;
-qw_u2_status := g_unit[2].status;
+qw_u2_status := g_unit[2].Status;
 qw_u2_target := g_unit[2].target;
 qw_u3_loc := g_unit[3].location;
-qw_u3_status := g_unit[3].status;
+qw_u3_status := g_unit[3].Status;
 qw_u3_target := g_unit[3].target;
 qw_u4_loc := g_unit[4].location;
-qw_u4_status := g_unit[4].status;
+qw_u4_status := g_unit[4].Status;
 qw_u4_target := g_unit[4].target;
 qw_u5_loc := g_unit[5].location;
-qw_u5_status := g_unit[5].status;
+qw_u5_status := g_unit[5].Status;
 qw_u5_target := g_unit[5].target;
 qw_u6_loc := g_unit[6].location;
-qw_u6_status := g_unit[6].status;
+qw_u6_status := g_unit[6].Status;
 qw_u6_target := g_unit[6].target;
 qw_u7_loc := g_unit[7].location;
-qw_u7_status := g_unit[7].status;
+qw_u7_status := g_unit[7].Status;
 qw_u7_target := g_unit[7].target;
 qw_u8_loc := g_unit[8].location;
-qw_u8_status := g_unit[8].status;
+qw_u8_status := g_unit[8].Status;
 qw_u8_target := g_unit[8].target;
 qw_u9_loc := g_unit[9].location;
-qw_u9_status := g_unit[9].status;
+qw_u9_status := g_unit[9].Status;
 qw_u9_target := g_unit[9].target;
 qw_u10_loc := g_unit[10].location;
-qw_u10_status := g_unit[10].status;
+qw_u10_status := g_unit[10].Status;
 qw_u10_target := g_unit[10].target;
 (* === Per-unit batch data — PLC writes, gateway reads === *)
 qw_b1_code := g_batch[1].batch_code;
@@ -12350,8 +12420,8 @@ qw_cal_t3_x_acc := g_cal[3].x_accel_s;
 qw_cal_t3_x_dec := g_cal[3].x_decel_s;
 qw_cal_t3_x_max := DINT_TO_INT(g_cal[3].x_max_mm_s);
 (* === Per-transporter config (g_cfg) — limits, physics, task areas === *)
-qw_cfg_t1_x_min := DINT_TO_INT(g_cfg[1].XMinLimit);
-qw_cfg_t1_x_max := DINT_TO_INT(g_cfg[1].XMaxLimit);
+qw_cfg_t1_x_min := DINT_TO_INT(g_cfg[1].XMinDriveLimit);
+qw_cfg_t1_x_max := DINT_TO_INT(g_cfg[1].XMaxDriveLimit);
 qw_cfg_t1_y_min := DINT_TO_INT(g_cfg[1].YMinLimit);
 qw_cfg_t1_y_max := DINT_TO_INT(g_cfg[1].YMaxLimit);
 qw_cfg_t1_x_avoid := DINT_TO_INT(g_cfg[1].XAvoidMm);
@@ -12379,8 +12449,8 @@ qw_cfg_t1_ta3_min_lift := g_cfg[1].task_area[3].min_lift;
 qw_cfg_t1_ta3_max_lift := g_cfg[1].task_area[3].max_lift;
 qw_cfg_t1_ta3_min_sink := g_cfg[1].task_area[3].min_sink;
 qw_cfg_t1_ta3_max_sink := g_cfg[1].task_area[3].max_sink;
-qw_cfg_t2_x_min := DINT_TO_INT(g_cfg[2].XMinLimit);
-qw_cfg_t2_x_max := DINT_TO_INT(g_cfg[2].XMaxLimit);
+qw_cfg_t2_x_min := DINT_TO_INT(g_cfg[2].XMinDriveLimit);
+qw_cfg_t2_x_max := DINT_TO_INT(g_cfg[2].XMaxDriveLimit);
 qw_cfg_t2_y_min := DINT_TO_INT(g_cfg[2].YMinLimit);
 qw_cfg_t2_y_max := DINT_TO_INT(g_cfg[2].YMaxLimit);
 qw_cfg_t2_x_avoid := DINT_TO_INT(g_cfg[2].XAvoidMm);
@@ -12408,8 +12478,8 @@ qw_cfg_t2_ta3_min_lift := g_cfg[2].task_area[3].min_lift;
 qw_cfg_t2_ta3_max_lift := g_cfg[2].task_area[3].max_lift;
 qw_cfg_t2_ta3_min_sink := g_cfg[2].task_area[3].min_sink;
 qw_cfg_t2_ta3_max_sink := g_cfg[2].task_area[3].max_sink;
-qw_cfg_t3_x_min := DINT_TO_INT(g_cfg[3].XMinLimit);
-qw_cfg_t3_x_max := DINT_TO_INT(g_cfg[3].XMaxLimit);
+qw_cfg_t3_x_min := DINT_TO_INT(g_cfg[3].XMinDriveLimit);
+qw_cfg_t3_x_max := DINT_TO_INT(g_cfg[3].XMaxDriveLimit);
 qw_cfg_t3_y_min := DINT_TO_INT(g_cfg[3].YMinLimit);
 qw_cfg_t3_y_max := DINT_TO_INT(g_cfg[3].YMaxLimit);
 qw_cfg_t3_x_avoid := DINT_TO_INT(g_cfg[3].XAvoidMm);
@@ -12483,8 +12553,8 @@ qw_sched_u10_stage_cnt := g_schedule[10].stage_count;
 qw_tq1_count := g_task[1].count;
 qw_tq1_q1_unit := g_task[1].queue[1].unit;
 qw_tq1_q1_stage := g_task[1].queue[1].stage;
-qw_tq1_q1_lift := g_task[1].queue[1].lift_station;
-qw_tq1_q1_sink := g_task[1].queue[1].sink_station;
+qw_tq1_q1_lift := g_task[1].queue[1].LiftStationTarget;
+qw_tq1_q1_sink := g_task[1].queue[1].SinkStationTarget;
 qw_tq1_q1_start_hi := LINT_TO_INT(g_task[1].queue[1].start_time / 65536);
 qw_tq1_q1_start_lo := LINT_TO_INT(g_task[1].queue[1].start_time MOD 65536);
 qw_tq1_q1_fin_hi := LINT_TO_INT(g_task[1].queue[1].finish_time / 65536);
@@ -12494,8 +12564,8 @@ qw_tq1_q1_min_x10 := DINT_TO_INT(g_task[1].queue[1].min_time) * 10;
 qw_tq1_q1_max_x10 := DINT_TO_INT(g_task[1].queue[1].max_time) * 10;
 qw_tq1_q2_unit := g_task[1].queue[2].unit;
 qw_tq1_q2_stage := g_task[1].queue[2].stage;
-qw_tq1_q2_lift := g_task[1].queue[2].lift_station;
-qw_tq1_q2_sink := g_task[1].queue[2].sink_station;
+qw_tq1_q2_lift := g_task[1].queue[2].LiftStationTarget;
+qw_tq1_q2_sink := g_task[1].queue[2].SinkStationTarget;
 qw_tq1_q2_start_hi := LINT_TO_INT(g_task[1].queue[2].start_time / 65536);
 qw_tq1_q2_start_lo := LINT_TO_INT(g_task[1].queue[2].start_time MOD 65536);
 qw_tq1_q2_fin_hi := LINT_TO_INT(g_task[1].queue[2].finish_time / 65536);
@@ -12505,8 +12575,8 @@ qw_tq1_q2_min_x10 := DINT_TO_INT(g_task[1].queue[2].min_time) * 10;
 qw_tq1_q2_max_x10 := DINT_TO_INT(g_task[1].queue[2].max_time) * 10;
 qw_tq1_q3_unit := g_task[1].queue[3].unit;
 qw_tq1_q3_stage := g_task[1].queue[3].stage;
-qw_tq1_q3_lift := g_task[1].queue[3].lift_station;
-qw_tq1_q3_sink := g_task[1].queue[3].sink_station;
+qw_tq1_q3_lift := g_task[1].queue[3].LiftStationTarget;
+qw_tq1_q3_sink := g_task[1].queue[3].SinkStationTarget;
 qw_tq1_q3_start_hi := LINT_TO_INT(g_task[1].queue[3].start_time / 65536);
 qw_tq1_q3_start_lo := LINT_TO_INT(g_task[1].queue[3].start_time MOD 65536);
 qw_tq1_q3_fin_hi := LINT_TO_INT(g_task[1].queue[3].finish_time / 65536);
@@ -12516,8 +12586,8 @@ qw_tq1_q3_min_x10 := DINT_TO_INT(g_task[1].queue[3].min_time) * 10;
 qw_tq1_q3_max_x10 := DINT_TO_INT(g_task[1].queue[3].max_time) * 10;
 qw_tq1_q4_unit := g_task[1].queue[4].unit;
 qw_tq1_q4_stage := g_task[1].queue[4].stage;
-qw_tq1_q4_lift := g_task[1].queue[4].lift_station;
-qw_tq1_q4_sink := g_task[1].queue[4].sink_station;
+qw_tq1_q4_lift := g_task[1].queue[4].LiftStationTarget;
+qw_tq1_q4_sink := g_task[1].queue[4].SinkStationTarget;
 qw_tq1_q4_start_hi := LINT_TO_INT(g_task[1].queue[4].start_time / 65536);
 qw_tq1_q4_start_lo := LINT_TO_INT(g_task[1].queue[4].start_time MOD 65536);
 qw_tq1_q4_fin_hi := LINT_TO_INT(g_task[1].queue[4].finish_time / 65536);
@@ -12527,8 +12597,8 @@ qw_tq1_q4_min_x10 := DINT_TO_INT(g_task[1].queue[4].min_time) * 10;
 qw_tq1_q4_max_x10 := DINT_TO_INT(g_task[1].queue[4].max_time) * 10;
 qw_tq1_q5_unit := g_task[1].queue[5].unit;
 qw_tq1_q5_stage := g_task[1].queue[5].stage;
-qw_tq1_q5_lift := g_task[1].queue[5].lift_station;
-qw_tq1_q5_sink := g_task[1].queue[5].sink_station;
+qw_tq1_q5_lift := g_task[1].queue[5].LiftStationTarget;
+qw_tq1_q5_sink := g_task[1].queue[5].SinkStationTarget;
 qw_tq1_q5_start_hi := LINT_TO_INT(g_task[1].queue[5].start_time / 65536);
 qw_tq1_q5_start_lo := LINT_TO_INT(g_task[1].queue[5].start_time MOD 65536);
 qw_tq1_q5_fin_hi := LINT_TO_INT(g_task[1].queue[5].finish_time / 65536);
@@ -12538,8 +12608,8 @@ qw_tq1_q5_min_x10 := DINT_TO_INT(g_task[1].queue[5].min_time) * 10;
 qw_tq1_q5_max_x10 := DINT_TO_INT(g_task[1].queue[5].max_time) * 10;
 qw_tq1_q6_unit := g_task[1].queue[6].unit;
 qw_tq1_q6_stage := g_task[1].queue[6].stage;
-qw_tq1_q6_lift := g_task[1].queue[6].lift_station;
-qw_tq1_q6_sink := g_task[1].queue[6].sink_station;
+qw_tq1_q6_lift := g_task[1].queue[6].LiftStationTarget;
+qw_tq1_q6_sink := g_task[1].queue[6].SinkStationTarget;
 qw_tq1_q6_start_hi := LINT_TO_INT(g_task[1].queue[6].start_time / 65536);
 qw_tq1_q6_start_lo := LINT_TO_INT(g_task[1].queue[6].start_time MOD 65536);
 qw_tq1_q6_fin_hi := LINT_TO_INT(g_task[1].queue[6].finish_time / 65536);
@@ -12549,8 +12619,8 @@ qw_tq1_q6_min_x10 := DINT_TO_INT(g_task[1].queue[6].min_time) * 10;
 qw_tq1_q6_max_x10 := DINT_TO_INT(g_task[1].queue[6].max_time) * 10;
 qw_tq1_q7_unit := g_task[1].queue[7].unit;
 qw_tq1_q7_stage := g_task[1].queue[7].stage;
-qw_tq1_q7_lift := g_task[1].queue[7].lift_station;
-qw_tq1_q7_sink := g_task[1].queue[7].sink_station;
+qw_tq1_q7_lift := g_task[1].queue[7].LiftStationTarget;
+qw_tq1_q7_sink := g_task[1].queue[7].SinkStationTarget;
 qw_tq1_q7_start_hi := LINT_TO_INT(g_task[1].queue[7].start_time / 65536);
 qw_tq1_q7_start_lo := LINT_TO_INT(g_task[1].queue[7].start_time MOD 65536);
 qw_tq1_q7_fin_hi := LINT_TO_INT(g_task[1].queue[7].finish_time / 65536);
@@ -12560,8 +12630,8 @@ qw_tq1_q7_min_x10 := DINT_TO_INT(g_task[1].queue[7].min_time) * 10;
 qw_tq1_q7_max_x10 := DINT_TO_INT(g_task[1].queue[7].max_time) * 10;
 qw_tq1_q8_unit := g_task[1].queue[8].unit;
 qw_tq1_q8_stage := g_task[1].queue[8].stage;
-qw_tq1_q8_lift := g_task[1].queue[8].lift_station;
-qw_tq1_q8_sink := g_task[1].queue[8].sink_station;
+qw_tq1_q8_lift := g_task[1].queue[8].LiftStationTarget;
+qw_tq1_q8_sink := g_task[1].queue[8].SinkStationTarget;
 qw_tq1_q8_start_hi := LINT_TO_INT(g_task[1].queue[8].start_time / 65536);
 qw_tq1_q8_start_lo := LINT_TO_INT(g_task[1].queue[8].start_time MOD 65536);
 qw_tq1_q8_fin_hi := LINT_TO_INT(g_task[1].queue[8].finish_time / 65536);
@@ -12571,8 +12641,8 @@ qw_tq1_q8_min_x10 := DINT_TO_INT(g_task[1].queue[8].min_time) * 10;
 qw_tq1_q8_max_x10 := DINT_TO_INT(g_task[1].queue[8].max_time) * 10;
 qw_tq1_q9_unit := g_task[1].queue[9].unit;
 qw_tq1_q9_stage := g_task[1].queue[9].stage;
-qw_tq1_q9_lift := g_task[1].queue[9].lift_station;
-qw_tq1_q9_sink := g_task[1].queue[9].sink_station;
+qw_tq1_q9_lift := g_task[1].queue[9].LiftStationTarget;
+qw_tq1_q9_sink := g_task[1].queue[9].SinkStationTarget;
 qw_tq1_q9_start_hi := LINT_TO_INT(g_task[1].queue[9].start_time / 65536);
 qw_tq1_q9_start_lo := LINT_TO_INT(g_task[1].queue[9].start_time MOD 65536);
 qw_tq1_q9_fin_hi := LINT_TO_INT(g_task[1].queue[9].finish_time / 65536);
@@ -12582,8 +12652,8 @@ qw_tq1_q9_min_x10 := DINT_TO_INT(g_task[1].queue[9].min_time) * 10;
 qw_tq1_q9_max_x10 := DINT_TO_INT(g_task[1].queue[9].max_time) * 10;
 qw_tq1_q10_unit := g_task[1].queue[10].unit;
 qw_tq1_q10_stage := g_task[1].queue[10].stage;
-qw_tq1_q10_lift := g_task[1].queue[10].lift_station;
-qw_tq1_q10_sink := g_task[1].queue[10].sink_station;
+qw_tq1_q10_lift := g_task[1].queue[10].LiftStationTarget;
+qw_tq1_q10_sink := g_task[1].queue[10].SinkStationTarget;
 qw_tq1_q10_start_hi := LINT_TO_INT(g_task[1].queue[10].start_time / 65536);
 qw_tq1_q10_start_lo := LINT_TO_INT(g_task[1].queue[10].start_time MOD 65536);
 qw_tq1_q10_fin_hi := LINT_TO_INT(g_task[1].queue[10].finish_time / 65536);
@@ -12594,8 +12664,8 @@ qw_tq1_q10_max_x10 := DINT_TO_INT(g_task[1].queue[10].max_time) * 10;
 qw_tq2_count := g_task[2].count;
 qw_tq2_q1_unit := g_task[2].queue[1].unit;
 qw_tq2_q1_stage := g_task[2].queue[1].stage;
-qw_tq2_q1_lift := g_task[2].queue[1].lift_station;
-qw_tq2_q1_sink := g_task[2].queue[1].sink_station;
+qw_tq2_q1_lift := g_task[2].queue[1].LiftStationTarget;
+qw_tq2_q1_sink := g_task[2].queue[1].SinkStationTarget;
 qw_tq2_q1_start_hi := LINT_TO_INT(g_task[2].queue[1].start_time / 65536);
 qw_tq2_q1_start_lo := LINT_TO_INT(g_task[2].queue[1].start_time MOD 65536);
 qw_tq2_q1_fin_hi := LINT_TO_INT(g_task[2].queue[1].finish_time / 65536);
@@ -12605,8 +12675,8 @@ qw_tq2_q1_min_x10 := DINT_TO_INT(g_task[2].queue[1].min_time) * 10;
 qw_tq2_q1_max_x10 := DINT_TO_INT(g_task[2].queue[1].max_time) * 10;
 qw_tq2_q2_unit := g_task[2].queue[2].unit;
 qw_tq2_q2_stage := g_task[2].queue[2].stage;
-qw_tq2_q2_lift := g_task[2].queue[2].lift_station;
-qw_tq2_q2_sink := g_task[2].queue[2].sink_station;
+qw_tq2_q2_lift := g_task[2].queue[2].LiftStationTarget;
+qw_tq2_q2_sink := g_task[2].queue[2].SinkStationTarget;
 qw_tq2_q2_start_hi := LINT_TO_INT(g_task[2].queue[2].start_time / 65536);
 qw_tq2_q2_start_lo := LINT_TO_INT(g_task[2].queue[2].start_time MOD 65536);
 qw_tq2_q2_fin_hi := LINT_TO_INT(g_task[2].queue[2].finish_time / 65536);
@@ -12616,8 +12686,8 @@ qw_tq2_q2_min_x10 := DINT_TO_INT(g_task[2].queue[2].min_time) * 10;
 qw_tq2_q2_max_x10 := DINT_TO_INT(g_task[2].queue[2].max_time) * 10;
 qw_tq2_q3_unit := g_task[2].queue[3].unit;
 qw_tq2_q3_stage := g_task[2].queue[3].stage;
-qw_tq2_q3_lift := g_task[2].queue[3].lift_station;
-qw_tq2_q3_sink := g_task[2].queue[3].sink_station;
+qw_tq2_q3_lift := g_task[2].queue[3].LiftStationTarget;
+qw_tq2_q3_sink := g_task[2].queue[3].SinkStationTarget;
 qw_tq2_q3_start_hi := LINT_TO_INT(g_task[2].queue[3].start_time / 65536);
 qw_tq2_q3_start_lo := LINT_TO_INT(g_task[2].queue[3].start_time MOD 65536);
 qw_tq2_q3_fin_hi := LINT_TO_INT(g_task[2].queue[3].finish_time / 65536);
@@ -12627,8 +12697,8 @@ qw_tq2_q3_min_x10 := DINT_TO_INT(g_task[2].queue[3].min_time) * 10;
 qw_tq2_q3_max_x10 := DINT_TO_INT(g_task[2].queue[3].max_time) * 10;
 qw_tq2_q4_unit := g_task[2].queue[4].unit;
 qw_tq2_q4_stage := g_task[2].queue[4].stage;
-qw_tq2_q4_lift := g_task[2].queue[4].lift_station;
-qw_tq2_q4_sink := g_task[2].queue[4].sink_station;
+qw_tq2_q4_lift := g_task[2].queue[4].LiftStationTarget;
+qw_tq2_q4_sink := g_task[2].queue[4].SinkStationTarget;
 qw_tq2_q4_start_hi := LINT_TO_INT(g_task[2].queue[4].start_time / 65536);
 qw_tq2_q4_start_lo := LINT_TO_INT(g_task[2].queue[4].start_time MOD 65536);
 qw_tq2_q4_fin_hi := LINT_TO_INT(g_task[2].queue[4].finish_time / 65536);
@@ -12638,8 +12708,8 @@ qw_tq2_q4_min_x10 := DINT_TO_INT(g_task[2].queue[4].min_time) * 10;
 qw_tq2_q4_max_x10 := DINT_TO_INT(g_task[2].queue[4].max_time) * 10;
 qw_tq2_q5_unit := g_task[2].queue[5].unit;
 qw_tq2_q5_stage := g_task[2].queue[5].stage;
-qw_tq2_q5_lift := g_task[2].queue[5].lift_station;
-qw_tq2_q5_sink := g_task[2].queue[5].sink_station;
+qw_tq2_q5_lift := g_task[2].queue[5].LiftStationTarget;
+qw_tq2_q5_sink := g_task[2].queue[5].SinkStationTarget;
 qw_tq2_q5_start_hi := LINT_TO_INT(g_task[2].queue[5].start_time / 65536);
 qw_tq2_q5_start_lo := LINT_TO_INT(g_task[2].queue[5].start_time MOD 65536);
 qw_tq2_q5_fin_hi := LINT_TO_INT(g_task[2].queue[5].finish_time / 65536);
@@ -12649,8 +12719,8 @@ qw_tq2_q5_min_x10 := DINT_TO_INT(g_task[2].queue[5].min_time) * 10;
 qw_tq2_q5_max_x10 := DINT_TO_INT(g_task[2].queue[5].max_time) * 10;
 qw_tq2_q6_unit := g_task[2].queue[6].unit;
 qw_tq2_q6_stage := g_task[2].queue[6].stage;
-qw_tq2_q6_lift := g_task[2].queue[6].lift_station;
-qw_tq2_q6_sink := g_task[2].queue[6].sink_station;
+qw_tq2_q6_lift := g_task[2].queue[6].LiftStationTarget;
+qw_tq2_q6_sink := g_task[2].queue[6].SinkStationTarget;
 qw_tq2_q6_start_hi := LINT_TO_INT(g_task[2].queue[6].start_time / 65536);
 qw_tq2_q6_start_lo := LINT_TO_INT(g_task[2].queue[6].start_time MOD 65536);
 qw_tq2_q6_fin_hi := LINT_TO_INT(g_task[2].queue[6].finish_time / 65536);
@@ -12660,8 +12730,8 @@ qw_tq2_q6_min_x10 := DINT_TO_INT(g_task[2].queue[6].min_time) * 10;
 qw_tq2_q6_max_x10 := DINT_TO_INT(g_task[2].queue[6].max_time) * 10;
 qw_tq2_q7_unit := g_task[2].queue[7].unit;
 qw_tq2_q7_stage := g_task[2].queue[7].stage;
-qw_tq2_q7_lift := g_task[2].queue[7].lift_station;
-qw_tq2_q7_sink := g_task[2].queue[7].sink_station;
+qw_tq2_q7_lift := g_task[2].queue[7].LiftStationTarget;
+qw_tq2_q7_sink := g_task[2].queue[7].SinkStationTarget;
 qw_tq2_q7_start_hi := LINT_TO_INT(g_task[2].queue[7].start_time / 65536);
 qw_tq2_q7_start_lo := LINT_TO_INT(g_task[2].queue[7].start_time MOD 65536);
 qw_tq2_q7_fin_hi := LINT_TO_INT(g_task[2].queue[7].finish_time / 65536);
@@ -12671,8 +12741,8 @@ qw_tq2_q7_min_x10 := DINT_TO_INT(g_task[2].queue[7].min_time) * 10;
 qw_tq2_q7_max_x10 := DINT_TO_INT(g_task[2].queue[7].max_time) * 10;
 qw_tq2_q8_unit := g_task[2].queue[8].unit;
 qw_tq2_q8_stage := g_task[2].queue[8].stage;
-qw_tq2_q8_lift := g_task[2].queue[8].lift_station;
-qw_tq2_q8_sink := g_task[2].queue[8].sink_station;
+qw_tq2_q8_lift := g_task[2].queue[8].LiftStationTarget;
+qw_tq2_q8_sink := g_task[2].queue[8].SinkStationTarget;
 qw_tq2_q8_start_hi := LINT_TO_INT(g_task[2].queue[8].start_time / 65536);
 qw_tq2_q8_start_lo := LINT_TO_INT(g_task[2].queue[8].start_time MOD 65536);
 qw_tq2_q8_fin_hi := LINT_TO_INT(g_task[2].queue[8].finish_time / 65536);
@@ -12682,8 +12752,8 @@ qw_tq2_q8_min_x10 := DINT_TO_INT(g_task[2].queue[8].min_time) * 10;
 qw_tq2_q8_max_x10 := DINT_TO_INT(g_task[2].queue[8].max_time) * 10;
 qw_tq2_q9_unit := g_task[2].queue[9].unit;
 qw_tq2_q9_stage := g_task[2].queue[9].stage;
-qw_tq2_q9_lift := g_task[2].queue[9].lift_station;
-qw_tq2_q9_sink := g_task[2].queue[9].sink_station;
+qw_tq2_q9_lift := g_task[2].queue[9].LiftStationTarget;
+qw_tq2_q9_sink := g_task[2].queue[9].SinkStationTarget;
 qw_tq2_q9_start_hi := LINT_TO_INT(g_task[2].queue[9].start_time / 65536);
 qw_tq2_q9_start_lo := LINT_TO_INT(g_task[2].queue[9].start_time MOD 65536);
 qw_tq2_q9_fin_hi := LINT_TO_INT(g_task[2].queue[9].finish_time / 65536);
@@ -12693,8 +12763,8 @@ qw_tq2_q9_min_x10 := DINT_TO_INT(g_task[2].queue[9].min_time) * 10;
 qw_tq2_q9_max_x10 := DINT_TO_INT(g_task[2].queue[9].max_time) * 10;
 qw_tq2_q10_unit := g_task[2].queue[10].unit;
 qw_tq2_q10_stage := g_task[2].queue[10].stage;
-qw_tq2_q10_lift := g_task[2].queue[10].lift_station;
-qw_tq2_q10_sink := g_task[2].queue[10].sink_station;
+qw_tq2_q10_lift := g_task[2].queue[10].LiftStationTarget;
+qw_tq2_q10_sink := g_task[2].queue[10].SinkStationTarget;
 qw_tq2_q10_start_hi := LINT_TO_INT(g_task[2].queue[10].start_time / 65536);
 qw_tq2_q10_start_lo := LINT_TO_INT(g_task[2].queue[10].start_time MOD 65536);
 qw_tq2_q10_fin_hi := LINT_TO_INT(g_task[2].queue[10].finish_time / 65536);
@@ -12705,8 +12775,8 @@ qw_tq2_q10_max_x10 := DINT_TO_INT(g_task[2].queue[10].max_time) * 10;
 qw_tq3_count := g_task[3].count;
 qw_tq3_q1_unit := g_task[3].queue[1].unit;
 qw_tq3_q1_stage := g_task[3].queue[1].stage;
-qw_tq3_q1_lift := g_task[3].queue[1].lift_station;
-qw_tq3_q1_sink := g_task[3].queue[1].sink_station;
+qw_tq3_q1_lift := g_task[3].queue[1].LiftStationTarget;
+qw_tq3_q1_sink := g_task[3].queue[1].SinkStationTarget;
 qw_tq3_q1_start_hi := LINT_TO_INT(g_task[3].queue[1].start_time / 65536);
 qw_tq3_q1_start_lo := LINT_TO_INT(g_task[3].queue[1].start_time MOD 65536);
 qw_tq3_q1_fin_hi := LINT_TO_INT(g_task[3].queue[1].finish_time / 65536);
@@ -12716,8 +12786,8 @@ qw_tq3_q1_min_x10 := DINT_TO_INT(g_task[3].queue[1].min_time) * 10;
 qw_tq3_q1_max_x10 := DINT_TO_INT(g_task[3].queue[1].max_time) * 10;
 qw_tq3_q2_unit := g_task[3].queue[2].unit;
 qw_tq3_q2_stage := g_task[3].queue[2].stage;
-qw_tq3_q2_lift := g_task[3].queue[2].lift_station;
-qw_tq3_q2_sink := g_task[3].queue[2].sink_station;
+qw_tq3_q2_lift := g_task[3].queue[2].LiftStationTarget;
+qw_tq3_q2_sink := g_task[3].queue[2].SinkStationTarget;
 qw_tq3_q2_start_hi := LINT_TO_INT(g_task[3].queue[2].start_time / 65536);
 qw_tq3_q2_start_lo := LINT_TO_INT(g_task[3].queue[2].start_time MOD 65536);
 qw_tq3_q2_fin_hi := LINT_TO_INT(g_task[3].queue[2].finish_time / 65536);
@@ -12727,8 +12797,8 @@ qw_tq3_q2_min_x10 := DINT_TO_INT(g_task[3].queue[2].min_time) * 10;
 qw_tq3_q2_max_x10 := DINT_TO_INT(g_task[3].queue[2].max_time) * 10;
 qw_tq3_q3_unit := g_task[3].queue[3].unit;
 qw_tq3_q3_stage := g_task[3].queue[3].stage;
-qw_tq3_q3_lift := g_task[3].queue[3].lift_station;
-qw_tq3_q3_sink := g_task[3].queue[3].sink_station;
+qw_tq3_q3_lift := g_task[3].queue[3].LiftStationTarget;
+qw_tq3_q3_sink := g_task[3].queue[3].SinkStationTarget;
 qw_tq3_q3_start_hi := LINT_TO_INT(g_task[3].queue[3].start_time / 65536);
 qw_tq3_q3_start_lo := LINT_TO_INT(g_task[3].queue[3].start_time MOD 65536);
 qw_tq3_q3_fin_hi := LINT_TO_INT(g_task[3].queue[3].finish_time / 65536);
@@ -12738,8 +12808,8 @@ qw_tq3_q3_min_x10 := DINT_TO_INT(g_task[3].queue[3].min_time) * 10;
 qw_tq3_q3_max_x10 := DINT_TO_INT(g_task[3].queue[3].max_time) * 10;
 qw_tq3_q4_unit := g_task[3].queue[4].unit;
 qw_tq3_q4_stage := g_task[3].queue[4].stage;
-qw_tq3_q4_lift := g_task[3].queue[4].lift_station;
-qw_tq3_q4_sink := g_task[3].queue[4].sink_station;
+qw_tq3_q4_lift := g_task[3].queue[4].LiftStationTarget;
+qw_tq3_q4_sink := g_task[3].queue[4].SinkStationTarget;
 qw_tq3_q4_start_hi := LINT_TO_INT(g_task[3].queue[4].start_time / 65536);
 qw_tq3_q4_start_lo := LINT_TO_INT(g_task[3].queue[4].start_time MOD 65536);
 qw_tq3_q4_fin_hi := LINT_TO_INT(g_task[3].queue[4].finish_time / 65536);
@@ -12749,8 +12819,8 @@ qw_tq3_q4_min_x10 := DINT_TO_INT(g_task[3].queue[4].min_time) * 10;
 qw_tq3_q4_max_x10 := DINT_TO_INT(g_task[3].queue[4].max_time) * 10;
 qw_tq3_q5_unit := g_task[3].queue[5].unit;
 qw_tq3_q5_stage := g_task[3].queue[5].stage;
-qw_tq3_q5_lift := g_task[3].queue[5].lift_station;
-qw_tq3_q5_sink := g_task[3].queue[5].sink_station;
+qw_tq3_q5_lift := g_task[3].queue[5].LiftStationTarget;
+qw_tq3_q5_sink := g_task[3].queue[5].SinkStationTarget;
 qw_tq3_q5_start_hi := LINT_TO_INT(g_task[3].queue[5].start_time / 65536);
 qw_tq3_q5_start_lo := LINT_TO_INT(g_task[3].queue[5].start_time MOD 65536);
 qw_tq3_q5_fin_hi := LINT_TO_INT(g_task[3].queue[5].finish_time / 65536);
@@ -12760,8 +12830,8 @@ qw_tq3_q5_min_x10 := DINT_TO_INT(g_task[3].queue[5].min_time) * 10;
 qw_tq3_q5_max_x10 := DINT_TO_INT(g_task[3].queue[5].max_time) * 10;
 qw_tq3_q6_unit := g_task[3].queue[6].unit;
 qw_tq3_q6_stage := g_task[3].queue[6].stage;
-qw_tq3_q6_lift := g_task[3].queue[6].lift_station;
-qw_tq3_q6_sink := g_task[3].queue[6].sink_station;
+qw_tq3_q6_lift := g_task[3].queue[6].LiftStationTarget;
+qw_tq3_q6_sink := g_task[3].queue[6].SinkStationTarget;
 qw_tq3_q6_start_hi := LINT_TO_INT(g_task[3].queue[6].start_time / 65536);
 qw_tq3_q6_start_lo := LINT_TO_INT(g_task[3].queue[6].start_time MOD 65536);
 qw_tq3_q6_fin_hi := LINT_TO_INT(g_task[3].queue[6].finish_time / 65536);
@@ -12771,8 +12841,8 @@ qw_tq3_q6_min_x10 := DINT_TO_INT(g_task[3].queue[6].min_time) * 10;
 qw_tq3_q6_max_x10 := DINT_TO_INT(g_task[3].queue[6].max_time) * 10;
 qw_tq3_q7_unit := g_task[3].queue[7].unit;
 qw_tq3_q7_stage := g_task[3].queue[7].stage;
-qw_tq3_q7_lift := g_task[3].queue[7].lift_station;
-qw_tq3_q7_sink := g_task[3].queue[7].sink_station;
+qw_tq3_q7_lift := g_task[3].queue[7].LiftStationTarget;
+qw_tq3_q7_sink := g_task[3].queue[7].SinkStationTarget;
 qw_tq3_q7_start_hi := LINT_TO_INT(g_task[3].queue[7].start_time / 65536);
 qw_tq3_q7_start_lo := LINT_TO_INT(g_task[3].queue[7].start_time MOD 65536);
 qw_tq3_q7_fin_hi := LINT_TO_INT(g_task[3].queue[7].finish_time / 65536);
@@ -12782,8 +12852,8 @@ qw_tq3_q7_min_x10 := DINT_TO_INT(g_task[3].queue[7].min_time) * 10;
 qw_tq3_q7_max_x10 := DINT_TO_INT(g_task[3].queue[7].max_time) * 10;
 qw_tq3_q8_unit := g_task[3].queue[8].unit;
 qw_tq3_q8_stage := g_task[3].queue[8].stage;
-qw_tq3_q8_lift := g_task[3].queue[8].lift_station;
-qw_tq3_q8_sink := g_task[3].queue[8].sink_station;
+qw_tq3_q8_lift := g_task[3].queue[8].LiftStationTarget;
+qw_tq3_q8_sink := g_task[3].queue[8].SinkStationTarget;
 qw_tq3_q8_start_hi := LINT_TO_INT(g_task[3].queue[8].start_time / 65536);
 qw_tq3_q8_start_lo := LINT_TO_INT(g_task[3].queue[8].start_time MOD 65536);
 qw_tq3_q8_fin_hi := LINT_TO_INT(g_task[3].queue[8].finish_time / 65536);
@@ -12793,8 +12863,8 @@ qw_tq3_q8_min_x10 := DINT_TO_INT(g_task[3].queue[8].min_time) * 10;
 qw_tq3_q8_max_x10 := DINT_TO_INT(g_task[3].queue[8].max_time) * 10;
 qw_tq3_q9_unit := g_task[3].queue[9].unit;
 qw_tq3_q9_stage := g_task[3].queue[9].stage;
-qw_tq3_q9_lift := g_task[3].queue[9].lift_station;
-qw_tq3_q9_sink := g_task[3].queue[9].sink_station;
+qw_tq3_q9_lift := g_task[3].queue[9].LiftStationTarget;
+qw_tq3_q9_sink := g_task[3].queue[9].SinkStationTarget;
 qw_tq3_q9_start_hi := LINT_TO_INT(g_task[3].queue[9].start_time / 65536);
 qw_tq3_q9_start_lo := LINT_TO_INT(g_task[3].queue[9].start_time MOD 65536);
 qw_tq3_q9_fin_hi := LINT_TO_INT(g_task[3].queue[9].finish_time / 65536);
@@ -12804,8 +12874,8 @@ qw_tq3_q9_min_x10 := DINT_TO_INT(g_task[3].queue[9].min_time) * 10;
 qw_tq3_q9_max_x10 := DINT_TO_INT(g_task[3].queue[9].max_time) * 10;
 qw_tq3_q10_unit := g_task[3].queue[10].unit;
 qw_tq3_q10_stage := g_task[3].queue[10].stage;
-qw_tq3_q10_lift := g_task[3].queue[10].lift_station;
-qw_tq3_q10_sink := g_task[3].queue[10].sink_station;
+qw_tq3_q10_lift := g_task[3].queue[10].LiftStationTarget;
+qw_tq3_q10_sink := g_task[3].queue[10].SinkStationTarget;
 qw_tq3_q10_start_hi := LINT_TO_INT(g_task[3].queue[10].start_time / 65536);
 qw_tq3_q10_start_lo := LINT_TO_INT(g_task[3].queue[10].start_time MOD 65536);
 qw_tq3_q10_fin_hi := LINT_TO_INT(g_task[3].queue[10].finish_time / 65536);
@@ -13298,25 +13368,25 @@ END_IF;]]></xhtml:p>
             <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
           </variable>
           <variable name="g_station_loc">
-            <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation"/></type>
+            <type><derived name="ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation"/></type>
           </variable>
           <variable name="g_cfg">
             <type><derived name="ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T"/></type>
           </variable>
           <variable name="g_transporter">
-            <type><derived name="ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T"/></type>
+            <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
           </variable>
           <variable name="g_unit">
-            <type><derived name="ARRAY[1..MAX_Units] OF UNIT_T"/></type>
+            <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>
           </variable>
           <variable name="g_ntt">
             <type><derived name="ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T"/></type>
           </variable>
           <variable name="g_batch">
-            <type><derived name="ARRAY[1..MAX_Units] OF BATCH_T"/></type>
+            <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
           </variable>
           <variable name="g_program">
-            <type><derived name="ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T"/></type>
+            <type><derived name="ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType"/></type>
           </variable>
           <variable name="g_avoid_status">
             <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF INT"/></type>

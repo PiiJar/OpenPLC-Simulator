@@ -2,14 +2,54 @@
    types.st — Data type definitions for the transporter simulator
    ============================================================ *)
 
-TYPE TANK_T :
+TYPE UDT_TankType :
 STRUCT
-  TankId    : INT;
-  status     : INT;    (* NOT_USED=0, USED=1 *)
-  XPosition    : DINT;
-  YPosition    : DINT;
-  ZPosition    : DINT;
-  kind       : INT;
+  (* === Tank Identification === *)
+  TankId                : INT;     (* Primary key *)
+  EquipmentCode         : STRING;  (* Equipment code matching PID *)
+  TankName              : STRING;  (* Optional descriptive name *)
+  TypeId                : INT;     (* Tank type identifier *)
+  IsInUse               : BOOL;    (* TRUE = in use *)
+  LineId                : INT;     (* Process line identifier *)
+  GroupId               : INT;     (* Reference to tank_group.GroupId *)
+  RinseId               : INT;     (* Rinse tank reference *)
+  FilterUnitId          : INT;     (* Filter unit reference *)
+  Color                 : STRING;  (* Display color RGB hex *)
+  (* === Position in mm (simulator) === *)
+  XPosition             : DINT;    (* X position mm *)
+  YPosition             : DINT;    (* Y position mm *)
+  ZPosition             : DINT;    (* Z position mm *)
+  (* === Temperature Control (x2) === *)
+  TemperatureControl1Id : INT;     (* Reference to TemperatureControls, 0 = none *)
+  TemperatureControl2Id : INT;     (* Reference to TemperatureControls, 0 = none *)
+  (* === Level Control === *)
+  LevelControlId        : INT;     (* Reference to LevelControls, 0 = none *)
+  (* === pH Control === *)
+  PHControlId           : INT;     (* Reference to PHControls, 0 = none *)
+  (* === Conductivity Control === *)
+  ConductivityControlId : INT;     (* Reference to ConductivityControls, 0 = none *)
+  (* === Measurements (x3) === *)
+  Measurement1Id        : INT;     (* Reference to Measurements, 0 = none *)
+  Measurement2Id        : INT;     (* Reference to Measurements, 0 = none *)
+  Measurement3Id        : INT;     (* Reference to Measurements, 0 = none *)
+  (* === Pumps (x3) === *)
+  Pump1Idx              : INT;     (* Reference to Pumps, 0 = none *)
+  Pump2Idx              : INT;     (* Reference to Pumps, 0 = none *)
+  Pump3Idx              : INT;     (* Reference to Pumps, 0 = none *)
+  (* === Chemical Dosing (x3) === *)
+  ChemicalDosing1Id     : INT;     (* Reference to ChemicalDosings, 0 = none *)
+  ChemicalDosing2Id     : INT;     (* Reference to ChemicalDosings, 0 = none *)
+  ChemicalDosing3Id     : INT;     (* Reference to ChemicalDosings, 0 = none *)
+  (* === Agitation === *)
+  AgitationId           : INT;     (* Reference to Agitations, 0 = none *)
+  (* === Mixer === *)
+  MixerId               : INT;     (* Reference to Mixers, 0 = none *)
+  (* === Blower === *)
+  BlowerId              : INT;     (* Reference to Blowers, 0 = none *)
+  (* === Cover === *)
+  CoverId               : INT;     (* Reference to Covers, 0 = none *)
+  (* === Rectifier === *)
+  RectifierId           : INT;     (* Reference to Rectifiers, 0 = none *)
 END_STRUCT;
 END_TYPE
 
@@ -77,8 +117,8 @@ END_TYPE
 
 TYPE TRANSPORTER_CFG_T :
 STRUCT
-  XMinLimit   : DINT;
-  XMaxLimit   : DINT;
+  XMinDriveLimit   : DINT;
+  XMaxDriveLimit   : DINT;
   YMinLimit   : DINT;
   YMaxLimit   : DINT;
   XAvoidMm    : DINT;
@@ -90,13 +130,13 @@ END_TYPE
 
 (* ── Transporter interface — production-compatible ──────────── *)
 (* Used by scheduler, TWA, simulation, and production alike.     *)
-(* g_transporter : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T              *)
-TYPE STC_TRANSPORTER_T :
+(* g_transporter : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType      *)
+TYPE UDT_TransporterStatusType :
 STRUCT
   (* --- Command (scheduler → transporter) --- *)
   task_id            : LINT;     (* g_time_s at assignment — sync key *)
-  lift_station       : INT;      (* pickup station number *)
-  sink_station       : INT;      (* putdown station number *)
+  LiftStationTarget  : INT;     (* pickup station number *)
+  SinkStationTarget  : INT;     (* putdown station number *)
   treatment_time     : DINT;     (* treatment duration (seconds) *)
   min_time           : DINT;     (* minimum treatment time (seconds) *)
   max_time           : DINT;     (* maximum treatment time (seconds) *)
@@ -104,11 +144,10 @@ STRUCT
   sink_device_delay  : INT;      (* sink station device delay ×10 = tenths of second *)
   DrippingTime       : INT;      (* dripping time ×10 = tenths of second *)
   (* --- Status (transporter → outside world) --- *)
-  status             : INT;      (* 0=not_used 1=manual 2=half_manual 3=auto_idle 4=auto_run *)
-  phase              : INT;      (* 0=idle 1=to_lift 2=lifting 3=to_sink 4=sinking *)
-  UnitId            : INT;      (* unit currently being transported, 0 = none *)
+  Status             : INT;      (* 0=not_used 1=manual 2=half_manual 3=auto_idle 4=auto_run *)
+  Phase              : INT;      (* 0=idle 1=to_lift 2=lifting 3=to_sink 4=sinking *)
   running_task_id    : LINT;     (* copied from task_id when accepted *)
-  current_station    : INT;      (* nearest station number *)
+  CurrentStation     : INT;      (* nearest station number *)
   remaining_time     : DINT;     (* remaining treatment time (seconds) *)
   (* --- Drive (runtime / TWA) --- *)
   XFinalTarget       : DINT;     (* destination X (station position) mm *)
@@ -121,14 +160,14 @@ STRUCT
   XVelocity          : DINT;     (* X velocity mm/s *)
   z_stage            : INT;      (* Z motion sub-phase *)
   z_timer_s          : REAL;     (* Z motion timer — simulation internal *)
-  XMinLimit          : DINT;     (* TWA lower X limit mm *)
-  XMaxLimit          : DINT;     (* TWA upper X limit mm *)
+  XMinDriveLimit     : DINT;     (* TWA lower X limit mm *)
+  XMaxDriveLimit     : DINT;     (* TWA upper X limit mm *)
   (* --- General --- *)
-  active             : BOOL;     (* transporter enabled *)
+  IsActive           : BOOL;     (* transporter enabled *)
 END_STRUCT;
 END_TYPE
 
-TYPE BATCH_T :
+TYPE UDT_BatchType :
 STRUCT
   batch_code  : INT;     (* numeric batch code — JS: batch_id *)
   cur_stage   : INT;     (* current stage number, 0 = not started — JS: stage *)
@@ -141,26 +180,26 @@ STRUCT
 END_STRUCT;
 END_TYPE
 
-TYPE PROGRAM_STAGE_T :
+TYPE UDT_TreatmentProgramStepType :
 STRUCT
-  Stations     : ARRAY[0..4] OF INT;   (* up to MAX_STATIONS_PER_STEP station numbers, 0-based *)
-  StationCount : INT;                   (* number of valid stations in Stations array *)
   MinTime      : DINT;                  (* minimum processing time (seconds) *)
   MaxTime      : DINT;                  (* maximum processing time (seconds) *)
   CalTime      : DINT;                  (* calculated / target time (seconds) *)
+  StationCount : INT;                   (* number of valid stations in Stations array *)
+  Stations     : ARRAY[0..4] OF INT;   (* up to MAX_STATIONS_PER_STEP station numbers, 0-based *)
 END_STRUCT;
 END_TYPE
 
-TYPE TREATMENT_PROGRAM_T :
+TYPE UDT_TreatmentProgramType :
 STRUCT
   program_id  : INT;                       (* treatment program number *)
   ProgramName : STRING;                    (* treatment program name, max 254 chars *)
   StepCount   : INT;                       (* number of valid steps in Steps array *)
-  Steps       : ARRAY[0..30] OF PROGRAM_STAGE_T;  (* 0-based, up to MAX_STEPS_PER_PROGRAM *)
+  Steps       : ARRAY[0..30] OF UDT_TreatmentProgramStepType;  (* 0-based, up to MAX_STEPS_PER_PROGRAM *)
 END_STRUCT;
 END_TYPE
 
-TYPE UNIT_T :
+TYPE UDT_UnitType :
 STRUCT
   location : INT;    (* station number where unit currently is *)
   status   : INT;    (* NOT_USED=0, USED=1 *)
@@ -171,7 +210,7 @@ END_TYPE
 (* Snapshot of unit state — pre-computed once per cycle by NoTreatmentStates *)
 TYPE UNIT_SNAP_T :
 STRUCT
-  active     : BOOL;   (* status <> NOT_USED *)
+  IsActive   : BOOL;   (* status <> NOT_USED *)
   loc        : INT;    (* location *)
   loc_op     : INT;    (* station operation at location *)
   tgt        : INT;    (* target *)
@@ -243,14 +282,14 @@ END_TYPE
 
 (* Transporter task queue — indexed by transporter, then task slot       *)
 (* unit is direct index to g_batch, g_program, g_schedule, g_unit   *)
-(* Access: g_task[transporter].queue[slot].lift_station                *)
+(* Access: g_task[transporter].queue[slot].LiftStationTarget                *)
 
 TYPE TSK_TASK_T :
 STRUCT
   unit         : INT;     (* unit index 1..10, 0 = no task *)
   stage        : INT;     (* program stage that created this task *)
-  lift_station : INT;     (* station to pick up from *)
-  sink_station : INT;     (* station to put down to *)
+  LiftStationTarget : INT; (* station to pick up from *)
+  SinkStationTarget : INT; (* station to put down to *)
   start_time   : LINT;    (* absolute time task begins (s), unix seconds *)
   finish_time  : LINT;    (* absolute time task completes (s), unix seconds *)
   calc_time    : DINT;    (* treatment calc_time for flex (seconds) *)
@@ -309,8 +348,8 @@ TYPE DEP_IDLE_SLOT_T :
 STRUCT
   start_time   : LINT;    (* idle window start (s), unix seconds *)
   end_time     : LINT;    (* idle window end (s), 0 = open-ended *)
-  lift_station : INT;     (* transporter at this station at idle start *)
-  sink_station : INT;     (* transporter at this station at idle end *)
+  LiftStationTarget : INT; (* transporter at this station at idle start *)
+  SinkStationTarget : INT; (* transporter at this station at idle end *)
 END_STRUCT;
 END_TYPE
 
@@ -359,8 +398,8 @@ END_TYPE
 TYPE DEP_SANDBOX_T :
 STRUCT
   schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;           (* MAX_Units *)
-  batches  : ARRAY[1..10] OF BATCH_T;                   (* MAX_Units *)
-  programs : ARRAY[1..10] OF TREATMENT_PROGRAM_T;       (* MAX_Units *)
+  batches  : ARRAY[1..10] OF UDT_BatchType;              (* MAX_Units *)
+  programs : ARRAY[1..10] OF UDT_TreatmentProgramType;       (* MAX_Units *)
   tasks    : ARRAY[1..3] OF TSK_QUEUE_T;                (* MAX_Transporters — literal required in TYPE *)
   valid    : BOOL;
 END_STRUCT;
@@ -371,7 +410,7 @@ END_TYPE
 TYPE DEP_PENDING_WRITE_T :
 STRUCT
   valid      : BOOL;
-  programs   : ARRAY[1..10] OF TREATMENT_PROGRAM_T;    (* MAX_Units *)
+  programs   : ARRAY[1..10] OF UDT_TreatmentProgramType;    (* MAX_Units *)
   schedule   : ARRAY[1..10] OF TSK_SCHEDULE_T;          (* MAX_Units *)
   batch_unit       : INT;     (* activated batch: unit index *)
   batch_stage      : INT;     (* activated batch: new cur_stage *)

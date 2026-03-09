@@ -22,12 +22,12 @@
        → excludes device_delay + drip_delay (stage 6).
 
    Usage in plc_prg.st (one instance per transporter):
-     tm1(t_id := 1, phase := g_transporter[1].phase,
+     tm1(t_id := 1, phase := g_transporter[1].Phase,
          delta_t := 0.02, vel_x := g_transporter[1].XVelocity,
          z_stage := g_transporter[1].z_stage,
-         lift_stn := g_transporter[1].lift_station,
-         sink_stn := g_transporter[1].sink_station,
-         from_stn := g_transporter[1].current_station);
+         lift_stn := g_transporter[1].LiftStationTarget,
+         sink_stn := g_transporter[1].SinkStationTarget,
+         from_stn := g_transporter[1].CurrentStation);
 
    Access recorded times:
      travel := g_move[1].travel[3].to_s[11];   stn 103 to 111

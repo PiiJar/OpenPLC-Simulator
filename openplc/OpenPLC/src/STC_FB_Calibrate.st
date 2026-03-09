@@ -55,7 +55,7 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_transporter : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
+  g_transporter : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
   g_station    : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
   g_cfg         : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
   g_cal         : ARRAY[1..MAX_Transporters] OF CALIBRATION_T;
@@ -100,7 +100,7 @@ IF i_cmd = 1 AND cal_step = 0 THEN
   (* Start calibration — find first active transporter with plan *)
   tid := 0;
   FOR ci := 1 TO MAX_Transporters DO
-    IF g_transporter[ci].active AND tid = 0 THEN
+    IF g_transporter[ci].IsActive AND tid = 0 THEN
       IF g_cal[ci].wet_station > 0 AND g_cal[ci].dry_station > 0 THEN
         tid := ci;
       END_IF;
@@ -133,8 +133,8 @@ IF cal_step = 10 THEN
   (* Issue task 1: lift from dry, sink to wet *)
   task_key := g_time_s;
   g_transporter[tid].task_id := task_key;
-  g_transporter[tid].lift_station := g_cal[tid].dry_station;
-  g_transporter[tid].sink_station := g_cal[tid].wet_station;
+  g_transporter[tid].LiftStationTarget := g_cal[tid].dry_station;
+  g_transporter[tid].SinkStationTarget := g_cal[tid].wet_station;
   (* Reset X velocity measurement *)
   x_meas_ph := 0;
   x_timer   := 0.0;
@@ -156,7 +156,7 @@ IF cal_step = 12 THEN
   cur_v := ABS(DINT_TO_REAL(g_transporter[tid].XVelocity));
 
   (* ── Track X velocity during phase 3 (travel dry→wet) ── *)
-  IF g_transporter[tid].phase = 3 THEN
+  IF g_transporter[tid].Phase = 3 THEN
     IF x_meas_ph = 0 AND cur_v > 0.5 THEN
       (* Acceleration started *)
       x_meas_ph := 1;
@@ -190,7 +190,7 @@ IF cal_step = 12 THEN
   END_IF;
 
   (* ── Phase 3 ended or phase 4 reached: store X results ── *)
-  IF g_transporter[tid].phase >= 4 AND x_meas_ph >= 1 THEN
+  IF g_transporter[tid].Phase >= 4 AND x_meas_ph >= 1 THEN
     IF x_meas_ph = 3 THEN
       x_dec_t := x_timer;
     END_IF;
@@ -202,7 +202,7 @@ IF cal_step = 12 THEN
   END_IF;
 
   (* ── Wait for full task completion (phase returns to 0) ── *)
-  IF g_transporter[tid].phase = 0 AND x_meas_ph >= 99 THEN
+  IF g_transporter[tid].Phase = 0 AND x_meas_ph >= 99 THEN
     cal_step := 20;
   END_IF;
 END_IF;
@@ -215,8 +215,8 @@ IF cal_step = 20 THEN
   (* Issue task 2: lift from wet, sink to dry *)
   task_key := g_time_s + LINT#1;
   g_transporter[tid].task_id := task_key;
-  g_transporter[tid].lift_station := g_cal[tid].wet_station;
-  g_transporter[tid].sink_station := g_cal[tid].dry_station;
+  g_transporter[tid].LiftStationTarget := g_cal[tid].wet_station;
+  g_transporter[tid].SinkStationTarget := g_cal[tid].dry_station;
   cal_step := 21;
 END_IF;
 
@@ -228,7 +228,7 @@ END_IF;
 
 IF cal_step = 22 THEN
   (* Wait for task completion *)
-  IF g_transporter[tid].phase = 0 THEN
+  IF g_transporter[tid].Phase = 0 THEN
     cal_step := 30;
   END_IF;
 END_IF;
@@ -261,7 +261,7 @@ IF cal_step = 40 THEN
   (* Find next active transporter after current tid with plan *)
   next_tid := 0;
   FOR ci := tid + 1 TO MAX_Transporters DO
-    IF g_transporter[ci].active AND next_tid = 0 THEN
+    IF g_transporter[ci].IsActive AND next_tid = 0 THEN
       IF g_cal[ci].wet_station > 0 AND g_cal[ci].dry_station > 0 THEN
         next_tid := ci;
       END_IF;
@@ -288,7 +288,7 @@ END_IF;
    ================================================================ *)
 IF cal_step = 200 THEN
   FOR ci := 1 TO MAX_Transporters DO
-    IF g_transporter[ci].active AND g_cal[ci].x_max_mm_s > 0 THEN
+    IF g_transporter[ci].IsActive AND g_cal[ci].x_max_mm_s > 0 THEN
 
       vm := DINT_TO_REAL(g_cal[ci].x_max_mm_s);
       ta := INT_TO_REAL(g_cal[ci].x_accel_s) / 10.0;

@@ -30,12 +30,12 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_transporter  : ARRAY[1..MAX_Transporters] OF STC_TRANSPORTER_T;
-  g_station     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;    g_station_loc  : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_UnitLocation;  g_cfg          : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
+  g_transporter  : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
+  g_station     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;    g_station_loc  : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;  g_cfg          : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
   g_move         : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
-  g_unit         : ARRAY[1..MAX_Units] OF UNIT_T;
-  g_batch        : ARRAY[1..MAX_Units] OF BATCH_T;
-  g_program      : ARRAY[1..MAX_Units] OF TREATMENT_PROGRAM_T;
+  g_unit         : ARRAY[1..MAX_Units] OF UDT_UnitType;
+  g_batch        : ARRAY[1..MAX_Units] OF UDT_BatchType;
+  g_program      : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
   g_time_s       : LINT;
   g_event_pending       : EVENT_MSG_T;
   g_event_pending_valid : BOOL;
@@ -93,29 +93,29 @@ IF NOT i_run THEN
 END_IF;
 
 FOR i := 1 TO MAX_Transporters DO
-  IF g_transporter[i].active THEN
+  IF g_transporter[i].IsActive THEN
 
   (* ── Phase 0 → 1: Accept new task ───────────────────────── *)
-  IF (g_transporter[i].phase = 0)
+  IF (g_transporter[i].Phase = 0)
      AND (g_transporter[i].task_id <> g_transporter[i].running_task_id) THEN
     g_transporter[i].running_task_id := g_transporter[i].task_id;
-    lookup(station_number := g_transporter[i].lift_station);
+    lookup(station_number := g_transporter[i].LiftStationTarget);
     g_transporter[i].XFinalTarget := lookup.x_mm;
-    g_transporter[i].phase := 1;
-    g_transporter[i].status := 4;  (* auto_run *)
+    g_transporter[i].Phase := 1;
+    g_transporter[i].Status := 4;  (* auto_run *)
     g_transporter[i].z_stage := 0;
     g_transporter[i].z_timer_s := 0.0;
 
   (* ── Phase 1: Drive X towards lift station ──────────────── *)
-  ELSIF g_transporter[i].phase = 1 THEN
+  ELSIF g_transporter[i].Phase = 1 THEN
     tmp_x  := g_transporter[i].XPosition;
     tmp_vx := g_transporter[i].XVelocity;
     IF i = 1 THEN
       fb_x1(
         delta_t  := 0.02,
         x_target := g_transporter[i].XFinalTarget,
-        x_min    := g_transporter[i].XMinLimit,
-        x_max    := g_transporter[i].XMaxLimit,
+        x_min    := g_transporter[i].XMinDriveLimit,
+        x_max    := g_transporter[i].XMaxDriveLimit,
         v_max    := g_cfg[i].phys2d.x_max_mm_s,
         t_acc    := g_cfg[i].phys2d.x_accel_s,
         t_dec    := g_cfg[i].phys2d.x_decel_s,
@@ -127,8 +127,8 @@ FOR i := 1 TO MAX_Transporters DO
       fb_x2(
         delta_t  := 0.02,
         x_target := g_transporter[i].XFinalTarget,
-        x_min    := g_transporter[i].XMinLimit,
-        x_max    := g_transporter[i].XMaxLimit,
+        x_min    := g_transporter[i].XMinDriveLimit,
+        x_max    := g_transporter[i].XMaxDriveLimit,
         v_max    := g_cfg[i].phys2d.x_max_mm_s,
         t_acc    := g_cfg[i].phys2d.x_accel_s,
         t_dec    := g_cfg[i].phys2d.x_decel_s,
@@ -140,8 +140,8 @@ FOR i := 1 TO MAX_Transporters DO
       fb_x3(
         delta_t  := 0.02,
         x_target := g_transporter[i].XFinalTarget,
-        x_min    := g_transporter[i].XMinLimit,
-        x_max    := g_transporter[i].XMaxLimit,
+        x_min    := g_transporter[i].XMinDriveLimit,
+        x_max    := g_transporter[i].XMaxDriveLimit,
         v_max    := g_cfg[i].phys2d.x_max_mm_s,
         t_acc    := g_cfg[i].phys2d.x_accel_s,
         t_dec    := g_cfg[i].phys2d.x_decel_s,
@@ -157,21 +157,21 @@ FOR i := 1 TO MAX_Transporters DO
     at_station := arrived_x
                   AND (ABS(g_transporter[i].XPosition - g_transporter[i].XFinalTarget) <= 6);
     IF at_station THEN
-      g_transporter[i].current_station := g_transporter[i].lift_station;
+      g_transporter[i].CurrentStation := g_transporter[i].LiftStationTarget;
 
       (* ── Wait for treatment time before lifting ──────────────
          If the unit at the lift station is IN_PROCESS and its
          treatment cal_time has not yet elapsed, stay at station
          and do NOT begin the lift sequence. *)
       can_lift := TRUE;
-      lift_uid := g_station_loc[g_transporter[i].lift_station].UnitId;
+      lift_uid := g_station_loc[g_transporter[i].LiftStationTarget].UnitId;
       IF lift_uid >= 1 AND lift_uid <= MAX_Units THEN
         IF g_batch[lift_uid].state = IN_PROCESS
            AND g_batch[lift_uid].cur_stage >= 1
            AND g_batch[lift_uid].cur_stage <= MAX_STEPS_PER_PROGRAM THEN
           treat_cal := g_program[lift_uid].Steps[g_batch[lift_uid].cur_stage - 1].CalTime;
           IF treat_cal > 0 THEN
-            treat_elapsed := g_time_s - g_station_loc[g_transporter[i].lift_station].ChangeTime;
+            treat_elapsed := g_time_s - g_station_loc[g_transporter[i].LiftStationTarget].ChangeTime;
             IF treat_elapsed < DINT_TO_LINT(treat_cal) THEN
               can_lift := FALSE;
             END_IF;
@@ -180,27 +180,27 @@ FOR i := 1 TO MAX_Transporters DO
       END_IF;
 
       IF can_lift THEN
-      lookup(station_number := g_transporter[i].lift_station);
+      lookup(station_number := g_transporter[i].LiftStationTarget);
       device_delay := lookup.device_delay_s;
       drop_time    := lookup.dropping_time_s;
       g_transporter[i].z_timer_s := device_delay + drop_time;
       g_transporter[i].z_stage := 1;
-      g_transporter[i].phase := 2;
+      g_transporter[i].Phase := 2;
 
       (* ── Emit LIFT event (msg_type=2) ── *)
-      evt_unit := g_station_loc[g_transporter[i].lift_station].UnitId;
+      evt_unit := g_station_loc[g_transporter[i].LiftStationTarget].UnitId;
       IF NOT g_event_pending_valid AND evt_unit >= 1 THEN
         g_event_pending.msg_type := 2;
         g_event_pending.ts_hi := LINT_TO_INT(g_time_s / LINT#65536);
         g_event_pending.ts_lo := LINT_TO_INT(g_time_s MOD LINT#65536);
         g_event_pending.f[1]  := i;
         g_event_pending.f[2]  := evt_unit;
-        g_event_pending.f[3]  := g_transporter[i].lift_station;
+        g_event_pending.f[3]  := g_transporter[i].LiftStationTarget;
         g_event_pending.f[4]  := g_batch[evt_unit].batch_code;
         g_event_pending.f[5]  := g_batch[evt_unit].state;
         g_event_pending.f[6]  := g_batch[evt_unit].prog_id;
         g_event_pending.f[7]  := g_batch[evt_unit].cur_stage;
-        evt_diff := g_time_s - g_station_loc[g_transporter[i].lift_station].ChangeTime;
+        evt_diff := g_time_s - g_station_loc[g_transporter[i].LiftStationTarget].ChangeTime;
         IF evt_diff > LINT#32000 THEN
           g_event_pending.f[8] := 32000;
         ELSE
@@ -214,7 +214,7 @@ FOR i := 1 TO MAX_Transporters DO
       END_IF;
 
       (* Unit moves from lift station → transporter *)
-      pick_unit_id := g_station_loc[g_transporter[i].lift_station].UnitId;
+      pick_unit_id := g_station_loc[g_transporter[i].LiftStationTarget].UnitId;
       IF pick_unit_id >= 1 THEN
         IF i = 1 THEN
           upd_loc1(i_unit := pick_unit_id, i_location := i);
@@ -229,8 +229,8 @@ FOR i := 1 TO MAX_Transporters DO
     (* If arrived_x but not at_station → at drive limit, wait for clearance *)
 
   (* ── Phase 2: Lift Z at lift station ────────────────────── *)
-  ELSIF g_transporter[i].phase = 2 THEN
-    lookup(station_number := g_transporter[i].lift_station);
+  ELSIF g_transporter[i].Phase = 2 THEN
+    lookup(station_number := g_transporter[i].LiftStationTarget);
     station_kind := lookup.skind;
     tmp_z  := g_transporter[i].ZPosition;
     tmp_zs := g_transporter[i].z_stage;
@@ -288,21 +288,21 @@ FOR i := 1 TO MAX_Transporters DO
     g_transporter[i].z_stage   := tmp_zs;
     g_transporter[i].z_timer_s := tmp_zt;
     IF arrived_z THEN
-      lookup(station_number := g_transporter[i].sink_station);
+      lookup(station_number := g_transporter[i].SinkStationTarget);
       g_transporter[i].XFinalTarget := lookup.x_mm;
-      g_transporter[i].phase := 3;
+      g_transporter[i].Phase := 3;
     END_IF;
 
   (* ── Phase 3: Drive X towards sink station ─────────────── *)
-  ELSIF g_transporter[i].phase = 3 THEN
+  ELSIF g_transporter[i].Phase = 3 THEN
     tmp_x  := g_transporter[i].XPosition;
     tmp_vx := g_transporter[i].XVelocity;
     IF i = 1 THEN
       fb_x1(
         delta_t  := 0.02,
         x_target := g_transporter[i].XFinalTarget,
-        x_min    := g_transporter[i].XMinLimit,
-        x_max    := g_transporter[i].XMaxLimit,
+        x_min    := g_transporter[i].XMinDriveLimit,
+        x_max    := g_transporter[i].XMaxDriveLimit,
         v_max    := g_cfg[i].phys2d.x_max_mm_s,
         t_acc    := g_cfg[i].phys2d.x_accel_s,
         t_dec    := g_cfg[i].phys2d.x_decel_s,
@@ -314,8 +314,8 @@ FOR i := 1 TO MAX_Transporters DO
       fb_x2(
         delta_t  := 0.02,
         x_target := g_transporter[i].XFinalTarget,
-        x_min    := g_transporter[i].XMinLimit,
-        x_max    := g_transporter[i].XMaxLimit,
+        x_min    := g_transporter[i].XMinDriveLimit,
+        x_max    := g_transporter[i].XMaxDriveLimit,
         v_max    := g_cfg[i].phys2d.x_max_mm_s,
         t_acc    := g_cfg[i].phys2d.x_accel_s,
         t_dec    := g_cfg[i].phys2d.x_decel_s,
@@ -327,8 +327,8 @@ FOR i := 1 TO MAX_Transporters DO
       fb_x3(
         delta_t  := 0.02,
         x_target := g_transporter[i].XFinalTarget,
-        x_min    := g_transporter[i].XMinLimit,
-        x_max    := g_transporter[i].XMaxLimit,
+        x_min    := g_transporter[i].XMinDriveLimit,
+        x_max    := g_transporter[i].XMaxDriveLimit,
         v_max    := g_cfg[i].phys2d.x_max_mm_s,
         t_acc    := g_cfg[i].phys2d.x_accel_s,
         t_dec    := g_cfg[i].phys2d.x_decel_s,
@@ -344,18 +344,18 @@ FOR i := 1 TO MAX_Transporters DO
     at_station := arrived_x
                   AND (ABS(g_transporter[i].XPosition - g_transporter[i].XFinalTarget) <= 6);
     IF at_station THEN
-      g_transporter[i].current_station := g_transporter[i].sink_station;
-      lookup(station_number := g_transporter[i].sink_station);
+      g_transporter[i].CurrentStation := g_transporter[i].SinkStationTarget;
+      lookup(station_number := g_transporter[i].SinkStationTarget);
       device_delay := lookup.device_delay_s;
       g_transporter[i].z_timer_s := device_delay + INT_TO_REAL(g_cfg[i].phys2d.drip_delay_s) / 10.0;
       g_transporter[i].z_stage := 6;
-      g_transporter[i].phase := 4;
+      g_transporter[i].Phase := 4;
     END_IF;
     (* If arrived_x but not at_station → at drive limit, wait for clearance *)
 
   (* ── Phase 4: Sink Z at sink station ───────────────────── *)
-  ELSIF g_transporter[i].phase = 4 THEN
-    lookup(station_number := g_transporter[i].sink_station);
+  ELSIF g_transporter[i].Phase = 4 THEN
+    lookup(station_number := g_transporter[i].SinkStationTarget);
     station_kind := lookup.skind;
     tmp_z  := g_transporter[i].ZPosition;
     tmp_zs := g_transporter[i].z_stage;
@@ -414,25 +414,25 @@ FOR i := 1 TO MAX_Transporters DO
     g_transporter[i].z_timer_s := tmp_zt;
     IF arrived_z THEN
       (* Unit moves from transporter → sink station *)
-      sink_unit_id := g_transporter[i].UnitId;
+      sink_unit_id := g_station_loc[i].UnitId;
       IF sink_unit_id >= 1 THEN
         IF i = 1 THEN
-          upd_loc1(i_unit := sink_unit_id, i_location := g_transporter[i].sink_station);
+          upd_loc1(i_unit := sink_unit_id, i_location := g_transporter[i].SinkStationTarget);
         ELSIF i = 2 THEN
-          upd_loc2(i_unit := sink_unit_id, i_location := g_transporter[i].sink_station);
+          upd_loc2(i_unit := sink_unit_id, i_location := g_transporter[i].SinkStationTarget);
         ELSIF i = 3 THEN
-          upd_loc3(i_unit := sink_unit_id, i_location := g_transporter[i].sink_station);
+          upd_loc3(i_unit := sink_unit_id, i_location := g_transporter[i].SinkStationTarget);
         END_IF;
       END_IF;
 
-      g_transporter[i].phase := 0;
-      g_transporter[i].status := 3;  (* auto_idle *)
+      g_transporter[i].Phase := 0;
+      g_transporter[i].Status := 3;  (* auto_idle *)
 
     END_IF;
   END_IF;  (* ELSIF chain: phases 0→1→2→3→4 *)
 
   (* ── Phase 0 idle: drive back inside limits if outside ────── *)
-  IF g_transporter[i].phase = 0 THEN
+  IF g_transporter[i].Phase = 0 THEN
     tmp_x  := g_transporter[i].XPosition;
     tmp_vx := g_transporter[i].XVelocity;
     (* Use current position as target — XMotion will clamp to nearest limit if outside *)
@@ -440,8 +440,8 @@ FOR i := 1 TO MAX_Transporters DO
       fb_x1(
         delta_t  := 0.02,
         x_target := tmp_x,
-        x_min    := g_transporter[i].XMinLimit,
-        x_max    := g_transporter[i].XMaxLimit,
+        x_min    := g_transporter[i].XMinDriveLimit,
+        x_max    := g_transporter[i].XMaxDriveLimit,
         v_max    := g_cfg[i].phys2d.x_max_mm_s,
         t_acc    := g_cfg[i].phys2d.x_accel_s,
         t_dec    := g_cfg[i].phys2d.x_decel_s,
@@ -452,8 +452,8 @@ FOR i := 1 TO MAX_Transporters DO
       fb_x2(
         delta_t  := 0.02,
         x_target := tmp_x,
-        x_min    := g_transporter[i].XMinLimit,
-        x_max    := g_transporter[i].XMaxLimit,
+        x_min    := g_transporter[i].XMinDriveLimit,
+        x_max    := g_transporter[i].XMaxDriveLimit,
         v_max    := g_cfg[i].phys2d.x_max_mm_s,
         t_acc    := g_cfg[i].phys2d.x_accel_s,
         t_dec    := g_cfg[i].phys2d.x_decel_s,
@@ -464,8 +464,8 @@ FOR i := 1 TO MAX_Transporters DO
       fb_x3(
         delta_t  := 0.02,
         x_target := tmp_x,
-        x_min    := g_transporter[i].XMinLimit,
-        x_max    := g_transporter[i].XMaxLimit,
+        x_min    := g_transporter[i].XMinDriveLimit,
+        x_max    := g_transporter[i].XMaxDriveLimit,
         v_max    := g_cfg[i].phys2d.x_max_mm_s,
         t_acc    := g_cfg[i].phys2d.x_accel_s,
         t_dec    := g_cfg[i].phys2d.x_decel_s,
@@ -479,7 +479,7 @@ FOR i := 1 TO MAX_Transporters DO
 
   (* ── Nearest station tracking ──────────────────────────── *)
   min_dist := 999999999;
-  nearest_num := g_transporter[i].current_station;
+  nearest_num := g_transporter[i].CurrentStation;
   FOR idx := MIN_StationIndex TO MAX_StationIndex DO
     IF g_station[idx].TankId <> 0 THEN
       dx := g_station[idx].XPosition - g_transporter[i].XPosition;
@@ -489,27 +489,27 @@ FOR i := 1 TO MAX_Transporters DO
       END_IF;
     END_IF;
   END_FOR;
-  g_transporter[i].current_station := nearest_num;
+  g_transporter[i].CurrentStation := nearest_num;
 
   (* ── Measure move times (one instance per transporter) ──── *)
   IF i = 1 THEN
-    tm1(t_id := 1, phase := g_transporter[1].phase, delta_t := 0.02,
+    tm1(t_id := 1, phase := g_transporter[1].Phase, delta_t := 0.02,
         vel_x := g_transporter[1].XVelocity, z_stage := g_transporter[1].z_stage,
-        lift_stn := g_transporter[1].lift_station,
-        sink_stn := g_transporter[1].sink_station,
-        from_stn := g_transporter[1].current_station);
+        lift_stn := g_transporter[1].LiftStationTarget,
+        sink_stn := g_transporter[1].SinkStationTarget,
+        from_stn := g_transporter[1].CurrentStation);
   ELSIF i = 2 THEN
-    tm2(t_id := 2, phase := g_transporter[2].phase, delta_t := 0.02,
+    tm2(t_id := 2, phase := g_transporter[2].Phase, delta_t := 0.02,
         vel_x := g_transporter[2].XVelocity, z_stage := g_transporter[2].z_stage,
-        lift_stn := g_transporter[2].lift_station,
-        sink_stn := g_transporter[2].sink_station,
-        from_stn := g_transporter[2].current_station);
+        lift_stn := g_transporter[2].LiftStationTarget,
+        sink_stn := g_transporter[2].SinkStationTarget,
+        from_stn := g_transporter[2].CurrentStation);
   ELSIF i = 3 THEN
-    tm3(t_id := 3, phase := g_transporter[3].phase, delta_t := 0.02,
+    tm3(t_id := 3, phase := g_transporter[3].Phase, delta_t := 0.02,
         vel_x := g_transporter[3].XVelocity, z_stage := g_transporter[3].z_stage,
-        lift_stn := g_transporter[3].lift_station,
-        sink_stn := g_transporter[3].sink_station,
-        from_stn := g_transporter[3].current_station);
+        lift_stn := g_transporter[3].LiftStationTarget,
+        sink_stn := g_transporter[3].SinkStationTarget,
+        from_stn := g_transporter[3].CurrentStation);
   END_IF;
 
   END_IF;  (* active *)

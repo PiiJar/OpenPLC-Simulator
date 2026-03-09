@@ -4,7 +4,7 @@
    Ported from transporterTaskScheduler.js swapSameStationTasks()
 
    For each transporter queue, checks consecutive task pairs:
-   if prev.sink_station == next.lift_station AND different units,
+   if prev.SinkStationTarget == next.LiftStationTarget AND different units,
    swap order so the lift happens first (avoids deadlock).
 
    Operates on g_task[1..3] in-place.
@@ -36,7 +36,7 @@ FOR ti := 1 TO MAX_Transporters DO
     FOR qi := 1 TO cnt - 1 DO
       (* Check: different units AND prev.sink == next.lift *)
       IF g_task[ti].queue[qi].unit <> g_task[ti].queue[qi + 1].unit
-         AND g_task[ti].queue[qi].sink_station = g_task[ti].queue[qi + 1].lift_station THEN
+         AND g_task[ti].queue[qi].SinkStationTarget = g_task[ti].queue[qi + 1].LiftStationTarget THEN
         (* Swap *)
         tmp := g_task[ti].queue[qi];
         g_task[ti].queue[qi] := g_task[ti].queue[qi + 1];
