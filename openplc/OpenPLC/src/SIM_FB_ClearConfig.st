@@ -145,19 +145,19 @@ END_FOR;
 
 (* --- Clear all batches --- *)
 FOR i := 1 TO MAX_Units DO
-  g_batch[i].batch_code  := 0;
-  g_batch[i].state       := 0;
-  g_batch[i].prog_id     := 0;
-  g_batch[i].cur_stage   := 0;
-  g_batch[i].min_time    := 0;
-  g_batch[i].max_time    := 0;
-  g_batch[i].cal_time    := 0;
-  g_batch[i].start_time  := LINT#0;
+  g_batch[i].BatchCode  := 0;
+  g_batch[i].State       := 0;
+  g_batch[i].ProgId     := 0;
+  g_batch[i].CurStage   := 0;
+  g_batch[i].MinTime    := 0;
+  g_batch[i].MaxTime    := 0;
+  g_batch[i].CalTime    := 0;
+  g_batch[i].StartTime  := LINT#0;
 END_FOR;
 
 (* --- Clear all treatment programs --- *)
 FOR i := 1 TO MAX_Units DO
-  g_program[i].program_id := 0;
+  g_program[i].ProgramId := 0;
   g_program[i].ProgramName := '';
   g_program[i].StepCount := 0;
   FOR j := 0 TO 30 DO

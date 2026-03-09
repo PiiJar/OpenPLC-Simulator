@@ -189,14 +189,14 @@ END_TYPE
 
 TYPE UDT_BatchType :
 STRUCT
-  batch_code  : INT;     (* numeric batch code — JS: batch_id *)
-  cur_stage   : INT;     (* current stage number, 0 = not started — JS: stage *)
-  state       : INT;     (* NOT_PROCESSED=0, IN_PROCESS=1, PROCESSED=2 *)
-  prog_id     : INT;     (* treatment program number — JS: treatment_program *)
-  start_time  : LINT;    (* batch start time (unix seconds) — JS: start_time *)
-  min_time    : DINT;    (* stage 0 minimum time (seconds) *)
-  max_time    : DINT;    (* stage 0 maximum time (seconds) *)
-  cal_time    : DINT;    (* stage 0 calculated / target time (seconds) *)
+  BatchCode   : INT;     (* numeric batch code — JS: batch_id *)
+  CurStage    : INT;     (* current stage number, 0 = not started — JS: stage *)
+  State       : INT;     (* NOT_PROCESSED=0, IN_PROCESS=1, PROCESSED=2 *)
+  ProgId      : INT;     (* treatment program number — JS: treatment_program *)
+  StartTime   : LINT;    (* batch start time (unix seconds) — JS: start_time *)
+  MinTime     : DINT;    (* stage 0 minimum time (seconds) *)
+  MaxTime     : DINT;    (* stage 0 maximum time (seconds) *)
+  CalTime     : DINT;    (* stage 0 calculated / target time (seconds) *)
 END_STRUCT;
 END_TYPE
 
@@ -212,7 +212,7 @@ END_TYPE
 
 TYPE UDT_TreatmentProgramType :
 STRUCT
-  program_id  : INT;                       (* treatment program number *)
+  ProgramId   : INT;                       (* treatment program number *)
   ProgramName : STRING;                    (* treatment program name, max 254 chars *)
   StepCount   : INT;                       (* number of valid steps in Steps array *)
   Steps       : ARRAY[0..30] OF UDT_TreatmentProgramStepType;  (* 0-based, up to MAX_STEPS_PER_PROGRAM *)
@@ -221,9 +221,9 @@ END_TYPE
 
 TYPE UDT_UnitType :
 STRUCT
-  location : INT;    (* station number where unit currently is *)
-  status   : INT;    (* NOT_USED=0, USED=1 *)
-  target   : INT;    (* TO_NONE=0, TO_LOADING=1, TO_BUFFER=2, TO_PROCESS=3, TO_UNLOAD=4, TO_AVOID=5 *)
+  Location : INT;    (* station number where unit currently is *)
+  Status   : INT;    (* NOT_USED=0, USED=1 *)
+  Target   : INT;    (* TO_NONE=0, TO_LOADING=1, TO_BUFFER=2, TO_PROCESS=3, TO_UNLOAD=4, TO_AVOID=5 *)
 END_STRUCT;
 END_TYPE
 

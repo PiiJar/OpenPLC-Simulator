@@ -58,33 +58,33 @@ IF (i_unit >= 1) AND (i_unit <= MAX_Units) THEN
 
     (* Advance batch stage if unit is USED with an active batch *)
     IF (g_unit[i_unit].Status = 1)  (* USED *)
-       AND (g_batch[i_unit].batch_code <> 0)
-       AND (g_batch[i_unit].state = IN_PROCESS)
-       AND (g_batch[i_unit].cur_stage < MAX_STEPS_PER_PROGRAM) THEN
-      g_batch[i_unit].cur_stage := g_batch[i_unit].cur_stage + 1;
+       AND (g_batch[i_unit].BatchCode <> 0)
+       AND (g_batch[i_unit].State = IN_PROCESS)
+       AND (g_batch[i_unit].CurStage < MAX_STEPS_PER_PROGRAM) THEN
+      g_batch[i_unit].CurStage := g_batch[i_unit].CurStage + 1;
 
       (* Stamp arrival time on new station — used by CalcSchedule for elapsed calculation *)
-      g_batch[i_unit].start_time := g_time_s;
+      g_batch[i_unit].StartTime := g_time_s;
 
       (* Update batch treatment times from program for the new stage *)
-      IF (g_program[i_unit].program_id = g_batch[i_unit].prog_id)
-         AND (g_program[i_unit].program_id > 0) THEN
-        new_stg := g_batch[i_unit].cur_stage;
+      IF (g_program[i_unit].ProgramId = g_batch[i_unit].ProgId)
+         AND (g_program[i_unit].ProgramId > 0) THEN
+        new_stg := g_batch[i_unit].CurStage;
         IF (new_stg >= 1) AND (new_stg <= MAX_STEPS_PER_PROGRAM) THEN
-          g_batch[i_unit].min_time := g_program[i_unit].Steps[new_stg - 1].MinTime;
-          g_batch[i_unit].max_time := g_program[i_unit].Steps[new_stg - 1].MaxTime;
-          g_batch[i_unit].cal_time := g_program[i_unit].Steps[new_stg - 1].CalTime;
+          g_batch[i_unit].MinTime := g_program[i_unit].Steps[new_stg - 1].MinTime;
+          g_batch[i_unit].MaxTime := g_program[i_unit].Steps[new_stg - 1].MaxTime;
+          g_batch[i_unit].CalTime := g_program[i_unit].Steps[new_stg - 1].CalTime;
         END_IF;
       END_IF;
     END_IF;
 
     (* NOT_PROCESSED batch on station: clear times so UI shows no progress bar *)
-    IF (g_batch[i_unit].batch_code <> 0)
-       AND (g_batch[i_unit].state <> IN_PROCESS) THEN
-      g_batch[i_unit].min_time   := 0;
-      g_batch[i_unit].cal_time   := 0;
-      g_batch[i_unit].max_time   := 32000;  (* ~8.9 h cap, INT max safe *)
-      g_batch[i_unit].start_time := g_time_s;
+    IF (g_batch[i_unit].BatchCode <> 0)
+       AND (g_batch[i_unit].State <> IN_PROCESS) THEN
+      g_batch[i_unit].MinTime   := 0;
+      g_batch[i_unit].CalTime   := 0;
+      g_batch[i_unit].MaxTime   := 32000;  (* ~8.9 h cap, INT max safe *)
+      g_batch[i_unit].StartTime := g_time_s;
     END_IF;
 
     (* Clear unit target after placement (NTT task done) *)

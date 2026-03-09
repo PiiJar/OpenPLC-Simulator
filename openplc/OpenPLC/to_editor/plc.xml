@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-09T10:57:00"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-09T10:57:00">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-09T11:36:04"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-09T11:36:04">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -411,28 +411,28 @@
       <dataType name="UDT_BatchType">
         <baseType>
           <struct>
-            <variable name="batch_code">
+            <variable name="BatchCode">
               <type><INT/></type>
             </variable>
-            <variable name="cur_stage">
+            <variable name="CurStage">
               <type><INT/></type>
             </variable>
-            <variable name="state">
+            <variable name="State">
               <type><INT/></type>
             </variable>
-            <variable name="prog_id">
+            <variable name="ProgId">
               <type><INT/></type>
             </variable>
-            <variable name="start_time">
+            <variable name="StartTime">
               <type><LINT/></type>
             </variable>
-            <variable name="min_time">
+            <variable name="MinTime">
               <type><DINT/></type>
             </variable>
-            <variable name="max_time">
+            <variable name="MaxTime">
               <type><DINT/></type>
             </variable>
-            <variable name="cal_time">
+            <variable name="CalTime">
               <type><DINT/></type>
             </variable>
           </struct>
@@ -467,7 +467,7 @@
       <dataType name="UDT_TreatmentProgramType">
         <baseType>
           <struct>
-            <variable name="program_id">
+            <variable name="ProgramId">
               <type><INT/></type>
             </variable>
             <variable name="ProgramName">
@@ -490,13 +490,13 @@
       <dataType name="UDT_UnitType">
         <baseType>
           <struct>
-            <variable name="location">
+            <variable name="Location">
               <type><INT/></type>
             </variable>
-            <variable name="status">
+            <variable name="Status">
               <type><INT/></type>
             </variable>
-            <variable name="target">
+            <variable name="Target">
               <type><INT/></type>
             </variable>
           </struct>
@@ -2174,13 +2174,13 @@ ELSIF phase = 100 THEN
 (* PHASE 150: SORT_WAITING — FIFO sort by start_time (G06)     *)
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 150 THEN
-  (* Insertion sort waiting list by g_batch[unit].start_time ascending *)
+  (* Insertion sort waiting list by g_batch[unit].StartTime ascending *)
   FOR si := 2 TO waiting_cnt DO
     tmp_unit := waiting_list[si];
-    tmp_key  := g_batch[tmp_unit].start_time;
+    tmp_key  := g_batch[tmp_unit].StartTime;
     ji := si - 1;
     WHILE ji >= 1 DO
-      IF g_batch[waiting_list[ji]].start_time > tmp_key THEN
+      IF g_batch[waiting_list[ji]].StartTime > tmp_key THEN
         waiting_list[ji + 1] := waiting_list[ji];
         ji := ji - 1;
       ELSE
@@ -2890,19 +2890,19 @@ END_FOR;
 
 (* --- Clear all batches --- *)
 FOR i := 1 TO MAX_Units DO
-  g_batch[i].batch_code  := 0;
-  g_batch[i].state       := 0;
-  g_batch[i].prog_id     := 0;
-  g_batch[i].cur_stage   := 0;
-  g_batch[i].min_time    := 0;
-  g_batch[i].max_time    := 0;
-  g_batch[i].cal_time    := 0;
-  g_batch[i].start_time  := LINT#0;
+  g_batch[i].BatchCode  := 0;
+  g_batch[i].State       := 0;
+  g_batch[i].ProgId     := 0;
+  g_batch[i].CurStage   := 0;
+  g_batch[i].MinTime    := 0;
+  g_batch[i].MaxTime    := 0;
+  g_batch[i].CalTime    := 0;
+  g_batch[i].StartTime  := LINT#0;
 END_FOR;
 
 (* --- Clear all treatment programs --- *)
 FOR i := 1 TO MAX_Units DO
-  g_program[i].program_id := 0;
+  g_program[i].ProgramId := 0;
   g_program[i].ProgramName := '';
   g_program[i].StepCount := 0;
   FOR j := 0 TO 30 DO
@@ -3196,10 +3196,10 @@ FOR i := 1 TO MAX_Transporters DO
       can_lift := TRUE;
       lift_uid := g_station_loc[g_transporter[i].LiftStationTarget].UnitId;
       IF lift_uid >= 1 AND lift_uid <= MAX_Units THEN
-        IF g_batch[lift_uid].state = IN_PROCESS
-           AND g_batch[lift_uid].cur_stage >= 1
-           AND g_batch[lift_uid].cur_stage <= MAX_STEPS_PER_PROGRAM THEN
-          treat_cal := g_program[lift_uid].Steps[g_batch[lift_uid].cur_stage - 1].CalTime;
+        IF g_batch[lift_uid].State = IN_PROCESS
+           AND g_batch[lift_uid].CurStage >= 1
+           AND g_batch[lift_uid].CurStage <= MAX_STEPS_PER_PROGRAM THEN
+          treat_cal := g_program[lift_uid].Steps[g_batch[lift_uid].CurStage - 1].CalTime;
           IF treat_cal > 0 THEN
             treat_elapsed := g_time_s - g_station_loc[g_transporter[i].LiftStationTarget].ChangeTime;
             IF treat_elapsed < DINT_TO_LINT(treat_cal) THEN
@@ -3226,10 +3226,10 @@ FOR i := 1 TO MAX_Transporters DO
         g_event_pending.f[1]  := i;
         g_event_pending.f[2]  := evt_unit;
         g_event_pending.f[3]  := g_transporter[i].LiftStationTarget;
-        g_event_pending.f[4]  := g_batch[evt_unit].batch_code;
-        g_event_pending.f[5]  := g_batch[evt_unit].state;
-        g_event_pending.f[6]  := g_batch[evt_unit].prog_id;
-        g_event_pending.f[7]  := g_batch[evt_unit].cur_stage;
+        g_event_pending.f[4]  := g_batch[evt_unit].BatchCode;
+        g_event_pending.f[5]  := g_batch[evt_unit].State;
+        g_event_pending.f[6]  := g_batch[evt_unit].ProgId;
+        g_event_pending.f[7]  := g_batch[evt_unit].CurStage;
         evt_diff := g_time_s - g_station_loc[g_transporter[i].LiftStationTarget].ChangeTime;
         IF evt_diff > LINT#32000 THEN
           g_event_pending.f[8] := 32000;
@@ -4511,20 +4511,20 @@ FOR ui := 1 TO MAX_Units DO
   (* Common conditions: unit USED, target TO_NONE, valid program *)
   IF g_unit[ui].Status = 1
      AND g_unit[ui].target = 0
-     AND g_batch[ui].prog_id = g_program[ui].program_id
-     AND g_program[ui].program_id > 0 THEN
+     AND g_batch[ui].ProgId = g_program[ui].ProgramId
+     AND g_program[ui].ProgramId > 0 THEN
 
     IF i_mode = 0 THEN
       (* Active batches: IN_PROCESS, stage 0..99 *)
-      IF g_batch[ui].state = 1
-         AND g_batch[ui].cur_stage >= 0
-         AND g_batch[ui].cur_stage <= 99 THEN
+      IF g_batch[ui].State = 1
+         AND g_batch[ui].CurStage >= 0
+         AND g_batch[ui].CurStage <= 99 THEN
         o_count := o_count + 1;
         o_list[o_count] := ui;
       END_IF;
     ELSIF i_mode = 1 THEN
       (* Waiting batches: NOT_PROCESSED *)
-      IF g_batch[ui].state = 0 THEN
+      IF g_batch[ui].State = 0 THEN
         o_count := o_count + 1;
         o_list[o_count] := ui;
       END_IF;
@@ -4745,9 +4745,9 @@ END_FOR;]]></xhtml:p>
           IF tgt >= 1 AND tgt <= 5 THEN
             (* Resolve buffer NTT index like NoTreatment does *)
             IF tgt = 2 THEN
-              IF g_batch[t_unit].batch_code = 0 THEN
+              IF g_batch[t_unit].BatchCode = 0 THEN
                 ntt_idx := 6;
-              ELSIF g_batch[t_unit].state = 2 THEN
+              ELSIF g_batch[t_unit].State = 2 THEN
                 ntt_idx := 8;
               ELSE
                 ntt_idx := 7;
@@ -4866,10 +4866,10 @@ END_FOR;]]></xhtml:p>
 
           (* ── Update batch times: transfer duration as time bar ── *)
           IF t_unit >= 1 AND t_unit <= MAX_Units THEN
-            g_batch[t_unit].start_time := g_time_s;
-            g_batch[t_unit].cal_time   := LINT_TO_DINT(t_finish - t_start);
-            g_batch[t_unit].min_time   := g_batch[t_unit].cal_time;
-            g_batch[t_unit].max_time   := LINT_TO_DINT((t_finish - t_start) * LINT#2);
+            g_batch[t_unit].StartTime := g_time_s;
+            g_batch[t_unit].CalTime   := LINT_TO_DINT(t_finish - t_start);
+            g_batch[t_unit].MinTime   := g_batch[t_unit].CalTime;
+            g_batch[t_unit].MaxTime   := LINT_TO_DINT((t_finish - t_start) * LINT#2);
           END_IF;
 
           (* ── Emit TASK_DISPATCHED event (msg_type=1) ── *)
@@ -4882,9 +4882,9 @@ END_FOR;]]></xhtml:p>
             g_event_pending.f[3]  := t_lift;
             g_event_pending.f[4]  := sink_stn;
             g_event_pending.f[5]  := t_stage;
-            g_event_pending.f[6]  := g_batch[t_unit].batch_code;
-            g_event_pending.f[7]  := g_batch[t_unit].state;
-            g_event_pending.f[8]  := g_batch[t_unit].prog_id;
+            g_event_pending.f[6]  := g_batch[t_unit].BatchCode;
+            g_event_pending.f[7]  := g_batch[t_unit].State;
+            g_event_pending.f[8]  := g_batch[t_unit].ProgId;
             g_event_pending.f[9]  := g_unit[t_unit].target;
             g_event_pending.f[10] := DINT_TO_INT(t_calc_time);
             g_event_pending.f[11] := DINT_TO_INT(g_task[ti].queue[1].min_time);
@@ -5502,9 +5502,9 @@ FOR u := 1 TO MAX_Units DO
 
   snap[u].loc       := g_unit[u].location;
   snap[u].tgt       := g_unit[u].target;
-  snap[u].has_batch := g_batch[u].batch_code <> 0;
-  snap[u].bstate    := g_batch[u].state;
-  snap[u].cur_stage := g_batch[u].cur_stage;
+  snap[u].has_batch := g_batch[u].BatchCode <> 0;
+  snap[u].bstate    := g_batch[u].State;
+  snap[u].cur_stage := g_batch[u].CurStage;
 
   snap[u].on_station := snap[u].loc >= MIN_StationIndex
                         AND snap[u].loc <= MAX_StationIndex;
@@ -5545,7 +5545,7 @@ FOR u := 1 TO MAX_Units DO
   IF snap[u].cur_stage >= 1 AND snap[u].cur_stage < MAX_STEPS_PER_PROGRAM THEN
     IF snap[u].cur_stage >= g_program[u].StepCount THEN
       IF snap[u].elapsed > 0 AND snap[u].elapsed >= DINT_TO_LINT(snap[u].cal) THEN
-        g_batch[u].state := PROCESSED;
+        g_batch[u].State := PROCESSED;
         snap[u].bstate   := PROCESSED;  (* update snapshot *)
       END_IF;
     END_IF;
@@ -5863,33 +5863,33 @@ END_FOR;]]></xhtml:p>
 
     (* Advance batch stage if unit is USED with an active batch *)
     IF (g_unit[i_unit].Status = 1)  (* USED *)
-       AND (g_batch[i_unit].batch_code <> 0)
-       AND (g_batch[i_unit].state = IN_PROCESS)
-       AND (g_batch[i_unit].cur_stage < MAX_STEPS_PER_PROGRAM) THEN
-      g_batch[i_unit].cur_stage := g_batch[i_unit].cur_stage + 1;
+       AND (g_batch[i_unit].BatchCode <> 0)
+       AND (g_batch[i_unit].State = IN_PROCESS)
+       AND (g_batch[i_unit].CurStage < MAX_STEPS_PER_PROGRAM) THEN
+      g_batch[i_unit].CurStage := g_batch[i_unit].CurStage + 1;
 
       (* Stamp arrival time on new station — used by CalcSchedule for elapsed calculation *)
-      g_batch[i_unit].start_time := g_time_s;
+      g_batch[i_unit].StartTime := g_time_s;
 
       (* Update batch treatment times from program for the new stage *)
-      IF (g_program[i_unit].program_id = g_batch[i_unit].prog_id)
-         AND (g_program[i_unit].program_id > 0) THEN
-        new_stg := g_batch[i_unit].cur_stage;
+      IF (g_program[i_unit].ProgramId = g_batch[i_unit].ProgId)
+         AND (g_program[i_unit].ProgramId > 0) THEN
+        new_stg := g_batch[i_unit].CurStage;
         IF (new_stg >= 1) AND (new_stg <= MAX_STEPS_PER_PROGRAM) THEN
-          g_batch[i_unit].min_time := g_program[i_unit].Steps[new_stg - 1].MinTime;
-          g_batch[i_unit].max_time := g_program[i_unit].Steps[new_stg - 1].MaxTime;
-          g_batch[i_unit].cal_time := g_program[i_unit].Steps[new_stg - 1].CalTime;
+          g_batch[i_unit].MinTime := g_program[i_unit].Steps[new_stg - 1].MinTime;
+          g_batch[i_unit].MaxTime := g_program[i_unit].Steps[new_stg - 1].MaxTime;
+          g_batch[i_unit].CalTime := g_program[i_unit].Steps[new_stg - 1].CalTime;
         END_IF;
       END_IF;
     END_IF;
 
     (* NOT_PROCESSED batch on station: clear times so UI shows no progress bar *)
-    IF (g_batch[i_unit].batch_code <> 0)
-       AND (g_batch[i_unit].state <> IN_PROCESS) THEN
-      g_batch[i_unit].min_time   := 0;
-      g_batch[i_unit].cal_time   := 0;
-      g_batch[i_unit].max_time   := 32000;  (* ~8.9 h cap, INT max safe *)
-      g_batch[i_unit].start_time := g_time_s;
+    IF (g_batch[i_unit].BatchCode <> 0)
+       AND (g_batch[i_unit].State <> IN_PROCESS) THEN
+      g_batch[i_unit].MinTime   := 0;
+      g_batch[i_unit].CalTime   := 0;
+      g_batch[i_unit].MaxTime   := 32000;  (* ~8.9 h cap, INT max safe *)
+      g_batch[i_unit].StartTime := g_time_s;
     END_IF;
 
     (* Clear unit target after placement (NTT task done) *)
@@ -6516,7 +6516,7 @@ IF i_unit < 1 OR i_unit > MAX_Units THEN RETURN; END_IF;
 IF i_trans < 1 OR i_trans > MAX_Transporters THEN RETURN; END_IF;
 
 (* -- Read batch and unit data -- *)
-cur_stage := g_batch[i_unit].cur_stage;
+cur_stage := g_batch[i_unit].CurStage;
 location  := g_unit[i_unit].location;
 is_on_stn := location >= 100;
 out_count := 0;
@@ -6534,7 +6534,7 @@ END_FOR;
 
 (* -- Determine start stage -- *)
 (* Waiting batch (state = NOT_PROCESSED): treat as stage 0 *)
-IF g_batch[i_unit].state = 0 THEN
+IF g_batch[i_unit].State = 0 THEN
   cur_stage := 0;
 END_IF;
 
@@ -6563,7 +6563,7 @@ END_IF;
 (* -- prevExitTime: when next stage can begin -- *)
 IF is_on_stn THEN
   (* Unit is on station: calculate remaining time *)
-  calc_s := INT_TO_REAL(g_batch[i_unit].cur_stage);
+  calc_s := INT_TO_REAL(g_batch[i_unit].CurStage);
   (* For first stage, remaining time based on calc_time *)
   exit_t := i_time_s;
 ELSE
@@ -6704,8 +6704,8 @@ FOR st := start_st TO g_program[i_unit].StepCount DO
     (* Batch is currently at this station *)
     entry_t := i_time_s;
     (* Remaining time: calc_time - elapsed since arrival *)
-    IF g_batch[i_unit].start_time > 0 THEN
-      elapsed_s := LINT_TO_REAL(i_time_s - g_batch[i_unit].start_time);
+    IF g_batch[i_unit].StartTime > 0 THEN
+      elapsed_s := LINT_TO_REAL(i_time_s - g_batch[i_unit].StartTime);
     ELSE
       elapsed_s := 0.0;
     END_IF;
@@ -7002,7 +7002,7 @@ END_FOR;]]></xhtml:p>
   IF tgt >= 1 AND tgt <= 5 AND loc >= 100 THEN
 
     (* TO_PROCESS with batch already IN_PROCESS or later → skip (handled by schedule) *)
-    IF tgt = 3 AND (g_batch[ui].batch_code = 0 OR g_batch[ui].state <> 0) THEN
+    IF tgt = 3 AND (g_batch[ui].BatchCode = 0 OR g_batch[ui].State <> 0) THEN
       CONTINUE;
     END_IF;
 
@@ -7051,9 +7051,9 @@ END_FOR;]]></xhtml:p>
         (* TO_BUFFER(2) maps to 6/7/8 depending on batch state *)
         (* TO_PROCESS(3) with NOT_PROCESSED batch → loaded buffer (7) *)
         IF tgt = 2 THEN
-          IF g_batch[ui].batch_code = 0 THEN
+          IF g_batch[ui].BatchCode = 0 THEN
             ntt_idx := 6;  (* empty buffer — no batch *)
-          ELSIF g_batch[ui].state = 2 THEN
+          ELSIF g_batch[ui].State = 2 THEN
             ntt_idx := 8;  (* processed buffer — batch PROCESSED *)
           ELSE
             ntt_idx := 7;  (* loaded buffer — batch NOT_PROCESSED or IN_PROCESS *)
@@ -7465,7 +7465,7 @@ IF can_advance AND chain_flex_down >= remain THEN
 
       IF walk_flex > 0.1 THEN
         (* Cap: 90% if on stage, 50% otherwise *)
-        IF g_batch[i_blocked_unit].cur_stage = si THEN
+        IF g_batch[i_blocked_unit].CurStage = si THEN
           walk_cap := 0.9;
         ELSE
           walk_cap := 0.5;
@@ -7517,7 +7517,7 @@ IF can_delay AND chain_flex_up >= remain THEN
       IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
 
       IF walk_flex > 0.1 THEN
-        IF g_batch[i_conf_unit].cur_stage = si THEN
+        IF g_batch[i_conf_unit].CurStage = si THEN
           walk_cap := 0.9;
         ELSE
           walk_cap := 0.5;
@@ -7577,7 +7577,7 @@ IF eff_adv + eff_del >= remain THEN
                   - g_schedule[i_blocked_unit].stages[si].min_time);
         IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
         IF walk_flex > 0.1 THEN
-          IF g_batch[i_blocked_unit].cur_stage = si THEN walk_cap := 0.9; ELSE walk_cap := 0.5; END_IF;
+          IF g_batch[i_blocked_unit].CurStage = si THEN walk_cap := 0.9; ELSE walk_cap := 0.5; END_IF;
           walk_amount := walk_flex * walk_cap;
           IF walk_amount > walk_remain THEN walk_amount := walk_remain; END_IF;
           g_schedule[i_blocked_unit].stages[si].calc_time :=
@@ -7609,7 +7609,7 @@ IF eff_adv + eff_del >= remain THEN
                   - g_schedule[i_conf_unit].stages[si].calc_time);
         IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
         IF walk_flex > 0.1 THEN
-          IF g_batch[i_conf_unit].cur_stage = si THEN walk_cap := 0.9; ELSE walk_cap := 0.5; END_IF;
+          IF g_batch[i_conf_unit].CurStage = si THEN walk_cap := 0.9; ELSE walk_cap := 0.5; END_IF;
           walk_amount := walk_flex * walk_cap;
           IF walk_amount > walk_remain THEN walk_amount := walk_remain; END_IF;
           g_schedule[i_conf_unit].stages[si].calc_time :=
@@ -7989,12 +7989,12 @@ ELSIF phase = 10100 THEN
       g_schedule[ui] := g_dep_pending.schedule[ui];
     END_FOR;
     IF g_dep_pending.batch_unit >= 1 AND g_dep_pending.batch_unit <= MAX_Units THEN
-      g_batch[g_dep_pending.batch_unit].cur_stage   := g_dep_pending.batch_stage;
-      g_batch[g_dep_pending.batch_unit].state        := g_dep_pending.batch_state;
-      g_batch[g_dep_pending.batch_unit].start_time   := g_dep_pending.time_s;
-      g_batch[g_dep_pending.batch_unit].min_time     := g_dep_pending.batch_min_time;
-      g_batch[g_dep_pending.batch_unit].max_time     := g_dep_pending.batch_max_time;
-      g_batch[g_dep_pending.batch_unit].cal_time     := g_dep_pending.batch_cal_time;
+      g_batch[g_dep_pending.batch_unit].CurStage   := g_dep_pending.batch_stage;
+      g_batch[g_dep_pending.batch_unit].State        := g_dep_pending.batch_state;
+      g_batch[g_dep_pending.batch_unit].StartTime   := g_dep_pending.time_s;
+      g_batch[g_dep_pending.batch_unit].MinTime     := g_dep_pending.batch_min_time;
+      g_batch[g_dep_pending.batch_unit].MaxTime     := g_dep_pending.batch_max_time;
+      g_batch[g_dep_pending.batch_unit].CalTime     := g_dep_pending.batch_cal_time;
     END_IF;
     g_dep_pending.valid := FALSE;
     (* Full recalculation with new data *)
@@ -12140,11 +12140,11 @@ END_IF;
 IF iw_batch_seq <> last_batch_seq THEN
   last_batch_seq := iw_batch_seq;
   IF (iw_batch_unit >= 1) AND (iw_batch_unit <= MAX_Units) THEN
-    g_batch[iw_batch_unit].batch_code := iw_batch_code;
-    g_batch[iw_batch_unit].state      := iw_batch_state;
-    g_batch[iw_batch_unit].prog_id    := iw_batch_prog_id;
-    g_batch[iw_batch_unit].cur_stage      := 0;
-    g_program[iw_batch_unit].program_id := iw_batch_prog_id;
+    g_batch[iw_batch_unit].BatchCode := iw_batch_code;
+    g_batch[iw_batch_unit].State      := iw_batch_state;
+    g_batch[iw_batch_unit].ProgId    := iw_batch_prog_id;
+    g_batch[iw_batch_unit].CurStage      := 0;
+    g_program[iw_batch_unit].ProgramId := iw_batch_prog_id;
     (* Clear all steps *)
     g_program[iw_batch_unit].StepCount := 0;
     FOR j := 0 TO 30 DO
@@ -12352,96 +12352,96 @@ qw_u10_loc := g_unit[10].location;
 qw_u10_status := g_unit[10].Status;
 qw_u10_target := g_unit[10].target;
 (* === Per-unit batch data — PLC writes, gateway reads === *)
-qw_b1_code := g_batch[1].batch_code;
-qw_b1_state := g_batch[1].state;
-qw_b1_prog := g_batch[1].prog_id;
-qw_b1_stage := g_batch[1].cur_stage;
-qw_b1_min_time := DINT_TO_INT(g_batch[1].min_time);
-qw_b1_max_time := DINT_TO_INT(g_batch[1].max_time);
-qw_b1_cal_time := DINT_TO_INT(g_batch[1].cal_time);
-qw_b1_start_hi := LINT_TO_INT(g_batch[1].start_time / LINT#65536);
-qw_b1_start_lo := LINT_TO_INT(g_batch[1].start_time MOD LINT#65536);
-qw_b2_code := g_batch[2].batch_code;
-qw_b2_state := g_batch[2].state;
-qw_b2_prog := g_batch[2].prog_id;
-qw_b2_stage := g_batch[2].cur_stage;
-qw_b2_min_time := DINT_TO_INT(g_batch[2].min_time);
-qw_b2_max_time := DINT_TO_INT(g_batch[2].max_time);
-qw_b2_cal_time := DINT_TO_INT(g_batch[2].cal_time);
-qw_b2_start_hi := LINT_TO_INT(g_batch[2].start_time / LINT#65536);
-qw_b2_start_lo := LINT_TO_INT(g_batch[2].start_time MOD LINT#65536);
-qw_b3_code := g_batch[3].batch_code;
-qw_b3_state := g_batch[3].state;
-qw_b3_prog := g_batch[3].prog_id;
-qw_b3_stage := g_batch[3].cur_stage;
-qw_b3_min_time := DINT_TO_INT(g_batch[3].min_time);
-qw_b3_max_time := DINT_TO_INT(g_batch[3].max_time);
-qw_b3_cal_time := DINT_TO_INT(g_batch[3].cal_time);
-qw_b3_start_hi := LINT_TO_INT(g_batch[3].start_time / LINT#65536);
-qw_b3_start_lo := LINT_TO_INT(g_batch[3].start_time MOD LINT#65536);
-qw_b4_code := g_batch[4].batch_code;
-qw_b4_state := g_batch[4].state;
-qw_b4_prog := g_batch[4].prog_id;
-qw_b4_stage := g_batch[4].cur_stage;
-qw_b4_min_time := DINT_TO_INT(g_batch[4].min_time);
-qw_b4_max_time := DINT_TO_INT(g_batch[4].max_time);
-qw_b4_cal_time := DINT_TO_INT(g_batch[4].cal_time);
-qw_b4_start_hi := LINT_TO_INT(g_batch[4].start_time / LINT#65536);
-qw_b4_start_lo := LINT_TO_INT(g_batch[4].start_time MOD LINT#65536);
-qw_b5_code := g_batch[5].batch_code;
-qw_b5_state := g_batch[5].state;
-qw_b5_prog := g_batch[5].prog_id;
-qw_b5_stage := g_batch[5].cur_stage;
-qw_b5_min_time := DINT_TO_INT(g_batch[5].min_time);
-qw_b5_max_time := DINT_TO_INT(g_batch[5].max_time);
-qw_b5_cal_time := DINT_TO_INT(g_batch[5].cal_time);
-qw_b5_start_hi := LINT_TO_INT(g_batch[5].start_time / LINT#65536);
-qw_b5_start_lo := LINT_TO_INT(g_batch[5].start_time MOD LINT#65536);
-qw_b6_code := g_batch[6].batch_code;
-qw_b6_state := g_batch[6].state;
-qw_b6_prog := g_batch[6].prog_id;
-qw_b6_stage := g_batch[6].cur_stage;
-qw_b6_min_time := DINT_TO_INT(g_batch[6].min_time);
-qw_b6_max_time := DINT_TO_INT(g_batch[6].max_time);
-qw_b6_cal_time := DINT_TO_INT(g_batch[6].cal_time);
-qw_b6_start_hi := LINT_TO_INT(g_batch[6].start_time / LINT#65536);
-qw_b6_start_lo := LINT_TO_INT(g_batch[6].start_time MOD LINT#65536);
-qw_b7_code := g_batch[7].batch_code;
-qw_b7_state := g_batch[7].state;
-qw_b7_prog := g_batch[7].prog_id;
-qw_b7_stage := g_batch[7].cur_stage;
-qw_b7_min_time := DINT_TO_INT(g_batch[7].min_time);
-qw_b7_max_time := DINT_TO_INT(g_batch[7].max_time);
-qw_b7_cal_time := DINT_TO_INT(g_batch[7].cal_time);
-qw_b7_start_hi := LINT_TO_INT(g_batch[7].start_time / LINT#65536);
-qw_b7_start_lo := LINT_TO_INT(g_batch[7].start_time MOD LINT#65536);
-qw_b8_code := g_batch[8].batch_code;
-qw_b8_state := g_batch[8].state;
-qw_b8_prog := g_batch[8].prog_id;
-qw_b8_stage := g_batch[8].cur_stage;
-qw_b8_min_time := DINT_TO_INT(g_batch[8].min_time);
-qw_b8_max_time := DINT_TO_INT(g_batch[8].max_time);
-qw_b8_cal_time := DINT_TO_INT(g_batch[8].cal_time);
-qw_b8_start_hi := LINT_TO_INT(g_batch[8].start_time / LINT#65536);
-qw_b8_start_lo := LINT_TO_INT(g_batch[8].start_time MOD LINT#65536);
-qw_b9_code := g_batch[9].batch_code;
-qw_b9_state := g_batch[9].state;
-qw_b9_prog := g_batch[9].prog_id;
-qw_b9_stage := g_batch[9].cur_stage;
-qw_b9_min_time := DINT_TO_INT(g_batch[9].min_time);
-qw_b9_max_time := DINT_TO_INT(g_batch[9].max_time);
-qw_b9_cal_time := DINT_TO_INT(g_batch[9].cal_time);
-qw_b9_start_hi := LINT_TO_INT(g_batch[9].start_time / LINT#65536);
-qw_b9_start_lo := LINT_TO_INT(g_batch[9].start_time MOD LINT#65536);
-qw_b10_code := g_batch[10].batch_code;
-qw_b10_state := g_batch[10].state;
-qw_b10_prog := g_batch[10].prog_id;
-qw_b10_stage := g_batch[10].cur_stage;
-qw_b10_min_time := DINT_TO_INT(g_batch[10].min_time);
-qw_b10_max_time := DINT_TO_INT(g_batch[10].max_time);
-qw_b10_cal_time := DINT_TO_INT(g_batch[10].cal_time);
-qw_b10_start_hi := LINT_TO_INT(g_batch[10].start_time / LINT#65536);
-qw_b10_start_lo := LINT_TO_INT(g_batch[10].start_time MOD LINT#65536);
+qw_b1_code := g_batch[1].BatchCode;
+qw_b1_state := g_batch[1].State;
+qw_b1_prog := g_batch[1].ProgId;
+qw_b1_stage := g_batch[1].CurStage;
+qw_b1_min_time := DINT_TO_INT(g_batch[1].MinTime);
+qw_b1_max_time := DINT_TO_INT(g_batch[1].MaxTime);
+qw_b1_cal_time := DINT_TO_INT(g_batch[1].CalTime);
+qw_b1_start_hi := LINT_TO_INT(g_batch[1].StartTime / LINT#65536);
+qw_b1_start_lo := LINT_TO_INT(g_batch[1].StartTime MOD LINT#65536);
+qw_b2_code := g_batch[2].BatchCode;
+qw_b2_state := g_batch[2].State;
+qw_b2_prog := g_batch[2].ProgId;
+qw_b2_stage := g_batch[2].CurStage;
+qw_b2_min_time := DINT_TO_INT(g_batch[2].MinTime);
+qw_b2_max_time := DINT_TO_INT(g_batch[2].MaxTime);
+qw_b2_cal_time := DINT_TO_INT(g_batch[2].CalTime);
+qw_b2_start_hi := LINT_TO_INT(g_batch[2].StartTime / LINT#65536);
+qw_b2_start_lo := LINT_TO_INT(g_batch[2].StartTime MOD LINT#65536);
+qw_b3_code := g_batch[3].BatchCode;
+qw_b3_state := g_batch[3].State;
+qw_b3_prog := g_batch[3].ProgId;
+qw_b3_stage := g_batch[3].CurStage;
+qw_b3_min_time := DINT_TO_INT(g_batch[3].MinTime);
+qw_b3_max_time := DINT_TO_INT(g_batch[3].MaxTime);
+qw_b3_cal_time := DINT_TO_INT(g_batch[3].CalTime);
+qw_b3_start_hi := LINT_TO_INT(g_batch[3].StartTime / LINT#65536);
+qw_b3_start_lo := LINT_TO_INT(g_batch[3].StartTime MOD LINT#65536);
+qw_b4_code := g_batch[4].BatchCode;
+qw_b4_state := g_batch[4].State;
+qw_b4_prog := g_batch[4].ProgId;
+qw_b4_stage := g_batch[4].CurStage;
+qw_b4_min_time := DINT_TO_INT(g_batch[4].MinTime);
+qw_b4_max_time := DINT_TO_INT(g_batch[4].MaxTime);
+qw_b4_cal_time := DINT_TO_INT(g_batch[4].CalTime);
+qw_b4_start_hi := LINT_TO_INT(g_batch[4].StartTime / LINT#65536);
+qw_b4_start_lo := LINT_TO_INT(g_batch[4].StartTime MOD LINT#65536);
+qw_b5_code := g_batch[5].BatchCode;
+qw_b5_state := g_batch[5].State;
+qw_b5_prog := g_batch[5].ProgId;
+qw_b5_stage := g_batch[5].CurStage;
+qw_b5_min_time := DINT_TO_INT(g_batch[5].MinTime);
+qw_b5_max_time := DINT_TO_INT(g_batch[5].MaxTime);
+qw_b5_cal_time := DINT_TO_INT(g_batch[5].CalTime);
+qw_b5_start_hi := LINT_TO_INT(g_batch[5].StartTime / LINT#65536);
+qw_b5_start_lo := LINT_TO_INT(g_batch[5].StartTime MOD LINT#65536);
+qw_b6_code := g_batch[6].BatchCode;
+qw_b6_state := g_batch[6].State;
+qw_b6_prog := g_batch[6].ProgId;
+qw_b6_stage := g_batch[6].CurStage;
+qw_b6_min_time := DINT_TO_INT(g_batch[6].MinTime);
+qw_b6_max_time := DINT_TO_INT(g_batch[6].MaxTime);
+qw_b6_cal_time := DINT_TO_INT(g_batch[6].CalTime);
+qw_b6_start_hi := LINT_TO_INT(g_batch[6].StartTime / LINT#65536);
+qw_b6_start_lo := LINT_TO_INT(g_batch[6].StartTime MOD LINT#65536);
+qw_b7_code := g_batch[7].BatchCode;
+qw_b7_state := g_batch[7].State;
+qw_b7_prog := g_batch[7].ProgId;
+qw_b7_stage := g_batch[7].CurStage;
+qw_b7_min_time := DINT_TO_INT(g_batch[7].MinTime);
+qw_b7_max_time := DINT_TO_INT(g_batch[7].MaxTime);
+qw_b7_cal_time := DINT_TO_INT(g_batch[7].CalTime);
+qw_b7_start_hi := LINT_TO_INT(g_batch[7].StartTime / LINT#65536);
+qw_b7_start_lo := LINT_TO_INT(g_batch[7].StartTime MOD LINT#65536);
+qw_b8_code := g_batch[8].BatchCode;
+qw_b8_state := g_batch[8].State;
+qw_b8_prog := g_batch[8].ProgId;
+qw_b8_stage := g_batch[8].CurStage;
+qw_b8_min_time := DINT_TO_INT(g_batch[8].MinTime);
+qw_b8_max_time := DINT_TO_INT(g_batch[8].MaxTime);
+qw_b8_cal_time := DINT_TO_INT(g_batch[8].CalTime);
+qw_b8_start_hi := LINT_TO_INT(g_batch[8].StartTime / LINT#65536);
+qw_b8_start_lo := LINT_TO_INT(g_batch[8].StartTime MOD LINT#65536);
+qw_b9_code := g_batch[9].BatchCode;
+qw_b9_state := g_batch[9].State;
+qw_b9_prog := g_batch[9].ProgId;
+qw_b9_stage := g_batch[9].CurStage;
+qw_b9_min_time := DINT_TO_INT(g_batch[9].MinTime);
+qw_b9_max_time := DINT_TO_INT(g_batch[9].MaxTime);
+qw_b9_cal_time := DINT_TO_INT(g_batch[9].CalTime);
+qw_b9_start_hi := LINT_TO_INT(g_batch[9].StartTime / LINT#65536);
+qw_b9_start_lo := LINT_TO_INT(g_batch[9].StartTime MOD LINT#65536);
+qw_b10_code := g_batch[10].BatchCode;
+qw_b10_state := g_batch[10].State;
+qw_b10_prog := g_batch[10].ProgId;
+qw_b10_stage := g_batch[10].CurStage;
+qw_b10_min_time := DINT_TO_INT(g_batch[10].MinTime);
+qw_b10_max_time := DINT_TO_INT(g_batch[10].MaxTime);
+qw_b10_cal_time := DINT_TO_INT(g_batch[10].CalTime);
+qw_b10_start_hi := LINT_TO_INT(g_batch[10].StartTime / LINT#65536);
+qw_b10_start_lo := LINT_TO_INT(g_batch[10].StartTime MOD LINT#65536);
 (* === Calibration status — PLC writes, gateway reads === *)
 qw_calibration_step := calibrate.o_step;
 qw_calibration_tid := calibrate.o_tid;

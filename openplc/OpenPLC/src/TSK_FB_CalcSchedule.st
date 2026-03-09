@@ -76,7 +76,7 @@ IF i_unit < 1 OR i_unit > MAX_Units THEN RETURN; END_IF;
 IF i_trans < 1 OR i_trans > MAX_Transporters THEN RETURN; END_IF;
 
 (* -- Read batch and unit data -- *)
-cur_stage := g_batch[i_unit].cur_stage;
+cur_stage := g_batch[i_unit].CurStage;
 location  := g_unit[i_unit].location;
 is_on_stn := location >= 100;
 out_count := 0;
@@ -94,7 +94,7 @@ END_FOR;
 
 (* -- Determine start stage -- *)
 (* Waiting batch (state = NOT_PROCESSED): treat as stage 0 *)
-IF g_batch[i_unit].state = 0 THEN
+IF g_batch[i_unit].State = 0 THEN
   cur_stage := 0;
 END_IF;
 
@@ -123,7 +123,7 @@ END_IF;
 (* -- prevExitTime: when next stage can begin -- *)
 IF is_on_stn THEN
   (* Unit is on station: calculate remaining time *)
-  calc_s := INT_TO_REAL(g_batch[i_unit].cur_stage);
+  calc_s := INT_TO_REAL(g_batch[i_unit].CurStage);
   (* For first stage, remaining time based on calc_time *)
   exit_t := i_time_s;
 ELSE
@@ -264,8 +264,8 @@ FOR st := start_st TO g_program[i_unit].StepCount DO
     (* Batch is currently at this station *)
     entry_t := i_time_s;
     (* Remaining time: calc_time - elapsed since arrival *)
-    IF g_batch[i_unit].start_time > 0 THEN
-      elapsed_s := LINT_TO_REAL(i_time_s - g_batch[i_unit].start_time);
+    IF g_batch[i_unit].StartTime > 0 THEN
+      elapsed_s := LINT_TO_REAL(i_time_s - g_batch[i_unit].StartTime);
     ELSE
       elapsed_s := 0.0;
     END_IF;

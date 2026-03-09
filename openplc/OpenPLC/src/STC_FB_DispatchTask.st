@@ -158,9 +158,9 @@ FOR ti := 1 TO MAX_Transporters DO
           IF tgt >= 1 AND tgt <= 5 THEN
             (* Resolve buffer NTT index like NoTreatment does *)
             IF tgt = 2 THEN
-              IF g_batch[t_unit].batch_code = 0 THEN
+              IF g_batch[t_unit].BatchCode = 0 THEN
                 ntt_idx := 6;
-              ELSIF g_batch[t_unit].state = 2 THEN
+              ELSIF g_batch[t_unit].State = 2 THEN
                 ntt_idx := 8;
               ELSE
                 ntt_idx := 7;
@@ -279,10 +279,10 @@ FOR ti := 1 TO MAX_Transporters DO
 
           (* ── Update batch times: transfer duration as time bar ── *)
           IF t_unit >= 1 AND t_unit <= MAX_Units THEN
-            g_batch[t_unit].start_time := g_time_s;
-            g_batch[t_unit].cal_time   := LINT_TO_DINT(t_finish - t_start);
-            g_batch[t_unit].min_time   := g_batch[t_unit].cal_time;
-            g_batch[t_unit].max_time   := LINT_TO_DINT((t_finish - t_start) * LINT#2);
+            g_batch[t_unit].StartTime := g_time_s;
+            g_batch[t_unit].CalTime   := LINT_TO_DINT(t_finish - t_start);
+            g_batch[t_unit].MinTime   := g_batch[t_unit].CalTime;
+            g_batch[t_unit].MaxTime   := LINT_TO_DINT((t_finish - t_start) * LINT#2);
           END_IF;
 
           (* ── Emit TASK_DISPATCHED event (msg_type=1) ── *)
@@ -295,9 +295,9 @@ FOR ti := 1 TO MAX_Transporters DO
             g_event_pending.f[3]  := t_lift;
             g_event_pending.f[4]  := sink_stn;
             g_event_pending.f[5]  := t_stage;
-            g_event_pending.f[6]  := g_batch[t_unit].batch_code;
-            g_event_pending.f[7]  := g_batch[t_unit].state;
-            g_event_pending.f[8]  := g_batch[t_unit].prog_id;
+            g_event_pending.f[6]  := g_batch[t_unit].BatchCode;
+            g_event_pending.f[7]  := g_batch[t_unit].State;
+            g_event_pending.f[8]  := g_batch[t_unit].ProgId;
             g_event_pending.f[9]  := g_unit[t_unit].target;
             g_event_pending.f[10] := DINT_TO_INT(t_calc_time);
             g_event_pending.f[11] := DINT_TO_INT(g_task[ti].queue[1].min_time);

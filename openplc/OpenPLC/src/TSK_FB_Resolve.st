@@ -167,7 +167,7 @@ IF can_advance AND chain_flex_down >= remain THEN
 
       IF walk_flex > 0.1 THEN
         (* Cap: 90% if on stage, 50% otherwise *)
-        IF g_batch[i_blocked_unit].cur_stage = si THEN
+        IF g_batch[i_blocked_unit].CurStage = si THEN
           walk_cap := 0.9;
         ELSE
           walk_cap := 0.5;
@@ -219,7 +219,7 @@ IF can_delay AND chain_flex_up >= remain THEN
       IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
 
       IF walk_flex > 0.1 THEN
-        IF g_batch[i_conf_unit].cur_stage = si THEN
+        IF g_batch[i_conf_unit].CurStage = si THEN
           walk_cap := 0.9;
         ELSE
           walk_cap := 0.5;
@@ -279,7 +279,7 @@ IF eff_adv + eff_del >= remain THEN
                   - g_schedule[i_blocked_unit].stages[si].min_time);
         IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
         IF walk_flex > 0.1 THEN
-          IF g_batch[i_blocked_unit].cur_stage = si THEN walk_cap := 0.9; ELSE walk_cap := 0.5; END_IF;
+          IF g_batch[i_blocked_unit].CurStage = si THEN walk_cap := 0.9; ELSE walk_cap := 0.5; END_IF;
           walk_amount := walk_flex * walk_cap;
           IF walk_amount > walk_remain THEN walk_amount := walk_remain; END_IF;
           g_schedule[i_blocked_unit].stages[si].calc_time :=
@@ -311,7 +311,7 @@ IF eff_adv + eff_del >= remain THEN
                   - g_schedule[i_conf_unit].stages[si].calc_time);
         IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
         IF walk_flex > 0.1 THEN
-          IF g_batch[i_conf_unit].cur_stage = si THEN walk_cap := 0.9; ELSE walk_cap := 0.5; END_IF;
+          IF g_batch[i_conf_unit].CurStage = si THEN walk_cap := 0.9; ELSE walk_cap := 0.5; END_IF;
           walk_amount := walk_flex * walk_cap;
           IF walk_amount > walk_remain THEN walk_amount := walk_remain; END_IF;
           g_schedule[i_conf_unit].stages[si].calc_time :=

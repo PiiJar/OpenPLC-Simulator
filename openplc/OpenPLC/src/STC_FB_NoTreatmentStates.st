@@ -71,9 +71,9 @@ FUNCTION_BLOCK STC_FB_NoTreatmentStates
 
     snap[u].loc       := g_unit[u].location;
     snap[u].tgt       := g_unit[u].target;
-    snap[u].has_batch := g_batch[u].batch_code <> 0;
-    snap[u].bstate    := g_batch[u].state;
-    snap[u].cur_stage := g_batch[u].cur_stage;
+    snap[u].has_batch := g_batch[u].BatchCode <> 0;
+    snap[u].bstate    := g_batch[u].State;
+    snap[u].cur_stage := g_batch[u].CurStage;
 
     snap[u].on_station := snap[u].loc >= MIN_StationIndex
                           AND snap[u].loc <= MAX_StationIndex;
@@ -114,7 +114,7 @@ FUNCTION_BLOCK STC_FB_NoTreatmentStates
     IF snap[u].cur_stage >= 1 AND snap[u].cur_stage < MAX_STEPS_PER_PROGRAM THEN
       IF snap[u].cur_stage >= g_program[u].StepCount THEN
         IF snap[u].elapsed > 0 AND snap[u].elapsed >= DINT_TO_LINT(snap[u].cal) THEN
-          g_batch[u].state := PROCESSED;
+          g_batch[u].State := PROCESSED;
           snap[u].bstate   := PROCESSED;  (* update snapshot *)
         END_IF;
       END_IF;

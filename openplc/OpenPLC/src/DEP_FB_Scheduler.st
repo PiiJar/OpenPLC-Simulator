@@ -239,13 +239,13 @@ ELSIF phase = 100 THEN
 (* PHASE 150: SORT_WAITING — FIFO sort by start_time (G06)     *)
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 150 THEN
-  (* Insertion sort waiting list by g_batch[unit].start_time ascending *)
+  (* Insertion sort waiting list by g_batch[unit].StartTime ascending *)
   FOR si := 2 TO waiting_cnt DO
     tmp_unit := waiting_list[si];
-    tmp_key  := g_batch[tmp_unit].start_time;
+    tmp_key  := g_batch[tmp_unit].StartTime;
     ji := si - 1;
     WHILE ji >= 1 DO
-      IF g_batch[waiting_list[ji]].start_time > tmp_key THEN
+      IF g_batch[waiting_list[ji]].StartTime > tmp_key THEN
         waiting_list[ji + 1] := waiting_list[ji];
         ji := ji - 1;
       ELSE

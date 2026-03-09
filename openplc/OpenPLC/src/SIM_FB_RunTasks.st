@@ -167,10 +167,10 @@ FOR i := 1 TO MAX_Transporters DO
       can_lift := TRUE;
       lift_uid := g_station_loc[g_transporter[i].LiftStationTarget].UnitId;
       IF lift_uid >= 1 AND lift_uid <= MAX_Units THEN
-        IF g_batch[lift_uid].state = IN_PROCESS
-           AND g_batch[lift_uid].cur_stage >= 1
-           AND g_batch[lift_uid].cur_stage <= MAX_STEPS_PER_PROGRAM THEN
-          treat_cal := g_program[lift_uid].Steps[g_batch[lift_uid].cur_stage - 1].CalTime;
+        IF g_batch[lift_uid].State = IN_PROCESS
+           AND g_batch[lift_uid].CurStage >= 1
+           AND g_batch[lift_uid].CurStage <= MAX_STEPS_PER_PROGRAM THEN
+          treat_cal := g_program[lift_uid].Steps[g_batch[lift_uid].CurStage - 1].CalTime;
           IF treat_cal > 0 THEN
             treat_elapsed := g_time_s - g_station_loc[g_transporter[i].LiftStationTarget].ChangeTime;
             IF treat_elapsed < DINT_TO_LINT(treat_cal) THEN
@@ -197,10 +197,10 @@ FOR i := 1 TO MAX_Transporters DO
         g_event_pending.f[1]  := i;
         g_event_pending.f[2]  := evt_unit;
         g_event_pending.f[3]  := g_transporter[i].LiftStationTarget;
-        g_event_pending.f[4]  := g_batch[evt_unit].batch_code;
-        g_event_pending.f[5]  := g_batch[evt_unit].state;
-        g_event_pending.f[6]  := g_batch[evt_unit].prog_id;
-        g_event_pending.f[7]  := g_batch[evt_unit].cur_stage;
+        g_event_pending.f[4]  := g_batch[evt_unit].BatchCode;
+        g_event_pending.f[5]  := g_batch[evt_unit].State;
+        g_event_pending.f[6]  := g_batch[evt_unit].ProgId;
+        g_event_pending.f[7]  := g_batch[evt_unit].CurStage;
         evt_diff := g_time_s - g_station_loc[g_transporter[i].LiftStationTarget].ChangeTime;
         IF evt_diff > LINT#32000 THEN
           g_event_pending.f[8] := 32000;

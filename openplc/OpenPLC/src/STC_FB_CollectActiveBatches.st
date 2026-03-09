@@ -7,7 +7,7 @@
    Common conditions for both modes:
      unit.Status  = USED (1)
      unit.target  = TO_NONE (0)
-     batch.prog_id = g_program[ui].program_id  (valid program)
+     batch.prog_id = g_program[ui].ProgramId  (valid program)
 
    Mode:
      i_mode = 0 — active (in-production) batches:
@@ -50,20 +50,20 @@ FOR ui := 1 TO MAX_Units DO
   (* Common conditions: unit USED, target TO_NONE, valid program *)
   IF g_unit[ui].Status = 1
      AND g_unit[ui].target = 0
-     AND g_batch[ui].prog_id = g_program[ui].program_id
-     AND g_program[ui].program_id > 0 THEN
+     AND g_batch[ui].ProgId = g_program[ui].ProgramId
+     AND g_program[ui].ProgramId > 0 THEN
 
     IF i_mode = 0 THEN
       (* Active batches: IN_PROCESS, stage 0..99 *)
-      IF g_batch[ui].state = 1
-         AND g_batch[ui].cur_stage >= 0
-         AND g_batch[ui].cur_stage <= 99 THEN
+      IF g_batch[ui].State = 1
+         AND g_batch[ui].CurStage >= 0
+         AND g_batch[ui].CurStage <= 99 THEN
         o_count := o_count + 1;
         o_list[o_count] := ui;
       END_IF;
     ELSIF i_mode = 1 THEN
       (* Waiting batches: NOT_PROCESSED *)
-      IF g_batch[ui].state = 0 THEN
+      IF g_batch[ui].State = 0 THEN
         o_count := o_count + 1;
         o_list[o_count] := ui;
       END_IF;

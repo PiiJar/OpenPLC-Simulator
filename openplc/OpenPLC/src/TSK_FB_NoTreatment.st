@@ -102,7 +102,7 @@ FOR ui := 1 TO MAX_Units DO
   IF tgt >= 1 AND tgt <= 5 AND loc >= 100 THEN
 
     (* TO_PROCESS with batch already IN_PROCESS or later → skip (handled by schedule) *)
-    IF tgt = 3 AND (g_batch[ui].batch_code = 0 OR g_batch[ui].state <> 0) THEN
+    IF tgt = 3 AND (g_batch[ui].BatchCode = 0 OR g_batch[ui].State <> 0) THEN
       CONTINUE;
     END_IF;
 
@@ -151,9 +151,9 @@ FOR ui := 1 TO MAX_Units DO
         (* TO_BUFFER(2) maps to 6/7/8 depending on batch state *)
         (* TO_PROCESS(3) with NOT_PROCESSED batch → loaded buffer (7) *)
         IF tgt = 2 THEN
-          IF g_batch[ui].batch_code = 0 THEN
+          IF g_batch[ui].BatchCode = 0 THEN
             ntt_idx := 6;  (* empty buffer — no batch *)
-          ELSIF g_batch[ui].state = 2 THEN
+          ELSIF g_batch[ui].State = 2 THEN
             ntt_idx := 8;  (* processed buffer — batch PROCESSED *)
           ELSE
             ntt_idx := 7;  (* loaded buffer — batch NOT_PROCESSED or IN_PROCESS *)
