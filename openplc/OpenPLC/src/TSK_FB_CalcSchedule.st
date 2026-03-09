@@ -85,10 +85,10 @@ FOR st := 1 TO 30 DO
   g_schedule[i_unit].stages[st].station := 0;
   g_schedule[i_unit].stages[st].entry_time := 0;
   g_schedule[i_unit].stages[st].exit_time := 0;
-  g_schedule[i_unit].stages[st].min_time := 0.0;
-  g_schedule[i_unit].stages[st].calc_time := 0.0;
-  g_schedule[i_unit].stages[st].max_time := 0.0;
-  g_schedule[i_unit].stages[st].transfer_time := 0.0;
+  g_schedule[i_unit].stages[st].min_time := 0;
+  g_schedule[i_unit].stages[st].calc_time := 0;
+  g_schedule[i_unit].stages[st].max_time := 0;
+  g_schedule[i_unit].stages[st].transfer_time := 0;
 END_FOR;
 
 (* -- Determine start stage -- *)
@@ -147,10 +147,10 @@ IF is_on_stn AND start_st >= 1 THEN
     g_schedule[i_unit].stages[out_count].station       := location;
     g_schedule[i_unit].stages[out_count].entry_time    := exit_t;
     g_schedule[i_unit].stages[out_count].exit_time     := exit_t;
-    g_schedule[i_unit].stages[out_count].min_time      := 0.0;
-    g_schedule[i_unit].stages[out_count].calc_time     := 0.0;
-    g_schedule[i_unit].stages[out_count].max_time      := 0.0;
-    g_schedule[i_unit].stages[out_count].transfer_time := 0.0;
+    g_schedule[i_unit].stages[out_count].min_time      := 0;
+    g_schedule[i_unit].stages[out_count].calc_time     := 0;
+    g_schedule[i_unit].stages[out_count].max_time      := 0;
+    g_schedule[i_unit].stages[out_count].transfer_time := 0;
     is_first := FALSE;
   END_IF;
 END_IF;
@@ -180,7 +180,7 @@ FOR st := start_st TO 30 DO
     chosen_stn := cand_arr[1];
   ELSE
     (* Read treatment times early — needed for time window estimate *)
-    calc_s := INT_TO_REAL(g_program[i_unit].stages[st].cal_time);
+    calc_s := DINT_TO_REAL(g_program[i_unit].stages[st].cal_time);
 
     (* Estimate this stage's time window *)
     tmp_move := g_move[i_trans];
@@ -250,9 +250,9 @@ FOR st := start_st TO 30 DO
   stn_num := chosen_stn;
 
   (* Read treatment times from program *)
-  calc_s := INT_TO_REAL(g_program[i_unit].stages[st].cal_time);
-  min_s  := INT_TO_REAL(g_program[i_unit].stages[st].min_time);
-  max_s  := INT_TO_REAL(g_program[i_unit].stages[st].max_time);
+  calc_s := DINT_TO_REAL(g_program[i_unit].stages[st].cal_time);
+  min_s  := DINT_TO_REAL(g_program[i_unit].stages[st].min_time);
+  max_s  := DINT_TO_REAL(g_program[i_unit].stages[st].max_time);
 
   (* -- Calculate transfer time from prev_stn to stn_num -- *)
   tmp_move := g_move[i_trans];
@@ -287,10 +287,10 @@ FOR st := start_st TO 30 DO
     g_schedule[i_unit].stages[out_count].station       := stn_num;
     g_schedule[i_unit].stages[out_count].entry_time    := entry_t;
     g_schedule[i_unit].stages[out_count].exit_time     := exit_t;
-    g_schedule[i_unit].stages[out_count].min_time      := min_s;
-    g_schedule[i_unit].stages[out_count].calc_time     := calc_s;
-    g_schedule[i_unit].stages[out_count].max_time      := max_s;
-    g_schedule[i_unit].stages[out_count].transfer_time := xfer_t;
+    g_schedule[i_unit].stages[out_count].min_time      := REAL_TO_DINT(min_s);
+    g_schedule[i_unit].stages[out_count].calc_time     := REAL_TO_DINT(calc_s);
+    g_schedule[i_unit].stages[out_count].max_time      := REAL_TO_DINT(max_s);
+    g_schedule[i_unit].stages[out_count].transfer_time := REAL_TO_DINT(xfer_t);
   END_IF;
 
   (* -- Update for next iteration -- *)

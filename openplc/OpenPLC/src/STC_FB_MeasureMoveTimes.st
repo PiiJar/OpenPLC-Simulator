@@ -40,7 +40,7 @@ VAR_INPUT
   t_id     : INT;     (* transporter index 1..3 *)
   phase    : INT;     (* current phase 0..4 *)
   delta_t  : REAL;    (* cycle time in seconds *)
-  vel_x    : REAL;    (* current X velocity mm/s *)
+  vel_x    : DINT;    (* current X velocity mm/s *)
   z_stage  : INT;     (* current Z motion stage 0..8 *)
   lift_stn : INT;     (* lift station number, e.g. 105 *)
   sink_stn : INT;     (* sink station number, e.g. 112 *)
@@ -71,7 +71,7 @@ IF phase <> prev_phase THEN
     (* Travel to lift complete → save travel time *)
     IF travel_from >= 1 AND travel_from <= 25
        AND travel_to >= 1 AND travel_to <= 25 THEN
-      g_move[t_id].travel[travel_from].to_s[travel_to] := timer;
+      g_move[t_id].travel[travel_from].to_s[travel_to] := REAL_TO_INT(timer * 10.0);
     END_IF;
     (* Start timing lift — timer starts at 0, accumulates only in z_stage 2-4 *)
     lift_idx := lift_stn - 100;
@@ -80,7 +80,7 @@ IF phase <> prev_phase THEN
   ELSIF prev_phase = 2 AND phase = 3 THEN
     (* Lift complete → save lift time (pure mechanical Z-motion only) *)
     IF lift_idx >= 1 AND lift_idx <= 25 THEN
-      g_move[t_id].lift_s[lift_idx] := timer;
+      g_move[t_id].lift_s[lift_idx] := REAL_TO_INT(timer * 10.0);
     END_IF;
     (* Start timing travel to sink *)
     travel_from := lift_stn - 100;
@@ -91,7 +91,7 @@ IF phase <> prev_phase THEN
     (* Travel to sink complete → save travel time *)
     IF travel_from >= 1 AND travel_from <= 25
        AND travel_to >= 1 AND travel_to <= 25 THEN
-      g_move[t_id].travel[travel_from].to_s[travel_to] := timer;
+      g_move[t_id].travel[travel_from].to_s[travel_to] := REAL_TO_INT(timer * 10.0);
     END_IF;
     (* Start timing sink — timer starts at 0, accumulates only in z_stage 7-8 *)
     sink_idx := sink_stn - 100;
@@ -100,7 +100,7 @@ IF phase <> prev_phase THEN
   ELSIF prev_phase = 4 AND phase = 0 THEN
     (* Sink complete → save sink time (pure mechanical Z-motion only) *)
     IF sink_idx >= 1 AND sink_idx <= 25 THEN
-      g_move[t_id].sink_s[sink_idx] := timer;
+      g_move[t_id].sink_s[sink_idx] := REAL_TO_INT(timer * 10.0);
     END_IF;
     timer := 0.0;
 
@@ -123,7 +123,7 @@ ELSE
   IF phase = 1 OR phase = 3 THEN
     (* Travel: only count time when actually moving *)
     (* Filters out TWA collision avoidance stops    *)
-    IF ABS(vel_x) > 0.1 THEN
+    IF vel_x <> 0 THEN
       timer := timer + delta_t;
     END_IF;
 

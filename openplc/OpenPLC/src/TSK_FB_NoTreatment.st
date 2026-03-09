@@ -325,9 +325,9 @@ FOR ui := 1 TO MAX_Units DO
               g_task[cov_t].queue[1].sink_station := dest_stn;
               g_task[cov_t].queue[1].start_time   := task_start;
               g_task[cov_t].queue[1].finish_time  := task_end;
-              g_task[cov_t].queue[1].calc_time    := 0.0;
-              g_task[cov_t].queue[1].min_time     := 0.0;
-              g_task[cov_t].queue[1].max_time     := 0.0;
+              g_task[cov_t].queue[1].calc_time    := 0;
+              g_task[cov_t].queue[1].min_time     := 0;
+              g_task[cov_t].queue[1].max_time     := 0;
               g_task[cov_t].count := g_task[cov_t].count + 1;
               done := TRUE;
             END_IF;

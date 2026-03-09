@@ -54,9 +54,9 @@ VAR
   (* Station lookup *)
   lookup       : STC_FB_FindStation;
   (* Temp vars for VAR_IN_OUT passing *)
-  tmp_x        : REAL;
-  tmp_vx       : REAL;
-  tmp_z        : REAL;
+  tmp_x        : DINT;
+  tmp_vx       : DINT;
+  tmp_z        : DINT;
   tmp_zs       : INT;
   tmp_zt       : REAL;
   arrived_x    : BOOL;
@@ -69,8 +69,8 @@ VAR
   sink_unit_id : INT;     (* unit_id being placed at sink station *)
   (* Nearest-station calculation *)
   nearest_num  : INT;
-  min_dist     : REAL;
-  dx           : REAL;
+  min_dist     : DINT;
+  dx           : DINT;
   (* Time measurement instances *)
   tm1          : STC_FB_MeasureMoveTimes;
   tm2          : STC_FB_MeasureMoveTimes;
@@ -85,7 +85,7 @@ VAR
   (* Treatment time wait *)
   can_lift       : BOOL;
   lift_uid       : INT;      (* unit at lift station *)
-  treat_cal      : INT;      (* treatment cal_time for current stage *)
+  treat_cal      : DINT;      (* treatment cal_time for current stage *)
   treat_elapsed  : LINT;     (* seconds spent at lift station *)
 END_VAR
 
@@ -101,7 +101,7 @@ FOR i := 1 TO MAX_Transporters DO
      AND (g_transporter[i].task_id <> g_transporter[i].running_task_id) THEN
     g_transporter[i].running_task_id := g_transporter[i].task_id;
     lookup(station_number := g_transporter[i].lift_station);
-    g_transporter[i].XFinalTarget := lookup.XPosition;
+    g_transporter[i].XFinalTarget := lookup.x_mm;
     g_transporter[i].phase := 1;
     g_transporter[i].status := 4;  (* auto_run *)
     g_transporter[i].z_stage := 0;
@@ -156,7 +156,7 @@ FOR i := 1 TO MAX_Transporters DO
 
     (* Only transition when actually at station, not just at drive limit *)
     at_station := arrived_x
-                  AND (ABS(g_transporter[i].XPosition - g_transporter[i].XFinalTarget) <= 6.0);
+                  AND (ABS(g_transporter[i].XPosition - g_transporter[i].XFinalTarget) <= 6);
     IF at_station THEN
       g_transporter[i].current_station := g_transporter[i].lift_station;
 
@@ -173,7 +173,7 @@ FOR i := 1 TO MAX_Transporters DO
           treat_cal := g_program[lift_uid].stages[g_batch[lift_uid].cur_stage].cal_time;
           IF treat_cal > 0 THEN
             treat_elapsed := g_time_s - g_station[g_transporter[i].lift_station].ChangeTime;
-            IF treat_elapsed < INT_TO_LINT(treat_cal) THEN
+            IF treat_elapsed < DINT_TO_LINT(treat_cal) THEN
               can_lift := FALSE;
             END_IF;
           END_IF;
@@ -207,9 +207,9 @@ FOR i := 1 TO MAX_Transporters DO
         ELSE
           g_event_pending.f[8] := LINT_TO_INT(evt_diff);
         END_IF;
-        g_event_pending.f[9]  := REAL_TO_INT(g_transporter[i].treatment_time);
-        g_event_pending.f[10] := REAL_TO_INT(g_transporter[i].min_time);
-        g_event_pending.f[11] := REAL_TO_INT(g_transporter[i].max_time);
+        g_event_pending.f[9]  := DINT_TO_INT(g_transporter[i].treatment_time);
+        g_event_pending.f[10] := DINT_TO_INT(g_transporter[i].min_time);
+        g_event_pending.f[11] := DINT_TO_INT(g_transporter[i].max_time);
         g_event_pending.f[12] := 0;
         g_event_pending_valid := TRUE;
       END_IF;
@@ -290,7 +290,7 @@ FOR i := 1 TO MAX_Transporters DO
     g_transporter[i].z_timer_s := tmp_zt;
     IF arrived_z THEN
       lookup(station_number := g_transporter[i].sink_station);
-      g_transporter[i].XFinalTarget := lookup.XPosition;
+      g_transporter[i].XFinalTarget := lookup.x_mm;
       g_transporter[i].phase := 3;
     END_IF;
 
@@ -343,12 +343,12 @@ FOR i := 1 TO MAX_Transporters DO
 
     (* Only transition when actually at station, not just at drive limit *)
     at_station := arrived_x
-                  AND (ABS(g_transporter[i].XPosition - g_transporter[i].XFinalTarget) <= 6.0);
+                  AND (ABS(g_transporter[i].XPosition - g_transporter[i].XFinalTarget) <= 6);
     IF at_station THEN
       g_transporter[i].current_station := g_transporter[i].sink_station;
       lookup(station_number := g_transporter[i].sink_station);
       device_delay := lookup.device_delay_s;
-      g_transporter[i].z_timer_s := device_delay + g_cfg[i].phys2d.drip_delay_s;
+      g_transporter[i].z_timer_s := device_delay + INT_TO_REAL(g_cfg[i].phys2d.drip_delay_s) / 10.0;
       g_transporter[i].z_stage := 6;
       g_transporter[i].phase := 4;
     END_IF;
@@ -479,7 +479,7 @@ FOR i := 1 TO MAX_Transporters DO
   END_IF;
 
   (* ── Nearest station tracking ──────────────────────────── *)
-  min_dist := 1.0e9;
+  min_dist := 999999999;
   nearest_num := g_transporter[i].current_station;
   FOR idx := MIN_StationIndex TO MAX_StationIndex DO
     IF g_station[idx].TankId <> 0 THEN

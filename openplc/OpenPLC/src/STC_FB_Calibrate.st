@@ -153,7 +153,7 @@ IF cal_step = 11 THEN
 END_IF;
 
 IF cal_step = 12 THEN
-  cur_v := ABS(g_transporter[tid].XVelocity);
+  cur_v := ABS(DINT_TO_REAL(g_transporter[tid].XVelocity));
 
   (* ── Track X velocity during phase 3 (travel dry→wet) ── *)
   IF g_transporter[tid].phase = 3 THEN
@@ -194,9 +194,9 @@ IF cal_step = 12 THEN
     IF x_meas_ph = 3 THEN
       x_dec_t := x_timer;
     END_IF;
-    g_cal[tid].x_accel_s  := x_acc_t;
-    g_cal[tid].x_decel_s  := x_dec_t;
-    g_cal[tid].x_max_mm_s := x_max_v;
+    g_cal[tid].x_accel_s  := REAL_TO_INT(x_acc_t * 10.0);
+    g_cal[tid].x_decel_s  := REAL_TO_INT(x_dec_t * 10.0);
+    g_cal[tid].x_max_mm_s := REAL_TO_DINT(x_max_v);
     (* Don't re-enter — set meas_ph to done *)
     x_meas_ph := 99;
   END_IF;
@@ -288,11 +288,11 @@ END_IF;
    ================================================================ *)
 IF cal_step = 200 THEN
   FOR ci := 1 TO MAX_Transporters DO
-    IF g_transporter[ci].active AND g_cal[ci].x_max_mm_s > 0.0 THEN
+    IF g_transporter[ci].active AND g_cal[ci].x_max_mm_s > 0 THEN
 
-      vm := g_cal[ci].x_max_mm_s;
-      ta := g_cal[ci].x_accel_s;
-      td := g_cal[ci].x_decel_s;
+      vm := DINT_TO_REAL(g_cal[ci].x_max_mm_s);
+      ta := INT_TO_REAL(g_cal[ci].x_accel_s) / 10.0;
+      td := INT_TO_REAL(g_cal[ci].x_decel_s) / 10.0;
 
       (* --- Fill lift_s and sink_s per station type --- *)
       FOR cj := 1 TO 25 DO
@@ -325,23 +325,23 @@ IF cal_step = 200 THEN
           FOR wet_idx := 1 TO 25 DO
             IF g_station[100 + wet_idx].TankId <> 0 THEN
               IF cj = wet_idx THEN
-                g_move[ci].travel[cj].to_s[wet_idx] := 0.0;
+                g_move[ci].travel[cj].to_s[wet_idx] := 0;
               ELSE
-                dist := ABS(g_station[100 + cj].XPosition - g_station[100 + wet_idx].XPosition);
+                dist := ABS(DINT_TO_REAL(g_station[100 + cj].XPosition - g_station[100 + wet_idx].XPosition));
                 IF dist < 1.0 THEN
-                  g_move[ci].travel[cj].to_s[wet_idx] := 0.0;
+                  g_move[ci].travel[cj].to_s[wet_idx] := 0;
                 ELSIF dist >= (d_acc + d_dec) THEN
                   (* Full trapezoidal profile *)
                   travel_t := ta + (dist - d_acc - d_dec) / vm + td;
-                  g_move[ci].travel[cj].to_s[wet_idx] := travel_t;
+                  g_move[ci].travel[cj].to_s[wet_idx] := REAL_TO_INT(travel_t * 10.0);
                 ELSE
                   (* Triangle profile — cannot reach full speed *)
                   IF (ta + td) > 0.0 THEN
                     v_peak := SQRT(2.0 * dist * vm / (ta + td));
                     travel_t := v_peak * (ta + td) / vm;
-                    g_move[ci].travel[cj].to_s[wet_idx] := travel_t;
+                    g_move[ci].travel[cj].to_s[wet_idx] := REAL_TO_INT(travel_t * 10.0);
                   ELSE
-                    g_move[ci].travel[cj].to_s[wet_idx] := 0.0;
+                    g_move[ci].travel[cj].to_s[wet_idx] := 0;
                   END_IF;
                 END_IF;
               END_IF;

@@ -59,23 +59,23 @@ g_station_count := 0;
 
 (* --- Clear all transporter configs --- *)
 FOR i := 1 TO MAX_Transporters DO
-  g_cfg[i].XMinLimit   := 0.0;
-  g_cfg[i].XMaxLimit   := 0.0;
-  g_cfg[i].YMinLimit   := 0.0;
-  g_cfg[i].YMaxLimit   := 0.0;
-  g_cfg[i].XAvoidMm    := 0.0;
-  g_cfg[i].YAvoidMm    := 0.0;
-  g_cfg[i].phys2d.x_accel_s     := 0.0;
-  g_cfg[i].phys2d.x_decel_s     := 0.0;
-  g_cfg[i].phys2d.x_max_mm_s    := 0.0;
-  g_cfg[i].phys2d.z_total_mm    := 0.0;
-  g_cfg[i].phys2d.z_slow_dry_mm := 0.0;
-  g_cfg[i].phys2d.z_slow_wet_mm := 0.0;
-  g_cfg[i].phys2d.z_slow_end_mm := 0.0;
-  g_cfg[i].phys2d.z_slow_mm_s   := 0.0;
-  g_cfg[i].phys2d.z_fast_mm_s   := 0.0;
-  g_cfg[i].phys2d.drip_delay_s  := 0.0;
-  g_cfg[i].phys2d.avoid_mm      := 0.0;
+  g_cfg[i].XMinLimit   := 0;
+  g_cfg[i].XMaxLimit   := 0;
+  g_cfg[i].YMinLimit   := 0;
+  g_cfg[i].YMaxLimit   := 0;
+  g_cfg[i].XAvoidMm    := 0;
+  g_cfg[i].YAvoidMm    := 0;
+  g_cfg[i].phys2d.x_accel_s     := 0;
+  g_cfg[i].phys2d.x_decel_s     := 0;
+  g_cfg[i].phys2d.x_max_mm_s    := 0;
+  g_cfg[i].phys2d.z_total_mm    := 0;
+  g_cfg[i].phys2d.z_slow_dry_mm := 0;
+  g_cfg[i].phys2d.z_slow_wet_mm := 0;
+  g_cfg[i].phys2d.z_slow_end_mm := 0;
+  g_cfg[i].phys2d.z_slow_mm_s   := 0;
+  g_cfg[i].phys2d.z_fast_mm_s   := 0;
+  g_cfg[i].phys2d.drip_delay_s  := 0;
+  g_cfg[i].phys2d.avoid_mm      := 0;
   FOR j := 1 TO 4 DO
     g_cfg[i].task_area[j].min_lift := 0;
     g_cfg[i].task_area[j].max_lift := 0;
@@ -99,24 +99,24 @@ FOR i := 1 TO MAX_Transporters DO
   g_transporter[i].running_task_id := 0;
   g_transporter[i].lift_station    := 0;
   g_transporter[i].sink_station    := 0;
-  g_transporter[i].treatment_time  := 0.0;
-  g_transporter[i].lift_device_delay := 0.0;
-  g_transporter[i].sink_device_delay := 0.0;
-  g_transporter[i].DrippingTime   := 0.0;
-  g_transporter[i].remaining_time  := 0.0;
+  g_transporter[i].treatment_time  := 0;
+  g_transporter[i].lift_device_delay := 0;
+  g_transporter[i].sink_device_delay := 0;
+  g_transporter[i].DrippingTime   := 0;
+  g_transporter[i].remaining_time  := 0;
   g_transporter[i].current_station := 0;
-  g_transporter[i].XFinalTarget  := 0.0;
-  g_transporter[i].XDriveTarget  := 0.0;
-  g_transporter[i].YFinalTarget  := 0.0;
-  g_transporter[i].YDriveTarget  := 0.0;
-  g_transporter[i].XPosition            := 0.0;
-  g_transporter[i].YPosition            := 0.0;
-  g_transporter[i].ZPosition            := 0.0;
-  g_transporter[i].XVelocity           := 0.0;
+  g_transporter[i].XFinalTarget  := 0;
+  g_transporter[i].XDriveTarget  := 0;
+  g_transporter[i].YFinalTarget  := 0;
+  g_transporter[i].YDriveTarget  := 0;
+  g_transporter[i].XPosition            := 0;
+  g_transporter[i].YPosition            := 0;
+  g_transporter[i].ZPosition            := 0;
+  g_transporter[i].XVelocity           := 0;
   g_transporter[i].z_stage         := 0;
   g_transporter[i].z_timer_s       := 0.0;
-  g_transporter[i].XMinLimit     := 0.0;
-  g_transporter[i].XMaxLimit     := 0.0;
+  g_transporter[i].XMinLimit     := 0;
+  g_transporter[i].XMaxLimit     := 0;
 END_FOR;
 
 (* --- Clear all units --- *)
@@ -170,10 +170,10 @@ FOR i := 1 TO MAX_Units DO
     g_schedule[i].stages[j].station       := 0;
     g_schedule[i].stages[j].entry_time    := 0;
     g_schedule[i].stages[j].exit_time     := 0;
-    g_schedule[i].stages[j].min_time      := 0.0;
-    g_schedule[i].stages[j].calc_time     := 0.0;
-    g_schedule[i].stages[j].max_time      := 0.0;
-    g_schedule[i].stages[j].transfer_time := 0.0;
+    g_schedule[i].stages[j].min_time      := 0;
+    g_schedule[i].stages[j].calc_time     := 0;
+    g_schedule[i].stages[j].max_time      := 0;
+    g_schedule[i].stages[j].transfer_time := 0;
   END_FOR;
 END_FOR;
 
@@ -187,9 +187,9 @@ FOR i := 1 TO MAX_Transporters DO
     g_task[i].queue[j].sink_station := 0;
     g_task[i].queue[j].start_time   := 0;
     g_task[i].queue[j].finish_time  := 0;
-    g_task[i].queue[j].calc_time    := 0.0;
-    g_task[i].queue[j].min_time     := 0.0;
-    g_task[i].queue[j].max_time     := 0.0;
+    g_task[i].queue[j].calc_time    := 0;
+    g_task[i].queue[j].min_time     := 0;
+    g_task[i].queue[j].max_time     := 0;
   END_FOR;
 END_FOR;
 

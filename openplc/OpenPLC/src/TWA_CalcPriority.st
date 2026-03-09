@@ -11,32 +11,32 @@
    Values fit within REAL precision (max ~300000).
    ============================================================ *)
 
-FUNCTION TWA_CalcPriority : REAL
+FUNCTION TWA_CalcPriority : DINT
 VAR_INPUT
   i_phase     : INT;
   i_can_evade : BOOL;
-  i_x_pos     : REAL;
-  i_x_target  : REAL;
+  i_x_pos     : DINT;
+  i_x_target  : DINT;
 END_VAR
 VAR
-  dist : REAL;
+  dist : DINT;
 END_VAR
 
 IF NOT i_can_evade THEN
-  TWA_CalcPriority := 100000.0;
+  TWA_CalcPriority := DINT#100000;
   RETURN;
 END_IF;
 
 IF i_phase = 3 THEN
   dist := ABS(i_x_pos - i_x_target);
-  IF dist > 99999.0 THEN dist := 99999.0; END_IF;
-  TWA_CalcPriority := 200000.0 + (99999.0 - dist);
+  IF dist > 99999 THEN dist := 99999; END_IF;
+  TWA_CalcPriority := DINT#200000 + (DINT#99999 - dist);
 ELSIF i_phase = 1 THEN
   dist := ABS(i_x_pos - i_x_target);
-  IF dist > 99999.0 THEN dist := 99999.0; END_IF;
-  TWA_CalcPriority := 100000.0 + (99999.0 - dist);
+  IF dist > 99999 THEN dist := 99999; END_IF;
+  TWA_CalcPriority := DINT#100000 + (DINT#99999 - dist);
 ELSE
-  TWA_CalcPriority := 1.0;
+  TWA_CalcPriority := 1;
 END_IF;
 
 END_FUNCTION

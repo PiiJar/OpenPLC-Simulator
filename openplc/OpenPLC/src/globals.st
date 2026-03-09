@@ -14,11 +14,11 @@ VAR_GLOBAL CONSTANT
   MAX_STATIONS_PER_LINE  : INT := 30;    (* max stations per line *)
   MAX_Transporters_PER_LINE : INT := 3;  (* max transporters per line *)
   MIN_StationIndex    : INT := 100;   (* first valid station index *)
-  MAX_StationIndex      : INT := 150;   (* MAX_LINES*100 + MAX_STATIONS_PER_LINE *)
+  MAX_StationIndex      : INT := 130;   (* MAX_LINES*100 + MAX_STATIONS_PER_LINE *)
 
   (* ── Derived absolute limits ── *)
   MAX_Transporters   : INT := 3;    (* absolute max transporters in a plant *)
-  MAX_Units          : INT := 6;    (* max units (lifting frames / hooks) *)
+  MAX_Units          : INT := 10;    (* max units (lifting frames / hooks) *)
   MAX_STATIONS_PER_STEP      : INT := 5;     (* max parallel stations per program stage *)
   MAX_STEPS_PER_PROGRAM         : INT := 30;    (* max stages in a treatment program *)
   MAX_TASK_QUEUE     : INT := 60;    (* max tasks per transporter queue *)

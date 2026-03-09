@@ -52,7 +52,7 @@ VAR
   t_sink       : INT;
   t_start      : LINT;
   t_finish     : LINT;
-  t_calc_time  : REAL;
+  t_calc_time  : DINT;
   (* Time check *)
   travel_s     : REAL;
   margin_s     : LINT;
@@ -101,7 +101,7 @@ FOR ti := 1 TO MAX_Transporters DO
       from_idx := g_transporter[ti].current_station - 100;
       to_idx   := t_lift - 100;
       IF from_idx >= 1 AND from_idx <= 30 AND to_idx >= 1 AND to_idx <= 30 THEN
-        travel_s := g_move[ti].travel[from_idx].to_s[to_idx];
+        travel_s := INT_TO_REAL(g_move[ti].travel[from_idx].to_s[to_idx]) / 10.0;
       END_IF;
     END_IF;
 
@@ -278,9 +278,9 @@ FOR ti := 1 TO MAX_Transporters DO
           (* ── Update batch times: transfer duration as time bar ── *)
           IF t_unit >= 1 AND t_unit <= MAX_Units THEN
             g_batch[t_unit].start_time := g_time_s;
-            g_batch[t_unit].cal_time   := REAL_TO_INT(LINT_TO_REAL(t_finish - t_start));
+            g_batch[t_unit].cal_time   := LINT_TO_DINT(t_finish - t_start);
             g_batch[t_unit].min_time   := g_batch[t_unit].cal_time;
-            g_batch[t_unit].max_time   := REAL_TO_INT(LINT_TO_REAL(t_finish - t_start) * 2.0);
+            g_batch[t_unit].max_time   := LINT_TO_DINT((t_finish - t_start) * LINT#2);
           END_IF;
 
           (* ── Emit TASK_DISPATCHED event (msg_type=1) ── *)
@@ -297,19 +297,19 @@ FOR ti := 1 TO MAX_Transporters DO
             g_event_pending.f[7]  := g_batch[t_unit].state;
             g_event_pending.f[8]  := g_batch[t_unit].prog_id;
             g_event_pending.f[9]  := g_unit[t_unit].target;
-            g_event_pending.f[10] := REAL_TO_INT(t_calc_time);
-            g_event_pending.f[11] := REAL_TO_INT(g_task[ti].queue[1].min_time);
-            g_event_pending.f[12] := REAL_TO_INT(g_task[ti].queue[1].max_time);
+            g_event_pending.f[10] := DINT_TO_INT(t_calc_time);
+            g_event_pending.f[11] := DINT_TO_INT(g_task[ti].queue[1].min_time);
+            g_event_pending.f[12] := DINT_TO_INT(g_task[ti].queue[1].max_time);
             g_event_pending_valid := TRUE;
           END_IF;
 
           (* Copy station-specific timing from config *)
           IF t_lift >= MIN_StationIndex AND t_lift <= MAX_StationIndex THEN
-            g_transporter[ti].DrippingTime := INT_TO_REAL(g_station[t_lift].DrippingTime) / 10.0;
-            g_transporter[ti].lift_device_delay := INT_TO_REAL(g_station[t_lift].DeviceDelay) / 10.0;
+            g_transporter[ti].DrippingTime := g_station[t_lift].DrippingTime;
+            g_transporter[ti].lift_device_delay := g_station[t_lift].DeviceDelay;
           END_IF;
           IF sink_stn >= MIN_StationIndex AND sink_stn <= MAX_StationIndex THEN
-            g_transporter[ti].sink_device_delay := INT_TO_REAL(g_station[sink_stn].DeviceDelay) / 10.0;
+            g_transporter[ti].sink_device_delay := g_station[sink_stn].DeviceDelay;
           END_IF;
 
           (* Shift queue: remove position 1, move rest up *)
@@ -323,9 +323,9 @@ FOR ti := 1 TO MAX_Transporters DO
           g_task[ti].queue[g_task[ti].count].sink_station := 0;
           g_task[ti].queue[g_task[ti].count].start_time := 0;
           g_task[ti].queue[g_task[ti].count].finish_time := 0;
-          g_task[ti].queue[g_task[ti].count].calc_time := 0.0;
-          g_task[ti].queue[g_task[ti].count].min_time := 0.0;
-          g_task[ti].queue[g_task[ti].count].max_time := 0.0;
+          g_task[ti].queue[g_task[ti].count].calc_time := 0;
+          g_task[ti].queue[g_task[ti].count].min_time := 0;
+          g_task[ti].queue[g_task[ti].count].max_time := 0;
           g_task[ti].count := g_task[ti].count - 1;
 
         END_IF;  (* NOT conflict *)

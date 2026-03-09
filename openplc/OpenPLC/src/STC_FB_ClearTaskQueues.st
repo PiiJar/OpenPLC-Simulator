@@ -32,9 +32,9 @@ FOR ti := 1 TO MAX_Transporters DO
     g_task[ti].queue[qi].sink_station := 0;
     g_task[ti].queue[qi].start_time   := 0;
     g_task[ti].queue[qi].finish_time  := 0;
-    g_task[ti].queue[qi].calc_time    := 0.0;
-    g_task[ti].queue[qi].min_time     := 0.0;
-    g_task[ti].queue[qi].max_time     := 0.0;
+    g_task[ti].queue[qi].calc_time    := 0;
+    g_task[ti].queue[qi].min_time     := 0;
+    g_task[ti].queue[qi].max_time     := 0;
   END_FOR;
 END_FOR;
 

@@ -1,6 +1,3 @@
-(* StationType - Data structure derived from param.station SQL tables *)
-(* LoadUnloadType: 0=Not a load/unload, X=Load/unload index *)
-(* Extended with DisplayID, StationType, DodgeDistance from Siemens DT_Conf_Station *)
 TYPE UDT_StationType :
 STRUCT
     StationId            : INT;  (* Primary key *)
@@ -16,6 +13,7 @@ STRUCT
     TakeOutDistance      : INT;  (* Take out distance *)
     DrippingTime         : INT;  (* Dripping time s *)
     DeviceDelay          : INT;  (* Device delay s *)
+    DryWet               : INT;  (* 0=dry, 1=wet *)
     (* Cross transport parameters *)
     Crosstransport       : INT;  (* Cross transport index *)
     CrossTransportTime   : INT;  (* Cross transport time s *)
@@ -24,7 +22,7 @@ STRUCT
     (* Control indices - references to control arrays *)
     Temp_Index           : INT;  (* Temperature control index *)
     Level_Index          : INT;  (* Level control index *)
-    Cond_Index           : INT; (* Conductivity control index *)
+    Cond_Index           : INT;  (* Conductivity control index *)
     (* Rotation parameters *)
     HasAutomaticRotation : BOOL; (* TRUE = chemical tank (sink at 45°), FALSE = loading/buffer (sink at 0° vertical) *)
 END_STRUCT

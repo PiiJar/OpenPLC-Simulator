@@ -158,12 +158,12 @@ FOR ti := 1 TO MAX_Transporters DO
       l_idx := g_task[ti].queue[qi].lift_station - 100;
       s_idx := g_task[ti].queue[qi].sink_station - 100;
       IF l_idx >= 1 AND l_idx <= 30 THEN
-        lift_x := g_station[g_task[ti].queue[qi].lift_station].XPosition;
+        lift_x := DINT_TO_REAL(g_station[g_task[ti].queue[qi].lift_station].XPosition);
       ELSE
         lift_x := 0.0;
       END_IF;
       IF s_idx >= 1 AND s_idx <= 30 THEN
-        sink_x := g_station[g_task[ti].queue[qi].sink_station].XPosition;
+        sink_x := DINT_TO_REAL(g_station[g_task[ti].queue[qi].sink_station].XPosition);
       ELSE
         sink_x := 0.0;
       END_IF;
@@ -183,12 +183,12 @@ FOR ti := 1 TO MAX_Transporters DO
             l_idx2 := g_task[tj].queue[qj].lift_station - 100;
             s_idx2 := g_task[tj].queue[qj].sink_station - 100;
             IF l_idx2 >= 1 AND l_idx2 <= 30 THEN
-              lift_x2 := g_station[g_task[tj].queue[qj].lift_station].XPosition;
+              lift_x2 := DINT_TO_REAL(g_station[g_task[tj].queue[qj].lift_station].XPosition);
             ELSE
               lift_x2 := 0.0;
             END_IF;
             IF s_idx2 >= 1 AND s_idx2 <= 30 THEN
-              sink_x2 := g_station[g_task[tj].queue[qj].sink_station].XPosition;
+              sink_x2 := DINT_TO_REAL(g_station[g_task[tj].queue[qj].sink_station].XPosition);
             ELSE
               sink_x2 := 0.0;
             END_IF;

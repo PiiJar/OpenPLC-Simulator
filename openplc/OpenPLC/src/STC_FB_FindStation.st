@@ -9,7 +9,7 @@ END_VAR
 VAR_OUTPUT
   found           : BOOL;
   idx             : INT;
-  x_mm            : REAL;
+  x_mm            : DINT;
   skind           : INT;
   device_delay_s  : REAL;
   dropping_time_s : REAL;
@@ -40,7 +40,7 @@ END_VAR
 
   found := FALSE;
   idx := 0;
-  x_mm := 0.0;
+  x_mm := 0;
   skind := 0;
   device_delay_s := 0.0;
   dropping_time_s := 0.0;

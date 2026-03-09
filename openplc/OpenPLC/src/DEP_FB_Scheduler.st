@@ -140,9 +140,9 @@ VAR
   ovlp_delay_s  : REAL;
   total_delay_s : REAL;
   prog_idx      : INT;
-  old_cal       : INT;
-  new_cal       : INT;
-  max_cal       : INT;
+  old_cal       : DINT;
+  new_cal       : DINT;
+  max_cal       : DINT;
 
   (* ── Stage 0 inline fit variables (matches JS inline code) ── *)
   s0_slot_si       : INT;
@@ -555,7 +555,7 @@ ELSIF phase = 2001 THEN
       i_margin_s     := MARGIN_S
     );
 
-    total_delay_s := ovlp_delay_s + fb_fit.o_result.delay_s;
+    total_delay_s := ovlp_delay_s + DINT_TO_REAL(fb_fit.o_result.delay_s);
 
     IF fb_fit.o_result.fits THEN
       (* ★ G11: Trim idle slot after successful stage 1+ fit *)
@@ -577,18 +577,18 @@ ELSIF phase = 2001 THEN
       END_IF;
     ELSE
       (* ★ G02: Does not fit → try backward chaining *)
-      IF fb_fit.o_result.need_extra_s <= 0.0 THEN
+      IF fb_fit.o_result.need_extra_s <= 0 THEN
         (* No slot at all → reject *)
         next_phase := 9000;
       ELSE
         (* Walk backward through w_tasks, accumulate flex *)
-        remaining_need := fb_fit.o_result.need_extra_s;
+        remaining_need := DINT_TO_REAL(fb_fit.o_result.need_extra_s);
         chain_delay_cnt := 0;
         chain_ok := FALSE;
 
         bk := cur_task_idx - 1;
         WHILE bk >= 1 AND remaining_need > MARGIN_S DO
-          prev_flex_up := w_tasks[bk].max_time - w_tasks[bk].calc_time;
+          prev_flex_up := DINT_TO_REAL(w_tasks[bk].max_time - w_tasks[bk].calc_time);
           IF prev_flex_up < 0.0 THEN prev_flex_up := 0.0; END_IF;
           prev_capped := prev_flex_up * FLEX_FACTOR;
           use_delay := prev_capped;
@@ -598,7 +598,7 @@ ELSIF phase = 2001 THEN
             chain_delay_cnt := chain_delay_cnt + 1;
             IF chain_delay_cnt <= 10 THEN
               chain_delays[chain_delay_cnt].stage   := w_tasks[bk].stage;
-              chain_delays[chain_delay_cnt].delay_s := use_delay;
+              chain_delays[chain_delay_cnt].delay_s := REAL_TO_DINT(use_delay);
               IF w_tasks[bk].stage = 0 THEN
                 chain_delays[chain_delay_cnt].target := 0;  (* batch *)
               ELSE
@@ -619,13 +619,13 @@ ELSIF phase = 2001 THEN
             IF chain_delays[ci].valid THEN
               IF chain_delays[ci].target = 0 THEN
                 (* Stage 0 / batch delay: shift base time *)
-                sched_base_time := sched_base_time + REAL_TO_LINT(chain_delays[ci].delay_s);
+                sched_base_time := sched_base_time + DINT_TO_LINT(chain_delays[ci].delay_s);
               ELSIF chain_delays[ci].target = 1 THEN
                 prog_idx := chain_delays[ci].stage;
                 IF prog_idx >= 1 AND prog_idx <= 30 THEN
                   old_cal := g_program[cur_wait_unit].stages[prog_idx].cal_time;
                   max_cal := g_program[cur_wait_unit].stages[prog_idx].max_time;
-                  new_cal := old_cal + REAL_TO_INT(chain_delays[ci].delay_s);
+                  new_cal := old_cal + chain_delays[ci].delay_s;
                   IF new_cal > max_cal AND max_cal > 0 THEN
                     new_cal := max_cal;
                   END_IF;
@@ -670,7 +670,7 @@ ELSIF phase = 3000 THEN
       IF prog_idx >= 1 AND prog_idx <= 30 THEN
         old_cal := g_program[cur_wait_unit].stages[prog_idx].cal_time;
         max_cal := g_program[cur_wait_unit].stages[prog_idx].max_time;
-        new_cal := old_cal + REAL_TO_INT(delay_amount);
+        new_cal := old_cal + REAL_TO_DINT(delay_amount);
         IF new_cal > max_cal AND max_cal > 0 THEN
           new_cal := max_cal;
         END_IF;
@@ -694,9 +694,9 @@ ELSIF phase = 8000 THEN
   g_dep_pending.batch_stage := 0;    (* cur_stage = 0, JS: batch.stage = 0 *)
   g_dep_pending.batch_state := 1;    (* NOT_PROCESSED → IN_PROCESS *)
   (* Stage 0 times — same naming as PROGRAM_STAGE_T: min_time, max_time, cal_time *)
-  g_dep_pending.batch_cal_time  := REAL_TO_INT(stage0_pending_delay);
-  g_dep_pending.batch_min_time  := REAL_TO_INT(stage0_pending_delay);
-  g_dep_pending.batch_max_time  := REAL_TO_INT(2.0 * stage0_pending_delay);
+  g_dep_pending.batch_cal_time  := REAL_TO_DINT(stage0_pending_delay);
+  g_dep_pending.batch_min_time  := REAL_TO_DINT(stage0_pending_delay);
+  g_dep_pending.batch_max_time  := REAL_TO_DINT(2.0 * stage0_pending_delay);
   IF g_dep_pending.batch_max_time < g_dep_pending.batch_cal_time THEN
     g_dep_pending.batch_max_time := g_dep_pending.batch_cal_time;
   END_IF;

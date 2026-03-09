@@ -60,11 +60,11 @@ IF i_run AND NOT prev_run THEN
 
   FOR tid := 1 TO MAX_Transporters DO
     (* Skip transporters without valid calibration data *)
-    IF g_cal[tid].x_max_mm_s >= 1.0 THEN
+    IF g_cal[tid].x_max_mm_s >= 1 THEN
 
-      vm := g_cal[tid].x_max_mm_s;
-      ta := g_cal[tid].x_accel_s;
-      td := g_cal[tid].x_decel_s;
+      vm := DINT_TO_REAL(g_cal[tid].x_max_mm_s);
+      ta := INT_TO_REAL(g_cal[tid].x_accel_s) / 10.0;
+      td := INT_TO_REAL(g_cal[tid].x_decel_s) / 10.0;
       d_acc := 0.5 * vm * ta;
       d_dec := 0.5 * vm * td;
 
@@ -92,9 +92,9 @@ IF i_run AND NOT prev_run THEN
             idx_j := sj - MIN_StationIndex + 1;
             IF idx_j >= 1 AND idx_j <= 30 THEN
               IF si = sj THEN
-                g_move[tid].travel[idx_i].to_s[idx_j] := 0.0;
+                g_move[tid].travel[idx_i].to_s[idx_j] := 0;
               ELSE
-                dist := ABS(g_station[si].XPosition - g_station[sj].XPosition);
+                dist := ABS(DINT_TO_REAL(g_station[si].XPosition - g_station[sj].XPosition));
                 IF dist < 1.0 THEN
                   t_time := 0.0;
                 ELSIF dist >= d_acc + d_dec THEN
@@ -109,7 +109,7 @@ IF i_run AND NOT prev_run THEN
                     t_time := 0.0;
                   END_IF;
                 END_IF;
-                g_move[tid].travel[idx_i].to_s[idx_j] := t_time;
+                g_move[tid].travel[idx_i].to_s[idx_j] := REAL_TO_INT(t_time * 10.0);
               END_IF;
             END_IF;
           END_FOR;

@@ -54,17 +54,17 @@ END_TYPE
 
 TYPE PHYSICS_2D_T :
 STRUCT
-  x_accel_s      : REAL;
-  x_decel_s      : REAL;
-  x_max_mm_s     : REAL;
-  z_total_mm     : REAL;
-  z_slow_dry_mm  : REAL;
-  z_slow_wet_mm  : REAL;
-  z_slow_end_mm  : REAL;
-  z_slow_mm_s    : REAL;
-  z_fast_mm_s    : REAL;
-  drip_delay_s   : REAL;
-  avoid_mm       : REAL;
+  x_accel_s      : INT;    (* acceleration time ×10 = tenths of second *)
+  x_decel_s      : INT;    (* deceleration time ×10 = tenths of second *)
+  x_max_mm_s     : DINT;   (* max X velocity mm/s *)
+  z_total_mm     : DINT;   (* total Z travel mm *)
+  z_slow_dry_mm  : DINT;   (* Z slow zone dry mm *)
+  z_slow_wet_mm  : DINT;   (* Z slow zone wet mm *)
+  z_slow_end_mm  : DINT;   (* Z slow zone end mm *)
+  z_slow_mm_s    : DINT;   (* Z slow speed mm/s *)
+  z_fast_mm_s    : DINT;   (* Z fast speed mm/s *)
+  drip_delay_s   : INT;    (* drip delay ×10 = tenths of second *)
+  avoid_mm       : DINT;   (* avoid distance mm *)
 END_STRUCT;
 END_TYPE
 
@@ -99,19 +99,19 @@ STRUCT
   task_id            : LINT;     (* g_time_s at assignment — sync key *)
   lift_station       : INT;      (* pickup station number *)
   sink_station       : INT;      (* putdown station number *)
-  treatment_time     : REAL;     (* treatment duration (s) *)
-  min_time           : REAL;     (* minimum treatment time (s) — from task queue *)
-  max_time           : REAL;     (* maximum treatment time (s) — from task queue *)
-  lift_device_delay  : REAL;     (* lift station device delay (s) *)
-  sink_device_delay  : REAL;     (* sink station device delay (s) *)
-  dropping_time      : REAL;     (* dripping/dropping time at lift (s) *)
+  treatment_time     : DINT;     (* treatment duration (seconds) *)
+  min_time           : DINT;     (* minimum treatment time (seconds) *)
+  max_time           : DINT;     (* maximum treatment time (seconds) *)
+  lift_device_delay  : INT;      (* lift station device delay ×10 = tenths of second *)
+  sink_device_delay  : INT;      (* sink station device delay ×10 = tenths of second *)
+  DrippingTime       : INT;      (* dripping time ×10 = tenths of second *)
   (* --- Status (transporter → outside world) --- *)
   status             : INT;      (* 0=not_used 1=manual 2=half_manual 3=auto_idle 4=auto_run *)
   phase              : INT;      (* 0=idle 1=to_lift 2=lifting 3=to_sink 4=sinking *)
   UnitId            : INT;      (* unit currently being transported, 0 = none *)
   running_task_id    : LINT;     (* copied from task_id when accepted *)
   current_station    : INT;      (* nearest station number *)
-  remaining_time     : REAL;     (* remaining treatment time (s) *)
+  remaining_time     : DINT;     (* remaining treatment time (seconds) *)
   (* --- Drive (runtime / TWA) --- *)
   XFinalTarget       : DINT;     (* destination X (station position) mm *)
   XDriveTarget       : DINT;     (* TWA-clamped X drive target mm *)
@@ -122,7 +122,7 @@ STRUCT
   ZPosition          : DINT;     (* current Z position mm *)
   XVelocity          : DINT;     (* X velocity mm/s *)
   z_stage            : INT;      (* Z motion sub-phase *)
-  z_timer_s          : REAL;     (* Z motion timer *)
+  z_timer_s          : REAL;     (* Z motion timer — simulation internal *)
   XMinLimit          : DINT;     (* TWA lower X limit mm *)
   XMaxLimit          : DINT;     (* TWA upper X limit mm *)
   (* --- General --- *)
@@ -137,18 +137,18 @@ STRUCT
   state       : INT;     (* NOT_PROCESSED=0, IN_PROCESS=1, PROCESSED=2 *)
   prog_id     : INT;     (* treatment program number — JS: treatment_program *)
   start_time  : LINT;    (* batch start time (unix seconds) — JS: start_time *)
-  min_time    : INT;     (* stage 0 minimum time (seconds) *)
-  max_time    : INT;     (* stage 0 maximum time (seconds) *)
-  cal_time    : INT;     (* stage 0 calculated / target time (seconds) *)
+  min_time    : DINT;    (* stage 0 minimum time (seconds) *)
+  max_time    : DINT;    (* stage 0 maximum time (seconds) *)
+  cal_time    : DINT;    (* stage 0 calculated / target time (seconds) *)
 END_STRUCT;
 END_TYPE
 
 TYPE PROGRAM_STAGE_T :
 STRUCT
   stations : ARRAY[1..5] OF INT;   (* up to MAX_STATIONS_PER_STEP station numbers *)
-  min_time : INT;                   (* minimum processing time (seconds) *)
-  max_time : INT;                   (* maximum processing time (seconds) *)
-  cal_time : INT;                   (* calculated / target time (seconds) *)
+  min_time : DINT;                  (* minimum processing time (seconds) *)
+  max_time : DINT;                  (* maximum processing time (seconds) *)
+  cal_time : DINT;                  (* calculated / target time (seconds) *)
 END_STRUCT;
 END_TYPE
 
@@ -180,7 +180,7 @@ STRUCT
   in_buffer  : BOOL;   (* loc operation 44..47 *)
   on_station : BOOL;   (* loc in STATION_ARRAY range *)
   elapsed    : LINT;   (* time at station, 0 if not on station *)
-  cal        : INT;    (* cal_time for current stage *)
+  cal        : DINT;   (* cal_time for current stage (seconds) *)
 END_STRUCT;
 END_TYPE
 
@@ -226,10 +226,10 @@ STRUCT
   station       : INT;     (* station number, 0 = unused stage *)
   entry_time    : LINT;    (* absolute arrival time (s), unix seconds *)
   exit_time     : LINT;    (* absolute departure time (s), unix seconds *)
-  min_time      : REAL;    (* minimum treatment time (s) *)
-  calc_time     : REAL;    (* calculated target treatment time (s) *)
-  max_time      : REAL;    (* maximum treatment time (s) *)
-  transfer_time : REAL;    (* transfer time from previous station (s) *)
+  min_time      : DINT;    (* minimum treatment time (seconds) *)
+  calc_time     : DINT;    (* calculated target treatment time (seconds) *)
+  max_time      : DINT;    (* maximum treatment time (seconds) *)
+  transfer_time : DINT;    (* transfer time from previous station (seconds) *)
 END_STRUCT;
 END_TYPE
 
@@ -252,9 +252,9 @@ STRUCT
   sink_station : INT;     (* station to put down to *)
   start_time   : LINT;    (* absolute time task begins (s), unix seconds *)
   finish_time  : LINT;    (* absolute time task completes (s), unix seconds *)
-  calc_time    : REAL;    (* treatment calc_time for flex (s) *)
-  min_time     : REAL;    (* treatment min_time for flex_down (s) *)
-  max_time     : REAL;    (* treatment max_time for flex_up (s) *)
+  calc_time    : DINT;    (* treatment calc_time for flex (seconds) *)
+  min_time     : DINT;    (* treatment min_time for flex_down (seconds) *)
+  max_time     : DINT;    (* treatment max_time for flex_up (seconds) *)
 END_STRUCT;
 END_TYPE
 
@@ -274,8 +274,8 @@ STRUCT
   transporter  : INT;     (* assigned transporter *)
   start_time   : LINT;    (* task start (s), unix seconds *)
   end_time     : LINT;    (* task end (s), unix seconds *)
-  flex_down    : REAL;    (* available advance margin (s) *)
-  flex_up      : REAL;    (* available delay margin (s) *)
+  flex_down    : DINT;    (* available advance margin (seconds) *)
+  flex_up      : DINT;    (* available delay margin (seconds) *)
   XMin         : DINT;    (* X-area minimum (mm) *)
   XMax         : DINT;    (* X-area maximum (mm) *)
   is_conflict  : BOOL;    (* TRUE if this task is in conflict *)
@@ -288,15 +288,15 @@ END_TYPE
 
 TYPE TRAVEL_FROM_T :
 STRUCT
-  to_s : ARRAY[1..30] OF REAL;   (* travel time to each station (seconds), MAX_STATIONS_PER_LINE *)
+  to_s : ARRAY[1..30] OF INT;    (* travel time ×10 = tenths of second, MAX_STATIONS_PER_LINE *)
 END_STRUCT;
 END_TYPE
 
 TYPE MOVE_TIMES_T :
 STRUCT
-  lift_s  : ARRAY[1..30] OF REAL;           (* lift time per station (seconds), MAX_STATIONS_PER_LINE *)
-  sink_s  : ARRAY[1..30] OF REAL;           (* sink time per station (seconds), MAX_STATIONS_PER_LINE *)
-  travel  : ARRAY[1..30] OF TRAVEL_FROM_T;  (* travel[from].to_s[to] (seconds), MAX_STATIONS_PER_LINE *)
+  lift_s  : ARRAY[1..30] OF INT;            (* lift time ×10 = tenths of second, MAX_STATIONS_PER_LINE *)
+  sink_s  : ARRAY[1..30] OF INT;            (* sink time ×10 = tenths of second, MAX_STATIONS_PER_LINE *)
+  travel  : ARRAY[1..30] OF TRAVEL_FROM_T;  (* travel[from].to_s[to] ×10, MAX_STATIONS_PER_LINE *)
 END_STRUCT;
 END_TYPE
 
@@ -325,8 +325,8 @@ END_TYPE
 TYPE DEP_FIT_RESULT_T :
 STRUCT
   fits         : BOOL;    (* TRUE = task fits in a slot *)
-  delay_s      : REAL;    (* delay needed to make it fit (s) *)
-  need_extra_s : REAL;    (* extra time that does not fit (s) *)
+  delay_s      : DINT;    (* delay needed to make it fit (seconds) *)
+  need_extra_s : DINT;    (* extra time that does not fit (seconds) *)
   task_end_s   : LINT;    (* calculated task end time (s), unix seconds *)
   slot_idx     : INT;     (* index of the used idle slot *)
   trans_id     : INT;     (* transporter id that can handle it *)
@@ -338,7 +338,7 @@ END_TYPE
 TYPE DEP_DELAY_ACTION_T :
 STRUCT
   stage   : INT;     (* program stage to delay *)
-  delay_s : REAL;    (* delay amount (s) *)
+  delay_s : DINT;    (* delay amount (seconds) *)
   target  : INT;     (* 0=batch cur_stage delay, 1=program stage delay *)
   valid   : BOOL;
 END_STRUCT;
@@ -375,9 +375,9 @@ STRUCT
   batch_unit       : INT;     (* activated batch: unit index *)
   batch_stage      : INT;     (* activated batch: new cur_stage *)
   batch_state      : INT;     (* activated batch: new state (IN_PROCESS=1) *)
-  batch_min_time   : INT;     (* stage 0 min_time for activated batch *)
-  batch_max_time   : INT;     (* stage 0 max_time for activated batch *)
-  batch_cal_time   : INT;     (* stage 0 cal_time for activated batch *)
+  batch_min_time   : DINT;    (* stage 0 min_time for activated batch (seconds) *)
+  batch_max_time   : DINT;    (* stage 0 max_time for activated batch (seconds) *)
+  batch_cal_time   : DINT;    (* stage 0 cal_time for activated batch (seconds) *)
   time_s           : LINT;    (* activation time (s), unix seconds *)
 END_STRUCT;
 END_TYPE
@@ -394,13 +394,13 @@ STRUCT
   wet_station   : INT;    (* wet station number *)
   dry_station   : INT;    (* dry station number *)
   (* Results — read from g_move after MeasureMoveTimes records them *)
-  lift_wet_s    : REAL;   (* lift time at wet station (s) *)
-  sink_wet_s    : REAL;   (* sink time at wet station (s) *)
-  lift_dry_s    : REAL;   (* lift time at dry station (s) *)
-  sink_dry_s    : REAL;   (* sink time at dry station (s) *)
-  x_accel_s     : REAL;   (* measured acceleration time (s) *)
-  x_decel_s     : REAL;   (* measured deceleration time (s) *)
-  x_max_mm_s    : REAL;   (* measured max X speed (mm/s) *)
+  lift_wet_s    : INT;    (* lift time at wet station ×10 = tenths of second *)
+  sink_wet_s    : INT;    (* sink time at wet station ×10 = tenths of second *)
+  lift_dry_s    : INT;    (* lift time at dry station ×10 = tenths of second *)
+  sink_dry_s    : INT;    (* sink time at dry station ×10 = tenths of second *)
+  x_accel_s     : INT;    (* measured acceleration time ×10 = tenths of second *)
+  x_decel_s     : INT;    (* measured deceleration time ×10 = tenths of second *)
+  x_max_mm_s    : DINT;   (* measured max X speed mm/s *)
 END_STRUCT;
 END_TYPE
 

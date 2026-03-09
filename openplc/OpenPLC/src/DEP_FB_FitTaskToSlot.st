@@ -23,8 +23,8 @@ VAR_INPUT
   i_task_start   : LINT;    (* scheduled task start time (s), unix seconds *)
   i_task_end     : LINT;    (* scheduled task end time (s), unix seconds *)
   i_shift_s      : REAL;    (* pre-applied shift (overlap delay) *)
-  i_calc_time_s  : REAL;    (* treatment calc_time (s) *)
-  i_max_time_s   : REAL;    (* treatment max_time (s) *)
+  i_calc_time_s  : DINT;    (* treatment calc_time (s) *)
+  i_max_time_s   : DINT;    (* treatment max_time (s) *)
   i_flex_factor  : REAL;    (* flex_up usage factor, e.g. 0.5 *)
   i_margin_s     : REAL;    (* minimum margin between tasks (s) *)
 END_VAR
@@ -65,8 +65,8 @@ END_VAR
 
 (* Initialize output *)
 o_result.fits         := FALSE;
-o_result.delay_s      := 0.0;
-o_result.need_extra_s := 0.0;
+o_result.delay_s      := 0;
+o_result.need_extra_s := 0;
 o_result.task_end_s   := 0;
 o_result.slot_idx     := 0;
 o_result.trans_id     := i_trans_id;
@@ -76,7 +76,7 @@ IF i_trans_id < 1 OR i_trans_id > MAX_Transporters THEN
 END_IF;
 
 task_dur   := i_task_end - i_task_start;
-flex_up    := i_max_time_s - i_calc_time_s;
+flex_up    := DINT_TO_REAL(i_max_time_s - i_calc_time_s);
 IF flex_up < 0.0 THEN flex_up := 0.0; END_IF;
 capped_flex := flex_up * i_flex_factor;
 
@@ -149,23 +149,23 @@ END_FOR;
 
 IF found THEN
   o_result.fits      := TRUE;
-  o_result.delay_s   := best_delay;
+  o_result.delay_s   := REAL_TO_DINT(best_delay);
   o_result.slot_idx  := best_slot;
   o_result.task_end_s := i_task_start + REAL_TO_LINT(i_shift_s + best_delay) + task_dur;
-  o_result.need_extra_s := 0.0;
+  o_result.need_extra_s := 0;
 ELSE
   (* Report how much extra is needed for backward chaining *)
   o_result.fits := FALSE;
   IF overflow_best_delay < 1.0E8 THEN
     (* Overflow slot found — report shortfall beyond capped flex *)
-    o_result.delay_s      := overflow_best_delay;
-    o_result.need_extra_s := overflow_best_delay - capped_flex;
-    IF o_result.need_extra_s < 0.0 THEN
-      o_result.need_extra_s := 0.0;
+    o_result.delay_s      := REAL_TO_DINT(overflow_best_delay);
+    o_result.need_extra_s := REAL_TO_DINT(overflow_best_delay - capped_flex);
+    IF o_result.need_extra_s < 0 THEN
+      o_result.need_extra_s := 0;
     END_IF;
   ELSE
     (* No slot at all *)
-    o_result.need_extra_s := 0.0;
+    o_result.need_extra_s := 0;
   END_IF;
 END_IF;
 

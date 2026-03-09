@@ -26,20 +26,20 @@
 
 FUNCTION_BLOCK SIM_FB_ZMotion
 VAR_INPUT
-  delta_t       : REAL;    (* Cycle time in seconds *)
+  delta_t       : REAL;    (* Cycle time in seconds — simulation internal *)
   station_kind  : INT;     (* KIND_DRY=0, KIND_WET=1 *)
-  z_total_mm    : REAL;    (* Total Z travel distance *)
-  z_slow_dry_mm : REAL;    (* Slow zone for dry stations *)
-  z_slow_wet_mm : REAL;    (* Slow zone for wet stations *)
-  z_slow_end_mm : REAL;    (* Slow zone at end of travel *)
-  z_slow_mm_s   : REAL;    (* Slow speed mm/s *)
-  z_fast_mm_s   : REAL;    (* Fast speed mm/s *)
-  drip_delay_s  : REAL;    (* Drip delay after lift *)
+  z_total_mm    : DINT;    (* Total Z travel distance mm *)
+  z_slow_dry_mm : DINT;    (* Slow zone for dry stations mm *)
+  z_slow_wet_mm : DINT;    (* Slow zone for wet stations mm *)
+  z_slow_end_mm : DINT;    (* Slow zone at end of travel mm *)
+  z_slow_mm_s   : DINT;    (* Slow speed mm/s *)
+  z_fast_mm_s   : DINT;    (* Fast speed mm/s *)
+  drip_delay_s  : INT;     (* Drip delay ×10 = tenths of second *)
 END_VAR
 VAR_IN_OUT
-  z_mm      : REAL;        (* Current Z position *)
+  z_mm      : DINT;        (* Current Z position mm *)
   z_stage   : INT;         (* Current motion stage *)
-  z_timer_s : REAL;        (* Delay timer *)
+  z_timer_s : REAL;        (* Delay timer — simulation internal *)
 END_VAR
 VAR_OUTPUT
   done : BOOL;             (* TRUE when sequence complete *)
@@ -48,16 +48,31 @@ VAR_EXTERNAL CONSTANT
   KIND_WET : INT;
 END_VAR
 VAR
-  slow_zone : REAL;
+  (* Internal REAL copies for physics integration *)
+  r_z          : REAL;
+  r_total      : REAL;
+  r_slow_zone  : REAL;
+  r_slow_end   : REAL;
+  r_slow_spd   : REAL;
+  r_fast_spd   : REAL;
+  r_drip       : REAL;
 END_VAR
 
   done := FALSE;
 
+  (* Convert DINT/INT inputs to REAL for physics *)
+  r_z         := DINT_TO_REAL(z_mm);
+  r_total     := DINT_TO_REAL(z_total_mm);
+  r_slow_end  := DINT_TO_REAL(z_slow_end_mm);
+  r_slow_spd  := DINT_TO_REAL(z_slow_mm_s);
+  r_fast_spd  := DINT_TO_REAL(z_fast_mm_s);
+  r_drip      := INT_TO_REAL(drip_delay_s) / 10.0;
+
   (* Select slow zone based on station kind *)
   IF station_kind = KIND_WET THEN
-    slow_zone := z_slow_wet_mm;
+    r_slow_zone := DINT_TO_REAL(z_slow_wet_mm);
   ELSE
-    slow_zone := z_slow_dry_mm;
+    r_slow_zone := DINT_TO_REAL(z_slow_dry_mm);
   END_IF;
 
   CASE z_stage OF
@@ -68,27 +83,31 @@ END_VAR
       z_timer_s := z_timer_s - delta_t;
       IF z_timer_s <= 0.0 THEN
         z_stage := 2;
-        z_mm := 0.0;
+        z_mm := 0;
       END_IF;
 
     2: (* Slow lift start — hidas nosto nesteestä *)
-      z_mm := z_mm + z_slow_mm_s * delta_t;
-      IF z_mm >= slow_zone THEN
+      r_z := r_z + r_slow_spd * delta_t;
+      z_mm := REAL_TO_DINT(r_z);
+      IF r_z >= r_slow_zone THEN
         z_stage := 3;
       END_IF;
 
     3: (* Fast lift — nopea nosto *)
-      z_mm := z_mm + z_fast_mm_s * delta_t;
-      IF z_mm >= (z_total_mm - z_slow_end_mm) THEN
+      r_z := r_z + r_fast_spd * delta_t;
+      z_mm := REAL_TO_DINT(r_z);
+      IF r_z >= (r_total - r_slow_end) THEN
         z_stage := 4;
       END_IF;
 
     4: (* Slow lift end — hidas loppunosto *)
-      z_mm := z_mm + z_slow_mm_s * delta_t;
-      IF z_mm >= z_total_mm THEN
+      r_z := r_z + r_slow_spd * delta_t;
+      IF r_z >= r_total THEN
         z_mm := z_total_mm;
-        z_timer_s := drip_delay_s;
+        z_timer_s := r_drip;
         z_stage := 5;
+      ELSE
+        z_mm := REAL_TO_DINT(r_z);
       END_IF;
 
     5: (* Drip delay — tippumisviive yläasemassa *)
@@ -107,17 +126,20 @@ END_VAR
       END_IF;
 
     7: (* Fast sink — nopea lasku *)
-      z_mm := z_mm - z_fast_mm_s * delta_t;
-      IF z_mm <= slow_zone THEN
+      r_z := r_z - r_fast_spd * delta_t;
+      z_mm := REAL_TO_DINT(r_z);
+      IF r_z <= r_slow_zone THEN
         z_stage := 8;
       END_IF;
 
     8: (* Slow sink — hidas lasku nesteeseen *)
-      z_mm := z_mm - z_slow_mm_s * delta_t;
-      IF z_mm <= 0.0 THEN
-        z_mm := 0.0;
+      r_z := r_z - r_slow_spd * delta_t;
+      IF r_z <= 0.0 THEN
+        z_mm := 0;
         z_stage := 0;
         done := TRUE;
+      ELSE
+        z_mm := REAL_TO_DINT(r_z);
       END_IF;
 
   END_CASE;

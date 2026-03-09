@@ -112,7 +112,7 @@ FUNCTION_BLOCK STC_FB_NoTreatmentStates
     END_IF;
     IF snap[u].cur_stage >= 1 AND snap[u].cur_stage < MAX_STEPS_PER_PROGRAM THEN
       IF g_program[u].stages[snap[u].cur_stage + 1].stations[1] = 0 THEN
-        IF snap[u].elapsed > 0 AND snap[u].elapsed >= INT_TO_LINT(snap[u].cal) THEN
+        IF snap[u].elapsed > 0 AND snap[u].elapsed >= DINT_TO_LINT(snap[u].cal) THEN
           g_batch[u].state := PROCESSED;
           snap[u].bstate   := PROCESSED;  (* update snapshot *)
         END_IF;
