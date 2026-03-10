@@ -6,7 +6,7 @@
    the g_ntt destination table (per target, per transporter).
 
    Destination lookup:
-     1. Search primary stations (g_ntt[trans].target[tgt].stations)
+     1. Search primary stations (g_ntt[trans].Target[tgt].Stations)
      2. If all occupied → search fallback stations
      3. First free station wins
 
@@ -39,7 +39,7 @@ VAR_EXTERNAL
   g_ntt         : ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T;
   g_transporter : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
   g_station_loc : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
-  g_cfg         : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
+  g_cfg         : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
   g_task        : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
   g_move        : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
 END_VAR
@@ -93,7 +93,7 @@ VAR
 END_VAR
 
 FOR ui := 1 TO MAX_Units DO
-  tgt := g_unit[ui].target;
+  tgt := g_unit[ui].Target;
   loc := g_unit[ui].location;
 
   (* Skip: no target, not on station.
@@ -115,9 +115,9 @@ FOR ui := 1 TO MAX_Units DO
           already := TRUE;
         END_IF;
         (* In any task queue? *)
-        FOR qi2 := 1 TO g_task[ti].count DO
+        FOR qi2 := 1 TO g_task[ti].Count DO
           IF NOT already THEN
-            IF g_task[ti].queue[qi2].unit = ui THEN
+            IF g_task[ti].Queue[qi2].Unit = ui THEN
               already := TRUE;
             END_IF;
           END_IF;
@@ -165,12 +165,12 @@ FOR ui := 1 TO MAX_Units DO
         END_IF;
 
         (* Get destination descriptor for this target + transporter *)
-        dest := g_ntt[cov_t].target[ntt_idx];
+        dest := g_ntt[cov_t].Target[ntt_idx];
 
         (* ── Classify current location ── *)
         on_primary := FALSE;
-        FOR si := 1 TO dest.station_count DO
-          IF dest.stations[si] = loc THEN
+        FOR si := 1 TO dest.StationCount DO
+          IF dest.Stations[si] = loc THEN
             on_primary := TRUE;
           END_IF;
         END_FOR;
@@ -179,16 +179,16 @@ FOR ui := 1 TO MAX_Units DO
         IF NOT on_primary THEN
 
           on_fallback := FALSE;
-          FOR si := 1 TO dest.fallback_count DO
-            IF dest.fallback_stations[si] = loc THEN
+          FOR si := 1 TO dest.FallbackCount DO
+            IF dest.FallbackStations[si] = loc THEN
               on_fallback := TRUE;
             END_IF;
           END_FOR;
 
           (* Check if any primary station is free *)
           primary_free := FALSE;
-          FOR si := 1 TO dest.station_count DO
-            stn := dest.stations[si];
+          FOR si := 1 TO dest.StationCount DO
+            stn := dest.Stations[si];
             IF stn <> loc AND stn >= MIN_StationIndex AND stn <= MAX_StationIndex THEN
               stn_free := TRUE;
               FOR uj := 1 TO MAX_Units DO
@@ -209,9 +209,9 @@ FOR ui := 1 TO MAX_Units DO
             dest_stn := 0;
           ELSIF on_fallback AND primary_free THEN
             (* On fallback, primary is free → move to primary *)
-            FOR si := 1 TO dest.station_count DO
+            FOR si := 1 TO dest.StationCount DO
               IF dest_stn = 0 THEN
-                stn := dest.stations[si];
+                stn := dest.Stations[si];
                 IF stn <> loc AND stn >= MIN_StationIndex AND stn <= MAX_StationIndex THEN
                   stn_free := TRUE;
                   FOR uj := 1 TO MAX_Units DO
@@ -227,9 +227,9 @@ FOR ui := 1 TO MAX_Units DO
             END_FOR;
           ELSE
             (* Not on any known destination → full search: primary then fallback *)
-            FOR si := 1 TO dest.station_count DO
+            FOR si := 1 TO dest.StationCount DO
               IF dest_stn = 0 THEN
-                stn := dest.stations[si];
+                stn := dest.Stations[si];
                 IF stn <> loc AND stn >= MIN_StationIndex AND stn <= MAX_StationIndex THEN
                   stn_free := TRUE;
                   FOR uj := 1 TO MAX_Units DO
@@ -245,9 +245,9 @@ FOR ui := 1 TO MAX_Units DO
             END_FOR;
 
             IF dest_stn = 0 THEN
-              FOR si := 1 TO dest.fallback_count DO
+              FOR si := 1 TO dest.FallbackCount DO
                 IF dest_stn = 0 THEN
-                  stn := dest.fallback_stations[si];
+                  stn := dest.FallbackStations[si];
                   IF stn <> loc AND stn >= MIN_StationIndex AND stn <= MAX_StationIndex THEN
                     stn_free := TRUE;
                     FOR uj := 1 TO MAX_Units DO
@@ -278,19 +278,19 @@ FOR ui := 1 TO MAX_Units DO
                fits. NTT is never placed into future slots — only "right now". *)
             slot_ok := FALSE;
 
-            IF g_task[cov_t].count = 0 THEN
+            IF g_task[cov_t].Count = 0 THEN
               (* No existing tasks → NTT always fits *)
               slot_ok := TRUE;
             ELSE
               (* Current slot = time from NOW until first queued task starts.
-                 NTT must fit: task_end + travel_to_next_lift <= queue[1].start_time *)
-              IF g_task[cov_t].queue[1].start_time > task_start THEN
+                 NTT must fit: task_end + travel_to_next_lift <= queue[1].StartTime *)
+              IF g_task[cov_t].Queue[1].StartTime > task_start THEN
                 slot_start := task_start;
-                slot_end   := g_task[cov_t].queue[1].start_time;
+                slot_end   := g_task[cov_t].Queue[1].StartTime;
                 (* Travel from NTT sink to first task's lift *)
                 travel_from_sink := STC_CalcHorizontalTravel(
                   i_from_stn := dest_stn,
-                  i_to_stn   := g_task[cov_t].queue[1].LiftStationTarget,
+                  i_to_stn   := g_task[cov_t].Queue[1].LiftStationTarget,
                   i_move     := g_move[cov_t]
                 );
                 latest_end := slot_end - REAL_TO_LINT(travel_from_sink) - 1;
@@ -304,8 +304,8 @@ FOR ui := 1 TO MAX_Units DO
               (* Exception: if the next queued task's sink station is where
                  this NTT unit sits, we MUST move it first or we deadlock.
                  Force-insert; future scheduling will re-stabilize the list. *)
-              IF g_task[cov_t].count > 0
-                 AND g_task[cov_t].queue[1].SinkStationTarget = loc THEN
+              IF g_task[cov_t].Count > 0
+                 AND g_task[cov_t].Queue[1].SinkStationTarget = loc THEN
                 slot_ok := TRUE;  (* force — deadlock prevention *)
               ELSE
                 dest_stn := 0;  (* NTT doesn't fit → skip *)
@@ -315,21 +315,21 @@ FOR ui := 1 TO MAX_Units DO
 
           IF dest_stn > 0 THEN
             (* Insert as FIRST task — shift existing tasks down *)
-            IF g_task[cov_t].count < MAX_TASK_QUEUE THEN
-              (* Shift queue[1..count] → queue[2..count+1] *)
-              FOR sh := g_task[cov_t].count TO 1 BY -1 DO
-                g_task[cov_t].queue[sh + 1] := g_task[cov_t].queue[sh];
+            IF g_task[cov_t].Count < MAX_TASK_QUEUE THEN
+              (* Shift queue[1..Count] → queue[2..Count+1] *)
+              FOR sh := g_task[cov_t].Count TO 1 BY -1 DO
+                g_task[cov_t].Queue[sh + 1] := g_task[cov_t].Queue[sh];
               END_FOR;
-              g_task[cov_t].queue[1].unit         := ui;
-              g_task[cov_t].queue[1].stage        := 0;  (* no program stage *)
-              g_task[cov_t].queue[1].LiftStationTarget := loc;
-              g_task[cov_t].queue[1].SinkStationTarget := dest_stn;
-              g_task[cov_t].queue[1].start_time   := task_start;
-              g_task[cov_t].queue[1].finish_time  := task_end;
-              g_task[cov_t].queue[1].calc_time    := 0;
-              g_task[cov_t].queue[1].min_time     := 0;
-              g_task[cov_t].queue[1].max_time     := 0;
-              g_task[cov_t].count := g_task[cov_t].count + 1;
+              g_task[cov_t].Queue[1].Unit         := ui;
+              g_task[cov_t].Queue[1].Stage        := 0;  (* no program stage *)
+              g_task[cov_t].Queue[1].LiftStationTarget := loc;
+              g_task[cov_t].Queue[1].SinkStationTarget := dest_stn;
+              g_task[cov_t].Queue[1].StartTime   := task_start;
+              g_task[cov_t].Queue[1].FinishTime  := task_end;
+              g_task[cov_t].Queue[1].CalcTime    := 0;
+              g_task[cov_t].Queue[1].MinTime     := 0;
+              g_task[cov_t].Queue[1].MaxTime     := 0;
+              g_task[cov_t].Count := g_task[cov_t].Count + 1;
               done := TRUE;
             END_IF;
           END_IF;

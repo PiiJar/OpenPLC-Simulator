@@ -28,7 +28,7 @@ IF i_from_stn > 0 AND i_to_stn > 0 AND i_from_stn <> i_to_stn THEN
   from_idx := i_from_stn - 100;
   to_idx   := i_to_stn - 100;
   IF from_idx >= 1 AND from_idx <= 25 AND to_idx >= 1 AND to_idx <= 25 THEN
-    STC_CalcHorizontalTravel := INT_TO_REAL(i_move.travel[from_idx].to_s[to_idx]) / 10.0;
+    STC_CalcHorizontalTravel := INT_TO_REAL(i_move.Travel[from_idx].ToTime[to_idx]) / 10.0;
   END_IF;
 END_IF;
 

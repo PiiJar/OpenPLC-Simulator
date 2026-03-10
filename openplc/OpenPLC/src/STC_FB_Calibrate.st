@@ -58,7 +58,7 @@ VAR_EXTERNAL
   g_transporter : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
   g_sim_trans   : ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T;
   g_station    : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
-  g_cfg         : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
+  g_cfg         : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
   g_cal         : ARRAY[1..MAX_Transporters] OF CALIBRATION_T;
   g_move        : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
   g_time_s      : LINT;
@@ -102,7 +102,7 @@ IF i_cmd = 1 AND cal_step = 0 THEN
   tid := 0;
   FOR ci := 1 TO MAX_Transporters DO
     IF g_transporter[ci].IsActive AND tid = 0 THEN
-      IF g_cal[ci].wet_station > 0 AND g_cal[ci].dry_station > 0 THEN
+      IF g_cal[ci].WetStation > 0 AND g_cal[ci].DryStation > 0 THEN
         tid := ci;
       END_IF;
     END_IF;
@@ -134,8 +134,8 @@ IF cal_step = 10 THEN
   (* Issue task 1: lift from dry, sink to wet *)
   task_key := g_time_s;
   g_transporter[tid].TaskId := task_key;
-  g_transporter[tid].LiftStationTarget := g_cal[tid].dry_station;
-  g_transporter[tid].SinkStationTarget := g_cal[tid].wet_station;
+  g_transporter[tid].LiftStationTarget := g_cal[tid].DryStation;
+  g_transporter[tid].SinkStationTarget := g_cal[tid].WetStation;
   (* Reset X velocity measurement *)
   x_meas_ph := 0;
   x_timer   := 0.0;
@@ -195,9 +195,9 @@ IF cal_step = 12 THEN
     IF x_meas_ph = 3 THEN
       x_dec_t := x_timer;
     END_IF;
-    g_cal[tid].x_accel_s  := REAL_TO_INT(x_acc_t * 10.0);
-    g_cal[tid].x_decel_s  := REAL_TO_INT(x_dec_t * 10.0);
-    g_cal[tid].x_max_mm_s := REAL_TO_DINT(x_max_v);
+    g_cal[tid].XAccelTime  := REAL_TO_INT(x_acc_t * 10.0);
+    g_cal[tid].XDecelTime  := REAL_TO_INT(x_dec_t * 10.0);
+    g_cal[tid].XMaxSpeed := REAL_TO_DINT(x_max_v);
     (* Don't re-enter — set meas_ph to done *)
     x_meas_ph := 99;
   END_IF;
@@ -216,8 +216,8 @@ IF cal_step = 20 THEN
   (* Issue task 2: lift from wet, sink to dry *)
   task_key := g_time_s + LINT#1;
   g_transporter[tid].TaskId := task_key;
-  g_transporter[tid].LiftStationTarget := g_cal[tid].wet_station;
-  g_transporter[tid].SinkStationTarget := g_cal[tid].dry_station;
+  g_transporter[tid].LiftStationTarget := g_cal[tid].WetStation;
+  g_transporter[tid].SinkStationTarget := g_cal[tid].DryStation;
   cal_step := 21;
 END_IF;
 
@@ -239,17 +239,17 @@ END_IF;
    MeasureMoveTimes has recorded all 4 lift/sink times into g_move.
    ================================================================ *)
 IF cal_step = 30 THEN
-  wet_idx := g_cal[tid].wet_station - 100;
-  dry_idx := g_cal[tid].dry_station - 100;
+  wet_idx := g_cal[tid].WetStation - 100;
+  dry_idx := g_cal[tid].DryStation - 100;
 
   IF wet_idx >= 1 AND wet_idx <= 25 THEN
-    g_cal[tid].lift_wet_s := g_move[tid].lift_s[wet_idx];
-    g_cal[tid].sink_wet_s := g_move[tid].sink_s[wet_idx];
+    g_cal[tid].LiftWetTime := g_move[tid].LiftTime[wet_idx];
+    g_cal[tid].SinkWetTime := g_move[tid].SinkTime[wet_idx];
   END_IF;
 
   IF dry_idx >= 1 AND dry_idx <= 25 THEN
-    g_cal[tid].lift_dry_s := g_move[tid].lift_s[dry_idx];
-    g_cal[tid].sink_dry_s := g_move[tid].sink_s[dry_idx];
+    g_cal[tid].LiftDryTime := g_move[tid].LiftTime[dry_idx];
+    g_cal[tid].SinkDryTime := g_move[tid].SinkTime[dry_idx];
   END_IF;
 
   cal_step := 40;
@@ -263,7 +263,7 @@ IF cal_step = 40 THEN
   next_tid := 0;
   FOR ci := tid + 1 TO MAX_Transporters DO
     IF g_transporter[ci].IsActive AND next_tid = 0 THEN
-      IF g_cal[ci].wet_station > 0 AND g_cal[ci].dry_station > 0 THEN
+      IF g_cal[ci].WetStation > 0 AND g_cal[ci].DryStation > 0 THEN
         next_tid := ci;
       END_IF;
     END_IF;
@@ -289,23 +289,23 @@ END_IF;
    ================================================================ *)
 IF cal_step = 200 THEN
   FOR ci := 1 TO MAX_Transporters DO
-    IF g_transporter[ci].IsActive AND g_cal[ci].x_max_mm_s > 0 THEN
+    IF g_transporter[ci].IsActive AND g_cal[ci].XMaxSpeed > 0 THEN
 
-      vm := DINT_TO_REAL(g_cal[ci].x_max_mm_s);
-      ta := INT_TO_REAL(g_cal[ci].x_accel_s) / 10.0;
-      td := INT_TO_REAL(g_cal[ci].x_decel_s) / 10.0;
+      vm := DINT_TO_REAL(g_cal[ci].XMaxSpeed);
+      ta := INT_TO_REAL(g_cal[ci].XAccelTime) / 10.0;
+      td := INT_TO_REAL(g_cal[ci].XDecelTime) / 10.0;
 
       (* --- Fill lift_s and sink_s per station type --- *)
       FOR cj := 1 TO 25 DO
         IF g_station[100 + cj].TankId <> 0 THEN
           IF g_station[100 + cj].DryWet = 1 THEN
             (* Wet station *)
-            g_move[ci].lift_s[cj] := g_cal[ci].lift_wet_s;
-            g_move[ci].sink_s[cj] := g_cal[ci].sink_wet_s;
+            g_move[ci].LiftTime[cj] := g_cal[ci].LiftWetTime;
+            g_move[ci].SinkTime[cj] := g_cal[ci].SinkWetTime;
           ELSE
             (* Dry station *)
-            g_move[ci].lift_s[cj] := g_cal[ci].lift_dry_s;
-            g_move[ci].sink_s[cj] := g_cal[ci].sink_dry_s;
+            g_move[ci].LiftTime[cj] := g_cal[ci].LiftDryTime;
+            g_move[ci].SinkTime[cj] := g_cal[ci].SinkDryTime;
           END_IF;
         END_IF;
       END_FOR;
@@ -326,23 +326,23 @@ IF cal_step = 200 THEN
           FOR wet_idx := 1 TO 25 DO
             IF g_station[100 + wet_idx].TankId <> 0 THEN
               IF cj = wet_idx THEN
-                g_move[ci].travel[cj].to_s[wet_idx] := 0;
+                g_move[ci].Travel[cj].ToTime[wet_idx] := 0;
               ELSE
                 dist := ABS(DINT_TO_REAL(g_station[100 + cj].XPosition - g_station[100 + wet_idx].XPosition));
                 IF dist < 1.0 THEN
-                  g_move[ci].travel[cj].to_s[wet_idx] := 0;
+                  g_move[ci].Travel[cj].ToTime[wet_idx] := 0;
                 ELSIF dist >= (d_acc + d_dec) THEN
                   (* Full trapezoidal profile *)
                   travel_t := ta + (dist - d_acc - d_dec) / vm + td;
-                  g_move[ci].travel[cj].to_s[wet_idx] := REAL_TO_INT(travel_t * 10.0);
+                  g_move[ci].Travel[cj].ToTime[wet_idx] := REAL_TO_INT(travel_t * 10.0);
                 ELSE
                   (* Triangle profile — cannot reach full speed *)
                   IF (ta + td) > 0.0 THEN
                     v_peak := SQRT(2.0 * dist * vm / (ta + td));
                     travel_t := v_peak * (ta + td) / vm;
-                    g_move[ci].travel[cj].to_s[wet_idx] := REAL_TO_INT(travel_t * 10.0);
+                    g_move[ci].Travel[cj].ToTime[wet_idx] := REAL_TO_INT(travel_t * 10.0);
                   ELSE
-                    g_move[ci].travel[cj].to_s[wet_idx] := 0;
+                    g_move[ci].Travel[cj].ToTime[wet_idx] := 0;
                   END_IF;
                 END_IF;
               END_IF;

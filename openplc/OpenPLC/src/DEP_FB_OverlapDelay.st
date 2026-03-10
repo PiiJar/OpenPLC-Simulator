@@ -58,12 +58,12 @@ o_delay_s := 0.0;
 
 (* Check if lift/sink are in overlap zone — G09: domain 0..200 *)
 IF i_lift_stn >= 0 AND i_lift_stn <= 200 THEN
-  lift_is_overlap := g_dep_overlap.flags[i_lift_stn];
+  lift_is_overlap := g_dep_overlap.Flags[i_lift_stn];
 ELSE
   lift_is_overlap := FALSE;
 END_IF;
 IF i_sink_stn >= 0 AND i_sink_stn <= 200 THEN
-  sink_is_overlap := g_dep_overlap.flags[i_sink_stn];
+  sink_is_overlap := g_dep_overlap.Flags[i_sink_stn];
 ELSE
   sink_is_overlap := FALSE;
 END_IF;
@@ -83,24 +83,24 @@ FOR round := 1 TO DEP_MAX_DELAY_ACTS DO
   FOR ti := 1 TO MAX_Transporters DO
     IF ti <> i_trans_id THEN
       FOR qi := 1 TO MAX_Units DO
-        IF qi > g_task[ti].count THEN
+        IF qi > g_task[ti].Count THEN
           EXIT;
         END_IF;
 
-        e_lift  := g_task[ti].queue[qi].LiftStationTarget;
-        e_sink  := g_task[ti].queue[qi].SinkStationTarget;
-        e_start := g_task[ti].queue[qi].start_time;
-        e_end   := g_task[ti].queue[qi].finish_time;
+        e_lift  := g_task[ti].Queue[qi].LiftStationTarget;
+        e_sink  := g_task[ti].Queue[qi].SinkStationTarget;
+        e_start := g_task[ti].Queue[qi].StartTime;
+        e_end   := g_task[ti].Queue[qi].FinishTime;
 
         (* ★ G08: Zone membership — does existing task use ANY overlap station? *)
         has_ovlp := FALSE;
         IF e_lift >= 0 AND e_lift <= 200 THEN
-          IF g_dep_overlap.flags[e_lift] THEN
+          IF g_dep_overlap.Flags[e_lift] THEN
             has_ovlp := TRUE;
           END_IF;
         END_IF;
         IF NOT has_ovlp AND e_sink >= 0 AND e_sink <= 200 THEN
-          IF g_dep_overlap.flags[e_sink] THEN
+          IF g_dep_overlap.Flags[e_sink] THEN
             has_ovlp := TRUE;
           END_IF;
         END_IF;

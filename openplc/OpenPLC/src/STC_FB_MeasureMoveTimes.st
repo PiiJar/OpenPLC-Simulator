@@ -24,15 +24,15 @@
    Usage in plc_prg.st (one instance per transporter):
      tm1(t_id := 1, phase := g_transporter[1].Phase,
          delta_t := 0.02, vel_x := g_sim_trans[1].XVelocity,
-         z_stage := g_sim_trans[1].z_stage,
+         z_stage := g_sim_trans[1].ZStage,
          lift_stn := g_transporter[1].LiftStationTarget,
          sink_stn := g_transporter[1].SinkStationTarget,
          from_stn := g_transporter[1].CurrentStation);
 
    Access recorded times:
-     travel := g_move[1].travel[3].to_s[11];   stn 103 to 111
-     lift   := g_move[1].lift_s[5];             lift at stn 105
-     sink   := g_move[2].sink_s[12];            sink at stn 112
+     travel := g_move[1].Travel[3].ToTime[11];   stn 103 to 111
+     lift   := g_move[1].LiftTime[5];             lift at stn 105
+     sink   := g_move[2].SinkTime[12];            sink at stn 112
    ============================================================ *)
 
 FUNCTION_BLOCK STC_FB_MeasureMoveTimes
@@ -72,7 +72,7 @@ IF phase <> prev_phase THEN
     (* Travel to lift complete → save travel time *)
     IF travel_from >= 1 AND travel_from <= 25
        AND travel_to >= 1 AND travel_to <= 25 THEN
-      g_move[t_id].travel[travel_from].to_s[travel_to] := REAL_TO_INT(timer * 10.0);
+      g_move[t_id].Travel[travel_from].ToTime[travel_to] := REAL_TO_INT(timer * 10.0);
     END_IF;
     (* Start timing lift — timer starts at 0, accumulates only in z_stage 2-4 *)
     lift_idx := lift_stn - 100;
@@ -81,7 +81,7 @@ IF phase <> prev_phase THEN
   ELSIF prev_phase = 2 AND phase = 3 THEN
     (* Lift complete → save lift time (pure mechanical Z-motion only) *)
     IF lift_idx >= 1 AND lift_idx <= 25 THEN
-      g_move[t_id].lift_s[lift_idx] := REAL_TO_INT(timer * 10.0);
+      g_move[t_id].LiftTime[lift_idx] := REAL_TO_INT(timer * 10.0);
     END_IF;
     (* Start timing travel to sink *)
     travel_from := lift_stn - 100;
@@ -92,7 +92,7 @@ IF phase <> prev_phase THEN
     (* Travel to sink complete → save travel time *)
     IF travel_from >= 1 AND travel_from <= 25
        AND travel_to >= 1 AND travel_to <= 25 THEN
-      g_move[t_id].travel[travel_from].to_s[travel_to] := REAL_TO_INT(timer * 10.0);
+      g_move[t_id].Travel[travel_from].ToTime[travel_to] := REAL_TO_INT(timer * 10.0);
     END_IF;
     (* Start timing sink — timer starts at 0, accumulates only in z_stage 7-8 *)
     sink_idx := sink_stn - 100;
@@ -101,7 +101,7 @@ IF phase <> prev_phase THEN
   ELSIF prev_phase = 4 AND phase = 0 THEN
     (* Sink complete → save sink time (pure mechanical Z-motion only) *)
     IF sink_idx >= 1 AND sink_idx <= 25 THEN
-      g_move[t_id].sink_s[sink_idx] := REAL_TO_INT(timer * 10.0);
+      g_move[t_id].SinkTime[sink_idx] := REAL_TO_INT(timer * 10.0);
     END_IF;
     timer := 0.0;
 

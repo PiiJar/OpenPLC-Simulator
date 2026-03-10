@@ -64,12 +64,12 @@ VAR
 END_VAR
 
 (* Initialize output *)
-o_result.fits         := FALSE;
-o_result.delay_s      := 0;
-o_result.need_extra_s := 0;
-o_result.task_end_s   := 0;
-o_result.slot_idx     := 0;
-o_result.trans_id     := i_trans_id;
+o_result.Fits         := FALSE;
+o_result.DelayTime      := 0;
+o_result.NeedExtraTime := 0;
+o_result.TaskEndTime   := 0;
+o_result.SlotIdx     := 0;
+o_result.TransporterId     := i_trans_id;
 
 IF i_trans_id < 1 OR i_trans_id > MAX_Transporters THEN
   RETURN;
@@ -80,7 +80,7 @@ flex_up    := DINT_TO_REAL(i_max_time_s - i_calc_time_s);
 IF flex_up < 0.0 THEN flex_up := 0.0; END_IF;
 capped_flex := flex_up * i_flex_factor;
 
-slot_cnt   := g_dep_idle_slot[i_trans_id].count;
+slot_cnt   := g_dep_idle_slot[i_trans_id].Count;
 best_delay := 1.0E9;
 best_slot  := 0;
 found      := FALSE;
@@ -93,18 +93,18 @@ FOR si := 1 TO DEP_MAX_IDLE_SLOTS DO
     EXIT;
   END_IF;
 
-  slot_start := g_dep_idle_slot[i_trans_id].slots[si].start_time;
-  slot_end   := g_dep_idle_slot[i_trans_id].slots[si].end_time;
+  slot_start := g_dep_idle_slot[i_trans_id].Slots[si].StartTime;
+  slot_end   := g_dep_idle_slot[i_trans_id].Slots[si].EndTime;
 
   (* ── Travel time: prev task sink → this lift ── *)
-  from_stn := g_dep_idle_slot[i_trans_id].slots[si].LiftStationTarget;
+  from_stn := g_dep_idle_slot[i_trans_id].Slots[si].LiftStationTarget;
   travel_to := 0.0;
   IF from_stn > 0 AND from_stn <> i_lift_stn THEN
     travel_to := STC_CalcHorizontalTravel(i_from_stn := from_stn, i_to_stn := i_lift_stn, i_move := tmp_move);
   END_IF;
 
   (* ── Travel time: this sink → next task lift ── *)
-  to_stn := g_dep_idle_slot[i_trans_id].slots[si].SinkStationTarget;
+  to_stn := g_dep_idle_slot[i_trans_id].Slots[si].SinkStationTarget;
   travel_from := 0.0;
   IF to_stn > 0 AND to_stn <> i_sink_stn THEN
     travel_from := STC_CalcHorizontalTravel(i_from_stn := i_sink_stn, i_to_stn := to_stn, i_move := tmp_move);
@@ -148,24 +148,24 @@ FOR si := 1 TO DEP_MAX_IDLE_SLOTS DO
 END_FOR;
 
 IF found THEN
-  o_result.fits      := TRUE;
-  o_result.delay_s   := REAL_TO_DINT(best_delay);
-  o_result.slot_idx  := best_slot;
-  o_result.task_end_s := i_task_start + REAL_TO_LINT(i_shift_s + best_delay) + task_dur;
-  o_result.need_extra_s := 0;
+  o_result.Fits      := TRUE;
+  o_result.DelayTime   := REAL_TO_DINT(best_delay);
+  o_result.SlotIdx  := best_slot;
+  o_result.TaskEndTime := i_task_start + REAL_TO_LINT(i_shift_s + best_delay) + task_dur;
+  o_result.NeedExtraTime := 0;
 ELSE
   (* Report how much extra is needed for backward chaining *)
-  o_result.fits := FALSE;
+  o_result.Fits := FALSE;
   IF overflow_best_delay < 1.0E8 THEN
     (* Overflow slot found — report shortfall beyond capped flex *)
-    o_result.delay_s      := REAL_TO_DINT(overflow_best_delay);
-    o_result.need_extra_s := REAL_TO_DINT(overflow_best_delay - capped_flex);
-    IF o_result.need_extra_s < 0 THEN
-      o_result.need_extra_s := 0;
+    o_result.DelayTime      := REAL_TO_DINT(overflow_best_delay);
+    o_result.NeedExtraTime := REAL_TO_DINT(overflow_best_delay - capped_flex);
+    IF o_result.NeedExtraTime < 0 THEN
+      o_result.NeedExtraTime := 0;
     END_IF;
   ELSE
     (* No slot at all *)
-    o_result.need_extra_s := 0;
+    o_result.NeedExtraTime := 0;
   END_IF;
 END_IF;
 

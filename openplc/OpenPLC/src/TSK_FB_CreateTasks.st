@@ -7,8 +7,8 @@
      - Lift station = current stage station
      - Sink station = next stage station
      - Assigns transporter from task_area match in g_cfg
-     - Skips already completed stages (stage < batch.cur_stage)
-   Appends tasks to g_task[transporter].queue.
+     - Skips already completed stages (stage < batch.CurStage)
+   Appends tasks to g_task[transporter].Queue.
 
    Called once per batch per scheduler cycle.
    ============================================================ *)
@@ -27,7 +27,7 @@ VAR_EXTERNAL
   g_batch  : ARRAY[1..MAX_Units] OF UDT_BatchType;
   g_schedule : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
   g_task    : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
-  g_cfg    : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
+  g_cfg    : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
 END_VAR
 VAR
   si         : INT;     (* schedule stage index *)
@@ -41,7 +41,7 @@ END_VAR
 
 IF i_unit < 1 OR i_unit > MAX_Units THEN RETURN; END_IF;
 
-sc := g_schedule[i_unit].stage_count;
+sc := g_schedule[i_unit].StageCount;
 IF sc < 2 THEN RETURN; END_IF;
 
 (* CalcSchedule already builds a schedule starting from the batch's
@@ -50,8 +50,8 @@ IF sc < 2 THEN RETURN; END_IF;
 
 (* Loop through consecutive stage pairs *)
 FOR si := 1 TO sc - 1 DO
-  lift_stn := g_schedule[i_unit].stages[si].station;
-  sink_stn := g_schedule[i_unit].stages[si + 1].station;
+  lift_stn := g_schedule[i_unit].Stages[si].station;
+  sink_stn := g_schedule[i_unit].Stages[si + 1].station;
 
   IF lift_stn > 0 AND sink_stn > 0 THEN
     (* -- Find transporter via task_area matching -- *)
@@ -60,18 +60,18 @@ FOR si := 1 TO sc - 1 DO
 
     (* -- Append task to transporter queue -- *)
     IF tid >= 1 AND tid <= 3 THEN
-      qi := g_task[tid].count + 1;
+      qi := g_task[tid].Count + 1;
       IF qi <= MAX_TASK_QUEUE THEN
-        g_task[tid].queue[qi].unit         := i_unit;
-        g_task[tid].queue[qi].stage        := si - 1;  (* schedule idx 1=stage0, 2=stage1, ... *)
-        g_task[tid].queue[qi].LiftStationTarget := lift_stn;
-        g_task[tid].queue[qi].SinkStationTarget := sink_stn;
-        g_task[tid].queue[qi].start_time   := g_schedule[i_unit].stages[si].exit_time;
-        g_task[tid].queue[qi].finish_time  := g_schedule[i_unit].stages[si + 1].entry_time;
-        g_task[tid].queue[qi].calc_time    := g_schedule[i_unit].stages[si].calc_time;
-        g_task[tid].queue[qi].min_time     := g_schedule[i_unit].stages[si].min_time;
-        g_task[tid].queue[qi].max_time     := g_schedule[i_unit].stages[si].max_time;
-        g_task[tid].count := qi;
+        g_task[tid].Queue[qi].Unit         := i_unit;
+        g_task[tid].Queue[qi].Stage        := si - 1;  (* schedule idx 1=stage0, 2=stage1, ... *)
+        g_task[tid].Queue[qi].LiftStationTarget := lift_stn;
+        g_task[tid].Queue[qi].SinkStationTarget := sink_stn;
+        g_task[tid].Queue[qi].StartTime   := g_schedule[i_unit].Stages[si].ExitTime;
+        g_task[tid].Queue[qi].FinishTime  := g_schedule[i_unit].Stages[si + 1].EntryTime;
+        g_task[tid].Queue[qi].CalcTime    := g_schedule[i_unit].Stages[si].CalcTime;
+        g_task[tid].Queue[qi].MinTime     := g_schedule[i_unit].Stages[si].MinTime;
+        g_task[tid].Queue[qi].MaxTime     := g_schedule[i_unit].Stages[si].MaxTime;
+        g_task[tid].Count := qi;
       END_IF;
     END_IF;
   END_IF;

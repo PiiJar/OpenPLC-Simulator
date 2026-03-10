@@ -31,16 +31,16 @@ END_VAR
 o_swap_count := 0;
 
 FOR ti := 1 TO MAX_Transporters DO
-  cnt := g_task[ti].count;
+  cnt := g_task[ti].Count;
   IF cnt >= 2 THEN
     FOR qi := 1 TO cnt - 1 DO
       (* Check: different units AND prev.sink == next.lift *)
-      IF g_task[ti].queue[qi].unit <> g_task[ti].queue[qi + 1].unit
-         AND g_task[ti].queue[qi].SinkStationTarget = g_task[ti].queue[qi + 1].LiftStationTarget THEN
+      IF g_task[ti].Queue[qi].Unit <> g_task[ti].Queue[qi + 1].Unit
+         AND g_task[ti].Queue[qi].SinkStationTarget = g_task[ti].Queue[qi + 1].LiftStationTarget THEN
         (* Swap *)
-        tmp := g_task[ti].queue[qi];
-        g_task[ti].queue[qi] := g_task[ti].queue[qi + 1];
-        g_task[ti].queue[qi + 1] := tmp;
+        tmp := g_task[ti].Queue[qi];
+        g_task[ti].Queue[qi] := g_task[ti].Queue[qi + 1];
+        g_task[ti].Queue[qi + 1] := tmp;
         o_swap_count := o_swap_count + 1;
       END_IF;
     END_FOR;

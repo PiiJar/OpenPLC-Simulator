@@ -38,31 +38,31 @@ END_VAR
 IF i_cmd = 1 THEN
   (* ── SNAPSHOT: globals → sandbox ── *)
   FOR ui := 1 TO MAX_Units DO
-    g_dep_sandbox.schedule[ui] := g_schedule[ui];
-    g_dep_sandbox.batches[ui]  := g_batch[ui];
-    g_dep_sandbox.programs[ui] := g_program[ui];
+    g_dep_sandbox.Schedule[ui] := g_schedule[ui];
+    g_dep_sandbox.Batches[ui]  := g_batch[ui];
+    g_dep_sandbox.Programs[ui] := g_program[ui];
   END_FOR;
   FOR ti := 1 TO MAX_Transporters DO
-    g_dep_sandbox.tasks[ti] := g_task[ti];
+    g_dep_sandbox.Tasks[ti] := g_task[ti];
   END_FOR;
-  g_dep_sandbox.valid := TRUE;
+  g_dep_sandbox.Valid := TRUE;
 
 ELSIF i_cmd = 2 THEN
   (* ── RESTORE: sandbox → globals ── *)
-  IF g_dep_sandbox.valid THEN
+  IF g_dep_sandbox.Valid THEN
     FOR ui := 1 TO MAX_Units DO
-      g_schedule[ui] := g_dep_sandbox.schedule[ui];
-      g_batch[ui]  := g_dep_sandbox.batches[ui];
-      g_program[ui] := g_dep_sandbox.programs[ui];
+      g_schedule[ui] := g_dep_sandbox.Schedule[ui];
+      g_batch[ui]  := g_dep_sandbox.Batches[ui];
+      g_program[ui] := g_dep_sandbox.Programs[ui];
     END_FOR;
     FOR ti := 1 TO MAX_Transporters DO
-      g_task[ti] := g_dep_sandbox.tasks[ti];
+      g_task[ti] := g_dep_sandbox.Tasks[ti];
     END_FOR;
   END_IF;
 
 ELSIF i_cmd = 3 THEN
   (* ── CLEAR: invalidate sandbox ── *)
-  g_dep_sandbox.valid := FALSE;
+  g_dep_sandbox.Valid := FALSE;
 
 END_IF;
 

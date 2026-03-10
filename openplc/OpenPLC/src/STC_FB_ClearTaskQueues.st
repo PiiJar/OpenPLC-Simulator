@@ -24,17 +24,17 @@ VAR
 END_VAR
 
 FOR ti := 1 TO MAX_Transporters DO
-  g_task[ti].count := 0;
+  g_task[ti].Count := 0;
   FOR qi := 1 TO MAX_TASK_QUEUE DO
-    g_task[ti].queue[qi].unit         := 0;
-    g_task[ti].queue[qi].stage        := 0;
-    g_task[ti].queue[qi].LiftStationTarget := 0;
-    g_task[ti].queue[qi].SinkStationTarget := 0;
-    g_task[ti].queue[qi].start_time   := 0;
-    g_task[ti].queue[qi].finish_time  := 0;
-    g_task[ti].queue[qi].calc_time    := 0;
-    g_task[ti].queue[qi].min_time     := 0;
-    g_task[ti].queue[qi].max_time     := 0;
+    g_task[ti].Queue[qi].Unit         := 0;
+    g_task[ti].Queue[qi].Stage        := 0;
+    g_task[ti].Queue[qi].LiftStationTarget := 0;
+    g_task[ti].Queue[qi].SinkStationTarget := 0;
+    g_task[ti].Queue[qi].StartTime   := 0;
+    g_task[ti].Queue[qi].FinishTime  := 0;
+    g_task[ti].Queue[qi].CalcTime    := 0;
+    g_task[ti].Queue[qi].MinTime     := 0;
+    g_task[ti].Queue[qi].MaxTime     := 0;
   END_FOR;
 END_FOR;
 

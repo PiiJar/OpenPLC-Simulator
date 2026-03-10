@@ -36,25 +36,25 @@ IF i_unit < 1 OR i_unit > MAX_Units THEN RETURN; END_IF;
 IF ABS(i_amount) < 0.001 THEN RETURN; END_IF;
 
 (* ── Shift schedule stages entry/exit times ── *)
-sc := g_schedule[i_unit].stage_count;
+sc := g_schedule[i_unit].StageCount;
 FOR si := i_from_stage TO sc DO
   IF si >= 1 AND si <= 30 THEN
-    g_schedule[i_unit].stages[si].entry_time :=
-      g_schedule[i_unit].stages[si].entry_time + REAL_TO_LINT(i_amount);
-    g_schedule[i_unit].stages[si].exit_time :=
-      g_schedule[i_unit].stages[si].exit_time + REAL_TO_LINT(i_amount);
+    g_schedule[i_unit].Stages[si].EntryTime :=
+      g_schedule[i_unit].Stages[si].EntryTime + REAL_TO_LINT(i_amount);
+    g_schedule[i_unit].Stages[si].ExitTime :=
+      g_schedule[i_unit].Stages[si].ExitTime + REAL_TO_LINT(i_amount);
   END_IF;
 END_FOR;
 
 (* ── Shift matching tasks in all transporter queues ── *)
 FOR ti := 1 TO MAX_Transporters DO
-  FOR qi := 1 TO g_task[ti].count DO
-    IF g_task[ti].queue[qi].unit = i_unit
-       AND g_task[ti].queue[qi].stage >= i_from_stage THEN
-      g_task[ti].queue[qi].start_time :=
-        g_task[ti].queue[qi].start_time + REAL_TO_LINT(i_amount);
-      g_task[ti].queue[qi].finish_time :=
-        g_task[ti].queue[qi].finish_time + REAL_TO_LINT(i_amount);
+  FOR qi := 1 TO g_task[ti].Count DO
+    IF g_task[ti].Queue[qi].Unit = i_unit
+       AND g_task[ti].Queue[qi].Stage >= i_from_stage THEN
+      g_task[ti].Queue[qi].StartTime :=
+        g_task[ti].Queue[qi].StartTime + REAL_TO_LINT(i_amount);
+      g_task[ti].Queue[qi].FinishTime :=
+        g_task[ti].Queue[qi].FinishTime + REAL_TO_LINT(i_amount);
     END_IF;
   END_FOR;
 END_FOR;

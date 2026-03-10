@@ -53,7 +53,7 @@ VAR_EXTERNAL
   g_program         : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
   g_schedule         : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
   g_task            : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
-  g_cfg              : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
+  g_cfg              : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
   g_transporter      : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
   g_dep_sandbox      : DEP_SANDBOX_T;
   g_dep_idle_slot   : ARRAY[1..MAX_Transporters] OF DEP_IDLE_SLOT_SET_T;
@@ -340,27 +340,27 @@ ELSIF phase = 1030 THEN
 
   FOR ti := 1 TO MAX_Transporters DO
     write_idx := 0;
-    FOR qi := 1 TO g_task[ti].count DO
-      IF g_task[ti].queue[qi].unit = cur_wait_unit THEN
+    FOR qi := 1 TO g_task[ti].Count DO
+      IF g_task[ti].Queue[qi].Unit = cur_wait_unit THEN
         (* Copy to waiting task array *)
         w_task_cnt := w_task_cnt + 1;
         IF w_task_cnt <= 30 THEN
-          w_tasks[w_task_cnt] := g_task[ti].queue[qi];
+          w_tasks[w_task_cnt] := g_task[ti].Queue[qi];
           w_trans[w_task_cnt] := ti;
         END_IF;
       ELSE
         (* Keep in queue — shift down *)
         write_idx := write_idx + 1;
         IF write_idx <> qi THEN
-          g_task[ti].queue[write_idx] := g_task[ti].queue[qi];
+          g_task[ti].Queue[write_idx] := g_task[ti].Queue[qi];
         END_IF;
       END_IF;
     END_FOR;
     (* Clear remaining slots *)
-    FOR qi := write_idx + 1 TO g_task[ti].count DO
-      g_task[ti].queue[qi].unit := 0;
+    FOR qi := write_idx + 1 TO g_task[ti].Count DO
+      g_task[ti].Queue[qi].Unit := 0;
     END_FOR;
-    g_task[ti].count := write_idx;
+    g_task[ti].Count := write_idx;
   END_FOR;
 
   next_phase := 1040;
@@ -387,8 +387,8 @@ ELSIF phase = 2000 THEN
 
   (* Find first treatment station from schedule *)
   first_stn := 0;
-  IF g_schedule[cur_wait_unit].stage_count >= 1 THEN
-    first_stn := g_schedule[cur_wait_unit].stages[1].station;
+  IF g_schedule[cur_wait_unit].StageCount >= 1 THEN
+    first_stn := g_schedule[cur_wait_unit].Stages[1].station;
   END_IF;
 
   IF first_stn = 0 THEN
@@ -424,18 +424,18 @@ ELSIF phase = 2000 THEN
 
     s0_task_dur := REAL_TO_LINT(xfer_dur);
     s0_slot_fitted := FALSE;
-    s0_slot_cnt := g_dep_idle_slot[sched_trans].count;
+    s0_slot_cnt := g_dep_idle_slot[sched_trans].Count;
     stage0_delay := 0.0;
 
     (* ── Inline idle-slot scan (matches JS stage 0 logic) ── *)
     FOR s0_slot_si := 1 TO DEP_MAX_IDLE_SLOTS DO
       IF s0_slot_si > s0_slot_cnt THEN EXIT; END_IF;
 
-      s0_slot_start := g_dep_idle_slot[sched_trans].slots[s0_slot_si].start_time;
-      s0_slot_end   := g_dep_idle_slot[sched_trans].slots[s0_slot_si].end_time;
+      s0_slot_start := g_dep_idle_slot[sched_trans].Slots[s0_slot_si].StartTime;
+      s0_slot_end   := g_dep_idle_slot[sched_trans].Slots[s0_slot_si].EndTime;
       IF s0_slot_end > i_time_s THEN
         (* Travel: prev task sink → pickup station (JS: travelToPickup) *)
-        s0_from_stn := g_dep_idle_slot[sched_trans].slots[s0_slot_si].LiftStationTarget;
+        s0_from_stn := g_dep_idle_slot[sched_trans].Slots[s0_slot_si].LiftStationTarget;
         s0_travel_to := 0.0;
         IF s0_from_stn > 0 AND s0_from_stn <> loading_stn THEN
           s0_travel_to := STC_CalcHorizontalTravel(i_from_stn := s0_from_stn, i_to_stn := loading_stn, i_move := tmp_move);
@@ -449,7 +449,7 @@ ELSIF phase = 2000 THEN
         END_IF;
 
         (* Travel: sink → next task lift (JS: travelFromSink) *)
-        s0_to_stn := g_dep_idle_slot[sched_trans].slots[s0_slot_si].SinkStationTarget;
+        s0_to_stn := g_dep_idle_slot[sched_trans].Slots[s0_slot_si].SinkStationTarget;
         s0_travel_from := 0.0;
         IF s0_to_stn > 0 AND s0_to_stn <> first_stn THEN
           s0_travel_from := STC_CalcHorizontalTravel(i_from_stn := first_stn, i_to_stn := s0_to_stn, i_move := tmp_move);
@@ -484,7 +484,7 @@ ELSIF phase = 2000 THEN
             s0_slot_fitted := TRUE;
 
             (* ★ G11: Trim idle slot *)
-            g_dep_idle_slot[sched_trans].slots[s0_slot_si].start_time :=
+            g_dep_idle_slot[sched_trans].Slots[s0_slot_si].StartTime :=
               s0_earliest + s0_task_dur;
 
             (* Record stage 0 delay — shift sched_base_time for stage 1+ *)
@@ -527,7 +527,7 @@ ELSIF phase = 2001 THEN
     next_phase := 8000;
   ELSE
     (* Get current task data *)
-    si := w_tasks[cur_task_idx].stage;
+    si := w_tasks[cur_task_idx].Stage;
     ti := w_trans[cur_task_idx];
 
     (* Overlap delay check *)
@@ -535,8 +535,8 @@ ELSIF phase = 2001 THEN
       i_lift_stn   := w_tasks[cur_task_idx].LiftStationTarget,
       i_sink_stn   := w_tasks[cur_task_idx].SinkStationTarget,
       i_trans_id   := ti,
-      i_task_start := w_tasks[cur_task_idx].start_time,
-      i_task_end   := w_tasks[cur_task_idx].finish_time,
+      i_task_start := w_tasks[cur_task_idx].StartTime,
+      i_task_end   := w_tasks[cur_task_idx].FinishTime,
       i_margin_s   := CONFLICT_MARGIN_S
     );
     ovlp_delay_s := fb_ovlp_delay.o_delay_s;
@@ -546,22 +546,22 @@ ELSIF phase = 2001 THEN
       i_lift_stn     := w_tasks[cur_task_idx].LiftStationTarget,
       i_sink_stn     := w_tasks[cur_task_idx].SinkStationTarget,
       i_trans_id     := ti,
-      i_task_start   := w_tasks[cur_task_idx].start_time,
-      i_task_end     := w_tasks[cur_task_idx].finish_time,
+      i_task_start   := w_tasks[cur_task_idx].StartTime,
+      i_task_end     := w_tasks[cur_task_idx].FinishTime,
       i_shift_s      := ovlp_delay_s,
-      i_calc_time_s  := w_tasks[cur_task_idx].calc_time,
-      i_max_time_s   := w_tasks[cur_task_idx].max_time,
+      i_calc_time_s  := w_tasks[cur_task_idx].CalcTime,
+      i_max_time_s   := w_tasks[cur_task_idx].MaxTime,
       i_flex_factor  := FLEX_FACTOR,
       i_margin_s     := MARGIN_S
     );
 
-    total_delay_s := ovlp_delay_s + DINT_TO_REAL(fb_fit.o_result.delay_s);
+    total_delay_s := ovlp_delay_s + DINT_TO_REAL(fb_fit.o_result.DelayTime);
 
-    IF fb_fit.o_result.fits THEN
+    IF fb_fit.o_result.Fits THEN
       (* ★ G11: Trim idle slot after successful stage 1+ fit *)
-      IF fb_fit.o_result.slot_idx >= 1 AND fb_fit.o_result.slot_idx <= DEP_MAX_IDLE_SLOTS THEN
-        g_dep_idle_slot[ti].slots[fb_fit.o_result.slot_idx].start_time :=
-          fb_fit.o_result.task_end_s;
+      IF fb_fit.o_result.SlotIdx >= 1 AND fb_fit.o_result.SlotIdx <= DEP_MAX_IDLE_SLOTS THEN
+        g_dep_idle_slot[ti].Slots[fb_fit.o_result.SlotIdx].StartTime :=
+          fb_fit.o_result.TaskEndTime;
       END_IF;
 
       IF total_delay_s <= MARGIN_S THEN
@@ -577,18 +577,18 @@ ELSIF phase = 2001 THEN
       END_IF;
     ELSE
       (* ★ G02: Does not fit → try backward chaining *)
-      IF fb_fit.o_result.need_extra_s <= 0 THEN
+      IF fb_fit.o_result.NeedExtraTime <= 0 THEN
         (* No slot at all → reject *)
         next_phase := 9000;
       ELSE
         (* Walk backward through w_tasks, accumulate flex *)
-        remaining_need := DINT_TO_REAL(fb_fit.o_result.need_extra_s);
+        remaining_need := DINT_TO_REAL(fb_fit.o_result.NeedExtraTime);
         chain_delay_cnt := 0;
         chain_ok := FALSE;
 
         bk := cur_task_idx - 1;
         WHILE bk >= 1 AND remaining_need > MARGIN_S DO
-          prev_flex_up := DINT_TO_REAL(w_tasks[bk].max_time - w_tasks[bk].calc_time);
+          prev_flex_up := DINT_TO_REAL(w_tasks[bk].MaxTime - w_tasks[bk].CalcTime);
           IF prev_flex_up < 0.0 THEN prev_flex_up := 0.0; END_IF;
           prev_capped := prev_flex_up * FLEX_FACTOR;
           use_delay := prev_capped;
@@ -597,14 +597,14 @@ ELSIF phase = 2001 THEN
           IF use_delay > MARGIN_S THEN
             chain_delay_cnt := chain_delay_cnt + 1;
             IF chain_delay_cnt <= 10 THEN
-              chain_delays[chain_delay_cnt].stage   := w_tasks[bk].stage;
-              chain_delays[chain_delay_cnt].delay_s := REAL_TO_DINT(use_delay);
-              IF w_tasks[bk].stage = 0 THEN
-                chain_delays[chain_delay_cnt].target := 0;  (* batch *)
+              chain_delays[chain_delay_cnt].Stage   := w_tasks[bk].Stage;
+              chain_delays[chain_delay_cnt].DelayTime := REAL_TO_DINT(use_delay);
+              IF w_tasks[bk].Stage = 0 THEN
+                chain_delays[chain_delay_cnt].Target := 0;  (* batch *)
               ELSE
-                chain_delays[chain_delay_cnt].target := 1;  (* program stage *)
+                chain_delays[chain_delay_cnt].Target := 1;  (* program stage *)
               END_IF;
-              chain_delays[chain_delay_cnt].valid := TRUE;
+              chain_delays[chain_delay_cnt].Valid := TRUE;
             END_IF;
             remaining_need := remaining_need - use_delay;
           END_IF;
@@ -616,16 +616,16 @@ ELSIF phase = 2001 THEN
         IF chain_ok THEN
           (* Apply chain delays *)
           FOR ci := 1 TO chain_delay_cnt DO
-            IF chain_delays[ci].valid THEN
-              IF chain_delays[ci].target = 0 THEN
+            IF chain_delays[ci].Valid THEN
+              IF chain_delays[ci].Target = 0 THEN
                 (* Stage 0 / batch delay: shift base time *)
-                sched_base_time := sched_base_time + DINT_TO_LINT(chain_delays[ci].delay_s);
-              ELSIF chain_delays[ci].target = 1 THEN
-                prog_idx := chain_delays[ci].stage;
+                sched_base_time := sched_base_time + DINT_TO_LINT(chain_delays[ci].DelayTime);
+              ELSIF chain_delays[ci].Target = 1 THEN
+                prog_idx := chain_delays[ci].Stage;
                 IF prog_idx >= 1 AND prog_idx <= 30 THEN
                   old_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].CalTime;
                   max_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].MaxTime;
-                  new_cal := old_cal + chain_delays[ci].delay_s;
+                  new_cal := old_cal + chain_delays[ci].DelayTime;
                   IF new_cal > max_cal AND max_cal > 0 THEN
                     new_cal := max_cal;
                   END_IF;
@@ -687,21 +687,21 @@ ELSIF phase = 3000 THEN
 ELSIF phase = 8000 THEN
   (* Store pending write data *)
   FOR ui := 1 TO MAX_Units DO
-    g_dep_pending.programs[ui] := g_program[ui];
-    g_dep_pending.schedule[ui] := g_schedule[ui];
+    g_dep_pending.Programs[ui] := g_program[ui];
+    g_dep_pending.Schedule[ui] := g_schedule[ui];
   END_FOR;
-  g_dep_pending.batch_unit  := cur_wait_unit;
-  g_dep_pending.batch_stage := 0;    (* cur_stage = 0, JS: batch.stage = 0 *)
-  g_dep_pending.batch_state := 1;    (* NOT_PROCESSED → IN_PROCESS *)
+  g_dep_pending.BatchUnit  := cur_wait_unit;
+  g_dep_pending.BatchStage := 0;    (* cur_stage = 0, JS: batch.Stage = 0 *)
+  g_dep_pending.BatchState := 1;    (* NOT_PROCESSED → IN_PROCESS *)
   (* Stage 0 times — same naming as UDT_TreatmentProgramStepType: MinTime, MaxTime, CalTime *)
-  g_dep_pending.batch_cal_time  := REAL_TO_DINT(stage0_pending_delay);
-  g_dep_pending.batch_min_time  := REAL_TO_DINT(stage0_pending_delay);
-  g_dep_pending.batch_max_time  := REAL_TO_DINT(2.0 * stage0_pending_delay);
-  IF g_dep_pending.batch_max_time < g_dep_pending.batch_cal_time THEN
-    g_dep_pending.batch_max_time := g_dep_pending.batch_cal_time;
+  g_dep_pending.BatchCalTime  := REAL_TO_DINT(stage0_pending_delay);
+  g_dep_pending.BatchMinTime  := REAL_TO_DINT(stage0_pending_delay);
+  g_dep_pending.BatchMaxTime  := REAL_TO_DINT(2.0 * stage0_pending_delay);
+  IF g_dep_pending.BatchMaxTime < g_dep_pending.BatchCalTime THEN
+    g_dep_pending.BatchMaxTime := g_dep_pending.BatchCalTime;
   END_IF;
-  g_dep_pending.time_s      := i_time_s;
-  g_dep_pending.valid        := TRUE;
+  g_dep_pending.TimeStamp      := i_time_s;
+  g_dep_pending.Valid        := TRUE;
 
   (* Restore globals from sandbox (undo DEP's temp changes) *)
   fb_sandbox(i_cmd := 2);
@@ -716,7 +716,7 @@ ELSIF phase = 8000 THEN
 (* PHASE 8010: WAIT_SAVE — wait for TSK to process pending     *)
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 8010 THEN
-  IF NOT g_dep_pending.valid THEN
+  IF NOT g_dep_pending.Valid THEN
     (* TSK has processed the pending write *)
     next_phase := 8020;
   END_IF;

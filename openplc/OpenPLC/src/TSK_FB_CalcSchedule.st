@@ -83,13 +83,13 @@ out_count := 0;
 
 (* -- Clear old schedule -- *)
 FOR st := 1 TO 30 DO
-  g_schedule[i_unit].stages[st].station := 0;
-  g_schedule[i_unit].stages[st].entry_time := 0;
-  g_schedule[i_unit].stages[st].exit_time := 0;
-  g_schedule[i_unit].stages[st].min_time := 0;
-  g_schedule[i_unit].stages[st].calc_time := 0;
-  g_schedule[i_unit].stages[st].max_time := 0;
-  g_schedule[i_unit].stages[st].transfer_time := 0;
+  g_schedule[i_unit].Stages[st].station := 0;
+  g_schedule[i_unit].Stages[st].EntryTime := 0;
+  g_schedule[i_unit].Stages[st].ExitTime := 0;
+  g_schedule[i_unit].Stages[st].MinTime := 0;
+  g_schedule[i_unit].Stages[st].CalcTime := 0;
+  g_schedule[i_unit].Stages[st].MaxTime := 0;
+  g_schedule[i_unit].Stages[st].TransferTime := 0;
 END_FOR;
 
 (* -- Determine start stage -- *)
@@ -145,13 +145,13 @@ IF is_on_stn AND start_st >= 1 THEN
   END_FOR;
   IF stn_num = 0 THEN
     out_count := out_count + 1;
-    g_schedule[i_unit].stages[out_count].station       := location;
-    g_schedule[i_unit].stages[out_count].entry_time    := exit_t;
-    g_schedule[i_unit].stages[out_count].exit_time     := exit_t;
-    g_schedule[i_unit].stages[out_count].min_time      := 0;
-    g_schedule[i_unit].stages[out_count].calc_time     := 0;
-    g_schedule[i_unit].stages[out_count].max_time      := 0;
-    g_schedule[i_unit].stages[out_count].transfer_time := 0;
+    g_schedule[i_unit].Stages[out_count].station       := location;
+    g_schedule[i_unit].Stages[out_count].EntryTime    := exit_t;
+    g_schedule[i_unit].Stages[out_count].ExitTime     := exit_t;
+    g_schedule[i_unit].Stages[out_count].MinTime      := 0;
+    g_schedule[i_unit].Stages[out_count].CalcTime     := 0;
+    g_schedule[i_unit].Stages[out_count].MaxTime      := 0;
+    g_schedule[i_unit].Stages[out_count].TransferTime := 0;
     is_first := FALSE;
   END_IF;
 END_IF;
@@ -192,16 +192,16 @@ FOR st := start_st TO g_program[i_unit].StepCount DO
     (* Check schedule overlap + physical occupation for each candidate *)
     FOR p := 1 TO cand_cnt DO
       FOR uj := 1 TO MAX_Units DO
-        IF uj <> i_unit AND g_schedule[uj].stage_count > 0 THEN
-          FOR sj := 1 TO g_schedule[uj].stage_count DO
-            IF g_schedule[uj].stages[sj].station = cand_arr[p] THEN
+        IF uj <> i_unit AND g_schedule[uj].StageCount > 0 THEN
+          FOR sj := 1 TO g_schedule[uj].StageCount DO
+            IF g_schedule[uj].Stages[sj].station = cand_arr[p] THEN
               ov_start := my_entry;
-              IF g_schedule[uj].stages[sj].entry_time > ov_start THEN
-                ov_start := g_schedule[uj].stages[sj].entry_time;
+              IF g_schedule[uj].Stages[sj].EntryTime > ov_start THEN
+                ov_start := g_schedule[uj].Stages[sj].EntryTime;
               END_IF;
               ov_end := my_exit;
-              IF g_schedule[uj].stages[sj].exit_time < ov_end THEN
-                ov_end := g_schedule[uj].stages[sj].exit_time;
+              IF g_schedule[uj].Stages[sj].ExitTime < ov_end THEN
+                ov_end := g_schedule[uj].Stages[sj].ExitTime;
               END_IF;
               IF ov_end > ov_start THEN
                 sched_occupied[p] := TRUE;
@@ -285,13 +285,13 @@ FOR st := start_st TO g_program[i_unit].StepCount DO
   (* -- Write to schedule -- *)
   out_count := out_count + 1;
   IF out_count <= 30 THEN
-    g_schedule[i_unit].stages[out_count].station       := stn_num;
-    g_schedule[i_unit].stages[out_count].entry_time    := entry_t;
-    g_schedule[i_unit].stages[out_count].exit_time     := exit_t;
-    g_schedule[i_unit].stages[out_count].min_time      := REAL_TO_DINT(min_s);
-    g_schedule[i_unit].stages[out_count].calc_time     := REAL_TO_DINT(calc_s);
-    g_schedule[i_unit].stages[out_count].max_time      := REAL_TO_DINT(max_s);
-    g_schedule[i_unit].stages[out_count].transfer_time := REAL_TO_DINT(xfer_t);
+    g_schedule[i_unit].Stages[out_count].station       := stn_num;
+    g_schedule[i_unit].Stages[out_count].EntryTime    := entry_t;
+    g_schedule[i_unit].Stages[out_count].ExitTime     := exit_t;
+    g_schedule[i_unit].Stages[out_count].MinTime      := REAL_TO_DINT(min_s);
+    g_schedule[i_unit].Stages[out_count].CalcTime     := REAL_TO_DINT(calc_s);
+    g_schedule[i_unit].Stages[out_count].MaxTime      := REAL_TO_DINT(max_s);
+    g_schedule[i_unit].Stages[out_count].TransferTime := REAL_TO_DINT(xfer_t);
   END_IF;
 
   (* -- Update for next iteration -- *)
@@ -300,6 +300,6 @@ FOR st := start_st TO g_program[i_unit].StepCount DO
 
 END_FOR;
 
-g_schedule[i_unit].stage_count := out_count;
+g_schedule[i_unit].StageCount := out_count;
 
 END_FUNCTION_BLOCK

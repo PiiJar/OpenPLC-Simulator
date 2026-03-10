@@ -1,0 +1,13 @@
+(* TskStageType - Calculated batch schedule stage *)
+(* Times are absolute epoch-offset seconds (g_time_s reference frame) *)
+TYPE TSK_STAGE_T :
+STRUCT
+    Station      : INT;  (* station number, 0 = unused stage *)
+    EntryTime    : LINT; (* absolute arrival time (s), unix seconds *)
+    ExitTime     : LINT; (* absolute departure time (s), unix seconds *)
+    MinTime      : DINT; (* minimum treatment time (seconds) *)
+    CalcTime     : DINT; (* calculated target treatment time (seconds) *)
+    MaxTime      : DINT; (* maximum treatment time (seconds) *)
+    TransferTime : DINT; (* transfer time from previous station (seconds) *)
+END_STRUCT;
+END_TYPE

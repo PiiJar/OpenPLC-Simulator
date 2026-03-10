@@ -42,7 +42,7 @@ VAR_EXTERNAL
   g_program : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
   g_task    : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
   g_schedule : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
-  g_cfg    : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
+  g_cfg    : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
   (* DEP handshake *)
   g_dep_pending : DEP_PENDING_WRITE_T;
 END_VAR
@@ -202,9 +202,9 @@ ELSIF phase = 2200 THEN
   IF NOT locks_initialized THEN
     lock_cnt := 0;
     FOR bi := 1 TO 50 DO
-      locks[bi].unit := 0;
-      locks[bi].stage := 0;
-      locks[bi].direction := 0;
+      locks[bi].Unit := 0;
+      locks[bi].Stage := 0;
+      locks[bi].Direction := 0;
     END_FOR;
     locks_initialized := TRUE;
   END_IF;
@@ -271,7 +271,7 @@ ELSIF phase = 10000 THEN
   (* Count total tasks *)
   total_tasks := 0;
   FOR ti := 1 TO MAX_Transporters DO
-    total_tasks := total_tasks + g_task[ti].count;
+    total_tasks := total_tasks + g_task[ti].Count;
   END_FOR;
   o_task_cnt := total_tasks;
   next_phase := 10100;
@@ -281,21 +281,21 @@ ELSIF phase = 10000 THEN
 (* Copy pending data to globals and trigger full recalculation  *)
 (* ══════════════════════════════════════════════════════════════ *)
 ELSIF phase = 10100 THEN
-  IF g_dep_pending.valid THEN
+  IF g_dep_pending.Valid THEN
     (* Apply DEP's pending data: programs + schedules + stage change *)
     FOR ui := 1 TO MAX_Units DO
-      g_program[ui]  := g_dep_pending.programs[ui];
-      g_schedule[ui] := g_dep_pending.schedule[ui];
+      g_program[ui]  := g_dep_pending.Programs[ui];
+      g_schedule[ui] := g_dep_pending.Schedule[ui];
     END_FOR;
-    IF g_dep_pending.batch_unit >= 1 AND g_dep_pending.batch_unit <= MAX_Units THEN
-      g_batch[g_dep_pending.batch_unit].CurStage   := g_dep_pending.batch_stage;
-      g_batch[g_dep_pending.batch_unit].State        := g_dep_pending.batch_state;
-      g_batch[g_dep_pending.batch_unit].StartTime   := g_dep_pending.time_s;
-      g_batch[g_dep_pending.batch_unit].MinTime     := g_dep_pending.batch_min_time;
-      g_batch[g_dep_pending.batch_unit].MaxTime     := g_dep_pending.batch_max_time;
-      g_batch[g_dep_pending.batch_unit].CalTime     := g_dep_pending.batch_cal_time;
+    IF g_dep_pending.BatchUnit >= 1 AND g_dep_pending.BatchUnit <= MAX_Units THEN
+      g_batch[g_dep_pending.BatchUnit].CurStage   := g_dep_pending.BatchStage;
+      g_batch[g_dep_pending.BatchUnit].State        := g_dep_pending.BatchState;
+      g_batch[g_dep_pending.BatchUnit].StartTime   := g_dep_pending.TimeStamp;
+      g_batch[g_dep_pending.BatchUnit].MinTime     := g_dep_pending.BatchMinTime;
+      g_batch[g_dep_pending.BatchUnit].MaxTime     := g_dep_pending.BatchMaxTime;
+      g_batch[g_dep_pending.BatchUnit].CalTime     := g_dep_pending.BatchCalTime;
     END_IF;
-    g_dep_pending.valid := FALSE;
+    g_dep_pending.Valid := FALSE;
     (* Full recalculation with new data *)
     next_phase := 1;
   ELSE

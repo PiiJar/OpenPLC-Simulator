@@ -65,7 +65,7 @@ VAR_GLOBAL
   g_station_count    : INT := 0;
   g_station         : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
   g_station_loc     : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
-  g_cfg              : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
+  g_cfg              : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
   g_transporter      : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
   g_sim_trans        : ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T;
   g_unit            : ARRAY[1..MAX_Units] OF UDT_UnitType;
@@ -828,7 +828,7 @@ VAR_GLOBAL
   qw_dw3_unit                    AT %QW710  : INT;  (* waiting batch unit index (0=empty) *)
   qw_dw4_unit                    AT %QW711  : INT;  (* waiting batch unit index (0=empty) *)
   qw_dw5_unit                    AT %QW712  : INT;  (* waiting batch unit index (0=empty) *)
-  (* --- Departure overlap flags per station (g_dep_overlap.flags) --- *)
+  (* --- Departure overlap flags per station (g_dep_overlap.Flags) --- *)
   qw_ov_s101_flag                AT %QW713  : INT;  (* 1=station in overlap zone *)
   qw_ov_s102_flag                AT %QW714  : INT;  (* 1=station in overlap zone *)
   qw_ov_s103_flag                AT %QW715  : INT;  (* 1=station in overlap zone *)

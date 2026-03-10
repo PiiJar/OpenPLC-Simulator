@@ -94,9 +94,9 @@ END_IF;
 (* ══════ Lock check: is blocked stage locked DELAY? (cannot ADVANCE) ══════ *)
 is_locked_adv := FALSE;
 FOR lock_i := 1 TO io_lock_cnt DO
-  IF io_locks[lock_i].unit = i_blocked_unit
-     AND io_locks[lock_i].stage = i_blocked_stage
-     AND io_locks[lock_i].direction = 2 THEN  (* 2=DELAY *)
+  IF io_locks[lock_i].Unit = i_blocked_unit
+     AND io_locks[lock_i].Stage = i_blocked_stage
+     AND io_locks[lock_i].Direction = 2 THEN  (* 2=DELAY *)
     is_locked_adv := TRUE;
   END_IF;
 END_FOR;
@@ -104,9 +104,9 @@ END_FOR;
 (* ══════ Lock check: is conf stage locked ADVANCE? (cannot DELAY) ══════ *)
 is_locked_del := FALSE;
 FOR lock_i := 1 TO io_lock_cnt DO
-  IF io_locks[lock_i].unit = i_conf_unit
-     AND io_locks[lock_i].stage = i_conf_stage
-     AND io_locks[lock_i].direction = 1 THEN  (* 1=ADVANCE *)
+  IF io_locks[lock_i].Unit = i_conf_unit
+     AND io_locks[lock_i].Stage = i_conf_stage
+     AND io_locks[lock_i].Direction = 1 THEN  (* 1=ADVANCE *)
     is_locked_del := TRUE;
   END_IF;
 END_FOR;
@@ -118,11 +118,11 @@ can_delay   := NOT is_locked_del;
 (* Sum of flex_down (calc_time - min_time) from stage 1 to blocked_stage *)
 chain_flex_down := 0.0;
 IF can_advance AND i_blocked_unit >= 1 AND i_blocked_unit <= MAX_Units THEN
-  sc := g_schedule[i_blocked_unit].stage_count;
+  sc := g_schedule[i_blocked_unit].StageCount;
   FOR si := 1 TO sc DO
     IF si <= i_blocked_stage THEN
-      stage_flex := DINT_TO_REAL(g_schedule[i_blocked_unit].stages[si].calc_time
-                  - g_schedule[i_blocked_unit].stages[si].min_time);
+      stage_flex := DINT_TO_REAL(g_schedule[i_blocked_unit].Stages[si].CalcTime
+                  - g_schedule[i_blocked_unit].Stages[si].MinTime);
       IF stage_flex > 0.0 THEN
         chain_flex_down := chain_flex_down + stage_flex;
       END_IF;
@@ -134,11 +134,11 @@ END_IF;
 (* Sum of flex_up (max_time - calc_time) from stage 1 to conf_stage *)
 chain_flex_up := 0.0;
 IF can_delay AND i_conf_unit >= 1 AND i_conf_unit <= MAX_Units THEN
-  sc := g_schedule[i_conf_unit].stage_count;
+  sc := g_schedule[i_conf_unit].StageCount;
   FOR si := 1 TO sc DO
     IF si <= i_conf_stage THEN
-      stage_flex := DINT_TO_REAL(g_schedule[i_conf_unit].stages[si].max_time
-                  - g_schedule[i_conf_unit].stages[si].calc_time);
+      stage_flex := DINT_TO_REAL(g_schedule[i_conf_unit].Stages[si].MaxTime
+                  - g_schedule[i_conf_unit].Stages[si].CalcTime);
       IF stage_flex > 0.0 THEN
         chain_flex_up := chain_flex_up + stage_flex;
       END_IF;
@@ -156,13 +156,13 @@ IF can_delay   THEN eff_del := chain_flex_up;   ELSE eff_del := 0.0; END_IF;
 (* ══════════════════════════════════════════════════════════════ *)
 IF can_advance AND chain_flex_down >= remain THEN
   walk_remain := remain;
-  sc := g_schedule[i_blocked_unit].stage_count;
+  sc := g_schedule[i_blocked_unit].StageCount;
 
   (* Walk from blocked_stage backward to stage 1 *)
   FOR si := i_blocked_stage TO 1 BY -1 DO
     IF si >= 1 AND si <= sc AND walk_remain > 0.1 THEN
-      walk_flex := DINT_TO_REAL(g_schedule[i_blocked_unit].stages[si].calc_time
-                  - g_schedule[i_blocked_unit].stages[si].min_time);
+      walk_flex := DINT_TO_REAL(g_schedule[i_blocked_unit].Stages[si].CalcTime
+                  - g_schedule[i_blocked_unit].Stages[si].MinTime);
       IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
 
       IF walk_flex > 0.1 THEN
@@ -176,10 +176,10 @@ IF can_advance AND chain_flex_down >= remain THEN
         IF walk_amount > walk_remain THEN walk_amount := walk_remain; END_IF;
 
         (* Apply: reduce calc_time + shift subsequent stages *)
-        g_schedule[i_blocked_unit].stages[si].calc_time :=
-          g_schedule[i_blocked_unit].stages[si].calc_time - REAL_TO_DINT(walk_amount);
-        g_schedule[i_blocked_unit].stages[si].exit_time :=
-          g_schedule[i_blocked_unit].stages[si].exit_time - REAL_TO_LINT(walk_amount);
+        g_schedule[i_blocked_unit].Stages[si].CalcTime :=
+          g_schedule[i_blocked_unit].Stages[si].CalcTime - REAL_TO_DINT(walk_amount);
+        g_schedule[i_blocked_unit].Stages[si].ExitTime :=
+          g_schedule[i_blocked_unit].Stages[si].ExitTime - REAL_TO_LINT(walk_amount);
         fb_shift(i_unit := i_blocked_unit, i_from_stage := si + 1, i_amount := -walk_amount);
 
         walk_remain := walk_remain - walk_amount;
@@ -193,9 +193,9 @@ IF can_advance AND chain_flex_down >= remain THEN
   (* Record lock: ADVANCE on blocked stage *)
   IF io_lock_cnt < 50 THEN
     io_lock_cnt := io_lock_cnt + 1;
-    io_locks[io_lock_cnt].unit := i_blocked_unit;
-    io_locks[io_lock_cnt].stage := i_blocked_stage;
-    io_locks[io_lock_cnt].direction := 1;  (* 1=ADVANCE *)
+    io_locks[io_lock_cnt].Unit := i_blocked_unit;
+    io_locks[io_lock_cnt].Stage := i_blocked_stage;
+    io_locks[io_lock_cnt].Direction := 1;  (* 1=ADVANCE *)
   END_IF;
 
   IF remain <= 0.1 THEN
@@ -210,12 +210,12 @@ END_IF;
 (* ══════════════════════════════════════════════════════════════ *)
 IF can_delay AND chain_flex_up >= remain THEN
   walk_remain := remain;
-  sc := g_schedule[i_conf_unit].stage_count;
+  sc := g_schedule[i_conf_unit].StageCount;
 
   FOR si := i_conf_stage TO 1 BY -1 DO
     IF si >= 1 AND si <= sc AND walk_remain > 0.1 THEN
-      walk_flex := DINT_TO_REAL(g_schedule[i_conf_unit].stages[si].max_time
-                  - g_schedule[i_conf_unit].stages[si].calc_time);
+      walk_flex := DINT_TO_REAL(g_schedule[i_conf_unit].Stages[si].MaxTime
+                  - g_schedule[i_conf_unit].Stages[si].CalcTime);
       IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
 
       IF walk_flex > 0.1 THEN
@@ -227,10 +227,10 @@ IF can_delay AND chain_flex_up >= remain THEN
         walk_amount := walk_flex * walk_cap;
         IF walk_amount > walk_remain THEN walk_amount := walk_remain; END_IF;
 
-        g_schedule[i_conf_unit].stages[si].calc_time :=
-          g_schedule[i_conf_unit].stages[si].calc_time + REAL_TO_DINT(walk_amount);
-        g_schedule[i_conf_unit].stages[si].exit_time :=
-          g_schedule[i_conf_unit].stages[si].exit_time + REAL_TO_LINT(walk_amount);
+        g_schedule[i_conf_unit].Stages[si].CalcTime :=
+          g_schedule[i_conf_unit].Stages[si].CalcTime + REAL_TO_DINT(walk_amount);
+        g_schedule[i_conf_unit].Stages[si].ExitTime :=
+          g_schedule[i_conf_unit].Stages[si].ExitTime + REAL_TO_LINT(walk_amount);
         fb_shift(i_unit := i_conf_unit, i_from_stage := si + 1, i_amount := walk_amount);
 
         walk_remain := walk_remain - walk_amount;
@@ -244,9 +244,9 @@ IF can_delay AND chain_flex_up >= remain THEN
   (* Record lock: DELAY on conf stage *)
   IF io_lock_cnt < 50 THEN
     io_lock_cnt := io_lock_cnt + 1;
-    io_locks[io_lock_cnt].unit := i_conf_unit;
-    io_locks[io_lock_cnt].stage := i_conf_stage;
-    io_locks[io_lock_cnt].direction := 2;  (* 2=DELAY *)
+    io_locks[io_lock_cnt].Unit := i_conf_unit;
+    io_locks[io_lock_cnt].Stage := i_conf_stage;
+    io_locks[io_lock_cnt].Direction := 2;  (* 2=DELAY *)
   END_IF;
 
   IF remain <= 0.1 THEN
@@ -272,20 +272,20 @@ IF eff_adv + eff_del >= remain THEN
   (* Apply ADVANCE portion *)
   IF can_advance AND use_adv > 0.1 THEN
     walk_remain := use_adv;
-    sc := g_schedule[i_blocked_unit].stage_count;
+    sc := g_schedule[i_blocked_unit].StageCount;
     FOR si := i_blocked_stage TO 1 BY -1 DO
       IF si >= 1 AND si <= sc AND walk_remain > 0.1 THEN
-        walk_flex := DINT_TO_REAL(g_schedule[i_blocked_unit].stages[si].calc_time
-                  - g_schedule[i_blocked_unit].stages[si].min_time);
+        walk_flex := DINT_TO_REAL(g_schedule[i_blocked_unit].Stages[si].CalcTime
+                  - g_schedule[i_blocked_unit].Stages[si].MinTime);
         IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
         IF walk_flex > 0.1 THEN
           IF g_batch[i_blocked_unit].CurStage = si THEN walk_cap := 0.9; ELSE walk_cap := 0.5; END_IF;
           walk_amount := walk_flex * walk_cap;
           IF walk_amount > walk_remain THEN walk_amount := walk_remain; END_IF;
-          g_schedule[i_blocked_unit].stages[si].calc_time :=
-          g_schedule[i_blocked_unit].stages[si].calc_time - REAL_TO_DINT(walk_amount);
-          g_schedule[i_blocked_unit].stages[si].exit_time :=
-            g_schedule[i_blocked_unit].stages[si].exit_time - REAL_TO_LINT(walk_amount);
+          g_schedule[i_blocked_unit].Stages[si].CalcTime :=
+          g_schedule[i_blocked_unit].Stages[si].CalcTime - REAL_TO_DINT(walk_amount);
+          g_schedule[i_blocked_unit].Stages[si].ExitTime :=
+            g_schedule[i_blocked_unit].Stages[si].ExitTime - REAL_TO_LINT(walk_amount);
           fb_shift(i_unit := i_blocked_unit, i_from_stage := si + 1, i_amount := -walk_amount);
           walk_remain := walk_remain - walk_amount;
           o_total_adv := o_total_adv + walk_amount;
@@ -295,29 +295,29 @@ IF eff_adv + eff_del >= remain THEN
 
     IF io_lock_cnt < 50 THEN
       io_lock_cnt := io_lock_cnt + 1;
-      io_locks[io_lock_cnt].unit := i_blocked_unit;
-      io_locks[io_lock_cnt].stage := i_blocked_stage;
-      io_locks[io_lock_cnt].direction := 1;
+      io_locks[io_lock_cnt].Unit := i_blocked_unit;
+      io_locks[io_lock_cnt].Stage := i_blocked_stage;
+      io_locks[io_lock_cnt].Direction := 1;
     END_IF;
   END_IF;
 
   (* Apply DELAY portion *)
   IF can_delay AND use_del > 0.1 THEN
     walk_remain := use_del;
-    sc := g_schedule[i_conf_unit].stage_count;
+    sc := g_schedule[i_conf_unit].StageCount;
     FOR si := i_conf_stage TO 1 BY -1 DO
       IF si >= 1 AND si <= sc AND walk_remain > 0.1 THEN
-        walk_flex := DINT_TO_REAL(g_schedule[i_conf_unit].stages[si].max_time
-                  - g_schedule[i_conf_unit].stages[si].calc_time);
+        walk_flex := DINT_TO_REAL(g_schedule[i_conf_unit].Stages[si].MaxTime
+                  - g_schedule[i_conf_unit].Stages[si].CalcTime);
         IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
         IF walk_flex > 0.1 THEN
           IF g_batch[i_conf_unit].CurStage = si THEN walk_cap := 0.9; ELSE walk_cap := 0.5; END_IF;
           walk_amount := walk_flex * walk_cap;
           IF walk_amount > walk_remain THEN walk_amount := walk_remain; END_IF;
-          g_schedule[i_conf_unit].stages[si].calc_time :=
-          g_schedule[i_conf_unit].stages[si].calc_time + REAL_TO_DINT(walk_amount);
-          g_schedule[i_conf_unit].stages[si].exit_time :=
-            g_schedule[i_conf_unit].stages[si].exit_time + REAL_TO_LINT(walk_amount);
+          g_schedule[i_conf_unit].Stages[si].CalcTime :=
+          g_schedule[i_conf_unit].Stages[si].CalcTime + REAL_TO_DINT(walk_amount);
+          g_schedule[i_conf_unit].Stages[si].ExitTime :=
+            g_schedule[i_conf_unit].Stages[si].ExitTime + REAL_TO_LINT(walk_amount);
           fb_shift(i_unit := i_conf_unit, i_from_stage := si + 1, i_amount := walk_amount);
           walk_remain := walk_remain - walk_amount;
           o_total_delay := o_total_delay + walk_amount;
@@ -327,9 +327,9 @@ IF eff_adv + eff_del >= remain THEN
 
     IF io_lock_cnt < 50 THEN
       io_lock_cnt := io_lock_cnt + 1;
-      io_locks[io_lock_cnt].unit := i_conf_unit;
-      io_locks[io_lock_cnt].stage := i_conf_stage;
-      io_locks[io_lock_cnt].direction := 2;
+      io_locks[io_lock_cnt].Unit := i_conf_unit;
+      io_locks[io_lock_cnt].Stage := i_conf_stage;
+      io_locks[io_lock_cnt].Direction := 2;
     END_IF;
   END_IF;
 

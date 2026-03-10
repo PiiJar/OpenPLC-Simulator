@@ -9,7 +9,7 @@
      1. Normal: alternate TSK_TURN → DEP_TURN → TSK_TURN ...
      2. Skip DEP when TSK is still computing (phase < 10000)
         → DEP would only sit in WAIT_STABLE anyway
-     3. Skip DEP when g_dep_pending.valid = TRUE
+     3. Skip DEP when g_dep_pending.Valid = TRUE
         → TSK must process the pending data first
      4. g_dep_stable is computed internally after each TSK call
 
@@ -91,7 +91,7 @@ ELSIF turn = 1 THEN
     (* TSK still computing — DEP would be blocked at WAIT_STABLE *)
     turn := 1;
     skip_cnt := skip_cnt + 1;
-  ELSIF g_dep_pending.valid THEN
+  ELSIF g_dep_pending.Valid THEN
     (* TSK must process pending before DEP continues *)
     turn := 1;
     skip_cnt := skip_cnt + 1;

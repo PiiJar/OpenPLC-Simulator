@@ -53,54 +53,54 @@ VAR
 END_VAR
 
 (* ── 1. Enqueue: pick up pending message if queue not full ── *)
-IF g_event_pending_valid AND g_event.count < 10 THEN
+IF g_event_pending_valid AND g_event.Count < 10 THEN
   (* Calculate tail position in circular buffer *)
-  tail := ((g_event.head - 1 + g_event.count) MOD 10) + 1;
+  tail := ((g_event.Head - 1 + g_event.Count) MOD 10) + 1;
 
   (* Assign sequence number *)
-  g_event_pending.seq := g_event.next_seq;
-  g_event.next_seq := g_event.next_seq + 1;
-  IF g_event.next_seq > 32000 THEN
-    g_event.next_seq := 1;  (* wrap to avoid INT overflow *)
+  g_event_pending.Seq := g_event.NextSeq;
+  g_event.NextSeq := g_event.NextSeq + 1;
+  IF g_event.NextSeq > 32000 THEN
+    g_event.NextSeq := 1;  (* wrap to avoid INT overflow *)
   END_IF;
 
   (* Store in buffer *)
-  g_event.buf[tail] := g_event_pending;
-  g_event.count := g_event.count + 1;
+  g_event.Buffer[tail] := g_event_pending;
+  g_event.Count := g_event.Count + 1;
 
   (* Clear pending flag *)
   g_event_pending_valid := FALSE;
 END_IF;
 
 (* ── 2. Dequeue: check gateway ack for head message ── *)
-IF g_event.count > 0 THEN
-  IF iw_event_ack_seq = g_event.buf[g_event.head].seq THEN
+IF g_event.Count > 0 THEN
+  IF iw_event_ack_seq = g_event.Buffer[g_event.Head].Seq THEN
     (* Gateway consumed this message — advance head *)
-    g_event.head := (g_event.head MOD 10) + 1;
-    g_event.count := g_event.count - 1;
+    g_event.Head := (g_event.Head MOD 10) + 1;
+    g_event.Count := g_event.Count - 1;
   END_IF;
 END_IF;
 
 (* ── 3. Publish: copy head message to Modbus QW registers ── *)
-qw_event_out_count := g_event.count;
+qw_event_out_count := g_event.Count;
 
-IF g_event.count > 0 THEN
-  qw_event_out_seq    := g_event.buf[g_event.head].seq;
-  qw_event_out_type   := g_event.buf[g_event.head].msg_type;
-  qw_event_out_ts_hi  := g_event.buf[g_event.head].ts_hi;
-  qw_event_out_ts_lo  := g_event.buf[g_event.head].ts_lo;
-  qw_event_out_f1     := g_event.buf[g_event.head].f[1];
-  qw_event_out_f2     := g_event.buf[g_event.head].f[2];
-  qw_event_out_f3     := g_event.buf[g_event.head].f[3];
-  qw_event_out_f4     := g_event.buf[g_event.head].f[4];
-  qw_event_out_f5     := g_event.buf[g_event.head].f[5];
-  qw_event_out_f6     := g_event.buf[g_event.head].f[6];
-  qw_event_out_f7     := g_event.buf[g_event.head].f[7];
-  qw_event_out_f8     := g_event.buf[g_event.head].f[8];
-  qw_event_out_f9     := g_event.buf[g_event.head].f[9];
-  qw_event_out_f10    := g_event.buf[g_event.head].f[10];
-  qw_event_out_f11    := g_event.buf[g_event.head].f[11];
-  qw_event_out_f12    := g_event.buf[g_event.head].f[12];
+IF g_event.Count > 0 THEN
+  qw_event_out_seq    := g_event.Buffer[g_event.Head].Seq;
+  qw_event_out_type   := g_event.Buffer[g_event.Head].MsgType;
+  qw_event_out_ts_hi  := g_event.Buffer[g_event.Head].TsHi;
+  qw_event_out_ts_lo  := g_event.Buffer[g_event.Head].TsLo;
+  qw_event_out_f1     := g_event.Buffer[g_event.Head].Payload[1];
+  qw_event_out_f2     := g_event.Buffer[g_event.Head].Payload[2];
+  qw_event_out_f3     := g_event.Buffer[g_event.Head].Payload[3];
+  qw_event_out_f4     := g_event.Buffer[g_event.Head].Payload[4];
+  qw_event_out_f5     := g_event.Buffer[g_event.Head].Payload[5];
+  qw_event_out_f6     := g_event.Buffer[g_event.Head].Payload[6];
+  qw_event_out_f7     := g_event.Buffer[g_event.Head].Payload[7];
+  qw_event_out_f8     := g_event.Buffer[g_event.Head].Payload[8];
+  qw_event_out_f9     := g_event.Buffer[g_event.Head].Payload[9];
+  qw_event_out_f10    := g_event.Buffer[g_event.Head].Payload[10];
+  qw_event_out_f11    := g_event.Buffer[g_event.Head].Payload[11];
+  qw_event_out_f12    := g_event.Buffer[g_event.Head].Payload[12];
 ELSE
   (* Queue empty — clear output *)
   qw_event_out_seq    := 0;

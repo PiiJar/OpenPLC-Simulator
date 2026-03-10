@@ -60,11 +60,11 @@ IF i_run AND NOT prev_run THEN
 
   FOR tid := 1 TO MAX_Transporters DO
     (* Skip transporters without valid calibration data *)
-    IF g_cal[tid].x_max_mm_s >= 1 THEN
+    IF g_cal[tid].XMaxSpeed >= 1 THEN
 
-      vm := DINT_TO_REAL(g_cal[tid].x_max_mm_s);
-      ta := INT_TO_REAL(g_cal[tid].x_accel_s) / 10.0;
-      td := INT_TO_REAL(g_cal[tid].x_decel_s) / 10.0;
+      vm := DINT_TO_REAL(g_cal[tid].XMaxSpeed);
+      ta := INT_TO_REAL(g_cal[tid].XAccelTime) / 10.0;
+      td := INT_TO_REAL(g_cal[tid].XDecelTime) / 10.0;
       d_acc := 0.5 * vm * ta;
       d_dec := 0.5 * vm * td;
 
@@ -74,12 +74,12 @@ IF i_run AND NOT prev_run THEN
         IF idx_i >= 1 AND idx_i <= 30 THEN
           IF g_station[si].DryWet = 1 THEN
             (* Wet station *)
-            g_move[tid].lift_s[idx_i] := g_cal[tid].lift_wet_s;
-            g_move[tid].sink_s[idx_i] := g_cal[tid].sink_wet_s;
+            g_move[tid].LiftTime[idx_i] := g_cal[tid].LiftWetTime;
+            g_move[tid].SinkTime[idx_i] := g_cal[tid].SinkWetTime;
           ELSE
             (* Dry station *)
-            g_move[tid].lift_s[idx_i] := g_cal[tid].lift_dry_s;
-            g_move[tid].sink_s[idx_i] := g_cal[tid].sink_dry_s;
+            g_move[tid].LiftTime[idx_i] := g_cal[tid].LiftDryTime;
+            g_move[tid].SinkTime[idx_i] := g_cal[tid].SinkDryTime;
           END_IF;
         END_IF;
       END_FOR;
@@ -92,7 +92,7 @@ IF i_run AND NOT prev_run THEN
             idx_j := sj - MIN_StationIndex + 1;
             IF idx_j >= 1 AND idx_j <= 30 THEN
               IF si = sj THEN
-                g_move[tid].travel[idx_i].to_s[idx_j] := 0;
+                g_move[tid].Travel[idx_i].ToTime[idx_j] := 0;
               ELSE
                 dist := ABS(DINT_TO_REAL(g_station[si].XPosition - g_station[sj].XPosition));
                 IF dist < 1.0 THEN
@@ -109,7 +109,7 @@ IF i_run AND NOT prev_run THEN
                     t_time := 0.0;
                   END_IF;
                 END_IF;
-                g_move[tid].travel[idx_i].to_s[idx_j] := REAL_TO_INT(t_time * 10.0);
+                g_move[tid].Travel[idx_i].ToTime[idx_j] := REAL_TO_INT(t_time * 10.0);
               END_IF;
             END_IF;
           END_FOR;

@@ -19,7 +19,7 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_cfg         : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
+  g_cfg         : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
   g_dep_overlap : DEP_OVERLAP_T;
 END_VAR
 VAR
@@ -31,11 +31,11 @@ VAR
   area        : UDT_TaskArea;
 END_VAR
 
-g_dep_overlap.count := 0;
+g_dep_overlap.Count := 0;
 
 (* G09: Clear full 0..200 domain first *)
 FOR stn := 0 TO 200 DO
-  g_dep_overlap.flags[stn] := FALSE;
+  g_dep_overlap.Flags[stn] := FALSE;
 END_FOR;
 
 FOR stn := MIN_StationIndex TO MAX_StationIndex DO
@@ -59,10 +59,10 @@ FOR stn := MIN_StationIndex TO MAX_StationIndex DO
   END_FOR;
 
   IF cover_count >= 2 THEN
-    g_dep_overlap.flags[stn] := TRUE;
-    g_dep_overlap.count := g_dep_overlap.count + 1;
+    g_dep_overlap.Flags[stn] := TRUE;
+    g_dep_overlap.Count := g_dep_overlap.Count + 1;
   ELSE
-    g_dep_overlap.flags[stn] := FALSE;
+    g_dep_overlap.Flags[stn] := FALSE;
   END_IF;
 END_FOR;
 

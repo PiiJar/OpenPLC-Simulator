@@ -32,7 +32,7 @@ END_VAR
 VAR_EXTERNAL
   g_transporter  : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
   g_sim_trans    : ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T;
-  g_station     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;    g_station_loc  : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;  g_cfg          : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
+  g_station     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;    g_station_loc  : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;  g_cfg          : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
   g_move         : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
   g_unit         : ARRAY[1..MAX_Units] OF UDT_UnitType;
   g_batch        : ARRAY[1..MAX_Units] OF UDT_BatchType;
@@ -104,8 +104,8 @@ FOR i := 1 TO MAX_Transporters DO
     g_transporter[i].XFinalTarget := lookup.x_mm;
     g_transporter[i].Phase := 1;
     g_transporter[i].Status := 4;  (* auto_run *)
-    g_sim_trans[i].z_stage := 0;
-    g_sim_trans[i].z_timer_s := 0.0;
+    g_sim_trans[i].ZStage := 0;
+    g_sim_trans[i].ZTimer := 0.0;
 
   (* ── Phase 1: Drive X towards lift station ──────────────── *)
   ELSIF g_transporter[i].Phase = 1 THEN
@@ -117,9 +117,9 @@ FOR i := 1 TO MAX_Transporters DO
         x_target := g_transporter[i].XFinalTarget,
         x_min    := g_transporter[i].XMinDriveLimit,
         x_max    := g_transporter[i].XMaxDriveLimit,
-        v_max    := g_cfg[i].phys2d.SpeedMax_X,
-        t_acc    := g_cfg[i].phys2d.Acceleration_X,
-        t_dec    := g_cfg[i].phys2d.Deceleration_X,
+        v_max    := g_cfg[i].SpeedMax_X,
+        t_acc    := g_cfg[i].Acceleration_X,
+        t_dec    := g_cfg[i].Deceleration_X,
         x_pos    := tmp_x,
         v_x      := tmp_vx
       );
@@ -130,9 +130,9 @@ FOR i := 1 TO MAX_Transporters DO
         x_target := g_transporter[i].XFinalTarget,
         x_min    := g_transporter[i].XMinDriveLimit,
         x_max    := g_transporter[i].XMaxDriveLimit,
-        v_max    := g_cfg[i].phys2d.SpeedMax_X,
-        t_acc    := g_cfg[i].phys2d.Acceleration_X,
-        t_dec    := g_cfg[i].phys2d.Deceleration_X,
+        v_max    := g_cfg[i].SpeedMax_X,
+        t_acc    := g_cfg[i].Acceleration_X,
+        t_dec    := g_cfg[i].Deceleration_X,
         x_pos    := tmp_x,
         v_x      := tmp_vx
       );
@@ -143,9 +143,9 @@ FOR i := 1 TO MAX_Transporters DO
         x_target := g_transporter[i].XFinalTarget,
         x_min    := g_transporter[i].XMinDriveLimit,
         x_max    := g_transporter[i].XMaxDriveLimit,
-        v_max    := g_cfg[i].phys2d.SpeedMax_X,
-        t_acc    := g_cfg[i].phys2d.Acceleration_X,
-        t_dec    := g_cfg[i].phys2d.Deceleration_X,
+        v_max    := g_cfg[i].SpeedMax_X,
+        t_acc    := g_cfg[i].Acceleration_X,
+        t_dec    := g_cfg[i].Deceleration_X,
         x_pos    := tmp_x,
         v_x      := tmp_vx
       );
@@ -184,33 +184,33 @@ FOR i := 1 TO MAX_Transporters DO
       lookup(station_number := g_transporter[i].LiftStationTarget);
       device_delay := lookup.device_delay_s;
       drop_time    := lookup.dropping_time_s;
-      g_sim_trans[i].z_timer_s := device_delay + drop_time;
-      g_sim_trans[i].z_stage := 1;
+      g_sim_trans[i].ZTimer := device_delay + drop_time;
+      g_sim_trans[i].ZStage := 1;
       g_transporter[i].Phase := 2;
 
       (* ── Emit LIFT event (msg_type=2) ── *)
       evt_unit := g_station_loc[g_transporter[i].LiftStationTarget].UnitId;
       IF NOT g_event_pending_valid AND evt_unit >= 1 THEN
-        g_event_pending.msg_type := 2;
-        g_event_pending.ts_hi := LINT_TO_INT(g_time_s / LINT#65536);
-        g_event_pending.ts_lo := LINT_TO_INT(g_time_s MOD LINT#65536);
-        g_event_pending.f[1]  := i;
-        g_event_pending.f[2]  := evt_unit;
-        g_event_pending.f[3]  := g_transporter[i].LiftStationTarget;
-        g_event_pending.f[4]  := g_batch[evt_unit].BatchCode;
-        g_event_pending.f[5]  := g_batch[evt_unit].State;
-        g_event_pending.f[6]  := g_batch[evt_unit].ProgId;
-        g_event_pending.f[7]  := g_batch[evt_unit].CurStage;
+        g_event_pending.MsgType := 2;
+        g_event_pending.TsHi := LINT_TO_INT(g_time_s / LINT#65536);
+        g_event_pending.TsLo := LINT_TO_INT(g_time_s MOD LINT#65536);
+        g_event_pending.Payload[1]  := i;
+        g_event_pending.Payload[2]  := evt_unit;
+        g_event_pending.Payload[3]  := g_transporter[i].LiftStationTarget;
+        g_event_pending.Payload[4]  := g_batch[evt_unit].BatchCode;
+        g_event_pending.Payload[5]  := g_batch[evt_unit].State;
+        g_event_pending.Payload[6]  := g_batch[evt_unit].ProgId;
+        g_event_pending.Payload[7]  := g_batch[evt_unit].CurStage;
         evt_diff := g_time_s - g_station_loc[g_transporter[i].LiftStationTarget].ChangeTime;
         IF evt_diff > LINT#32000 THEN
-          g_event_pending.f[8] := 32000;
+          g_event_pending.Payload[8] := 32000;
         ELSE
-          g_event_pending.f[8] := LINT_TO_INT(evt_diff);
+          g_event_pending.Payload[8] := LINT_TO_INT(evt_diff);
         END_IF;
-        g_event_pending.f[9]  := DINT_TO_INT(g_sim_trans[i].treatment_time);
-        g_event_pending.f[10] := DINT_TO_INT(g_sim_trans[i].min_time);
-        g_event_pending.f[11] := DINT_TO_INT(g_sim_trans[i].max_time);
-        g_event_pending.f[12] := 0;
+        g_event_pending.Payload[9]  := DINT_TO_INT(g_sim_trans[i].TreatmentTime);
+        g_event_pending.Payload[10] := DINT_TO_INT(g_sim_trans[i].MinTime);
+        g_event_pending.Payload[11] := DINT_TO_INT(g_sim_trans[i].MaxTime);
+        g_event_pending.Payload[12] := 0;
         g_event_pending_valid := TRUE;
       END_IF;
 
@@ -234,20 +234,20 @@ FOR i := 1 TO MAX_Transporters DO
     lookup(station_number := g_transporter[i].LiftStationTarget);
     station_kind := lookup.skind;
     tmp_z  := g_transporter[i].ZPosition;
-    tmp_zs := g_sim_trans[i].z_stage;
-    tmp_zt := g_sim_trans[i].z_timer_s;
+    tmp_zs := g_sim_trans[i].ZStage;
+    tmp_zt := g_sim_trans[i].ZTimer;
     IF i = 1 THEN
       fb_z1(
         delta_t       := 0.02,
         station_kind  := station_kind,
-        ZPosDown        := g_cfg[i].phys2d.z_total_mm,
+        ZPosDown        := g_cfg[i].ZPosDown,
         ZPosUp          := 0,
-        ZPosSlowUp      := g_cfg[i].phys2d.z_slow_dry_mm,
-        ZPosSlowDown    := g_cfg[i].phys2d.z_slow_wet_mm,
-        ZPosSlowEnd     := g_cfg[i].phys2d.ZPosSlowEnd,
-        SpeedLiftSlow_Z := g_cfg[i].phys2d.z_slow_mm_s,
-        SpeedLiftFast_Z := g_cfg[i].phys2d.z_fast_mm_s,
-        DripTrayDelay   := g_cfg[i].phys2d.DripTrayDelay,
+        ZPosSlowUp      := g_cfg[i].ZPosSlowUp,
+        ZPosSlowDown    := g_cfg[i].ZPosSlowDown,
+        ZPosSlowEnd     := g_cfg[i].ZPosSlowEnd,
+        SpeedLiftSlow_Z := g_cfg[i].SpeedLiftSlow_Z,
+        SpeedLiftFast_Z := g_cfg[i].SpeedLiftFast_Z,
+        DripTrayDelay   := g_cfg[i].DripTrayDelay,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -257,14 +257,14 @@ FOR i := 1 TO MAX_Transporters DO
       fb_z2(
         delta_t       := 0.02,
         station_kind  := station_kind,
-        ZPosDown        := g_cfg[i].phys2d.z_total_mm,
+        ZPosDown        := g_cfg[i].ZPosDown,
         ZPosUp          := 0,
-        ZPosSlowUp      := g_cfg[i].phys2d.z_slow_dry_mm,
-        ZPosSlowDown    := g_cfg[i].phys2d.z_slow_wet_mm,
-        ZPosSlowEnd     := g_cfg[i].phys2d.ZPosSlowEnd,
-        SpeedLiftSlow_Z := g_cfg[i].phys2d.z_slow_mm_s,
-        SpeedLiftFast_Z := g_cfg[i].phys2d.z_fast_mm_s,
-        DripTrayDelay   := g_cfg[i].phys2d.DripTrayDelay,
+        ZPosSlowUp      := g_cfg[i].ZPosSlowUp,
+        ZPosSlowDown    := g_cfg[i].ZPosSlowDown,
+        ZPosSlowEnd     := g_cfg[i].ZPosSlowEnd,
+        SpeedLiftSlow_Z := g_cfg[i].SpeedLiftSlow_Z,
+        SpeedLiftFast_Z := g_cfg[i].SpeedLiftFast_Z,
+        DripTrayDelay   := g_cfg[i].DripTrayDelay,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -274,14 +274,14 @@ FOR i := 1 TO MAX_Transporters DO
       fb_z3(
         delta_t       := 0.02,
         station_kind  := station_kind,
-        ZPosDown        := g_cfg[i].phys2d.z_total_mm,
+        ZPosDown        := g_cfg[i].ZPosDown,
         ZPosUp          := 0,
-        ZPosSlowUp      := g_cfg[i].phys2d.z_slow_dry_mm,
-        ZPosSlowDown    := g_cfg[i].phys2d.z_slow_wet_mm,
-        ZPosSlowEnd     := g_cfg[i].phys2d.ZPosSlowEnd,
-        SpeedLiftSlow_Z := g_cfg[i].phys2d.z_slow_mm_s,
-        SpeedLiftFast_Z := g_cfg[i].phys2d.z_fast_mm_s,
-        DripTrayDelay   := g_cfg[i].phys2d.DripTrayDelay,
+        ZPosSlowUp      := g_cfg[i].ZPosSlowUp,
+        ZPosSlowDown    := g_cfg[i].ZPosSlowDown,
+        ZPosSlowEnd     := g_cfg[i].ZPosSlowEnd,
+        SpeedLiftSlow_Z := g_cfg[i].SpeedLiftSlow_Z,
+        SpeedLiftFast_Z := g_cfg[i].SpeedLiftFast_Z,
+        DripTrayDelay   := g_cfg[i].DripTrayDelay,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -289,8 +289,8 @@ FOR i := 1 TO MAX_Transporters DO
       arrived_z := fb_z3.done;
     END_IF;
     g_transporter[i].ZPosition      := tmp_z;
-    g_sim_trans[i].z_stage   := tmp_zs;
-    g_sim_trans[i].z_timer_s := tmp_zt;
+    g_sim_trans[i].ZStage   := tmp_zs;
+    g_sim_trans[i].ZTimer := tmp_zt;
     IF arrived_z THEN
       lookup(station_number := g_transporter[i].SinkStationTarget);
       g_transporter[i].XFinalTarget := lookup.x_mm;
@@ -307,9 +307,9 @@ FOR i := 1 TO MAX_Transporters DO
         x_target := g_transporter[i].XFinalTarget,
         x_min    := g_transporter[i].XMinDriveLimit,
         x_max    := g_transporter[i].XMaxDriveLimit,
-        v_max    := g_cfg[i].phys2d.SpeedMax_X,
-        t_acc    := g_cfg[i].phys2d.Acceleration_X,
-        t_dec    := g_cfg[i].phys2d.Deceleration_X,
+        v_max    := g_cfg[i].SpeedMax_X,
+        t_acc    := g_cfg[i].Acceleration_X,
+        t_dec    := g_cfg[i].Deceleration_X,
         x_pos    := tmp_x,
         v_x      := tmp_vx
       );
@@ -320,9 +320,9 @@ FOR i := 1 TO MAX_Transporters DO
         x_target := g_transporter[i].XFinalTarget,
         x_min    := g_transporter[i].XMinDriveLimit,
         x_max    := g_transporter[i].XMaxDriveLimit,
-        v_max    := g_cfg[i].phys2d.SpeedMax_X,
-        t_acc    := g_cfg[i].phys2d.Acceleration_X,
-        t_dec    := g_cfg[i].phys2d.Deceleration_X,
+        v_max    := g_cfg[i].SpeedMax_X,
+        t_acc    := g_cfg[i].Acceleration_X,
+        t_dec    := g_cfg[i].Deceleration_X,
         x_pos    := tmp_x,
         v_x      := tmp_vx
       );
@@ -333,9 +333,9 @@ FOR i := 1 TO MAX_Transporters DO
         x_target := g_transporter[i].XFinalTarget,
         x_min    := g_transporter[i].XMinDriveLimit,
         x_max    := g_transporter[i].XMaxDriveLimit,
-        v_max    := g_cfg[i].phys2d.SpeedMax_X,
-        t_acc    := g_cfg[i].phys2d.Acceleration_X,
-        t_dec    := g_cfg[i].phys2d.Deceleration_X,
+        v_max    := g_cfg[i].SpeedMax_X,
+        t_acc    := g_cfg[i].Acceleration_X,
+        t_dec    := g_cfg[i].Deceleration_X,
         x_pos    := tmp_x,
         v_x      := tmp_vx
       );
@@ -351,8 +351,8 @@ FOR i := 1 TO MAX_Transporters DO
       g_transporter[i].CurrentStation := g_transporter[i].SinkStationTarget;
       lookup(station_number := g_transporter[i].SinkStationTarget);
       device_delay := lookup.device_delay_s;
-      g_sim_trans[i].z_timer_s := device_delay + INT_TO_REAL(g_cfg[i].phys2d.DripTrayDelay) / 10.0;
-      g_sim_trans[i].z_stage := 6;
+      g_sim_trans[i].ZTimer := device_delay + INT_TO_REAL(g_cfg[i].DripTrayDelay) / 10.0;
+      g_sim_trans[i].ZStage := 6;
       g_transporter[i].Phase := 4;
     END_IF;
     (* If arrived_x but not at_station → at drive limit, wait for clearance *)
@@ -362,20 +362,20 @@ FOR i := 1 TO MAX_Transporters DO
     lookup(station_number := g_transporter[i].SinkStationTarget);
     station_kind := lookup.skind;
     tmp_z  := g_transporter[i].ZPosition;
-    tmp_zs := g_sim_trans[i].z_stage;
-    tmp_zt := g_sim_trans[i].z_timer_s;
+    tmp_zs := g_sim_trans[i].ZStage;
+    tmp_zt := g_sim_trans[i].ZTimer;
     IF i = 1 THEN
       fb_z1(
         delta_t       := 0.02,
         station_kind  := station_kind,
-        ZPosDown        := g_cfg[i].phys2d.z_total_mm,
+        ZPosDown        := g_cfg[i].ZPosDown,
         ZPosUp          := 0,
-        ZPosSlowUp      := g_cfg[i].phys2d.z_slow_dry_mm,
-        ZPosSlowDown    := g_cfg[i].phys2d.z_slow_wet_mm,
-        ZPosSlowEnd     := g_cfg[i].phys2d.ZPosSlowEnd,
-        SpeedLiftSlow_Z := g_cfg[i].phys2d.z_slow_mm_s,
-        SpeedLiftFast_Z := g_cfg[i].phys2d.z_fast_mm_s,
-        DripTrayDelay   := g_cfg[i].phys2d.DripTrayDelay,
+        ZPosSlowUp      := g_cfg[i].ZPosSlowUp,
+        ZPosSlowDown    := g_cfg[i].ZPosSlowDown,
+        ZPosSlowEnd     := g_cfg[i].ZPosSlowEnd,
+        SpeedLiftSlow_Z := g_cfg[i].SpeedLiftSlow_Z,
+        SpeedLiftFast_Z := g_cfg[i].SpeedLiftFast_Z,
+        DripTrayDelay   := g_cfg[i].DripTrayDelay,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -385,14 +385,14 @@ FOR i := 1 TO MAX_Transporters DO
       fb_z2(
         delta_t       := 0.02,
         station_kind  := station_kind,
-        ZPosDown        := g_cfg[i].phys2d.z_total_mm,
+        ZPosDown        := g_cfg[i].ZPosDown,
         ZPosUp          := 0,
-        ZPosSlowUp      := g_cfg[i].phys2d.z_slow_dry_mm,
-        ZPosSlowDown    := g_cfg[i].phys2d.z_slow_wet_mm,
-        ZPosSlowEnd     := g_cfg[i].phys2d.ZPosSlowEnd,
-        SpeedLiftSlow_Z := g_cfg[i].phys2d.z_slow_mm_s,
-        SpeedLiftFast_Z := g_cfg[i].phys2d.z_fast_mm_s,
-        DripTrayDelay   := g_cfg[i].phys2d.DripTrayDelay,
+        ZPosSlowUp      := g_cfg[i].ZPosSlowUp,
+        ZPosSlowDown    := g_cfg[i].ZPosSlowDown,
+        ZPosSlowEnd     := g_cfg[i].ZPosSlowEnd,
+        SpeedLiftSlow_Z := g_cfg[i].SpeedLiftSlow_Z,
+        SpeedLiftFast_Z := g_cfg[i].SpeedLiftFast_Z,
+        DripTrayDelay   := g_cfg[i].DripTrayDelay,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -402,14 +402,14 @@ FOR i := 1 TO MAX_Transporters DO
       fb_z3(
         delta_t       := 0.02,
         station_kind  := station_kind,
-        ZPosDown        := g_cfg[i].phys2d.z_total_mm,
+        ZPosDown        := g_cfg[i].ZPosDown,
         ZPosUp          := 0,
-        ZPosSlowUp      := g_cfg[i].phys2d.z_slow_dry_mm,
-        ZPosSlowDown    := g_cfg[i].phys2d.z_slow_wet_mm,
-        ZPosSlowEnd     := g_cfg[i].phys2d.ZPosSlowEnd,
-        SpeedLiftSlow_Z := g_cfg[i].phys2d.z_slow_mm_s,
-        SpeedLiftFast_Z := g_cfg[i].phys2d.z_fast_mm_s,
-        DripTrayDelay   := g_cfg[i].phys2d.DripTrayDelay,
+        ZPosSlowUp      := g_cfg[i].ZPosSlowUp,
+        ZPosSlowDown    := g_cfg[i].ZPosSlowDown,
+        ZPosSlowEnd     := g_cfg[i].ZPosSlowEnd,
+        SpeedLiftSlow_Z := g_cfg[i].SpeedLiftSlow_Z,
+        SpeedLiftFast_Z := g_cfg[i].SpeedLiftFast_Z,
+        DripTrayDelay   := g_cfg[i].DripTrayDelay,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -417,8 +417,8 @@ FOR i := 1 TO MAX_Transporters DO
       arrived_z := fb_z3.done;
     END_IF;
     g_transporter[i].ZPosition      := tmp_z;
-    g_sim_trans[i].z_stage   := tmp_zs;
-    g_sim_trans[i].z_timer_s := tmp_zt;
+    g_sim_trans[i].ZStage   := tmp_zs;
+    g_sim_trans[i].ZTimer := tmp_zt;
     IF arrived_z THEN
       (* Unit moves from transporter → sink station *)
       sink_unit_id := g_station_loc[i].UnitId;
@@ -449,9 +449,9 @@ FOR i := 1 TO MAX_Transporters DO
         x_target := tmp_x,
         x_min    := g_transporter[i].XMinDriveLimit,
         x_max    := g_transporter[i].XMaxDriveLimit,
-        v_max    := g_cfg[i].phys2d.SpeedMax_X,
-        t_acc    := g_cfg[i].phys2d.Acceleration_X,
-        t_dec    := g_cfg[i].phys2d.Deceleration_X,
+        v_max    := g_cfg[i].SpeedMax_X,
+        t_acc    := g_cfg[i].Acceleration_X,
+        t_dec    := g_cfg[i].Deceleration_X,
         x_pos    := tmp_x,
         v_x      := tmp_vx
       );
@@ -461,9 +461,9 @@ FOR i := 1 TO MAX_Transporters DO
         x_target := tmp_x,
         x_min    := g_transporter[i].XMinDriveLimit,
         x_max    := g_transporter[i].XMaxDriveLimit,
-        v_max    := g_cfg[i].phys2d.SpeedMax_X,
-        t_acc    := g_cfg[i].phys2d.Acceleration_X,
-        t_dec    := g_cfg[i].phys2d.Deceleration_X,
+        v_max    := g_cfg[i].SpeedMax_X,
+        t_acc    := g_cfg[i].Acceleration_X,
+        t_dec    := g_cfg[i].Deceleration_X,
         x_pos    := tmp_x,
         v_x      := tmp_vx
       );
@@ -473,9 +473,9 @@ FOR i := 1 TO MAX_Transporters DO
         x_target := tmp_x,
         x_min    := g_transporter[i].XMinDriveLimit,
         x_max    := g_transporter[i].XMaxDriveLimit,
-        v_max    := g_cfg[i].phys2d.SpeedMax_X,
-        t_acc    := g_cfg[i].phys2d.Acceleration_X,
-        t_dec    := g_cfg[i].phys2d.Deceleration_X,
+        v_max    := g_cfg[i].SpeedMax_X,
+        t_acc    := g_cfg[i].Acceleration_X,
+        t_dec    := g_cfg[i].Deceleration_X,
         x_pos    := tmp_x,
         v_x      := tmp_vx
       );
@@ -501,19 +501,19 @@ FOR i := 1 TO MAX_Transporters DO
   (* ── Measure move times (one instance per transporter) ──── *)
   IF i = 1 THEN
     tm1(t_id := 1, phase := g_transporter[1].Phase, delta_t := 0.02,
-        vel_x := g_sim_trans[1].XVelocity, z_stage := g_sim_trans[1].z_stage,
+        vel_x := g_sim_trans[1].XVelocity, z_stage := g_sim_trans[1].ZStage,
         lift_stn := g_transporter[1].LiftStationTarget,
         sink_stn := g_transporter[1].SinkStationTarget,
         from_stn := g_transporter[1].CurrentStation);
   ELSIF i = 2 THEN
     tm2(t_id := 2, phase := g_transporter[2].Phase, delta_t := 0.02,
-        vel_x := g_sim_trans[2].XVelocity, z_stage := g_sim_trans[2].z_stage,
+        vel_x := g_sim_trans[2].XVelocity, z_stage := g_sim_trans[2].ZStage,
         lift_stn := g_transporter[2].LiftStationTarget,
         sink_stn := g_transporter[2].SinkStationTarget,
         from_stn := g_transporter[2].CurrentStation);
   ELSIF i = 3 THEN
     tm3(t_id := 3, phase := g_transporter[3].Phase, delta_t := 0.02,
-        vel_x := g_sim_trans[3].XVelocity, z_stage := g_sim_trans[3].z_stage,
+        vel_x := g_sim_trans[3].XVelocity, z_stage := g_sim_trans[3].ZStage,
         lift_stn := g_transporter[3].LiftStationTarget,
         sink_stn := g_transporter[3].SinkStationTarget,
         from_stn := g_transporter[3].CurrentStation);

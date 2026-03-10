@@ -21,9 +21,15 @@ if [ -z "$ACTIVE_PROG" ]; then
 fi
 echo "Active program in runtime: $ACTIVE_PROG"
 
-# ─── Step 0: Apply plant_config.json → globals.st + types.st ───
+# ─── Step 0a: Generate types.st from UDT files ───
 echo ""
-echo "═══ Step 0: apply_plant_config.py ═══"
+echo "═══ Step 0a: generate_types.py ═══"
+cd "$SRC_DIR"
+python3 "$SRC_DIR/generate_types.py"
+
+# ─── Step 0b: Apply plant_config.json → globals.st + types.st ───
+echo ""
+echo "═══ Step 0b: apply_plant_config.py ═══"
 cd "$SRC_DIR"
 python3 "$SRC_DIR/apply_plant_config.py"
 

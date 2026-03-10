@@ -16,7 +16,7 @@
       on different transporters — does the receiving transporter
       have time to reach the handoff station?
 
-   NOTE: TASK_SEQUENCE iterates g_task[ti].queue[] directly
+   NOTE: TASK_SEQUENCE iterates g_task[ti].Queue[] directly
    (not a merged sorted list) so SWAP ordering is preserved.
 
    Outputs:
@@ -106,37 +106,37 @@ checked_count  := 0;
 (* Count total tasks *)
 total_tasks := 0;
 FOR ti := 1 TO MAX_Transporters DO
-  total_tasks := total_tasks + g_task[ti].count;
+  total_tasks := total_tasks + g_task[ti].Count;
 END_FOR;
 IF total_tasks = 0 THEN RETURN; END_IF;
 
 (* ══════════════════════════════════════════════════════════════════════ *)
 (* CHECK 1: TASK_SEQUENCE — per-transporter queue order (SWAP-safe)    *)
-(* Iterates g_task[ti].queue[] in queue order, NOT sorted by time.     *)
+(* Iterates g_task[ti].Queue[] in queue order, NOT sorted by time.     *)
 (* ══════════════════════════════════════════════════════════════════════ *)
 FOR ti := 1 TO MAX_Transporters DO
-  FOR qi := 1 TO g_task[ti].count - 1 DO
-    IF g_task[ti].queue[qi].unit > 0 AND g_task[ti].queue[qi + 1].unit > 0 THEN
+  FOR qi := 1 TO g_task[ti].Count - 1 DO
+    IF g_task[ti].Queue[qi].Unit > 0 AND g_task[ti].Queue[qi + 1].Unit > 0 THEN
 
-      prev_sink := g_task[ti].queue[qi].SinkStationTarget;
-      next_lift := g_task[ti].queue[qi + 1].LiftStationTarget;
+      prev_sink := g_task[ti].Queue[qi].SinkStationTarget;
+      next_lift := g_task[ti].Queue[qi + 1].LiftStationTarget;
 
       tmp_move := g_move[ti];
       travel_s := STC_CalcHorizontalTravel(i_from_stn := prev_sink, i_to_stn := next_lift, i_move := tmp_move);
 
       gap_s := LINT_TO_REAL(
-        g_task[ti].queue[qi + 1].start_time - g_task[ti].queue[qi].finish_time
+        g_task[ti].Queue[qi + 1].StartTime - g_task[ti].Queue[qi].FinishTime
       );
       deficit_s := travel_s - gap_s;
 
       IF deficit_s > DEFICIT_TOL THEN
         o_has_conflict  := TRUE;
         o_conf_type     := 1;  (* TASK_SEQUENCE *)
-        o_conf_unit     := g_task[ti].queue[qi + 1].unit;
-        o_conf_stage    := g_task[ti].queue[qi + 1].stage;
+        o_conf_unit     := g_task[ti].Queue[qi + 1].Unit;
+        o_conf_stage    := g_task[ti].Queue[qi + 1].Stage;
         o_conf_trans    := ti;
-        o_blocked_unit  := g_task[ti].queue[qi].unit;
-        o_blocked_stage := g_task[ti].queue[qi].stage;
+        o_blocked_unit  := g_task[ti].Queue[qi].Unit;
+        o_blocked_stage := g_task[ti].Queue[qi].Stage;
         o_deficit       := deficit_s;
         checked_count   := total_tasks;
         RETURN;
@@ -151,19 +151,19 @@ END_FOR;
 (* Compares every task pair across different transporters.              *)
 (* ══════════════════════════════════════════════════════════════════════ *)
 FOR ti := 1 TO MAX_Transporters DO
-  FOR qi := 1 TO g_task[ti].count DO
-    IF g_task[ti].queue[qi].unit > 0 THEN
+  FOR qi := 1 TO g_task[ti].Count DO
+    IF g_task[ti].Queue[qi].Unit > 0 THEN
 
       (* X range for task A *)
-      l_idx := g_task[ti].queue[qi].LiftStationTarget - 100;
-      s_idx := g_task[ti].queue[qi].SinkStationTarget - 100;
+      l_idx := g_task[ti].Queue[qi].LiftStationTarget - 100;
+      s_idx := g_task[ti].Queue[qi].SinkStationTarget - 100;
       IF l_idx >= 1 AND l_idx <= 30 THEN
-        lift_x := DINT_TO_REAL(g_station[g_task[ti].queue[qi].LiftStationTarget].XPosition);
+        lift_x := DINT_TO_REAL(g_station[g_task[ti].Queue[qi].LiftStationTarget].XPosition);
       ELSE
         lift_x := 0.0;
       END_IF;
       IF s_idx >= 1 AND s_idx <= 30 THEN
-        sink_x := DINT_TO_REAL(g_station[g_task[ti].queue[qi].SinkStationTarget].XPosition);
+        sink_x := DINT_TO_REAL(g_station[g_task[ti].Queue[qi].SinkStationTarget].XPosition);
       ELSE
         sink_x := 0.0;
       END_IF;
@@ -176,19 +176,19 @@ FOR ti := 1 TO MAX_Transporters DO
       END_IF;
 
       FOR tj := ti + 1 TO MAX_Transporters DO
-        FOR qj := 1 TO g_task[tj].count DO
-          IF g_task[tj].queue[qj].unit > 0 THEN
+        FOR qj := 1 TO g_task[tj].Count DO
+          IF g_task[tj].Queue[qj].Unit > 0 THEN
 
             (* X range for task B *)
-            l_idx2 := g_task[tj].queue[qj].LiftStationTarget - 100;
-            s_idx2 := g_task[tj].queue[qj].SinkStationTarget - 100;
+            l_idx2 := g_task[tj].Queue[qj].LiftStationTarget - 100;
+            s_idx2 := g_task[tj].Queue[qj].SinkStationTarget - 100;
             IF l_idx2 >= 1 AND l_idx2 <= 30 THEN
-              lift_x2 := DINT_TO_REAL(g_station[g_task[tj].queue[qj].LiftStationTarget].XPosition);
+              lift_x2 := DINT_TO_REAL(g_station[g_task[tj].Queue[qj].LiftStationTarget].XPosition);
             ELSE
               lift_x2 := 0.0;
             END_IF;
             IF s_idx2 >= 1 AND s_idx2 <= 30 THEN
-              sink_x2 := DINT_TO_REAL(g_station[g_task[tj].queue[qj].SinkStationTarget].XPosition);
+              sink_x2 := DINT_TO_REAL(g_station[g_task[tj].Queue[qj].SinkStationTarget].XPosition);
             ELSE
               sink_x2 := 0.0;
             END_IF;
@@ -208,24 +208,24 @@ FOR ti := 1 TO MAX_Transporters DO
 
             IF xo_start < xo_end THEN
               (* Time overlap *)
-              to_start := g_task[ti].queue[qi].start_time;
-              IF g_task[tj].queue[qj].start_time > to_start THEN
-                to_start := g_task[tj].queue[qj].start_time;
+              to_start := g_task[ti].Queue[qi].StartTime;
+              IF g_task[tj].Queue[qj].StartTime > to_start THEN
+                to_start := g_task[tj].Queue[qj].StartTime;
               END_IF;
-              to_end := g_task[ti].queue[qi].finish_time;
-              IF g_task[tj].queue[qj].finish_time < to_end THEN
-                to_end := g_task[tj].queue[qj].finish_time;
+              to_end := g_task[ti].Queue[qi].FinishTime;
+              IF g_task[tj].Queue[qj].FinishTime < to_end THEN
+                to_end := g_task[tj].Queue[qj].FinishTime;
               END_IF;
 
               IF to_start < to_end THEN
                 deficit_s := LINT_TO_REAL(to_end - to_start) + 2.0;
                 o_has_conflict  := TRUE;
                 o_conf_type     := 2;  (* TRANSPORTER_COLLISION *)
-                o_conf_unit     := g_task[tj].queue[qj].unit;
-                o_conf_stage    := g_task[tj].queue[qj].stage;
+                o_conf_unit     := g_task[tj].Queue[qj].Unit;
+                o_conf_stage    := g_task[tj].Queue[qj].Stage;
                 o_conf_trans    := tj;
-                o_blocked_unit  := g_task[ti].queue[qi].unit;
-                o_blocked_stage := g_task[ti].queue[qi].stage;
+                o_blocked_unit  := g_task[ti].Queue[qi].Unit;
+                o_blocked_stage := g_task[ti].Queue[qi].Stage;
                 o_deficit       := deficit_s;
                 checked_count   := total_tasks;
                 RETURN;
@@ -250,19 +250,19 @@ END_FOR;
 (* on the delivering transporter's side.                               *)
 (* ══════════════════════════════════════════════════════════════════════ *)
 FOR ti := 1 TO MAX_Transporters DO
-  FOR qi := 1 TO g_task[ti].count DO
-    cur_unit  := g_task[ti].queue[qi].unit;
-    cur_stage := g_task[ti].queue[qi].stage;
+  FOR qi := 1 TO g_task[ti].Count DO
+    cur_unit  := g_task[ti].Queue[qi].Unit;
+    cur_stage := g_task[ti].Queue[qi].Stage;
     IF cur_unit > 0 THEN
 
       (* Find next stage of same batch in a different transporter *)
       found_next := FALSE;
       FOR tj := 1 TO MAX_Transporters DO
         IF tj <> ti AND NOT found_next THEN
-          FOR qj := 1 TO g_task[tj].count DO
+          FOR qj := 1 TO g_task[tj].Count DO
             IF NOT found_next THEN
-              IF g_task[tj].queue[qj].unit = cur_unit
-                 AND g_task[tj].queue[qj].stage = cur_stage + 1 THEN
+              IF g_task[tj].Queue[qj].Unit = cur_unit
+                 AND g_task[tj].Queue[qj].Stage = cur_stage + 1 THEN
                 found_next := TRUE;
 
                 (* Found handoff pair: ti delivers to sink, tj picks up *)
@@ -270,13 +270,13 @@ FOR ti := 1 TO MAX_Transporters DO
                 has_recv_prev := FALSE;
                 recv_prev_end  := 0;
                 recv_prev_sink := 0;
-                FOR rk := 1 TO g_task[tj].count DO
+                FOR rk := 1 TO g_task[tj].Count DO
                   IF rk <> qj THEN
-                    IF g_task[tj].queue[rk].finish_time <= g_task[tj].queue[qj].start_time THEN
-                      IF NOT has_recv_prev OR g_task[tj].queue[rk].finish_time > recv_prev_end THEN
+                    IF g_task[tj].Queue[rk].FinishTime <= g_task[tj].Queue[qj].StartTime THEN
+                      IF NOT has_recv_prev OR g_task[tj].Queue[rk].FinishTime > recv_prev_end THEN
                         has_recv_prev := TRUE;
-                        recv_prev_end  := g_task[tj].queue[rk].finish_time;
-                        recv_prev_sink := g_task[tj].queue[rk].SinkStationTarget;
+                        recv_prev_end  := g_task[tj].Queue[rk].FinishTime;
+                        recv_prev_sink := g_task[tj].Queue[rk].SinkStationTarget;
                       END_IF;
                     END_IF;
                   END_IF;
@@ -286,24 +286,24 @@ FOR ti := 1 TO MAX_Transporters DO
                   (* Travel from receiver's prev sink to handoff station (= ti's current sink) *)
                   recv_travel := STC_CalcHorizontalTravel(
                     i_from_stn := recv_prev_sink,
-                    i_to_stn   := g_task[ti].queue[qi].SinkStationTarget,
+                    i_to_stn   := g_task[ti].Queue[qi].SinkStationTarget,
                     i_move     := g_move[tj]
                   );
                   recv_earliest := recv_prev_end + REAL_TO_LINT(recv_travel);
                   handoff_deficit := LINT_TO_REAL(
-                    recv_earliest - g_task[ti].queue[qi].finish_time
+                    recv_earliest - g_task[ti].Queue[qi].FinishTime
                   );
 
                   IF handoff_deficit > DEFICIT_TOL THEN
                     o_has_conflict  := TRUE;
                     o_conf_type     := 3;  (* CROSS_TRANSPORTER_HANDOFF *)
                     (* Conflict on delivering task *)
-                    o_conf_unit     := g_task[ti].queue[qi].unit;
-                    o_conf_stage    := g_task[ti].queue[qi].stage;
+                    o_conf_unit     := g_task[ti].Queue[qi].Unit;
+                    o_conf_stage    := g_task[ti].Queue[qi].Stage;
                     o_conf_trans    := ti;
                     (* Blocked by receiver's previous task *)
-                    o_blocked_unit  := g_task[tj].queue[rk].unit;
-                    o_blocked_stage := g_task[tj].queue[rk].stage;
+                    o_blocked_unit  := g_task[tj].Queue[rk].Unit;
+                    o_blocked_stage := g_task[tj].Queue[rk].Stage;
                     o_deficit       := handoff_deficit;
                     checked_count   := total_tasks;
                     RETURN;

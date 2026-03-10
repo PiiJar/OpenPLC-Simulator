@@ -26,7 +26,7 @@ VAR_EXTERNAL CONSTANT
   MAX_Transporters : INT;
 END_VAR
 VAR_EXTERNAL
-  g_cfg : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
+  g_cfg : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
 END_VAR
 VAR
   ti       : INT;

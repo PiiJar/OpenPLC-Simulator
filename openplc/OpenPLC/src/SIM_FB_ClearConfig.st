@@ -20,7 +20,7 @@ VAR_EXTERNAL
   g_station_count    : INT;
   g_station         : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
   g_station_loc     : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
-  g_cfg              : ARRAY[1..MAX_Transporters] OF TRANSPORTER_CFG_T;
+  g_cfg              : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
   g_transporter      : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
   g_sim_trans        : ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T;
   g_unit            : ARRAY[1..MAX_Units] OF UDT_UnitType;
@@ -71,16 +71,16 @@ FOR i := 1 TO MAX_Transporters DO
   g_cfg[i].YMaxDriveLimit   := 0;
   g_cfg[i].CollisionWidth    := 0;
   g_cfg[i].AvoidanceWidth    := 0;
-  g_cfg[i].phys2d.Acceleration_X     := 0;
-  g_cfg[i].phys2d.Deceleration_X     := 0;
-  g_cfg[i].phys2d.SpeedMax_X    := 0;
-  g_cfg[i].phys2d.z_total_mm    := 0;
-  g_cfg[i].phys2d.z_slow_dry_mm := 0;
-  g_cfg[i].phys2d.z_slow_wet_mm := 0;
-  g_cfg[i].phys2d.ZPosSlowEnd := 0;
-  g_cfg[i].phys2d.z_slow_mm_s   := 0;
-  g_cfg[i].phys2d.z_fast_mm_s   := 0;
-  g_cfg[i].phys2d.DripTrayDelay  := 0;
+  g_cfg[i].Acceleration_X     := 0;
+  g_cfg[i].Deceleration_X     := 0;
+  g_cfg[i].SpeedMax_X    := 0;
+  g_cfg[i].ZPosDown    := 0;
+  g_cfg[i].ZPosSlowUp := 0;
+  g_cfg[i].ZPosSlowDown := 0;
+  g_cfg[i].ZPosSlowEnd := 0;
+  g_cfg[i].SpeedLiftSlow_Z   := 0;
+  g_cfg[i].SpeedLiftFast_Z   := 0;
+  g_cfg[i].DripTrayDelay  := 0;
   FOR j := 1 TO 4 DO
     g_cfg[i].TaskArea[j].MinLift := 0;
     g_cfg[i].TaskArea[j].MaxLift := 0;
@@ -103,9 +103,9 @@ FOR i := 1 TO MAX_Transporters DO
   g_sim_trans[i].RunningTaskId := 0;
   g_transporter[i].LiftStationTarget    := 0;
   g_transporter[i].SinkStationTarget    := 0;
-  g_sim_trans[i].treatment_time  := 0;
-  g_sim_trans[i].lift_device_delay := 0;
-  g_sim_trans[i].sink_device_delay := 0;
+  g_sim_trans[i].TreatmentTime  := 0;
+  g_sim_trans[i].LiftDeviceDelay := 0;
+  g_sim_trans[i].SinkDeviceDelay := 0;
   g_transporter[i].DrippingTime   := 0;
   g_transporter[i].TaskRemainingTime  := 0;
   g_transporter[i].CurrentStation := 0;
@@ -117,8 +117,8 @@ FOR i := 1 TO MAX_Transporters DO
   g_transporter[i].YPosition            := 0;
   g_transporter[i].ZPosition            := 0;
   g_sim_trans[i].XVelocity           := 0;
-  g_sim_trans[i].z_stage         := 0;
-  g_sim_trans[i].z_timer_s       := 0.0;
+  g_sim_trans[i].ZStage         := 0;
+  g_sim_trans[i].ZTimer       := 0.0;
   g_transporter[i].XMinDriveLimit     := 0;
   g_transporter[i].XMaxDriveLimit     := 0;
 END_FOR;
@@ -127,17 +127,17 @@ END_FOR;
 FOR i := 1 TO MAX_Units DO
   g_unit[i].location := 0;
   g_unit[i].Status   := 0;
-  g_unit[i].target   := 0;
+  g_unit[i].Target   := 0;
 END_FOR;
 
 (* --- Clear NTT destinations --- *)
 FOR i := 1 TO MAX_Transporters DO
   FOR j := 1 TO 8 DO
-    g_ntt[i].target[j].station_count := 0;
-    g_ntt[i].target[j].fallback_count := 0;
+    g_ntt[i].Target[j].StationCount := 0;
+    g_ntt[i].Target[j].FallbackCount := 0;
     FOR k := 1 TO MAX_STATIONS_PER_STEP DO
-      g_ntt[i].target[j].stations[k] := 0;
-      g_ntt[i].target[j].fallback_stations[k] := 0;
+      g_ntt[i].Target[j].Stations[k] := 0;
+      g_ntt[i].Target[j].FallbackStations[k] := 0;
     END_FOR;
   END_FOR;
 END_FOR;
@@ -172,40 +172,40 @@ END_FOR;
 
 (* --- Clear all schedules (g_schedule) --- *)
 FOR i := 1 TO MAX_Units DO
-  g_schedule[i].stage_count := 0;
+  g_schedule[i].StageCount := 0;
   FOR j := 1 TO 30 DO
-    g_schedule[i].stages[j].station       := 0;
-    g_schedule[i].stages[j].entry_time    := 0;
-    g_schedule[i].stages[j].exit_time     := 0;
-    g_schedule[i].stages[j].min_time      := 0;
-    g_schedule[i].stages[j].calc_time     := 0;
-    g_schedule[i].stages[j].max_time      := 0;
-    g_schedule[i].stages[j].transfer_time := 0;
+    g_schedule[i].Stages[j].station       := 0;
+    g_schedule[i].Stages[j].EntryTime    := 0;
+    g_schedule[i].Stages[j].ExitTime     := 0;
+    g_schedule[i].Stages[j].MinTime      := 0;
+    g_schedule[i].Stages[j].CalcTime     := 0;
+    g_schedule[i].Stages[j].MaxTime      := 0;
+    g_schedule[i].Stages[j].TransferTime := 0;
   END_FOR;
 END_FOR;
 
 (* --- Clear all task queues (g_task) --- *)
 FOR i := 1 TO MAX_Transporters DO
-  g_task[i].count := 0;
+  g_task[i].Count := 0;
   FOR j := 1 TO 60 DO
-    g_task[i].queue[j].unit         := 0;
-    g_task[i].queue[j].stage        := 0;
-    g_task[i].queue[j].LiftStationTarget := 0;
-    g_task[i].queue[j].SinkStationTarget := 0;
-    g_task[i].queue[j].start_time   := 0;
-    g_task[i].queue[j].finish_time  := 0;
-    g_task[i].queue[j].calc_time    := 0;
-    g_task[i].queue[j].min_time     := 0;
-    g_task[i].queue[j].max_time     := 0;
+    g_task[i].Queue[j].Unit         := 0;
+    g_task[i].Queue[j].Stage        := 0;
+    g_task[i].Queue[j].LiftStationTarget := 0;
+    g_task[i].Queue[j].SinkStationTarget := 0;
+    g_task[i].Queue[j].StartTime   := 0;
+    g_task[i].Queue[j].FinishTime  := 0;
+    g_task[i].Queue[j].CalcTime    := 0;
+    g_task[i].Queue[j].MinTime     := 0;
+    g_task[i].Queue[j].MaxTime     := 0;
   END_FOR;
 END_FOR;
 
 (* --- Clear departure sandbox and pending write --- *)
-g_dep_sandbox.valid := FALSE;
-g_dep_pending.valid := FALSE;
-g_dep_pending.batch_unit  := 0;
-g_dep_pending.batch_stage := 0;
-g_dep_pending.batch_state := 0;
+g_dep_sandbox.Valid := FALSE;
+g_dep_pending.Valid := FALSE;
+g_dep_pending.BatchUnit  := 0;
+g_dep_pending.BatchStage := 0;
+g_dep_pending.BatchState := 0;
 
 (* --- Clear departure scheduler state (previously missing) --- *)
 g_dep_activated     := FALSE;

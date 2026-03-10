@@ -88,8 +88,8 @@ IF (i_unit >= 1) AND (i_unit <= MAX_Units) THEN
     END_IF;
 
     (* Clear unit target after placement (NTT task done) *)
-    IF g_unit[i_unit].target <> 0 THEN
-      g_unit[i_unit].target := 0;  (* TO_NONE *)
+    IF g_unit[i_unit].Target <> 0 THEN
+      g_unit[i_unit].Target := 0;  (* TO_NONE *)
     END_IF;
 
     END_IF; (* i_location >= MIN_StationIndex — station-specific block *)

@@ -85,16 +85,16 @@ END_VAR
 FOR ti := 1 TO MAX_Transporters DO
 
   (* ── 1. Skip if not idle or queue empty ── *)
-  IF g_transporter[ti].Phase = 0 AND g_task[ti].count >= 1 THEN
+  IF g_transporter[ti].Phase = 0 AND g_task[ti].Count >= 1 THEN
 
     (* Read task fields from queue position 1 *)
-    t_unit      := g_task[ti].queue[1].unit;
-    t_stage     := g_task[ti].queue[1].stage;
-    t_lift      := g_task[ti].queue[1].LiftStationTarget;
-    t_sink      := g_task[ti].queue[1].SinkStationTarget;
-    t_start     := g_task[ti].queue[1].start_time;
-    t_finish    := g_task[ti].queue[1].finish_time;
-    t_calc_time := g_task[ti].queue[1].calc_time;
+    t_unit      := g_task[ti].Queue[1].Unit;
+    t_stage     := g_task[ti].Queue[1].Stage;
+    t_lift      := g_task[ti].Queue[1].LiftStationTarget;
+    t_sink      := g_task[ti].Queue[1].SinkStationTarget;
+    t_start     := g_task[ti].Queue[1].StartTime;
+    t_finish    := g_task[ti].Queue[1].FinishTime;
+    t_calc_time := g_task[ti].Queue[1].CalcTime;
 
     (* ── 2. Time check ── *)
     travel_s := 0.0;
@@ -103,7 +103,7 @@ FOR ti := 1 TO MAX_Transporters DO
       from_idx := g_transporter[ti].CurrentStation - 100;
       to_idx   := t_lift - 100;
       IF from_idx >= 1 AND from_idx <= 30 AND to_idx >= 1 AND to_idx <= 30 THEN
-        travel_s := INT_TO_REAL(g_move[ti].travel[from_idx].to_s[to_idx]) / 10.0;
+        travel_s := INT_TO_REAL(g_move[ti].Travel[from_idx].ToTime[to_idx]) / 10.0;
       END_IF;
     END_IF;
 
@@ -154,7 +154,7 @@ FOR ti := 1 TO MAX_Transporters DO
 
         ELSIF t_stage = 0 AND t_unit >= 1 AND t_unit <= MAX_Units THEN
           (* No-treatment task — look in g_ntt for alternatives *)
-          tgt := g_unit[t_unit].target;
+          tgt := g_unit[t_unit].Target;
           IF tgt >= 1 AND tgt <= 5 THEN
             (* Resolve buffer NTT index like NoTreatment does *)
             IF tgt = 2 THEN
@@ -169,10 +169,10 @@ FOR ti := 1 TO MAX_Transporters DO
               ntt_idx := tgt;
             END_IF;
             (* Check primary stations *)
-            ntt_cnt := g_ntt[ti].target[ntt_idx].station_count;
+            ntt_cnt := g_ntt[ti].Target[ntt_idx].StationCount;
             FOR si := 1 TO ntt_cnt DO
               IF si <= MAX_STATIONS_PER_STEP THEN
-                cand_stn := g_ntt[ti].target[ntt_idx].stations[si];
+                cand_stn := g_ntt[ti].Target[ntt_idx].Stations[si];
                 IF cand_stn > 0 AND cand_stn <> t_sink THEN
                   IF cand_stn >= MIN_StationIndex AND cand_stn <= MAX_StationIndex THEN
                     cand_free := TRUE;
@@ -192,10 +192,10 @@ FOR ti := 1 TO MAX_Transporters DO
               END_IF;
             END_FOR;
             (* Check fallback stations *)
-            ntt_fb_cnt := g_ntt[ti].target[ntt_idx].fallback_count;
+            ntt_fb_cnt := g_ntt[ti].Target[ntt_idx].FallbackCount;
             FOR si := 1 TO ntt_fb_cnt DO
               IF si <= MAX_STATIONS_PER_STEP THEN
-                cand_stn := g_ntt[ti].target[ntt_idx].fallback_stations[si];
+                cand_stn := g_ntt[ti].Target[ntt_idx].FallbackStations[si];
                 IF cand_stn > 0 AND cand_stn <> t_sink THEN
                   IF cand_stn >= MIN_StationIndex AND cand_stn <= MAX_StationIndex THEN
                     cand_free := TRUE;
@@ -272,9 +272,9 @@ FOR ti := 1 TO MAX_Transporters DO
           g_transporter[ti].LiftStationTarget := t_lift;
           g_transporter[ti].SinkStationTarget := sink_stn;
           g_station_loc[ti].UnitId      := t_unit;
-          g_sim_trans[ti].treatment_time := t_calc_time;
-          g_sim_trans[ti].min_time := g_task[ti].queue[1].min_time;
-          g_sim_trans[ti].max_time := g_task[ti].queue[1].max_time;
+          g_sim_trans[ti].TreatmentTime := t_calc_time;
+          g_sim_trans[ti].MinTime := g_task[ti].Queue[1].MinTime;
+          g_sim_trans[ti].MaxTime := g_task[ti].Queue[1].MaxTime;
           g_transporter[ti].TaskRemainingTime := t_calc_time;
 
           (* ── Update batch times: transfer duration as time bar ── *)
@@ -287,48 +287,48 @@ FOR ti := 1 TO MAX_Transporters DO
 
           (* ── Emit TASK_DISPATCHED event (msg_type=1) ── *)
           IF NOT g_event_pending_valid THEN
-            g_event_pending.msg_type := 1;
-            g_event_pending.ts_hi := LINT_TO_INT(g_time_s / LINT#65536);
-            g_event_pending.ts_lo := LINT_TO_INT(g_time_s MOD LINT#65536);
-            g_event_pending.f[1]  := ti;
-            g_event_pending.f[2]  := t_unit;
-            g_event_pending.f[3]  := t_lift;
-            g_event_pending.f[4]  := sink_stn;
-            g_event_pending.f[5]  := t_stage;
-            g_event_pending.f[6]  := g_batch[t_unit].BatchCode;
-            g_event_pending.f[7]  := g_batch[t_unit].State;
-            g_event_pending.f[8]  := g_batch[t_unit].ProgId;
-            g_event_pending.f[9]  := g_unit[t_unit].target;
-            g_event_pending.f[10] := DINT_TO_INT(t_calc_time);
-            g_event_pending.f[11] := DINT_TO_INT(g_task[ti].queue[1].min_time);
-            g_event_pending.f[12] := DINT_TO_INT(g_task[ti].queue[1].max_time);
+            g_event_pending.MsgType := 1;
+            g_event_pending.TsHi := LINT_TO_INT(g_time_s / LINT#65536);
+            g_event_pending.TsLo := LINT_TO_INT(g_time_s MOD LINT#65536);
+            g_event_pending.Payload[1]  := ti;
+            g_event_pending.Payload[2]  := t_unit;
+            g_event_pending.Payload[3]  := t_lift;
+            g_event_pending.Payload[4]  := sink_stn;
+            g_event_pending.Payload[5]  := t_stage;
+            g_event_pending.Payload[6]  := g_batch[t_unit].BatchCode;
+            g_event_pending.Payload[7]  := g_batch[t_unit].State;
+            g_event_pending.Payload[8]  := g_batch[t_unit].ProgId;
+            g_event_pending.Payload[9]  := g_unit[t_unit].Target;
+            g_event_pending.Payload[10] := DINT_TO_INT(t_calc_time);
+            g_event_pending.Payload[11] := DINT_TO_INT(g_task[ti].Queue[1].MinTime);
+            g_event_pending.Payload[12] := DINT_TO_INT(g_task[ti].Queue[1].MaxTime);
             g_event_pending_valid := TRUE;
           END_IF;
 
           (* Copy station-specific timing from config *)
           IF t_lift >= MIN_StationIndex AND t_lift <= MAX_StationIndex THEN
             g_transporter[ti].DrippingTime := g_station[t_lift].DrippingTime;
-            g_sim_trans[ti].lift_device_delay := g_station[t_lift].DeviceDelay;
+            g_sim_trans[ti].LiftDeviceDelay := g_station[t_lift].DeviceDelay;
           END_IF;
           IF sink_stn >= MIN_StationIndex AND sink_stn <= MAX_StationIndex THEN
-            g_sim_trans[ti].sink_device_delay := g_station[sink_stn].DeviceDelay;
+            g_sim_trans[ti].SinkDeviceDelay := g_station[sink_stn].DeviceDelay;
           END_IF;
 
           (* Shift queue: remove position 1, move rest up *)
-          FOR sh := 2 TO g_task[ti].count DO
-            g_task[ti].queue[sh - 1] := g_task[ti].queue[sh];
+          FOR sh := 2 TO g_task[ti].Count DO
+            g_task[ti].Queue[sh - 1] := g_task[ti].Queue[sh];
           END_FOR;
           (* Clear last slot *)
-          g_task[ti].queue[g_task[ti].count].unit := 0;
-          g_task[ti].queue[g_task[ti].count].stage := 0;
-          g_task[ti].queue[g_task[ti].count].LiftStationTarget := 0;
-          g_task[ti].queue[g_task[ti].count].SinkStationTarget := 0;
-          g_task[ti].queue[g_task[ti].count].start_time := 0;
-          g_task[ti].queue[g_task[ti].count].finish_time := 0;
-          g_task[ti].queue[g_task[ti].count].calc_time := 0;
-          g_task[ti].queue[g_task[ti].count].min_time := 0;
-          g_task[ti].queue[g_task[ti].count].max_time := 0;
-          g_task[ti].count := g_task[ti].count - 1;
+          g_task[ti].Queue[g_task[ti].Count].Unit := 0;
+          g_task[ti].Queue[g_task[ti].Count].Stage := 0;
+          g_task[ti].Queue[g_task[ti].Count].LiftStationTarget := 0;
+          g_task[ti].Queue[g_task[ti].Count].SinkStationTarget := 0;
+          g_task[ti].Queue[g_task[ti].Count].StartTime := 0;
+          g_task[ti].Queue[g_task[ti].Count].FinishTime := 0;
+          g_task[ti].Queue[g_task[ti].Count].CalcTime := 0;
+          g_task[ti].Queue[g_task[ti].Count].MinTime := 0;
+          g_task[ti].Queue[g_task[ti].Count].MaxTime := 0;
+          g_task[ti].Count := g_task[ti].Count - 1;
 
         END_IF;  (* NOT conflict *)
 
