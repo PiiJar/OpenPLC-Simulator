@@ -1,103 +1,120 @@
 (* ============================================================
-   globals.st — Global variables (shared memory + Modbus I/O)
+   globals.st — Auto-generated from GVLs/*.st + Modbus mapping
+   DO NOT EDIT — modify GVL files in GVLs/ directory instead
    ============================================================ *)
 
 VAR_GLOBAL CONSTANT
-  (* ── Layout hierarchy limits ── *)
-  (* Line is the top level: a plant has 1..MAX_LINES production lines.
-     Each line has stations and transporters.
-     Station numbering: Line N stations = N*100+1 .. N*100+MAX_STATIONS_PER_LINE
-       Line 1: 101..150,  Line 2: 201..250,  Line 3: 301..350,  Line 4: 401..450
-     Station number IS the array index → g_station[station_number] direct access.
-     Array spans [101..MAX_StationIndex] with gaps between lines (wasted but clear). *)
-  MAX_LINES              : INT := 1;     (* max production lines in a plant *)
-  MAX_STATIONS_PER_LINE  : INT := 30;    (* max stations per line *)
-  MAX_Transporters_PER_LINE : INT := 3;  (* max transporters per line *)
-  MIN_StationIndex    : INT := 100;   (* first valid station index *)
-  MAX_StationIndex      : INT := 130;   (* MAX_LINES*100 + MAX_STATIONS_PER_LINE *)
 
-  (* ── Derived absolute limits ── *)
-  MAX_Transporters   : INT := 3;    (* absolute max transporters in a plant *)
-  MAX_Units          : INT := 10;    (* max units (lifting frames / hooks) *)
-  MAX_STATIONS_PER_STEP      : INT := 5;     (* max parallel stations per program stage *)
-  MAX_STEPS_PER_PROGRAM         : INT := 30;    (* max stages in a treatment program *)
-  MAX_TASK_QUEUE     : INT := 60;    (* max tasks per transporter queue *)
+  (* ===== Layout Hierarchy Limits ===== *)
+  (* Line is the top level: a plant has 1..MaxLines production lines.
+  MAX_LINES                 : INT  := 1;  (* max production lines in a plant *)
+  MAX_STATIONS_PER_LINE     : INT  := 30;  (* max stations per line *)
+  MAX_Transporters_PER_LINE : INT  := 3;  (* max transporters per line *)
+  MIN_StationIndex          : INT  := 100;  (* first valid station index *)
+  MAX_StationIndex          : INT  := 130;  (* MaxLines*100 + MaxStationsPerLine *)
 
-  (* ── Algorithm / scheduler limits ── *)
-  DEP_MAX_IDLE_SLOTS : INT := 20;    (* max idle slots per transporter *)
-  DEP_MAX_DELAY_ACTS : INT := 20;    (* max delay actions per cycle *)
-  DEP_MAX_WAITING    : INT := 5;    (* max waiting batches *)
-  MIN_WorkingArea      : DINT := 20; (* mm — TWA minimum working area *)
+  (* ===== Derived Absolute Limits ===== *)
+  MAX_Transporters          : INT  := 3;  (* absolute max transporters in a plant *)
+  MAX_Units                 : INT  := 10;  (* max units (lifting frames / hooks) *)
+  MAX_STATIONS_PER_STEP     : INT  := 5;  (* max parallel stations per program stage *)
+  MAX_STEPS_PER_PROGRAM     : INT  := 30;  (* max stages in a treatment program *)
+  MAX_TASK_QUEUE            : INT  := 60;  (* max tasks per transporter queue *)
 
-  (* ── Enumerated constants ── *)
+  (* ===== Algorithm / Scheduler Limits ===== *)
+  DEP_MAX_IDLE_SLOTS        : INT  := 20;  (* max idle slots per transporter *)
+  DEP_MAX_DELAY_ACTS        : INT  := 20;  (* max delay actions per cycle *)
+  DEP_MAX_WAITING           : INT  := 5;  (* max waiting batches *)
+  MIN_WorkingArea           : DINT := 20;  (* mm — TWA minimum working area *)
+
+  (* ===== Enumerated Constants ===== *)
+
   (* Unit status *)
-  USED             : INT := 1;
-  NOT_USED         : INT := 0;
+  USED                      : INT  := 1;  (* unit in use *)
+  NOT_USED                  : INT  := 0;  (* unit not in use *)
+
   (* Unit state *)
-  EMPTY            : INT := 0;
-  FULL             : INT := 1;
+  EMPTY                     : INT  := 0;  (* unit is empty *)
+  FULL                      : INT  := 1;  (* unit is full *)
+
   (* Unit target *)
-  TO_NONE          : INT := 0;
-  TO_LOADING       : INT := 1;
-  TO_BUFFER        : INT := 2;
-  TO_PROCESS       : INT := 3;
-  TO_UNLOAD        : INT := 4;
-  TO_AVOID         : INT := 5;
+  TO_NONE                   : INT  := 0;  (* no target *)
+  TO_LOADING                : INT  := 1;  (* target: loading station *)
+  TO_BUFFER                 : INT  := 2;  (* target: buffer station *)
+  TO_PROCESS                : INT  := 3;  (* target: process station *)
+  TO_UNLOAD                 : INT  := 4;  (* target: unloading station *)
+  TO_AVOID                  : INT  := 5;  (* target: avoidance position *)
+
   (* Station kind *)
-  KIND_DRY         : INT := 0;
-  KIND_WET         : INT := 1;
+  KIND_DRY                  : INT  := 0;  (* dry station *)
+  KIND_WET                  : INT  := 1;  (* wet station *)
+
   (* Station operation — logistics *)
-  OP_LOADING           : INT := 40;
-  OP_UNLOADING         : INT := 41;
-  OP_LOADING_UNLOADING : INT := 42;
+  OP_LOADING                : INT  := 40;  (* loading operation *)
+  OP_UNLOADING              : INT  := 41;  (* unloading operation *)
+  OP_LOADING_UNLOADING      : INT  := 42;  (* combined loading/unloading *)
+
   (* Batch state *)
-  NOT_PROCESSED    : INT := 0;
-  IN_PROCESS       : INT := 1;
-  PROCESSED        : INT := 2;
+  NOT_PROCESSED             : INT  := 0;  (* batch not yet processed *)
+  IN_PROCESS                : INT  := 1;  (* batch currently in process *)
+  PROCESSED                 : INT  := 2;  (* batch processing complete *)
+
   (* Avoid status for stations (TWA) *)
-  AVOID_None       : INT := 0;     (* station not avoided *)
-  AVOID_Passable       : INT := 1;     (* pass through allowed, no stop *)
-  AVOID_Block      : INT := 2;     (* hard block, cannot pass *)
+  AVOID_None                : INT  := 0;  (* station not avoided *)
+  AVOID_Passable            : INT  := 1;  (* pass through allowed, no stop *)
+  AVOID_Block               : INT  := 2;  (* hard block, cannot pass *)
 END_VAR
 
 VAR_GLOBAL
-  (* --- Shared data arrays --- *)
-  g_station_count    : INT := 0;
-  g_station         : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
-  g_station_loc     : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
-  g_cfg              : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
-  g_transporter      : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
-  g_sim_trans        : ARRAY[1..MAX_Transporters] OF UDT_JC_SimTransporterType;
-  g_unit            : ARRAY[1..MAX_Units] OF UDT_UnitType;
-  g_ntt             : ARRAY[1..MAX_Transporters] OF UDT_JC_NttTransporterType;  (* no-treatment task destinations *)
-  g_batch          : ARRAY[1..MAX_Units] OF UDT_BatchType;
-  g_program         : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
-  g_avoid_status     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF INT;  (* AVOID_None/PASS/BLOCK per station *)
-  g_move             : ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType;  (* precomputed movement times per transporter *)
-  g_schedule         : ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType;  (* calculated schedule per unit *)
-  g_task            : ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType;       (* task queue per transporter *)
-  (* --- Departure Scheduler state --- *)
-  g_dep_sandbox       : UDT_JC_DepSandboxType;                    (* sandbox: isolated copy for planning *)
-  g_dep_idle_slot    : ARRAY[1..MAX_Transporters] OF UDT_JC_DepIdleSlotSetType;  (* idle slots per transporter *)
-  g_dep_waiting       : ARRAY[1..DEP_MAX_WAITING] OF INT;  (* waiting batch unit indices *)
-  g_dep_waiting_count : INT;
-  g_dep_overlap       : UDT_JC_DepOverlapType;                    (* overlap station flags *)
-  g_dep_pending       : UDT_JC_DepPendingWriteType;              (* ACTIVATE → write buffer *)
-  g_dep_activated     : BOOL;                             (* handshake TSK ← DEP *)
-  g_dep_stable        : BOOL;                             (* handshake TSK → DEP: task list stable *)
-  (* --- Calibration state --- *)
-  g_cal              : ARRAY[1..MAX_Transporters] OF UDT_JC_CalibrationType;      (* calibration plan + results per transporter *)
-  g_cal_active       : BOOL;                              (* TRUE during calibration — inhibits schedulers *)
-  (* --- Production queue --- *)
-  g_production_queue : INT;                               (* 1=batches in queue, 0=queue empty *)
-  (* --- Unix time --- *)
-  (* g_time_s = absolute unix time in seconds (LINT)                       *)
-  (* Gateway writes upper/lower 16-bit halves to QW160/QW161 every tick   *)
-  g_time_s           : LINT;          (* absolute time in unix seconds *)
-  (* --- Event queue --- *)
-  g_event                : UDT_JC_EventQueueType;   (* circular event buffer *)
-  g_event_pending        : UDT_JC_EventMsgType;     (* staging slot — written by other FBs *)
-  g_event_pending_valid  : BOOL;            (* TRUE = pending message ready to enqueue *)
+  g_station_count       : INT;  (* configured station count *)
+  g_station             : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;  (* station configuration *)
+  g_station_loc         : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;  (* unit location per station *)
+  g_cfg                 : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;  (* transporter configuration *)
+  g_transporter         : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;  (* transporter runtime status *)
+  g_unit                : ARRAY[1..MAX_Units] OF UDT_UnitType;  (* unit (lifting frame) state *)
+  g_batch               : ARRAY[1..MAX_Units] OF UDT_BatchType;  (* batch state per unit *)
+  g_program             : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;  (* treatment program per unit *)
+  g_avoid_status        : ARRAY[MIN_StationIndex..MAX_StationIndex] OF INT;  (* AVOID_None/Passable/Block per station *)
+
+  (* ===== Simulation Transporter State ===== *)
+  g_sim_trans           : ARRAY[1..MAX_Transporters] OF UDT_JC_SimTransporterType;  (* physics + scheduler command state *)
+
+  (* ===== No-Treatment Task Destinations ===== *)
+  g_ntt                 : ARRAY[1..MAX_Transporters] OF UDT_JC_NttTransporterType;  (* no-treatment task destinations *)
+
+  (* ===== Precomputed Movement Times ===== *)
+  g_move                : ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType;  (* precomputed movement times per transporter *)
+
+  (* ===== Unit Schedule ===== *)
+  g_schedule            : ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType;  (* calculated schedule per unit *)
+
+  (* ===== Task Queues ===== *)
+  g_task                : ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType;  (* task queue per transporter *)
+
+  (* ===== Departure Scheduler State ===== *)
+  g_dep_sandbox         : UDT_JC_DepSandboxType;  (* isolated copy for planning *)
+  g_dep_idle_slot       : ARRAY[1..MAX_Transporters] OF UDT_JC_DepIdleSlotSetType;  (* idle slots per transporter *)
+  g_dep_waiting         : ARRAY[1..DEP_MAX_WAITING] OF INT;  (* waiting batch unit indices *)
+  g_dep_waiting_count   : INT;  (* number of waiting batches *)
+  g_dep_overlap         : UDT_JC_DepOverlapType;  (* overlap station flags *)
+  g_dep_pending         : UDT_JC_DepPendingWriteType;  (* ACTIVATE write buffer *)
+  g_dep_activated       : BOOL;  (* handshake TSK ← DEP *)
+  g_dep_stable          : BOOL;  (* handshake TSK → DEP: task list stable *)
+
+  (* ===== Calibration State ===== *)
+  g_cal                 : ARRAY[1..MAX_Transporters] OF UDT_JC_CalibrationType;  (* calibration plan + results per transporter *)
+  g_cal_active          : BOOL;  (* TRUE during calibration — inhibits schedulers *)
+
+  (* ===== Production Queue ===== *)
+  g_production_queue    : INT;  (* 1=batches in queue, 0=queue empty *)
+
+  (* ===== Unix Time ===== *)
+  g_time_s              : LINT;  (* absolute time in unix seconds *)
+
+  (* ===== Event Queue ===== *)
+  g_event               : UDT_JC_EventQueueType;  (* circular event buffer *)
+  g_event_pending       : UDT_JC_EventMsgType;  (* staging slot — written by other FBs *)
+  g_event_pending_valid : BOOL;  (* TRUE = pending message ready to enqueue *)
+
   (* --- BEGIN GENERATED MODBUS --- *)
   (* Total registers: 1019 (QW0..QW1018) *)
 
@@ -141,7 +158,7 @@ VAR_GLOBAL
   qw_t3_status                   AT %QW36   : INT;  (* 0=not_used 1=manual 2=half 3=auto_idle 4=auto_run *)
   qw_t3_rtask_hi                 AT %QW37   : INT;  (* running task_id upper 16 bits *)
   qw_t3_rtask_lo                 AT %QW38   : INT;  (* running task_id lower 16 bits *)
-  (* --- Per-transporter extended state — remaining UDT_TransporterStatusType fields --- *)
+  (* --- Per-transporter extended state — remaining STC_TRANSPORTER_T fields --- *)
   qw_t1_remain_x10               AT %QW39   : INT;  (* remaining treatment time ×10 (0.1s) *)
   qw_t1_treat_time               AT %QW40   : INT;  (* treatment duration (s) *)
   qw_t1_fintgt_x                 AT %QW41   : INT;  (* destination X mm *)
@@ -437,36 +454,36 @@ VAR_GLOBAL
   qw_cfg_t3_ta3_min_sink         AT %QW324  : INT;  (* task area 3 min sink station *)
   qw_cfg_t3_ta3_max_sink         AT %QW325  : INT;  (* task area 3 max sink station *)
   (* --- Per-station avoid flags readback (g_avoid_status) — 30 stations --- *)
-  qw_s101_val                    AT %QW326  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s102_val                    AT %QW327  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s103_val                    AT %QW328  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s104_val                    AT %QW329  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s105_val                    AT %QW330  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s106_val                    AT %QW331  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s107_val                    AT %QW332  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s108_val                    AT %QW333  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s109_val                    AT %QW334  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s110_val                    AT %QW335  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s111_val                    AT %QW336  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s112_val                    AT %QW337  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s113_val                    AT %QW338  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s114_val                    AT %QW339  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s115_val                    AT %QW340  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s116_val                    AT %QW341  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s117_val                    AT %QW342  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s118_val                    AT %QW343  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s119_val                    AT %QW344  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s120_val                    AT %QW345  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s121_val                    AT %QW346  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s122_val                    AT %QW347  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s123_val                    AT %QW348  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s124_val                    AT %QW349  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s125_val                    AT %QW350  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s126_val                    AT %QW351  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s127_val                    AT %QW352  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s128_val                    AT %QW353  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s129_val                    AT %QW354  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
-  qw_s130_val                    AT %QW355  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
+  qw_s101_val                    AT %QW326  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s102_val                    AT %QW327  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s103_val                    AT %QW328  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s104_val                    AT %QW329  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s105_val                    AT %QW330  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s106_val                    AT %QW331  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s107_val                    AT %QW332  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s108_val                    AT %QW333  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s109_val                    AT %QW334  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s110_val                    AT %QW335  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s111_val                    AT %QW336  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s112_val                    AT %QW337  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s113_val                    AT %QW338  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s114_val                    AT %QW339  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s115_val                    AT %QW340  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s116_val                    AT %QW341  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s117_val                    AT %QW342  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s118_val                    AT %QW343  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s119_val                    AT %QW344  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s120_val                    AT %QW345  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s121_val                    AT %QW346  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s122_val                    AT %QW347  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s123_val                    AT %QW348  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s124_val                    AT %QW349  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s125_val                    AT %QW350  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s126_val                    AT %QW351  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s127_val                    AT %QW352  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s128_val                    AT %QW353  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s129_val                    AT %QW354  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
+  qw_s130_val                    AT %QW355  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
   (* --- Per-unit schedule summary (g_schedule) — stage count only --- *)
   qw_sched_u1_stage_cnt          AT %QW356  : INT;  (* number of active stages *)
   qw_sched_u2_stage_cnt          AT %QW357  : INT;  (* number of active stages *)
@@ -828,7 +845,7 @@ VAR_GLOBAL
   qw_dw3_unit                    AT %QW710  : INT;  (* waiting batch unit index (0=empty) *)
   qw_dw4_unit                    AT %QW711  : INT;  (* waiting batch unit index (0=empty) *)
   qw_dw5_unit                    AT %QW712  : INT;  (* waiting batch unit index (0=empty) *)
-  (* --- Departure overlap flags per station (g_dep_overlap.Flags) --- *)
+  (* --- Departure overlap flags per station (g_dep_overlap.flags) --- *)
   qw_ov_s101_flag                AT %QW713  : INT;  (* 1=station in overlap zone *)
   qw_ov_s102_flag                AT %QW714  : INT;  (* 1=station in overlap zone *)
   qw_ov_s103_flag                AT %QW715  : INT;  (* 1=station in overlap zone *)
@@ -1086,7 +1103,7 @@ VAR_GLOBAL
   iw_cfg_seq                     AT %QW963  : INT;  (* sequence — triggers on change *)
   iw_cfg_cmd                     AT %QW964  : INT;  (* 1=write_station, 2=init, 3=clear_all *)
   iw_cfg_param                   AT %QW965  : INT;  (* station_number or station_count *)
-  iw_cfg_d0                      AT %QW966  : INT;  (* TankId *)
+  iw_cfg_d0                      AT %QW966  : INT;  (* tank_id *)
   iw_cfg_d1                      AT %QW967  : INT;  (* x_position mm *)
   iw_cfg_d2                      AT %QW968  : INT;  (* y_position mm *)
   iw_cfg_d3                      AT %QW969  : INT;  (* z_position mm *)
@@ -1121,7 +1138,7 @@ VAR_GLOBAL
   (* --- Avoid status write protocol — gateway writes, PLC reads --- *)
   iw_avoid_seq                   AT %QW995  : INT;  (* sequence — triggers on change *)
   iw_avoid_station               AT %QW996  : INT;  (* station number *)
-  iw_avoid_value                 AT %QW997  : INT;  (* AVOID_None=0, PASS=1, BLOCK=2 *)
+  iw_avoid_value                 AT %QW997  : INT;  (* AVOID_NONE=0, PASS=1, BLOCK=2 *)
   (* --- Production queue control — gateway writes, PLC reads --- *)
   iw_production_queue            AT %QW998  : INT;  (* 1=batches in queue, 0=empty *)
   (* --- Unix time sync — gateway writes 32-bit unix seconds as hi/lo pair, PLC reads --- *)
@@ -1151,4 +1168,3 @@ VAR_GLOBAL
   (* --- END GENERATED MODBUS --- *)
 
 END_VAR
-

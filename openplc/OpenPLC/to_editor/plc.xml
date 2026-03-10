@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-10T10:01:19"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-10T10:01:19">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-10T10:26:29"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-10T10:26:29">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -13502,10 +13502,6 @@ END_IF;]]></xhtml:p>
           </task>
         </resource>
         <globalVars>
-          <variable name="MAX_LINES">
-            <type><INT/></type>
-            <initialValue><simpleValue value="1"/></initialValue>
-          </variable>
           <variable name="MAX_STATIONS_PER_LINE">
             <type><INT/></type>
             <initialValue><simpleValue value="30"/></initialValue>
@@ -13644,7 +13640,6 @@ END_IF;]]></xhtml:p>
           </variable>
           <variable name="g_station_count">
             <type><INT/></type>
-            <initialValue><simpleValue value="0"/></initialValue>
           </variable>
           <variable name="g_station">
             <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
@@ -13658,14 +13653,8 @@ END_IF;]]></xhtml:p>
           <variable name="g_transporter">
             <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
           </variable>
-          <variable name="g_sim_trans">
-            <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_SimTransporterType"/></type>
-          </variable>
           <variable name="g_unit">
             <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>
-          </variable>
-          <variable name="g_ntt">
-            <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_NttTransporterType"/></type>
           </variable>
           <variable name="g_batch">
             <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
@@ -13675,6 +13664,12 @@ END_IF;]]></xhtml:p>
           </variable>
           <variable name="g_avoid_status">
             <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF INT"/></type>
+          </variable>
+          <variable name="g_sim_trans">
+            <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_SimTransporterType"/></type>
+          </variable>
+          <variable name="g_ntt">
+            <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_NttTransporterType"/></type>
           </variable>
           <variable name="g_move">
             <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType"/></type>

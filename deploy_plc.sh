@@ -27,9 +27,15 @@ echo "═══ Step 0a: generate_types.py ═══"
 cd "$SRC_DIR"
 python3 "$SRC_DIR/generate_types.py"
 
-# ─── Step 0b: Apply plant_config.json → globals.st + types.st ───
+# ─── Step 0b: Generate globals.st from GVL files + Modbus ───
 echo ""
-echo "═══ Step 0b: apply_plant_config.py ═══"
+echo "═══ Step 0b: generate_globals.py ═══"
+cd "$SRC_DIR"
+python3 "$SRC_DIR/generate_globals.py"
+
+# ─── Step 0c: Apply plant_config.json → globals.st + types.st ───
+echo ""
+echo "═══ Step 0c: apply_plant_config.py ═══"
 cd "$SRC_DIR"
 python3 "$SRC_DIR/apply_plant_config.py"
 
