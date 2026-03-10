@@ -23,7 +23,7 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_task : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
+  g_task : ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType;
 END_VAR
 VAR
   ti       : INT;
@@ -32,7 +32,7 @@ VAR
   ins_i    : INT;
   ins_j    : INT;
   ins_cnt  : INT;
-  tmp_task : TSK_TASK_T;
+  tmp_task : UDT_JC_TskTaskType;
 END_VAR
 
 IF i_trans >= 1 AND i_trans <= 3 THEN

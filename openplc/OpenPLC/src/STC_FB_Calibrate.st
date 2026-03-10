@@ -56,11 +56,11 @@ END_VAR
 
 VAR_EXTERNAL
   g_transporter : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
-  g_sim_trans   : ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T;
+  g_sim_trans   : ARRAY[1..MAX_Transporters] OF UDT_JC_SimTransporterType;
   g_station    : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
   g_cfg         : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
-  g_cal         : ARRAY[1..MAX_Transporters] OF CALIBRATION_T;
-  g_move        : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
+  g_cal         : ARRAY[1..MAX_Transporters] OF UDT_JC_CalibrationType;
+  g_move        : ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType;
   g_time_s      : LINT;
 END_VAR
 VAR

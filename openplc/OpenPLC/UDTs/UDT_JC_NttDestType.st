@@ -1,5 +1,5 @@
 (* NttDestType - No-treatment task destination: primary + fallback stations *)
-TYPE NTT_DEST_T :
+TYPE UDT_JC_NttDestType :
 STRUCT
     Stations         : ARRAY[1..5] OF INT; (* primary stations, up to MAX_STATIONS_PER_STEP *)
     StationCount     : INT;                (* how many primary stations are valid *)

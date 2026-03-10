@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-10T09:44:58"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-10T09:44:58">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-10T10:01:19"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-10T10:01:19">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -16,7 +16,37 @@
   </contentHeader>
   <types>
     <dataTypes>
-      <dataType name="CALIBRATION_T">
+      <dataType name="UDT_BatchType">
+        <baseType>
+          <struct>
+            <variable name="BatchCode">
+              <type><INT/></type>
+            </variable>
+            <variable name="CurStage">
+              <type><INT/></type>
+            </variable>
+            <variable name="State">
+              <type><INT/></type>
+            </variable>
+            <variable name="ProgId">
+              <type><INT/></type>
+            </variable>
+            <variable name="StartTime">
+              <type><LINT/></type>
+            </variable>
+            <variable name="MinTime">
+              <type><DINT/></type>
+            </variable>
+            <variable name="MaxTime">
+              <type><DINT/></type>
+            </variable>
+            <variable name="CalTime">
+              <type><DINT/></type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
+      <dataType name="UDT_JC_CalibrationType">
         <baseType>
           <struct>
             <variable name="WetStation">
@@ -49,7 +79,7 @@
           </struct>
         </baseType>
       </dataType>
-      <dataType name="DEP_DELAY_ACTION_T">
+      <dataType name="UDT_JC_DepDelayActionType">
         <baseType>
           <struct>
             <variable name="Stage">
@@ -67,7 +97,7 @@
           </struct>
         </baseType>
       </dataType>
-      <dataType name="DEP_FIT_RESULT_T">
+      <dataType name="UDT_JC_DepFitResultType">
         <baseType>
           <struct>
             <variable name="Fits">
@@ -91,7 +121,7 @@
           </struct>
         </baseType>
       </dataType>
-      <dataType name="DEP_IDLE_SLOT_T">
+      <dataType name="UDT_JC_DepIdleSlotType">
         <baseType>
           <struct>
             <variable name="StartTime">
@@ -109,14 +139,14 @@
           </struct>
         </baseType>
       </dataType>
-      <dataType name="DEP_IDLE_SLOT_SET_T">
+      <dataType name="UDT_JC_DepIdleSlotSetType">
         <baseType>
           <struct>
             <variable name="Slots">
               <type>
                 <array>
                   <dimension lower="1" upper="20"/>
-                  <baseType><derived name="DEP_IDLE_SLOT_T"/></baseType>
+                  <baseType><derived name="UDT_JC_DepIdleSlotType"/></baseType>
                 </array>
               </type>
             </variable>
@@ -126,7 +156,7 @@
           </struct>
         </baseType>
       </dataType>
-      <dataType name="DEP_OVERLAP_T">
+      <dataType name="UDT_JC_DepOverlapType">
         <baseType>
           <struct>
             <variable name="Flags">
@@ -143,7 +173,7 @@
           </struct>
         </baseType>
       </dataType>
-      <dataType name="EVENT_MSG_T">
+      <dataType name="UDT_JC_EventMsgType">
         <baseType>
           <struct>
             <variable name="Seq">
@@ -169,7 +199,7 @@
           </struct>
         </baseType>
       </dataType>
-      <dataType name="EVENT_QUEUE_T">
+      <dataType name="UDT_JC_EventQueueType">
         <baseType>
           <struct>
             <variable name="Count">
@@ -185,14 +215,14 @@
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
-                  <baseType><derived name="EVENT_MSG_T"/></baseType>
+                  <baseType><derived name="UDT_JC_EventMsgType"/></baseType>
                 </array>
               </type>
             </variable>
           </struct>
         </baseType>
       </dataType>
-      <dataType name="NTT_DEST_T">
+      <dataType name="UDT_JC_NttDestType">
         <baseType>
           <struct>
             <variable name="Stations">
@@ -220,21 +250,21 @@
           </struct>
         </baseType>
       </dataType>
-      <dataType name="NTT_TRANSPORTER_T">
+      <dataType name="UDT_JC_NttTransporterType">
         <baseType>
           <struct>
             <variable name="Target">
               <type>
                 <array>
                   <dimension lower="1" upper="8"/>
-                  <baseType><derived name="NTT_DEST_T"/></baseType>
+                  <baseType><derived name="UDT_JC_NttDestType"/></baseType>
                 </array>
               </type>
             </variable>
           </struct>
         </baseType>
       </dataType>
-      <dataType name="SIM_TRANSPORTER_T">
+      <dataType name="UDT_JC_SimTransporterType">
         <baseType>
           <struct>
             <variable name="RunningTaskId">
@@ -267,7 +297,7 @@
           </struct>
         </baseType>
       </dataType>
-      <dataType name="TRAVEL_FROM_T">
+      <dataType name="UDT_JC_TravelFromType">
         <baseType>
           <struct>
             <variable name="ToTime">
@@ -281,7 +311,7 @@
           </struct>
         </baseType>
       </dataType>
-      <dataType name="MOVE_TIMES_T">
+      <dataType name="UDT_JC_MoveTimesType">
         <baseType>
           <struct>
             <variable name="LiftTime">
@@ -304,14 +334,14 @@
               <type>
                 <array>
                   <dimension lower="1" upper="30"/>
-                  <baseType><derived name="TRAVEL_FROM_T"/></baseType>
+                  <baseType><derived name="UDT_JC_TravelFromType"/></baseType>
                 </array>
               </type>
             </variable>
           </struct>
         </baseType>
       </dataType>
-      <dataType name="TSK_CHECKED_T">
+      <dataType name="UDT_JC_TskCheckedType">
         <baseType>
           <struct>
             <variable name="Unit">
@@ -347,7 +377,7 @@
           </struct>
         </baseType>
       </dataType>
-      <dataType name="TSK_LOCK_T">
+      <dataType name="UDT_JC_TskLockType">
         <baseType>
           <struct>
             <variable name="Unit">
@@ -362,7 +392,7 @@
           </struct>
         </baseType>
       </dataType>
-      <dataType name="TSK_STAGE_T">
+      <dataType name="UDT_JC_TskStageType">
         <baseType>
           <struct>
             <variable name="Station">
@@ -389,7 +419,7 @@
           </struct>
         </baseType>
       </dataType>
-      <dataType name="TSK_SCHEDULE_T">
+      <dataType name="UDT_JC_TskScheduleType">
         <baseType>
           <struct>
             <variable name="StageCount">
@@ -399,14 +429,14 @@
               <type>
                 <array>
                   <dimension lower="1" upper="30"/>
-                  <baseType><derived name="TSK_STAGE_T"/></baseType>
+                  <baseType><derived name="UDT_JC_TskStageType"/></baseType>
                 </array>
               </type>
             </variable>
           </struct>
         </baseType>
       </dataType>
-      <dataType name="TSK_TASK_T">
+      <dataType name="UDT_JC_TskTaskType">
         <baseType>
           <struct>
             <variable name="Unit">
@@ -439,7 +469,7 @@
           </struct>
         </baseType>
       </dataType>
-      <dataType name="TSK_QUEUE_T">
+      <dataType name="UDT_JC_TskQueueType">
         <baseType>
           <struct>
             <variable name="Count">
@@ -449,36 +479,45 @@
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
-                  <baseType><derived name="TSK_TASK_T"/></baseType>
+                  <baseType><derived name="UDT_JC_TskTaskType"/></baseType>
                 </array>
               </type>
             </variable>
           </struct>
         </baseType>
       </dataType>
-      <dataType name="UDT_BatchType">
+      <dataType name="UDT_JC_UnitSnapType">
         <baseType>
           <struct>
-            <variable name="BatchCode">
+            <variable name="IsActive">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="Location">
+              <type><INT/></type>
+            </variable>
+            <variable name="LocationOp">
+              <type><INT/></type>
+            </variable>
+            <variable name="Target">
+              <type><INT/></type>
+            </variable>
+            <variable name="HasBatch">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="BatchState">
               <type><INT/></type>
             </variable>
             <variable name="CurStage">
               <type><INT/></type>
             </variable>
-            <variable name="State">
-              <type><INT/></type>
+            <variable name="InBuffer">
+              <type><BOOL/></type>
             </variable>
-            <variable name="ProgId">
-              <type><INT/></type>
+            <variable name="OnStation">
+              <type><BOOL/></type>
             </variable>
-            <variable name="StartTime">
+            <variable name="Elapsed">
               <type><LINT/></type>
-            </variable>
-            <variable name="MinTime">
-              <type><DINT/></type>
-            </variable>
-            <variable name="MaxTime">
-              <type><DINT/></type>
             </variable>
             <variable name="CalTime">
               <type><DINT/></type>
@@ -1104,7 +1143,7 @@
           </struct>
         </baseType>
       </dataType>
-      <dataType name="DEP_PENDING_WRITE_T">
+      <dataType name="UDT_JC_DepPendingWriteType">
         <baseType>
           <struct>
             <variable name="Valid">
@@ -1122,7 +1161,7 @@
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
-                  <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
+                  <baseType><derived name="UDT_JC_TskScheduleType"/></baseType>
                 </array>
               </type>
             </variable>
@@ -1150,14 +1189,14 @@
           </struct>
         </baseType>
       </dataType>
-      <dataType name="DEP_SANDBOX_T">
+      <dataType name="UDT_JC_DepSandboxType">
         <baseType>
           <struct>
             <variable name="Schedule">
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
-                  <baseType><derived name="TSK_SCHEDULE_T"/></baseType>
+                  <baseType><derived name="UDT_JC_TskScheduleType"/></baseType>
                 </array>
               </type>
             </variable>
@@ -1181,7 +1220,7 @@
               <type>
                 <array>
                   <dimension lower="1" upper="3"/>
-                  <baseType><derived name="TSK_QUEUE_T"/></baseType>
+                  <baseType><derived name="UDT_JC_TskQueueType"/></baseType>
                 </array>
               </type>
             </variable>
@@ -1218,45 +1257,6 @@
           </struct>
         </baseType>
       </dataType>
-      <dataType name="UNIT_SNAP_T">
-        <baseType>
-          <struct>
-            <variable name="IsActive">
-              <type><BOOL/></type>
-            </variable>
-            <variable name="Location">
-              <type><INT/></type>
-            </variable>
-            <variable name="LocationOp">
-              <type><INT/></type>
-            </variable>
-            <variable name="Target">
-              <type><INT/></type>
-            </variable>
-            <variable name="HasBatch">
-              <type><BOOL/></type>
-            </variable>
-            <variable name="BatchState">
-              <type><INT/></type>
-            </variable>
-            <variable name="CurStage">
-              <type><INT/></type>
-            </variable>
-            <variable name="InBuffer">
-              <type><BOOL/></type>
-            </variable>
-            <variable name="OnStation">
-              <type><BOOL/></type>
-            </variable>
-            <variable name="Elapsed">
-              <type><LINT/></type>
-            </variable>
-            <variable name="CalTime">
-              <type><DINT/></type>
-            </variable>
-          </struct>
-        </baseType>
-      </dataType>
     </dataTypes>
     <pous>
       <pou name="STC_CalcHorizontalTravel" pouType="function">
@@ -1272,7 +1272,7 @@
               <type><INT/></type>
             </variable>
             <variable name="i_move">
-              <type><derived name="MOVE_TIMES_T"/></type>
+              <type><derived name="UDT_JC_MoveTimesType"/></type>
             </variable>
           </inputVars>
           <localVars>
@@ -1310,7 +1310,7 @@ END_IF;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="i_move">
-              <type><derived name="MOVE_TIMES_T"/></type>
+              <type><derived name="UDT_JC_MoveTimesType"/></type>
             </variable>
           </inputVars>
           <localVars>
@@ -1396,10 +1396,10 @@ END_IF;]]></xhtml:p>
           </inputVars>
           <externalVars>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType"/></type>
             </variable>
             <variable name="g_dep_idle_slot">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF DEP_IDLE_SLOT_SET_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_DepIdleSlotSetType"/></type>
             </variable>
             <variable name="g_transporter">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
@@ -1492,7 +1492,7 @@ g_dep_idle_slot[i_trans].Count := si;]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterType"/></type>
             </variable>
             <variable name="g_dep_overlap">
-              <type><derived name="DEP_OVERLAP_T"/></type>
+              <type><derived name="UDT_JC_DepOverlapType"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -1591,15 +1591,15 @@ END_FOR;]]></xhtml:p>
           </inputVars>
           <outputVars>
             <variable name="o_result">
-              <type><derived name="DEP_FIT_RESULT_T"/></type>
+              <type><derived name="UDT_JC_DepFitResultType"/></type>
             </variable>
           </outputVars>
           <externalVars>
             <variable name="g_dep_idle_slot">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF DEP_IDLE_SLOT_SET_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_DepIdleSlotSetType"/></type>
             </variable>
             <variable name="g_move">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -1661,7 +1661,7 @@ END_FOR;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="tmp_move">
-              <type><derived name="MOVE_TIMES_T"/></type>
+              <type><derived name="UDT_JC_MoveTimesType"/></type>
             </variable>
           </localVars>
         </interface>
@@ -1804,10 +1804,10 @@ END_IF;]]></xhtml:p>
           </outputVars>
           <externalVars>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType"/></type>
             </variable>
             <variable name="g_dep_overlap">
-              <type><derived name="DEP_OVERLAP_T"/></type>
+              <type><derived name="UDT_JC_DepOverlapType"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -1940,7 +1940,7 @@ END_FOR;  (* round *)]]></xhtml:p>
           </inputVars>
           <externalVars>
             <variable name="g_schedule">
-              <type><derived name="ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType"/></type>
             </variable>
             <variable name="g_batch">
               <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
@@ -1949,10 +1949,10 @@ END_FOR;  (* round *)]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType"/></type>
             </variable>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType"/></type>
             </variable>
             <variable name="g_dep_sandbox">
-              <type><derived name="DEP_SANDBOX_T"/></type>
+              <type><derived name="UDT_JC_DepSandboxType"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -2034,10 +2034,10 @@ END_IF;]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType"/></type>
             </variable>
             <variable name="g_schedule">
-              <type><derived name="ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType"/></type>
             </variable>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType"/></type>
             </variable>
             <variable name="g_cfg">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterType"/></type>
@@ -2046,16 +2046,16 @@ END_IF;]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
             </variable>
             <variable name="g_dep_sandbox">
-              <type><derived name="DEP_SANDBOX_T"/></type>
+              <type><derived name="UDT_JC_DepSandboxType"/></type>
             </variable>
             <variable name="g_dep_idle_slot">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF DEP_IDLE_SLOT_SET_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_DepIdleSlotSetType"/></type>
             </variable>
             <variable name="g_dep_overlap">
-              <type><derived name="DEP_OVERLAP_T"/></type>
+              <type><derived name="UDT_JC_DepOverlapType"/></type>
             </variable>
             <variable name="g_dep_pending">
-              <type><derived name="DEP_PENDING_WRITE_T"/></type>
+              <type><derived name="UDT_JC_DepPendingWriteType"/></type>
             </variable>
             <variable name="g_dep_activated">
               <type><BOOL/></type>
@@ -2064,7 +2064,7 @@ END_IF;]]></xhtml:p>
               <type><BOOL/></type>
             </variable>
             <variable name="g_move">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType"/></type>
             </variable>
             <variable name="g_dep_waiting">
               <type><derived name="ARRAY[1..DEP_MAX_WAITING] OF INT"/></type>
@@ -2106,7 +2106,7 @@ END_IF;]]></xhtml:p>
               <type>
                 <array>
                   <dimension lower="1" upper="30"/>
-                  <baseType><derived name="TSK_TASK_T"/></baseType>
+                  <baseType><derived name="UDT_JC_TskTaskType"/></baseType>
                 </array>
               </type>
             </variable>
@@ -2212,7 +2212,7 @@ END_IF;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="tmp_move">
-              <type><derived name="MOVE_TIMES_T"/></type>
+              <type><derived name="UDT_JC_MoveTimesType"/></type>
             </variable>
             <variable name="write_idx">
               <type><INT/></type>
@@ -2293,7 +2293,7 @@ END_IF;]]></xhtml:p>
               <type>
                 <array>
                   <dimension lower="1" upper="10"/>
-                  <baseType><derived name="DEP_DELAY_ACTION_T"/></baseType>
+                  <baseType><derived name="UDT_JC_DepDelayActionType"/></baseType>
                 </array>
               </type>
             </variable>
@@ -2954,13 +2954,13 @@ o_phase := phase;]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
             </variable>
             <variable name="g_sim_trans">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_SimTransporterType"/></type>
             </variable>
             <variable name="g_unit">
               <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>
             </variable>
             <variable name="g_ntt">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_NttTransporterType"/></type>
             </variable>
             <variable name="g_batch">
               <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
@@ -2972,16 +2972,16 @@ o_phase := phase;]]></xhtml:p>
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF INT"/></type>
             </variable>
             <variable name="g_schedule">
-              <type><derived name="ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType"/></type>
             </variable>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType"/></type>
             </variable>
             <variable name="g_dep_sandbox">
-              <type><derived name="DEP_SANDBOX_T"/></type>
+              <type><derived name="UDT_JC_DepSandboxType"/></type>
             </variable>
             <variable name="g_dep_pending">
-              <type><derived name="DEP_PENDING_WRITE_T"/></type>
+              <type><derived name="UDT_JC_DepPendingWriteType"/></type>
             </variable>
             <variable name="g_dep_activated">
               <type><BOOL/></type>
@@ -3196,13 +3196,13 @@ END_FOR;]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
             </variable>
             <variable name="g_sim_trans">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_SimTransporterType"/></type>
             </variable>
             <variable name="g_station">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
             </variable>
             <variable name="g_move">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType"/></type>
             </variable>
             <variable name="g_unit">
               <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>
@@ -3217,7 +3217,7 @@ END_FOR;]]></xhtml:p>
               <type><LINT/></type>
             </variable>
             <variable name="g_event_pending">
-              <type><derived name="EVENT_MSG_T"/></type>
+              <type><derived name="UDT_JC_EventMsgType"/></type>
             </variable>
             <variable name="g_event_pending_valid">
               <type><BOOL/></type>
@@ -4123,13 +4123,13 @@ END_CASE;]]></xhtml:p>
           </inputVars>
           <externalVars>
             <variable name="g_cal">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF CALIBRATION_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_CalibrationType"/></type>
             </variable>
             <variable name="g_station">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
             </variable>
             <variable name="g_move">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType"/></type>
             </variable>
             <variable name="g_station_count">
               <type><INT/></type>
@@ -4288,7 +4288,7 @@ prev_run := i_run;]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
             </variable>
             <variable name="g_sim_trans">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_SimTransporterType"/></type>
             </variable>
             <variable name="g_station">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
@@ -4297,10 +4297,10 @@ prev_run := i_run;]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterType"/></type>
             </variable>
             <variable name="g_cal">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF CALIBRATION_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_CalibrationType"/></type>
             </variable>
             <variable name="g_move">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType"/></type>
             </variable>
             <variable name="g_time_s">
               <type><LINT/></type>
@@ -4671,7 +4671,7 @@ END_IF;]]></xhtml:p>
         <interface>
           <externalVars>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -4775,10 +4775,10 @@ END_FOR;]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
             </variable>
             <variable name="g_sim_trans">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_SimTransporterType"/></type>
             </variable>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType"/></type>
             </variable>
             <variable name="g_station">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
@@ -4793,19 +4793,19 @@ END_FOR;]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType"/></type>
             </variable>
             <variable name="g_ntt">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_NttTransporterType"/></type>
             </variable>
             <variable name="g_batch">
               <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
             </variable>
             <variable name="g_move">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType"/></type>
             </variable>
             <variable name="g_time_s">
               <type><LINT/></type>
             </variable>
             <variable name="g_event_pending">
-              <type><derived name="EVENT_MSG_T"/></type>
+              <type><derived name="UDT_JC_EventMsgType"/></type>
             </variable>
             <variable name="g_event_pending_valid">
               <type><BOOL/></type>
@@ -5167,10 +5167,10 @@ END_FOR;]]></xhtml:p>
         <interface>
           <externalVars>
             <variable name="g_event">
-              <type><derived name="EVENT_QUEUE_T"/></type>
+              <type><derived name="UDT_JC_EventQueueType"/></type>
             </variable>
             <variable name="g_event_pending">
-              <type><derived name="EVENT_MSG_T"/></type>
+              <type><derived name="UDT_JC_EventMsgType"/></type>
             </variable>
             <variable name="g_event_pending_valid">
               <type><BOOL/></type>
@@ -5401,7 +5401,7 @@ dropping_time_s := 0.0;]]></xhtml:p>
               <type><BOOL/></type>
             </variable>
             <variable name="g_dep_pending">
-              <type><derived name="DEP_PENDING_WRITE_T"/></type>
+              <type><derived name="UDT_JC_DepPendingWriteType"/></type>
             </variable>
             <variable name="g_cal_active">
               <type><BOOL/></type>
@@ -5539,10 +5539,10 @@ o_skip_cnt  := skip_cnt;]]></xhtml:p>
           </inputVars>
           <externalVars>
             <variable name="g_sim_trans">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_SimTransporterType"/></type>
             </variable>
             <variable name="g_move">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -5681,7 +5681,7 @@ END_IF;]]></xhtml:p>
           </externalVars>
           <localVars>
             <variable name="snap">
-              <type><derived name="ARRAY[1..MAX_Units] OF UNIT_SNAP_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_JC_UnitSnapType"/></type>
             </variable>
             <variable name="u">
               <type><INT/></type>
@@ -5919,10 +5919,10 @@ END_IF; (* production_queue AND NOT has_loading *)]]></xhtml:p>
           </inputVars>
           <externalVars>
             <variable name="g_schedule">
-              <type><derived name="ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType"/></type>
             </variable>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -5980,7 +5980,7 @@ END_FOR;]]></xhtml:p>
           </inputVars>
           <externalVars>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -6003,7 +6003,7 @@ END_FOR;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="tmp_task">
-              <type><derived name="TSK_TASK_T"/></type>
+              <type><derived name="UDT_JC_TskTaskType"/></type>
             </variable>
           </localVars>
         </interface>
@@ -6236,13 +6236,13 @@ END_FOR;]]></xhtml:p>
           </outputVars>
           <externalVars>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType"/></type>
             </variable>
             <variable name="g_station">
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
             </variable>
             <variable name="g_move">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -6359,7 +6359,7 @@ END_FOR;]]></xhtml:p>
               <initialValue><simpleValue value="1.0"/></initialValue>
             </variable>
             <variable name="tmp_move">
-              <type><derived name="MOVE_TIMES_T"/></type>
+              <type><derived name="UDT_JC_MoveTimesType"/></type>
             </variable>
           </localVars>
         </interface>
@@ -6623,13 +6623,13 @@ checked_count := total_tasks;]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation"/></type>
             </variable>
             <variable name="g_schedule">
-              <type><derived name="ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType"/></type>
             </variable>
             <variable name="g_station_count">
               <type><INT/></type>
             </variable>
             <variable name="g_move">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -6691,7 +6691,7 @@ checked_count := total_tasks;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="tmp_move">
-              <type><derived name="MOVE_TIMES_T"/></type>
+              <type><derived name="UDT_JC_MoveTimesType"/></type>
             </variable>
             <variable name="cand_arr">
               <type>
@@ -6990,10 +6990,10 @@ g_schedule[i_unit].StageCount := out_count;]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
             </variable>
             <variable name="g_schedule">
-              <type><derived name="ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType"/></type>
             </variable>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType"/></type>
             </variable>
             <variable name="g_cfg">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterType"/></type>
@@ -7080,7 +7080,7 @@ END_FOR;]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
             </variable>
             <variable name="g_ntt">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_NttTransporterType"/></type>
             </variable>
             <variable name="g_transporter">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
@@ -7092,10 +7092,10 @@ END_FOR;]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterType"/></type>
             </variable>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType"/></type>
             </variable>
             <variable name="g_move">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -7124,7 +7124,7 @@ END_FOR;]]></xhtml:p>
               <type><BOOL/></type>
             </variable>
             <variable name="dest">
-              <type><derived name="NTT_DEST_T"/></type>
+              <type><derived name="UDT_JC_NttDestType"/></type>
             </variable>
             <variable name="ntt_idx">
               <type><INT/></type>
@@ -7193,7 +7193,7 @@ END_FOR;]]></xhtml:p>
               <type><LINT/></type>
             </variable>
             <variable name="tmp_move">
-              <type><derived name="MOVE_TIMES_T"/></type>
+              <type><derived name="UDT_JC_MoveTimesType"/></type>
             </variable>
             <variable name="slot_end">
               <type><LINT/></type>
@@ -7520,7 +7520,7 @@ END_FOR;]]></xhtml:p>
               <type>
                 <array>
                   <dimension lower="1" upper="50"/>
-                  <baseType><derived name="TSK_LOCK_T"/></baseType>
+                  <baseType><derived name="UDT_JC_TskLockType"/></baseType>
                 </array>
               </type>
             </variable>
@@ -7530,10 +7530,10 @@ END_FOR;]]></xhtml:p>
           </inOutVars>
           <externalVars>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType"/></type>
             </variable>
             <variable name="g_schedule">
-              <type><derived name="ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType"/></type>
             </variable>
             <variable name="g_batch">
               <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
@@ -7914,16 +7914,16 @@ END_IF;
               <type><derived name="ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType"/></type>
             </variable>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType"/></type>
             </variable>
             <variable name="g_schedule">
-              <type><derived name="ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType"/></type>
             </variable>
             <variable name="g_cfg">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterType"/></type>
             </variable>
             <variable name="g_dep_pending">
-              <type><derived name="DEP_PENDING_WRITE_T"/></type>
+              <type><derived name="UDT_JC_DepPendingWriteType"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -7987,7 +7987,7 @@ END_IF;
               <type>
                 <array>
                   <dimension lower="1" upper="50"/>
-                  <baseType><derived name="TSK_LOCK_T"/></baseType>
+                  <baseType><derived name="UDT_JC_TskLockType"/></baseType>
                 </array>
               </type>
             </variable>
@@ -8267,7 +8267,7 @@ o_phase := phase;]]></xhtml:p>
           </outputVars>
           <externalVars>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType"/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -8281,7 +8281,7 @@ o_phase := phase;]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="tmp">
-              <type><derived name="TSK_TASK_T"/></type>
+              <type><derived name="UDT_JC_TskTaskType"/></type>
             </variable>
           </localVars>
         </interface>
@@ -8870,13 +8870,13 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
             </variable>
             <variable name="g_sim_trans">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_SimTransporterType"/></type>
             </variable>
             <variable name="g_unit">
               <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>
             </variable>
             <variable name="g_ntt">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_NttTransporterType"/></type>
             </variable>
             <variable name="g_batch">
               <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
@@ -8888,13 +8888,13 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
               <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF INT"/></type>
             </variable>
             <variable name="g_move">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType"/></type>
             </variable>
             <variable name="g_schedule">
-              <type><derived name="ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType"/></type>
             </variable>
             <variable name="g_task">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType"/></type>
             </variable>
             <variable name="g_dep_activated">
               <type><BOOL/></type>
@@ -8906,16 +8906,16 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
               <type><INT/></type>
             </variable>
             <variable name="g_dep_overlap">
-              <type><derived name="DEP_OVERLAP_T"/></type>
+              <type><derived name="UDT_JC_DepOverlapType"/></type>
             </variable>
             <variable name="g_dep_pending">
-              <type><derived name="DEP_PENDING_WRITE_T"/></type>
+              <type><derived name="UDT_JC_DepPendingWriteType"/></type>
             </variable>
             <variable name="g_dep_waiting">
               <type><derived name="ARRAY[1..DEP_MAX_WAITING] OF INT"/></type>
             </variable>
             <variable name="g_cal">
-              <type><derived name="ARRAY[1..MAX_Transporters] OF CALIBRATION_T"/></type>
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_CalibrationType"/></type>
             </variable>
             <variable name="g_cal_active">
               <type><BOOL/></type>
@@ -8927,10 +8927,10 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
               <type><LINT/></type>
             </variable>
             <variable name="g_event">
-              <type><derived name="EVENT_QUEUE_T"/></type>
+              <type><derived name="UDT_JC_EventQueueType"/></type>
             </variable>
             <variable name="g_event_pending">
-              <type><derived name="EVENT_MSG_T"/></type>
+              <type><derived name="UDT_JC_EventMsgType"/></type>
             </variable>
             <variable name="g_event_pending_valid">
               <type><BOOL/></type>
@@ -12088,7 +12088,7 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
               <initialValue><simpleValue value="0"/></initialValue>
             </variable>
             <variable name="sch_copy">
-              <type><derived name="TSK_SCHEDULE_T"/></type>
+              <type><derived name="UDT_JC_TskScheduleType"/></type>
             </variable>
             <variable name="sch_s">
               <type><INT/></type>
@@ -13659,13 +13659,13 @@ END_IF;]]></xhtml:p>
             <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
           </variable>
           <variable name="g_sim_trans">
-            <type><derived name="ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T"/></type>
+            <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_SimTransporterType"/></type>
           </variable>
           <variable name="g_unit">
             <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>
           </variable>
           <variable name="g_ntt">
-            <type><derived name="ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T"/></type>
+            <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_NttTransporterType"/></type>
           </variable>
           <variable name="g_batch">
             <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
@@ -13677,19 +13677,19 @@ END_IF;]]></xhtml:p>
             <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF INT"/></type>
           </variable>
           <variable name="g_move">
-            <type><derived name="ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T"/></type>
+            <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType"/></type>
           </variable>
           <variable name="g_schedule">
-            <type><derived name="ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T"/></type>
+            <type><derived name="ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType"/></type>
           </variable>
           <variable name="g_task">
-            <type><derived name="ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T"/></type>
+            <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType"/></type>
           </variable>
           <variable name="g_dep_sandbox">
-            <type><derived name="DEP_SANDBOX_T"/></type>
+            <type><derived name="UDT_JC_DepSandboxType"/></type>
           </variable>
           <variable name="g_dep_idle_slot">
-            <type><derived name="ARRAY[1..MAX_Transporters] OF DEP_IDLE_SLOT_SET_T"/></type>
+            <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_DepIdleSlotSetType"/></type>
           </variable>
           <variable name="g_dep_waiting">
             <type><derived name="ARRAY[1..DEP_MAX_WAITING] OF INT"/></type>
@@ -13698,10 +13698,10 @@ END_IF;]]></xhtml:p>
             <type><INT/></type>
           </variable>
           <variable name="g_dep_overlap">
-            <type><derived name="DEP_OVERLAP_T"/></type>
+            <type><derived name="UDT_JC_DepOverlapType"/></type>
           </variable>
           <variable name="g_dep_pending">
-            <type><derived name="DEP_PENDING_WRITE_T"/></type>
+            <type><derived name="UDT_JC_DepPendingWriteType"/></type>
           </variable>
           <variable name="g_dep_activated">
             <type><BOOL/></type>
@@ -13710,7 +13710,7 @@ END_IF;]]></xhtml:p>
             <type><BOOL/></type>
           </variable>
           <variable name="g_cal">
-            <type><derived name="ARRAY[1..MAX_Transporters] OF CALIBRATION_T"/></type>
+            <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_CalibrationType"/></type>
           </variable>
           <variable name="g_cal_active">
             <type><BOOL/></type>
@@ -13722,10 +13722,10 @@ END_IF;]]></xhtml:p>
             <type><LINT/></type>
           </variable>
           <variable name="g_event">
-            <type><derived name="EVENT_QUEUE_T"/></type>
+            <type><derived name="UDT_JC_EventQueueType"/></type>
           </variable>
           <variable name="g_event_pending">
-            <type><derived name="EVENT_MSG_T"/></type>
+            <type><derived name="UDT_JC_EventMsgType"/></type>
           </variable>
           <variable name="g_event_pending_valid">
             <type><BOOL/></type>

@@ -34,8 +34,8 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_task       : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
-  g_dep_overlap : DEP_OVERLAP_T;
+  g_task       : ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType;
+  g_dep_overlap : UDT_JC_DepOverlapType;
 END_VAR
 VAR
   lift_is_overlap : BOOL;

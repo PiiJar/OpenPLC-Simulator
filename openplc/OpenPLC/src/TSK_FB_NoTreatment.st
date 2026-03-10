@@ -36,12 +36,12 @@ END_VAR
 VAR_EXTERNAL
   g_unit        : ARRAY[1..MAX_Units] OF UDT_UnitType;
   g_batch       : ARRAY[1..MAX_Units] OF UDT_BatchType;
-  g_ntt         : ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T;
+  g_ntt         : ARRAY[1..MAX_Transporters] OF UDT_JC_NttTransporterType;
   g_transporter : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
   g_station_loc : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
   g_cfg         : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
-  g_task        : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
-  g_move        : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
+  g_task        : ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType;
+  g_move        : ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType;
 END_VAR
 VAR
   ui       : INT;     (* unit loop *)
@@ -52,7 +52,7 @@ VAR
   ai       : INT;     (* task_area loop *)
   covers   : BOOL;    (* transporter covers this station *)
   done     : BOOL;    (* task created for this unit *)
-  dest     : NTT_DEST_T;  (* destination descriptor for this target+transporter *)
+  dest     : UDT_JC_NttDestType;  (* destination descriptor for this target+transporter *)
   ntt_idx  : INT;     (* resolved NTT index (maps TO_BUFFER to 6/7/8 based on batch) *)
   (* Location classification *)
   on_primary  : BOOL;  (* unit is already on a primary station *)
@@ -80,7 +80,7 @@ VAR
   ov_e           : LINT;
   margin_travel  : REAL;
   slot_start     : LINT;   (* idle slot bounds *)
-  tmp_move       : MOVE_TIMES_T;  (* MATIEC cannot index arrays in FUNCTION args *)
+  tmp_move       : UDT_JC_MoveTimesType;  (* MATIEC cannot index arrays in FUNCTION args *)
   slot_end       : LINT;
   earliest_start : LINT;   (* earliest NTT start considering travel *)
   latest_end     : LINT;   (* latest NTT end considering travel *)

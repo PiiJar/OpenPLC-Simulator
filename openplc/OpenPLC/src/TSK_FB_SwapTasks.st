@@ -16,7 +16,7 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_task : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
+  g_task : ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType;
 END_VAR
 VAR_OUTPUT
   o_swap_count : INT;   (* number of swaps performed *)
@@ -25,7 +25,7 @@ VAR
   ti     : INT;    (* transporter loop *)
   qi     : INT;    (* queue pair index *)
   cnt    : INT;    (* queue count *)
-  tmp    : TSK_TASK_T;  (* swap scratch *)
+  tmp    : UDT_JC_TskTaskType;  (* swap scratch *)
 END_VAR
 
 o_swap_count := 0;

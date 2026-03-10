@@ -32,17 +32,17 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 VAR_EXTERNAL
   g_transporter : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
-  g_sim_trans   : ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T;
-  g_task        : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
+  g_sim_trans   : ARRAY[1..MAX_Transporters] OF UDT_JC_SimTransporterType;
+  g_task        : ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType;
   g_station     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
   g_station_loc : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
   g_unit        : ARRAY[1..MAX_Units] OF UDT_UnitType;
   g_program     : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
-  g_ntt         : ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T;
+  g_ntt         : ARRAY[1..MAX_Transporters] OF UDT_JC_NttTransporterType;
   g_batch       : ARRAY[1..MAX_Units] OF UDT_BatchType;
-  g_move        : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
+  g_move        : ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType;
   g_time_s      : LINT;
-  g_event_pending       : EVENT_MSG_T;
+  g_event_pending       : UDT_JC_EventMsgType;
   g_event_pending_valid : BOOL;
 END_VAR
 VAR

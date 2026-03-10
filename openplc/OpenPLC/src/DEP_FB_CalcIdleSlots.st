@@ -25,8 +25,8 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_task          : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
-  g_dep_idle_slot : ARRAY[1..MAX_Transporters] OF DEP_IDLE_SLOT_SET_T;
+  g_task          : ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType;
+  g_dep_idle_slot : ARRAY[1..MAX_Transporters] OF UDT_JC_DepIdleSlotSetType;
   g_transporter   : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
 END_VAR
 VAR

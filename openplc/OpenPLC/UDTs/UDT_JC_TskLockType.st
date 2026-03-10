@@ -1,5 +1,5 @@
 (* TskLockType - Oscillation lock: prevents resolve from advancing & delaying same stage *)
-TYPE TSK_LOCK_T :
+TYPE UDT_JC_TskLockType :
 STRUCT
     Unit      : INT; (* batch unit index, 0 = empty slot *)
     Stage     : INT; (* program stage *)

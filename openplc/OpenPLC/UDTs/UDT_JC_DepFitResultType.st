@@ -1,5 +1,5 @@
 (* DepFitResultType - Outcome of fitting a departure task into idle slots *)
-TYPE DEP_FIT_RESULT_T :
+TYPE UDT_JC_DepFitResultType :
 STRUCT
     Fits          : BOOL; (* TRUE = task fits in a slot *)
     DelayTime     : DINT; (* delay needed to make it fit (seconds) *)

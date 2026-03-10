@@ -1,6 +1,6 @@
 (* CalibrationType - Calibration teaching data, one per transporter *)
 (* Gateway writes plan, PLC fills results *)
-TYPE CALIBRATION_T :
+TYPE UDT_JC_CalibrationType :
 STRUCT
     (* Plan — set by gateway via cfg_cmd=7 *)
     WetStation  : INT;  (* wet station number *)

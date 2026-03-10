@@ -20,7 +20,7 @@ END_VAR
 
 VAR_EXTERNAL
   g_cfg         : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
-  g_dep_overlap : DEP_OVERLAP_T;
+  g_dep_overlap : UDT_JC_DepOverlapType;
 END_VAR
 VAR
   stn         : INT;

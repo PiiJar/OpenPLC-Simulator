@@ -67,26 +67,26 @@ VAR_GLOBAL
   g_station_loc     : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
   g_cfg              : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
   g_transporter      : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
-  g_sim_trans        : ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T;
+  g_sim_trans        : ARRAY[1..MAX_Transporters] OF UDT_JC_SimTransporterType;
   g_unit            : ARRAY[1..MAX_Units] OF UDT_UnitType;
-  g_ntt             : ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T;  (* no-treatment task destinations *)
+  g_ntt             : ARRAY[1..MAX_Transporters] OF UDT_JC_NttTransporterType;  (* no-treatment task destinations *)
   g_batch          : ARRAY[1..MAX_Units] OF UDT_BatchType;
   g_program         : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
   g_avoid_status     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF INT;  (* AVOID_None/PASS/BLOCK per station *)
-  g_move             : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;  (* precomputed movement times per transporter *)
-  g_schedule         : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;  (* calculated schedule per unit *)
-  g_task            : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;       (* task queue per transporter *)
+  g_move             : ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType;  (* precomputed movement times per transporter *)
+  g_schedule         : ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType;  (* calculated schedule per unit *)
+  g_task            : ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType;       (* task queue per transporter *)
   (* --- Departure Scheduler state --- *)
-  g_dep_sandbox       : DEP_SANDBOX_T;                    (* sandbox: isolated copy for planning *)
-  g_dep_idle_slot    : ARRAY[1..MAX_Transporters] OF DEP_IDLE_SLOT_SET_T;  (* idle slots per transporter *)
+  g_dep_sandbox       : UDT_JC_DepSandboxType;                    (* sandbox: isolated copy for planning *)
+  g_dep_idle_slot    : ARRAY[1..MAX_Transporters] OF UDT_JC_DepIdleSlotSetType;  (* idle slots per transporter *)
   g_dep_waiting       : ARRAY[1..DEP_MAX_WAITING] OF INT;  (* waiting batch unit indices *)
   g_dep_waiting_count : INT;
-  g_dep_overlap       : DEP_OVERLAP_T;                    (* overlap station flags *)
-  g_dep_pending       : DEP_PENDING_WRITE_T;              (* ACTIVATE → write buffer *)
+  g_dep_overlap       : UDT_JC_DepOverlapType;                    (* overlap station flags *)
+  g_dep_pending       : UDT_JC_DepPendingWriteType;              (* ACTIVATE → write buffer *)
   g_dep_activated     : BOOL;                             (* handshake TSK ← DEP *)
   g_dep_stable        : BOOL;                             (* handshake TSK → DEP: task list stable *)
   (* --- Calibration state --- *)
-  g_cal              : ARRAY[1..MAX_Transporters] OF CALIBRATION_T;      (* calibration plan + results per transporter *)
+  g_cal              : ARRAY[1..MAX_Transporters] OF UDT_JC_CalibrationType;      (* calibration plan + results per transporter *)
   g_cal_active       : BOOL;                              (* TRUE during calibration — inhibits schedulers *)
   (* --- Production queue --- *)
   g_production_queue : INT;                               (* 1=batches in queue, 0=queue empty *)
@@ -95,8 +95,8 @@ VAR_GLOBAL
   (* Gateway writes upper/lower 16-bit halves to QW160/QW161 every tick   *)
   g_time_s           : LINT;          (* absolute time in unix seconds *)
   (* --- Event queue --- *)
-  g_event                : EVENT_QUEUE_T;   (* circular event buffer *)
-  g_event_pending        : EVENT_MSG_T;     (* staging slot — written by other FBs *)
+  g_event                : UDT_JC_EventQueueType;   (* circular event buffer *)
+  g_event_pending        : UDT_JC_EventMsgType;     (* staging slot — written by other FBs *)
   g_event_pending_valid  : BOOL;            (* TRUE = pending message ready to enqueue *)
   (* --- BEGIN GENERATED MODBUS --- *)
   (* Total registers: 1019 (QW0..QW1018) *)

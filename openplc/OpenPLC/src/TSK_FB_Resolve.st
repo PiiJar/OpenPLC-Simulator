@@ -32,7 +32,7 @@ VAR_INPUT
   i_deficit       : REAL;    (* seconds short *)
 END_VAR
 VAR_IN_OUT
-  io_locks    : ARRAY[1..50] OF TSK_LOCK_T;
+  io_locks    : ARRAY[1..50] OF UDT_JC_TskLockType;
   io_lock_cnt : INT;
 END_VAR
 VAR_EXTERNAL CONSTANT
@@ -41,8 +41,8 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_task    : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
-  g_schedule : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
+  g_task    : ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType;
+  g_schedule : ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType;
   g_batch  : ARRAY[1..MAX_Units] OF UDT_BatchType;
 END_VAR
 VAR_OUTPUT

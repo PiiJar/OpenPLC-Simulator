@@ -3,9 +3,23 @@
    DO NOT EDIT — modify UDT files in UDTs/ directory instead
    ============================================================ *)
 
+(* BatchType - Runtime state of a production batch/charge on a unit *)
+TYPE UDT_BatchType :
+STRUCT
+    BatchCode : INT;  (* batch code - numeric ID *)
+    CurStage  : INT;  (* current stage number, 0 = not started *)
+    State     : INT;  (* NOT_PROCESSED=0, IN_PROCESS=1, PROCESSED=2 *)
+    ProgId    : INT;  (* treatment program number *)
+    StartTime : LINT; (* batch start time (unix seconds) *)
+    MinTime   : DINT; (* stage minimum time (seconds) *)
+    MaxTime   : DINT; (* stage maximum time (seconds) *)
+    CalTime   : DINT; (* stage calculated / target time (seconds) *)
+END_STRUCT;
+END_TYPE
+
 (* CalibrationType - Calibration teaching data, one per transporter *)
 (* Gateway writes plan, PLC fills results *)
-TYPE CALIBRATION_T :
+TYPE UDT_JC_CalibrationType :
 STRUCT
     (* Plan — set by gateway via cfg_cmd=7 *)
     WetStation  : INT;  (* wet station number *)
@@ -23,7 +37,7 @@ END_STRUCT;
 END_TYPE
 
 (* DepDelayActionType - Schedule adjustment to accommodate departure *)
-TYPE DEP_DELAY_ACTION_T :
+TYPE UDT_JC_DepDelayActionType :
 STRUCT
     Stage     : INT;  (* program stage to delay *)
     DelayTime : DINT; (* delay amount (seconds) *)
@@ -33,7 +47,7 @@ END_STRUCT;
 END_TYPE
 
 (* DepFitResultType - Outcome of fitting a departure task into idle slots *)
-TYPE DEP_FIT_RESULT_T :
+TYPE UDT_JC_DepFitResultType :
 STRUCT
     Fits          : BOOL; (* TRUE = task fits in a slot *)
     DelayTime     : DINT; (* delay needed to make it fit (seconds) *)
@@ -45,7 +59,7 @@ END_STRUCT;
 END_TYPE
 
 (* DepIdleSlotType - Time window where a transporter has no tasks *)
-TYPE DEP_IDLE_SLOT_T :
+TYPE UDT_JC_DepIdleSlotType :
 STRUCT
     StartTime         : LINT; (* idle window start (s), unix seconds *)
     EndTime           : LINT; (* idle window end (s), 0 = open-ended *)
@@ -55,15 +69,15 @@ END_STRUCT;
 END_TYPE
 
 (* DepIdleSlotSetType - Collection of idle slots for a transporter *)
-TYPE DEP_IDLE_SLOT_SET_T :
+TYPE UDT_JC_DepIdleSlotSetType :
 STRUCT
-    Slots : ARRAY[1..20] OF DEP_IDLE_SLOT_T; (* DEP_MAX_IDLE_SLOTS *)
+    Slots : ARRAY[1..20] OF UDT_JC_DepIdleSlotType; (* DEP_MAX_IDLE_SLOTS *)
     Count : INT;
 END_STRUCT;
 END_TYPE
 
 (* DepOverlapType - Stations covered by multiple transporters *)
-TYPE DEP_OVERLAP_T :
+TYPE UDT_JC_DepOverlapType :
 STRUCT
     Flags : ARRAY[101..130] OF BOOL; (* TRUE = station is in overlap zone *)
     Count : INT;
@@ -83,7 +97,7 @@ END_TYPE
      f[8]=actual_time_x10  f[9]=calc_time_x10  f[10]=min_time_x10
      f[11]=max_time_x10  f[12]=reserved
 *)
-TYPE EVENT_MSG_T :
+TYPE UDT_JC_EventMsgType :
 STRUCT
     Seq     : INT;                 (* unique incrementing sequence number *)
     MsgType : INT;                 (* 1=task_dispatched, 2=lift, ... *)
@@ -97,17 +111,17 @@ END_TYPE
 (* Handshake: PLC outputs head message via Modbus.
    Gateway reads it, processes it, writes ack_seq = head.seq.
    PLC sees ack match → advances head, count--. *)
-TYPE EVENT_QUEUE_T :
+TYPE UDT_JC_EventQueueType :
 STRUCT
     Count   : INT;                         (* messages currently in queue (0..10) *)
     Head    : INT;                         (* index of oldest message, 1-based *)
     NextSeq : INT;                         (* next sequence number to assign *)
-    Buffer  : ARRAY[1..10] OF EVENT_MSG_T; (* circular buffer *)
+    Buffer  : ARRAY[1..10] OF UDT_JC_EventMsgType; (* circular buffer *)
 END_STRUCT;
 END_TYPE
 
 (* NttDestType - No-treatment task destination: primary + fallback stations *)
-TYPE NTT_DEST_T :
+TYPE UDT_JC_NttDestType :
 STRUCT
     Stations         : ARRAY[1..5] OF INT; (* primary stations, up to MAX_STATIONS_PER_STEP *)
     StationCount     : INT;                (* how many primary stations are valid *)
@@ -117,17 +131,17 @@ END_STRUCT;
 END_TYPE
 
 (* NttTransporterType - No-treatment per-transporter destination map *)
-TYPE NTT_TRANSPORTER_T :
+TYPE UDT_JC_NttTransporterType :
 STRUCT
     (* Index = target code: 1=TO_LOADING, 2=(reserved), 3=TO_PROCESS, 4=TO_UNLOAD, 5=TO_AVOID,
     6=TO_EMPTY_BUFFER, 7=TO_LOADED_BUFFER, 8=TO_PROCESSED_BUFFER *)
-    Target : ARRAY[1..8] OF NTT_DEST_T;
+    Target : ARRAY[1..8] OF UDT_JC_NttDestType;
 END_STRUCT;
 END_TYPE
 
 (* SimTransporterType - Simulation-internal transporter data *)
 (* Scheduler command params + physics state — NOT in production UDT *)
-TYPE SIM_TRANSPORTER_T :
+TYPE UDT_JC_SimTransporterType :
 STRUCT
     RunningTaskId   : LINT; (* copied from TaskId when accepted *)
     TreatmentTime   : DINT; (* treatment duration (seconds) *)
@@ -142,7 +156,7 @@ END_STRUCT;
 END_TYPE
 
 (* TravelFromType - Travel time lookup: one source station → all destinations *)
-TYPE TRAVEL_FROM_T :
+TYPE UDT_JC_TravelFromType :
 STRUCT
     ToTime : ARRAY[1..30] OF INT; (* travel time ×10 = tenths of second, MAX_STATIONS_PER_LINE *)
 END_STRUCT;
@@ -150,16 +164,16 @@ END_TYPE
 
 (* MoveTimesType - Precomputed movement times per transporter *)
 (* Timed from real motions, not calculated *)
-TYPE MOVE_TIMES_T :
+TYPE UDT_JC_MoveTimesType :
 STRUCT
     LiftTime : ARRAY[1..30] OF INT;           (* lift time ×10 = tenths of second, MAX_STATIONS_PER_LINE *)
     SinkTime : ARRAY[1..30] OF INT;           (* sink time ×10 = tenths of second, MAX_STATIONS_PER_LINE *)
-    Travel   : ARRAY[1..30] OF TRAVEL_FROM_T; (* travel[from].to_s[to] ×10, MAX_STATIONS_PER_LINE *)
+    Travel   : ARRAY[1..30] OF UDT_JC_TravelFromType; (* travel[from].to_s[to] ×10, MAX_STATIONS_PER_LINE *)
 END_STRUCT;
 END_TYPE
 
 (* TskCheckedType - Conflict analysis working data for FB_AnalyzeConflicts *)
-TYPE TSK_CHECKED_T :
+TYPE UDT_JC_TskCheckedType :
 STRUCT
     Unit        : INT;  (* batch unit index *)
     Stage       : INT;  (* program stage *)
@@ -175,7 +189,7 @@ END_STRUCT;
 END_TYPE
 
 (* TskLockType - Oscillation lock: prevents resolve from advancing & delaying same stage *)
-TYPE TSK_LOCK_T :
+TYPE UDT_JC_TskLockType :
 STRUCT
     Unit      : INT; (* batch unit index, 0 = empty slot *)
     Stage     : INT; (* program stage *)
@@ -185,7 +199,7 @@ END_TYPE
 
 (* TskStageType - Calculated batch schedule stage *)
 (* Times are absolute epoch-offset seconds (g_time_s reference frame) *)
-TYPE TSK_STAGE_T :
+TYPE UDT_JC_TskStageType :
 STRUCT
     Station      : INT;  (* station number, 0 = unused stage *)
     EntryTime    : LINT; (* absolute arrival time (s), unix seconds *)
@@ -198,15 +212,15 @@ END_STRUCT;
 END_TYPE
 
 (* TskScheduleType - Calculated batch schedule, one per unit *)
-TYPE TSK_SCHEDULE_T :
+TYPE UDT_JC_TskScheduleType :
 STRUCT
     StageCount : INT;                         (* number of active stages *)
-    Stages     : ARRAY[1..30] OF TSK_STAGE_T; (* MAX_STEPS_PER_PROGRAM *)
+    Stages     : ARRAY[1..30] OF UDT_JC_TskStageType; (* MAX_STEPS_PER_PROGRAM *)
 END_STRUCT;
 END_TYPE
 
 (* TskTaskType - Transporter task: pickup/putdown assignment *)
-TYPE TSK_TASK_T :
+TYPE UDT_JC_TskTaskType :
 STRUCT
     Unit              : INT;  (* unit index 1..10, 0 = no task *)
     Stage             : INT;  (* program stage that created this task *)
@@ -221,24 +235,27 @@ END_STRUCT;
 END_TYPE
 
 (* TskQueueType - Transporter task queue *)
-TYPE TSK_QUEUE_T :
+TYPE UDT_JC_TskQueueType :
 STRUCT
     Count : INT;                        (* number of active tasks *)
-    Queue : ARRAY[1..10] OF TSK_TASK_T; (* task slots, MAX_TASK_QUEUE *)
+    Queue : ARRAY[1..10] OF UDT_JC_TskTaskType; (* task slots, MAX_TASK_QUEUE *)
 END_STRUCT;
 END_TYPE
 
-(* BatchType - Runtime state of a production batch/charge on a unit *)
-TYPE UDT_BatchType :
+(* UnitSnapType - Snapshot of unit state, pre-computed once per cycle by NoTreatmentStates *)
+TYPE UDT_JC_UnitSnapType :
 STRUCT
-    BatchCode : INT;  (* batch code - numeric ID *)
-    CurStage  : INT;  (* current stage number, 0 = not started *)
-    State     : INT;  (* NOT_PROCESSED=0, IN_PROCESS=1, PROCESSED=2 *)
-    ProgId    : INT;  (* treatment program number *)
-    StartTime : LINT; (* batch start time (unix seconds) *)
-    MinTime   : DINT; (* stage minimum time (seconds) *)
-    MaxTime   : DINT; (* stage maximum time (seconds) *)
-    CalTime   : DINT; (* stage calculated / target time (seconds) *)
+    IsActive   : BOOL; (* status <> NOT_USED *)
+    Location   : INT;  (* location *)
+    LocationOp : INT;  (* station operation at location *)
+    Target     : INT;  (* target *)
+    HasBatch   : BOOL; (* batch_code <> 0 *)
+    BatchState : INT;  (* batch state *)
+    CurStage   : INT;  (* current stage from g_batch *)
+    InBuffer   : BOOL; (* loc operation 44..47 *)
+    OnStation  : BOOL; (* loc in STATION_ARRAY range *)
+    Elapsed    : LINT; (* time at station, 0 if not on station *)
+    CalTime    : DINT; (* cal_time for current stage (seconds) *)
 END_STRUCT;
 END_TYPE
 
@@ -595,11 +612,11 @@ END_STRUCT;
 END_TYPE
 
 (* DepPendingWriteType - Data to commit from sandbox to globals after ACTIVATE *)
-TYPE DEP_PENDING_WRITE_T :
+TYPE UDT_JC_DepPendingWriteType :
 STRUCT
     Valid        : BOOL;
     Programs     : ARRAY[1..10] OF UDT_TreatmentProgramType; (* MAX_Units *)
-    Schedule     : ARRAY[1..10] OF TSK_SCHEDULE_T;           (* MAX_Units *)
+    Schedule     : ARRAY[1..10] OF UDT_JC_TskScheduleType;           (* MAX_Units *)
     BatchUnit    : INT;                                      (* activated batch: unit index *)
     BatchStage   : INT;                                      (* activated batch: new cur_stage *)
     BatchState   : INT;                                      (* activated batch: new state (IN_PROCESS=1) *)
@@ -611,12 +628,12 @@ END_STRUCT;
 END_TYPE
 
 (* DepSandboxType - Isolated copy of scheduler state for departure planning *)
-TYPE DEP_SANDBOX_T :
+TYPE UDT_JC_DepSandboxType :
 STRUCT
-    Schedule : ARRAY[1..10] OF TSK_SCHEDULE_T;           (* MAX_Units *)
+    Schedule : ARRAY[1..10] OF UDT_JC_TskScheduleType;           (* MAX_Units *)
     Batches  : ARRAY[1..10] OF UDT_BatchType;            (* MAX_Units *)
     Programs : ARRAY[1..10] OF UDT_TreatmentProgramType; (* MAX_Units *)
-    Tasks    : ARRAY[1..3] OF TSK_QUEUE_T;               (* MAX_Transporters *)
+    Tasks    : ARRAY[1..3] OF UDT_JC_TskQueueType;               (* MAX_Transporters *)
     Valid    : BOOL;
 END_STRUCT;
 END_TYPE
@@ -634,22 +651,5 @@ STRUCT
     Location : INT; (* station number where unit currently is *)
     Status   : INT; (* NOT_USED=0, USED=1 *)
     Target   : INT; (* TO_NONE=0, TO_LOADING=1, TO_BUFFER=2, TO_PROCESS=3, TO_UNLOAD=4, TO_AVOID=5 *)
-END_STRUCT;
-END_TYPE
-
-(* UnitSnapType - Snapshot of unit state, pre-computed once per cycle by NoTreatmentStates *)
-TYPE UNIT_SNAP_T :
-STRUCT
-    IsActive   : BOOL; (* status <> NOT_USED *)
-    Location   : INT;  (* location *)
-    LocationOp : INT;  (* station operation at location *)
-    Target     : INT;  (* target *)
-    HasBatch   : BOOL; (* batch_code <> 0 *)
-    BatchState : INT;  (* batch state *)
-    CurStage   : INT;  (* current stage from g_batch *)
-    InBuffer   : BOOL; (* loc operation 44..47 *)
-    OnStation  : BOOL; (* loc in STATION_ARRAY range *)
-    Elapsed    : LINT; (* time at station, 0 if not on station *)
-    CalTime    : DINT; (* cal_time for current stage (seconds) *)
 END_STRUCT;
 END_TYPE

@@ -19,32 +19,32 @@ VAR_EXTERNAL
   g_station_loc     : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
   g_cfg              : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
   g_transporter      : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
-  g_sim_trans        : ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T;
+  g_sim_trans        : ARRAY[1..MAX_Transporters] OF UDT_JC_SimTransporterType;
   g_unit            : ARRAY[1..MAX_Units] OF UDT_UnitType;
-  g_ntt             : ARRAY[1..MAX_Transporters] OF NTT_TRANSPORTER_T;
+  g_ntt             : ARRAY[1..MAX_Transporters] OF UDT_JC_NttTransporterType;
   g_batch          : ARRAY[1..MAX_Units] OF UDT_BatchType;
   g_program         : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
   g_avoid_status     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF INT;
-  g_move             : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
-  g_schedule         : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
-  g_task            : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
+  g_move             : ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType;
+  g_schedule         : ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType;
+  g_task            : ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType;
   (* --- Departure Scheduler state --- *)
   g_dep_activated     : BOOL;
   g_dep_stable        : BOOL;
   g_dep_waiting_count : INT;
-  g_dep_overlap       : DEP_OVERLAP_T;
-  g_dep_pending       : DEP_PENDING_WRITE_T;
+  g_dep_overlap       : UDT_JC_DepOverlapType;
+  g_dep_pending       : UDT_JC_DepPendingWriteType;
   g_dep_waiting       : ARRAY[1..DEP_MAX_WAITING] OF INT;
   (* --- Calibration --- *)
-  g_cal              : ARRAY[1..MAX_Transporters] OF CALIBRATION_T;
+  g_cal              : ARRAY[1..MAX_Transporters] OF UDT_JC_CalibrationType;
   g_cal_active       : BOOL;
   (* --- Production --- *)
   g_production_queue : INT;
   (* --- Time --- *)
   g_time_s           : LINT;
   (* --- Event queue --- *)
-  g_event                : EVENT_QUEUE_T;
-  g_event_pending        : EVENT_MSG_T;
+  g_event                : UDT_JC_EventQueueType;
+  g_event_pending        : UDT_JC_EventMsgType;
   g_event_pending_valid  : BOOL;
   (* --- BEGIN GENERATED MODBUS EXTERNALS --- *)
   qw_t1_x_mm                     : INT;
@@ -1117,7 +1117,7 @@ VAR
   last_sync_lo   : INT := 0;      (* previous gateway iw_time_lo *)
   (* Schedule window export *)
   sch_last_req   : INT := 0;      (* last exported unit_id *)
-  sch_copy       : TSK_SCHEDULE_T; (* temp copy of requested schedule *)
+  sch_copy       : UDT_JC_TskScheduleType; (* temp copy of requested schedule *)
   sch_s          : INT;            (* loop counter for stages *)
 END_VAR
 (* ============================================================

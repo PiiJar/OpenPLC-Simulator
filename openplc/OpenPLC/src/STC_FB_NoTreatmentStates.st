@@ -41,7 +41,7 @@ FUNCTION_BLOCK STC_FB_NoTreatmentStates
 
   VAR
     (* Snapshot *)
-    snap        : ARRAY[1..MAX_Units] OF UNIT_SNAP_T;
+    snap        : ARRAY[1..MAX_Units] OF UDT_JC_UnitSnapType;
     u           : INT;        (* unit loop index *)
     has_loading : BOOL;       (* any unit already has TO_LOADING *)
     (* Section 1+2 *)

@@ -37,9 +37,9 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_task    : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
+  g_task    : ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType;
   g_station : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
-  g_move    : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
+  g_move    : ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType;
 END_VAR
 VAR_OUTPUT
   o_has_conflict  : BOOL;
@@ -95,7 +95,7 @@ VAR
   (* Counter *)
   total_tasks : INT;
   DEFICIT_TOL : REAL := 1.0;
-  tmp_move    : MOVE_TIMES_T;  (* MATIEC cannot index arrays in FUNCTION args *)
+  tmp_move    : UDT_JC_MoveTimesType;  (* MATIEC cannot index arrays in FUNCTION args *)
 END_VAR
 
 o_has_conflict := FALSE;

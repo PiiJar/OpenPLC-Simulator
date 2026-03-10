@@ -36,7 +36,7 @@ VAR_INPUT
 END_VAR
 VAR_EXTERNAL
   g_dep_stable  : BOOL;
-  g_dep_pending : DEP_PENDING_WRITE_T;
+  g_dep_pending : UDT_JC_DepPendingWriteType;
   g_cal_active  : BOOL;
 END_VAR
 VAR_OUTPUT

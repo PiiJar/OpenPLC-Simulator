@@ -1,5 +1,5 @@
 (* TskTaskType - Transporter task: pickup/putdown assignment *)
-TYPE TSK_TASK_T :
+TYPE UDT_JC_TskTaskType :
 STRUCT
     Unit              : INT;  (* unit index 1..10, 0 = no task *)
     Stage             : INT;  (* program stage that created this task *)

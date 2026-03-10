@@ -32,9 +32,9 @@ VAR_EXTERNAL
   g_unit    : ARRAY[1..MAX_Units] OF UDT_UnitType;
   g_station : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
   g_station_loc : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
-  g_schedule : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
+  g_schedule : ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType;
   g_station_count : INT;
-  g_move    : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
+  g_move    : ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType;
 END_VAR
 VAR
   st         : INT;      (* loop: stage index *)
@@ -56,7 +56,7 @@ VAR
   out_count  : INT;      (* output stage counter *)
   p          : INT;      (* parallel station loop index *)
   chosen_stn : INT;      (* chosen parallel station *)
-  tmp_move   : MOVE_TIMES_T;  (* MATIEC cannot index arrays in FUNCTION args *)
+  tmp_move   : UDT_JC_MoveTimesType;  (* MATIEC cannot index arrays in FUNCTION args *)
   (* ── Parallel station selection (schedule-aware + idle-since) ── *)
   cand_arr         : ARRAY[1..5] OF INT;
   cand_cnt         : INT;

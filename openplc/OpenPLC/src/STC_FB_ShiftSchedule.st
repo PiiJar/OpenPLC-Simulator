@@ -22,8 +22,8 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_schedule : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
-  g_task    : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
+  g_schedule : ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType;
+  g_task    : ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType;
 END_VAR
 VAR
   sc : INT;

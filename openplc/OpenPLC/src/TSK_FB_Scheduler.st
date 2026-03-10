@@ -40,11 +40,11 @@ VAR_EXTERNAL
   g_batch  : ARRAY[1..MAX_Units] OF UDT_BatchType;
   g_unit    : ARRAY[1..MAX_Units] OF UDT_UnitType;
   g_program : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
-  g_task    : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
-  g_schedule : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
+  g_task    : ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType;
+  g_schedule : ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType;
   g_cfg    : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
   (* DEP handshake *)
-  g_dep_pending : DEP_PENDING_WRITE_T;
+  g_dep_pending : UDT_JC_DepPendingWriteType;
 END_VAR
 VAR_OUTPUT
   o_phase      : INT;     (* current phase *)
@@ -77,7 +77,7 @@ VAR
   (* Transporter assignment for schedule calculation *)
   sched_trans : INT;
   (* Locked stages — prevents oscillation in resolve loop *)
-  locks           : ARRAY[1..50] OF TSK_LOCK_T;
+  locks           : ARRAY[1..50] OF UDT_JC_TskLockType;
   lock_cnt        : INT := 0;
   locks_initialized : BOOL := FALSE;
   fb_find    : STC_FindTransporter;

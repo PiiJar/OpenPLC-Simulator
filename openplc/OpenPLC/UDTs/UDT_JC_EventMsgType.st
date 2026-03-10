@@ -11,7 +11,7 @@
      f[8]=actual_time_x10  f[9]=calc_time_x10  f[10]=min_time_x10
      f[11]=max_time_x10  f[12]=reserved
 *)
-TYPE EVENT_MSG_T :
+TYPE UDT_JC_EventMsgType :
 STRUCT
     Seq     : INT;                 (* unique incrementing sequence number *)
     MsgType : INT;                 (* 1=task_dispatched, 2=lift, ... *)

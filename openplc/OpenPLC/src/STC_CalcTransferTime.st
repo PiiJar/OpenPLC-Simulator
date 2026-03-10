@@ -6,7 +6,7 @@
 
    Converted from FUNCTION_BLOCK (STC_FB_CalcTransferTime) to
    FUNCTION: the caller passes the specific transporter's
-   MOVE_TIMES_T instead of using VAR_EXTERNAL g_move.
+   UDT_JC_MoveTimesType instead of using VAR_EXTERNAL g_move.
 
    Returns total_s only (component times lift_s/travel_s/sink_s
    are not used by any caller in the codebase).
@@ -18,7 +18,7 @@ FUNCTION STC_CalcTransferTime : REAL
 VAR_INPUT
   i_from_stn : INT;     (* source station, e.g. 105 *)
   i_to_stn   : INT;     (* destination station, e.g. 112 *)
-  i_move     : MOVE_TIMES_T;   (* transporter's precomputed move times *)
+  i_move     : UDT_JC_MoveTimesType;   (* transporter's precomputed move times *)
 END_VAR
 VAR
   from_idx : INT;

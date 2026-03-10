@@ -1,5 +1,5 @@
 (* DepDelayActionType - Schedule adjustment to accommodate departure *)
-TYPE DEP_DELAY_ACTION_T :
+TYPE UDT_JC_DepDelayActionType :
 STRUCT
     Stage     : INT;  (* program stage to delay *)
     DelayTime : DINT; (* delay amount (seconds) *)

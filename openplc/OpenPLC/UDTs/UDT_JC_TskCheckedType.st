@@ -1,5 +1,5 @@
 (* TskCheckedType - Conflict analysis working data for FB_AnalyzeConflicts *)
-TYPE TSK_CHECKED_T :
+TYPE UDT_JC_TskCheckedType :
 STRUCT
     Unit        : INT;  (* batch unit index *)
     Stage       : INT;  (* program stage *)

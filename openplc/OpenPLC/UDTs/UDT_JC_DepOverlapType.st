@@ -1,5 +1,5 @@
 (* DepOverlapType - Stations covered by multiple transporters *)
-TYPE DEP_OVERLAP_T :
+TYPE UDT_JC_DepOverlapType :
 STRUCT
     Flags : ARRAY[101..130] OF BOOL; (* TRUE = station is in overlap zone *)
     Count : INT;

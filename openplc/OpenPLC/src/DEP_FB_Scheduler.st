@@ -51,17 +51,17 @@ VAR_EXTERNAL
   g_batch          : ARRAY[1..MAX_Units] OF UDT_BatchType;
   g_unit            : ARRAY[1..MAX_Units] OF UDT_UnitType;
   g_program         : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
-  g_schedule         : ARRAY[1..MAX_Units] OF TSK_SCHEDULE_T;
-  g_task            : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
+  g_schedule         : ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType;
+  g_task            : ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType;
   g_cfg              : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
   g_transporter      : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
-  g_dep_sandbox      : DEP_SANDBOX_T;
-  g_dep_idle_slot   : ARRAY[1..MAX_Transporters] OF DEP_IDLE_SLOT_SET_T;
-  g_dep_overlap      : DEP_OVERLAP_T;
-  g_dep_pending      : DEP_PENDING_WRITE_T;
+  g_dep_sandbox      : UDT_JC_DepSandboxType;
+  g_dep_idle_slot   : ARRAY[1..MAX_Transporters] OF UDT_JC_DepIdleSlotSetType;
+  g_dep_overlap      : UDT_JC_DepOverlapType;
+  g_dep_pending      : UDT_JC_DepPendingWriteType;
   g_dep_activated    : BOOL;
   g_dep_stable       : BOOL;
-  g_move              : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
+  g_move              : ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType;
   g_dep_waiting      : ARRAY[1..DEP_MAX_WAITING] OF INT;
   g_dep_waiting_count : INT;
 END_VAR
@@ -86,7 +86,7 @@ VAR
   create_idx    : INT;    (* index into batch_list for per-scan create *)
 
   (* ── Extracted waiting batch tasks ── *)
-  w_tasks       : ARRAY[1..30] OF TSK_TASK_T;
+  w_tasks       : ARRAY[1..30] OF UDT_JC_TskTaskType;
   w_trans       : ARRAY[1..30] OF INT;    (* transporter id per task *)
   w_task_cnt    : INT;
   cur_task_idx  : INT;
@@ -129,7 +129,7 @@ VAR
   (* ── Temp variables ── *)
   ti : INT;  qi : INT;  bi : INT;  ui : INT;  si : INT;
   sched_trans   : INT;
-  tmp_move       : MOVE_TIMES_T;  (* temp for g_move[sched_trans] *)
+  tmp_move       : UDT_JC_MoveTimesType;  (* temp for g_move[sched_trans] *)
   write_idx     : INT;
   loading_stn   : INT;
   first_stn     : INT;
@@ -159,7 +159,7 @@ VAR
 
   (* ── G02: Backward chaining variables ── *)
   remaining_need   : REAL;
-  chain_delays     : ARRAY[1..10] OF DEP_DELAY_ACTION_T;
+  chain_delays     : ARRAY[1..10] OF UDT_JC_DepDelayActionType;
   chain_delay_cnt  : INT;
   chain_ok         : BOOL;
   prev_flex_up     : REAL;

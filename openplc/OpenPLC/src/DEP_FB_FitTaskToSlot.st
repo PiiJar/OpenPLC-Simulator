@@ -29,7 +29,7 @@ VAR_INPUT
   i_margin_s     : REAL;    (* minimum margin between tasks (s) *)
 END_VAR
 VAR_OUTPUT
-  o_result : DEP_FIT_RESULT_T;
+  o_result : UDT_JC_DepFitResultType;
 END_VAR
 VAR_EXTERNAL CONSTANT
     MAX_Transporters   : INT;
@@ -37,8 +37,8 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_dep_idle_slot : ARRAY[1..MAX_Transporters] OF DEP_IDLE_SLOT_SET_T;
-  g_move          : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
+  g_dep_idle_slot : ARRAY[1..MAX_Transporters] OF UDT_JC_DepIdleSlotSetType;
+  g_move          : ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType;
 END_VAR
 VAR
   si          : INT;
@@ -60,7 +60,7 @@ VAR
   found       : BOOL;
   overflow_best_delay : REAL;   (* best delay among flex-overflow slots *)
   overflow_best_slot  : INT;
-  tmp_move    : MOVE_TIMES_T;  (* MATIEC cannot index arrays in FUNCTION args *)
+  tmp_move    : UDT_JC_MoveTimesType;  (* MATIEC cannot index arrays in FUNCTION args *)
 END_VAR
 
 (* Initialize output *)

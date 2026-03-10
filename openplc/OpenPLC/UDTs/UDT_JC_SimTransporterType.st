@@ -1,6 +1,6 @@
 (* SimTransporterType - Simulation-internal transporter data *)
 (* Scheduler command params + physics state — NOT in production UDT *)
-TYPE SIM_TRANSPORTER_T :
+TYPE UDT_JC_SimTransporterType :
 STRUCT
     RunningTaskId   : LINT; (* copied from TaskId when accepted *)
     TreatmentTime   : DINT; (* treatment duration (seconds) *)

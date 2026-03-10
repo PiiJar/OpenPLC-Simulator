@@ -1,9 +1,9 @@
 (* DepPendingWriteType - Data to commit from sandbox to globals after ACTIVATE *)
-TYPE DEP_PENDING_WRITE_T :
+TYPE UDT_JC_DepPendingWriteType :
 STRUCT
     Valid        : BOOL;
     Programs     : ARRAY[1..10] OF UDT_TreatmentProgramType; (* MAX_Units *)
-    Schedule     : ARRAY[1..10] OF TSK_SCHEDULE_T;           (* MAX_Units *)
+    Schedule     : ARRAY[1..10] OF UDT_JC_TskScheduleType;           (* MAX_Units *)
     BatchUnit    : INT;                                      (* activated batch: unit index *)
     BatchStage   : INT;                                      (* activated batch: new cur_stage *)
     BatchState   : INT;                                      (* activated batch: new state (IN_PROCESS=1) *)

@@ -1,5 +1,5 @@
 (* UnitSnapType - Snapshot of unit state, pre-computed once per cycle by NoTreatmentStates *)
-TYPE UNIT_SNAP_T :
+TYPE UDT_JC_UnitSnapType :
 STRUCT
     IsActive   : BOOL; (* status <> NOT_USED *)
     Location   : INT;  (* location *)

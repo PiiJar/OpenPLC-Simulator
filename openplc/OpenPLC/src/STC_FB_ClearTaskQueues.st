@@ -16,7 +16,7 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_task : ARRAY[1..MAX_Transporters] OF TSK_QUEUE_T;
+  g_task : ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType;
 END_VAR
 VAR
   ti : INT;

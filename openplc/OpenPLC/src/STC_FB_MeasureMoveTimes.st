@@ -59,8 +59,8 @@ VAR_EXTERNAL CONSTANT
 END_VAR
 
 VAR_EXTERNAL
-  g_sim_trans : ARRAY[1..MAX_Transporters] OF SIM_TRANSPORTER_T;
-  g_move : ARRAY[1..MAX_Transporters] OF MOVE_TIMES_T;
+  g_sim_trans : ARRAY[1..MAX_Transporters] OF UDT_JC_SimTransporterType;
+  g_move : ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType;
 END_VAR
 
 (* ---- Phase transition detection ---- *)

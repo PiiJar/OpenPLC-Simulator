@@ -23,9 +23,9 @@
 
 FUNCTION_BLOCK STC_FB_EventQueue
 VAR_EXTERNAL
-  g_event          : EVENT_QUEUE_T;
+  g_event          : UDT_JC_EventQueueType;
   (* Pending message — set by other FBs, consumed here *)
-  g_event_pending       : EVENT_MSG_T;
+  g_event_pending       : UDT_JC_EventMsgType;
   g_event_pending_valid : BOOL;
   (* Modbus output — head message visible to gateway *)
   qw_event_out_count   : INT;
