@@ -282,10 +282,20 @@ ELSIF phase = 10000 THEN
 (* ══════════════════════════════════════════════════════════════ *)
 ELSIF phase = 10100 THEN
   IF g_dep_pending.Valid THEN
-    (* Apply DEP's pending data: programs + schedules + stage change *)
+    (* Apply DEP's pending data: programs + schedules + stage change.
+       ONLY overwrite units where pending has a valid program (ProgramId > 0).
+       Reason: DEP snapshots ALL g_program[] at INIT. If a NEW batch was
+       loaded by the gateway AFTER the snapshot, the pending copy for that
+       unit has ProgramId=0. Blindly overwriting would clobber the
+       gateway-written program, breaking the collect filter permanently
+       (g_batch[].ProgId <> g_program[].ProgramId). *)
     FOR ui := 1 TO MAX_Units DO
-      g_program[ui]  := g_dep_pending.Programs[ui];
-      g_schedule[ui] := g_dep_pending.Schedule[ui];
+      IF g_dep_pending.Programs[ui].ProgramId > 0 THEN
+        g_program[ui]  := g_dep_pending.Programs[ui];
+      END_IF;
+      IF g_dep_pending.Schedule[ui].StageCount > 0 THEN
+        g_schedule[ui] := g_dep_pending.Schedule[ui];
+      END_IF;
     END_FOR;
     IF g_dep_pending.BatchUnit >= 1 AND g_dep_pending.BatchUnit <= MAX_Units THEN
       g_batch[g_dep_pending.BatchUnit].CurStage   := g_dep_pending.BatchStage;

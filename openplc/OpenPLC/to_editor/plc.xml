@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-11T14:44:58"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-11T14:44:58">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-11T16:00:22"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-11T16:00:22">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -5133,17 +5133,14 @@ END_FOR;]]></xhtml:p>
             <variable name="task_max">
               <type><INT/></type>
             </variable>
-            <variable name="can_start_early">
-              <type><BOOL/></type>
-            </variable>
-            <variable name="elapsed_s">
-              <type><LINT/></type>
-            </variable>
             <variable name="sh">
               <type><INT/></type>
             </variable>
             <variable name="xfer_total">
               <type><REAL/></type>
+            </variable>
+            <variable name="prog_stage">
+              <type><INT/></type>
             </variable>
           </localVars>
         </interface>
@@ -5368,7 +5365,8 @@ END_FOR;]]></xhtml:p>
             g_event_pending.Payload[4]  := t_unit;
             g_event_pending.Payload[5]  := t_lift;
             g_event_pending.Payload[6]  := sink_stn;
-            g_event_pending.Payload[7]  := t_stage;
+            prog_stage := g_batch[t_unit].CurStage;
+            g_event_pending.Payload[7]  := prog_stage;  (* treatment program stage number *)
             g_event_pending.Payload[8]  := g_batch[t_unit].BatchCode;
             g_event_pending.Payload[9]  := DINT_TO_INT(t_calc_time);
             g_event_pending.Payload[10] := DINT_TO_INT(g_task[ti].Queue[1].MinTime);
@@ -7431,7 +7429,7 @@ FOR si := 1 TO sc - 1 DO
       qi := g_task[tid].Count + 1;
       IF qi <= MAX_TASK_QUEUE THEN
         g_task[tid].Queue[qi].Unit         := i_unit;
-        g_task[tid].Queue[qi].Stage        := si - 1;  (* schedule idx 1=stage0, 2=stage1, ... *)
+        g_task[tid].Queue[qi].Stage        := si;  (* schedule index, used by Resolve/ShiftSchedule *)
         g_task[tid].Queue[qi].LiftStationTarget := lift_stn;
         g_task[tid].Queue[qi].SinkStationTarget := sink_stn;
         g_task[tid].Queue[qi].StartTime   := g_schedule[i_unit].Stages[si].ExitTime;
@@ -8794,10 +8792,20 @@ ELSIF phase = 10000 THEN
 (* ══════════════════════════════════════════════════════════════ *)
 ELSIF phase = 10100 THEN
   IF g_dep_pending.Valid THEN
-    (* Apply DEP's pending data: programs + schedules + stage change *)
+    (* Apply DEP's pending data: programs + schedules + stage change.
+       ONLY overwrite units where pending has a valid program (ProgramId > 0).
+       Reason: DEP snapshots ALL g_program[] at INIT. If a NEW batch was
+       loaded by the gateway AFTER the snapshot, the pending copy for that
+       unit has ProgramId=0. Blindly overwriting would clobber the
+       gateway-written program, breaking the collect filter permanently
+       (g_batch[].ProgId <> g_program[].ProgramId). *)
     FOR ui := 1 TO MAX_Units DO
-      g_program[ui]  := g_dep_pending.Programs[ui];
-      g_schedule[ui] := g_dep_pending.Schedule[ui];
+      IF g_dep_pending.Programs[ui].ProgramId > 0 THEN
+        g_program[ui]  := g_dep_pending.Programs[ui];
+      END_IF;
+      IF g_dep_pending.Schedule[ui].StageCount > 0 THEN
+        g_schedule[ui] := g_dep_pending.Schedule[ui];
+      END_IF;
     END_FOR;
     IF g_dep_pending.BatchUnit >= 1 AND g_dep_pending.BatchUnit <= MAX_Units THEN
       g_batch[g_dep_pending.BatchUnit].CurStage   := g_dep_pending.BatchStage;

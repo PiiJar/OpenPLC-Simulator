@@ -79,13 +79,12 @@ VAR
   cj           : INT;
   task_min     : INT;     (* min station of our proposed task *)
   task_max     : INT;     (* max station of our proposed task *)
-  (* canStartEarly — GAP-7 *)
-  can_start_early : BOOL;
-  elapsed_s    : LINT;
   (* Shift-down after dispatch *)
   sh           : INT;
   (* Transfer time for batch progress bar *)
   xfer_total   : REAL;
+  (* Program stage number for event *)
+  prog_stage   : INT;
 END_VAR
 
 FOR ti := 1 TO MAX_Transporters DO
@@ -307,7 +306,8 @@ FOR ti := 1 TO MAX_Transporters DO
             g_event_pending.Payload[4]  := t_unit;
             g_event_pending.Payload[5]  := t_lift;
             g_event_pending.Payload[6]  := sink_stn;
-            g_event_pending.Payload[7]  := t_stage;
+            prog_stage := g_batch[t_unit].CurStage;
+            g_event_pending.Payload[7]  := prog_stage;  (* treatment program stage number *)
             g_event_pending.Payload[8]  := g_batch[t_unit].BatchCode;
             g_event_pending.Payload[9]  := DINT_TO_INT(t_calc_time);
             g_event_pending.Payload[10] := DINT_TO_INT(g_task[ti].Queue[1].MinTime);

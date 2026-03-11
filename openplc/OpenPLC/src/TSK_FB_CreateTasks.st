@@ -63,7 +63,7 @@ FOR si := 1 TO sc - 1 DO
       qi := g_task[tid].Count + 1;
       IF qi <= MAX_TASK_QUEUE THEN
         g_task[tid].Queue[qi].Unit         := i_unit;
-        g_task[tid].Queue[qi].Stage        := si - 1;  (* schedule idx 1=stage0, 2=stage1, ... *)
+        g_task[tid].Queue[qi].Stage        := si;  (* schedule index, used by Resolve/ShiftSchedule *)
         g_task[tid].Queue[qi].LiftStationTarget := lift_stn;
         g_task[tid].Queue[qi].SinkStationTarget := sink_stn;
         g_task[tid].Queue[qi].StartTime   := g_schedule[i_unit].Stages[si].ExitTime;
