@@ -27,6 +27,7 @@ const EVENT_COUNT = BLOCKS.event_out.count;   // 17
 const MSG_TYPE_NAMES = {
   1: 'TASK_DISPATCHED',
   2: 'LIFT',
+  3: 'TASK_COMPLETE',
 };
 
 function toSigned(v) {

@@ -8,12 +8,16 @@
    
    Coordinate convention: z=0 is bottom (sunk), z=z_total is top (lifted)
    
-   LIFT sequence (z_stage 1-5):
-     1: Init delay  (device_delay + dropping_time)
+   LIFT sequence (z_stage 2-5, 9):
      2: Slow lift    0 → ZPosSlowUp/ZPosSlowDown
      3: Fast lift    → (z_total - ZPosSlowEnd)
      4: Slow end     → z_total
-     5: Drip delay   at top position
+     5: Dropping     at top, dripping time (blue bar in UI)
+     9: Drip close   drip tray close delay at top
+   
+   Note: Device delay + treatment overlap is handled by the caller
+   (SIM_FB_RunTasks) in Phase 1 via can_lift check. Stage 1 is
+   no longer used for lift — caller sets z_stage := 2 directly.
    
    SINK sequence (z_stage 6-8):
      6: Init delay  (device_delay + drip_delay)
@@ -36,6 +40,7 @@ VAR_INPUT
   SpeedLiftSlow_Z : DINT;    (* Slow speed mm/s *)
   SpeedLiftFast_Z : DINT;    (* Fast speed mm/s *)
   DripTrayDelay   : INT;     (* Drip tray open/close delay ×10 = tenths of second *)
+  DroppingTime    : INT;     (* Dropping/dripping time ×10 = tenths of second *)
 END_VAR
 VAR_IN_OUT
   z_mm      : DINT;        (* Current Z position mm *)
@@ -57,6 +62,7 @@ VAR
   r_slow_spd   : REAL;
   r_fast_spd   : REAL;
   r_drip       : REAL;
+  r_drop       : REAL;     (* dropping/dripping time seconds *)
   z_total_mm   : DINT;     (* computed: ZPosDown - ZPosUp *)
 END_VAR
 
@@ -70,6 +76,7 @@ END_VAR
   r_slow_spd  := DINT_TO_REAL(SpeedLiftSlow_Z);
   r_fast_spd  := DINT_TO_REAL(SpeedLiftFast_Z);
   r_drip      := INT_TO_REAL(DripTrayDelay) / 10.0;
+  r_drop      := INT_TO_REAL(DroppingTime) / 10.0;
 
   (* Select slow zone based on station kind *)
   IF station_kind = KIND_WET THEN
@@ -80,14 +87,8 @@ END_VAR
 
   CASE z_stage OF
 
-    (* === LIFT: stages 1-5 — nosto altaasta ylös (z kasvaa: 0 → z_total) === *)
-
-    1: (* Init delay: device_delay + dropping_time *)
-      z_timer_s := z_timer_s - delta_t;
-      IF z_timer_s <= 0.0 THEN
-        z_stage := 2;
-        z_mm := 0;
-      END_IF;
+    (* === LIFT: stages 2-5,9 — nosto altaasta ylös (z kasvaa: 0 → z_total) === *)
+    (* Stage 1 no longer used for lift — device_delay overlaps with treatment wait *)
 
     2: (* Slow lift start — hidas nosto nesteestä *)
       r_z := r_z + r_slow_spd * delta_t;
@@ -107,13 +108,20 @@ END_VAR
       r_z := r_z + r_slow_spd * delta_t;
       IF r_z >= r_total THEN
         z_mm := z_total_mm;
-        z_timer_s := r_drip;
+        z_timer_s := r_drop;
         z_stage := 5;
       ELSE
         z_mm := REAL_TO_DINT(r_z);
       END_IF;
 
-    5: (* Drip delay — tippumisviive yläasemassa *)
+    5: (* Dropping / dripping — valutusaika yläasemassa *)
+      z_timer_s := z_timer_s - delta_t;
+      IF z_timer_s <= 0.0 THEN
+        z_timer_s := r_drip;
+        z_stage := 9;
+      END_IF;
+
+    9: (* Drip tray close — tippakouru sulkeutuu *)
       z_timer_s := z_timer_s - delta_t;
       IF z_timer_s <= 0.0 THEN
         z_stage := 0;

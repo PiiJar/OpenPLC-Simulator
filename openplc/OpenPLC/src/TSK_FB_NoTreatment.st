@@ -38,6 +38,7 @@ VAR_EXTERNAL
   g_batch       : ARRAY[1..MAX_Units] OF UDT_BatchType;
   g_ntt         : ARRAY[1..MAX_Transporters] OF UDT_JC_NttTransporterType;
   g_transporter : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
+  g_station     : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
   g_station_loc : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
   g_cfg         : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
   g_task        : ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType;
@@ -267,7 +268,14 @@ FOR ui := 1 TO MAX_Units DO
           IF dest_stn > 0 THEN
             (* Calculate timing *)
             tmp_move := g_move[cov_t];
-            xfer_s := STC_CalcTransferTime(i_from_stn := loc, i_to_stn := dest_stn, i_move := tmp_move);
+            xfer_s := STC_CalcTransferTime(
+              i_from_stn            := loc,
+              i_to_stn              := dest_stn,
+              i_move                := tmp_move,
+              i_from_dropping_x10   := g_station[loc].DrippingTime,
+              i_to_device_delay_x10 := g_station[dest_stn].DeviceDelay,
+              i_drip_tray_delay_x10 := g_cfg[cov_t].DripTrayDelay
+            );
 
             task_start := i_time_s;
             task_end   := task_start + REAL_TO_LINT(xfer_s);

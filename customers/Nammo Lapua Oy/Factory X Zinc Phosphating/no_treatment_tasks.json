@@ -71,7 +71,7 @@
       "transporters": {
         "1": {
           "stations": [114],
-          "fallback_stations": []
+          "fallback_stations": [102, 103]
         },
         "2": {
           "stations": [119, 120],

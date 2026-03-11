@@ -41,6 +41,7 @@ VAR_EXTERNAL
   g_ntt         : ARRAY[1..MAX_Transporters] OF UDT_JC_NttTransporterType;
   g_batch       : ARRAY[1..MAX_Units] OF UDT_BatchType;
   g_move        : ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType;
+  g_cfg         : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
   g_time_s      : LINT;
   g_event_pending       : UDT_JC_EventMsgType;
   g_event_pending_valid : BOOL;
@@ -78,8 +79,13 @@ VAR
   cj           : INT;
   task_min     : INT;     (* min station of our proposed task *)
   task_max     : INT;     (* max station of our proposed task *)
+  (* canStartEarly — GAP-7 *)
+  can_start_early : BOOL;
+  elapsed_s    : LINT;
   (* Shift-down after dispatch *)
   sh           : INT;
+  (* Transfer time for batch progress bar *)
+  xfer_total   : REAL;
 END_VAR
 
 FOR ti := 1 TO MAX_Transporters DO
@@ -277,31 +283,36 @@ FOR ti := 1 TO MAX_Transporters DO
           g_sim_trans[ti].MaxTime := g_task[ti].Queue[1].MaxTime;
           g_transporter[ti].TaskRemainingTime := t_calc_time;
 
-          (* ── Update batch times: transfer duration as time bar ── *)
-          IF t_unit >= 1 AND t_unit <= MAX_Units THEN
-            g_batch[t_unit].StartTime := g_time_s;
-            g_batch[t_unit].CalTime   := LINT_TO_DINT(t_finish - t_start);
-            g_batch[t_unit].MinTime   := g_batch[t_unit].CalTime;
-            g_batch[t_unit].MaxTime   := LINT_TO_DINT((t_finish - t_start) * LINT#2);
-          END_IF;
-
           (* ── Emit TASK_DISPATCHED event (msg_type=1) ── *)
+          (* Compute transfer time for xfer_total field *)
+          xfer_total := STC_CalcTransferTime(
+            i_from_stn            := t_lift,
+            i_to_stn              := sink_stn,
+            i_move                := g_move[ti],
+            i_from_dropping_x10   := g_station[t_lift].DrippingTime,
+            i_to_device_delay_x10 := g_station[sink_stn].DeviceDelay,
+            i_drip_tray_delay_x10 := g_cfg[ti].DripTrayDelay
+          );
+          IF xfer_total < 1.0 THEN
+            xfer_total := INT_TO_REAL(ABS(sink_stn - t_lift)) * 8.0;
+          END_IF;
+          IF xfer_total < 5.0 THEN xfer_total := 60.0; END_IF;
           IF NOT g_event_pending_valid THEN
             g_event_pending.MsgType := 1;
             g_event_pending.TsHi := LINT_TO_INT(g_time_s / LINT#65536);
             g_event_pending.TsLo := LINT_TO_INT(g_time_s MOD LINT#65536);
-            g_event_pending.Payload[1]  := ti;
-            g_event_pending.Payload[2]  := t_unit;
-            g_event_pending.Payload[3]  := t_lift;
-            g_event_pending.Payload[4]  := sink_stn;
-            g_event_pending.Payload[5]  := t_stage;
-            g_event_pending.Payload[6]  := g_batch[t_unit].BatchCode;
-            g_event_pending.Payload[7]  := g_batch[t_unit].State;
-            g_event_pending.Payload[8]  := g_batch[t_unit].ProgId;
-            g_event_pending.Payload[9]  := g_unit[t_unit].Target;
-            g_event_pending.Payload[10] := DINT_TO_INT(t_calc_time);
-            g_event_pending.Payload[11] := DINT_TO_INT(g_task[ti].Queue[1].MinTime);
-            g_event_pending.Payload[12] := DINT_TO_INT(g_task[ti].Queue[1].MaxTime);
+            g_event_pending.Payload[1]  := LINT_TO_INT(t_start / LINT#65536);   (* TaskId_Hi *)
+            g_event_pending.Payload[2]  := LINT_TO_INT(t_start MOD LINT#65536);  (* TaskId_Lo *)
+            g_event_pending.Payload[3]  := ti;
+            g_event_pending.Payload[4]  := t_unit;
+            g_event_pending.Payload[5]  := t_lift;
+            g_event_pending.Payload[6]  := sink_stn;
+            g_event_pending.Payload[7]  := t_stage;
+            g_event_pending.Payload[8]  := g_batch[t_unit].BatchCode;
+            g_event_pending.Payload[9]  := DINT_TO_INT(t_calc_time);
+            g_event_pending.Payload[10] := DINT_TO_INT(g_task[ti].Queue[1].MinTime);
+            g_event_pending.Payload[11] := DINT_TO_INT(g_task[ti].Queue[1].MaxTime);
+            g_event_pending.Payload[12] := REAL_TO_INT(xfer_total);
             g_event_pending_valid := TRUE;
           END_IF;
 

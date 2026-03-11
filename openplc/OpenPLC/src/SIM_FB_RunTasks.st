@@ -66,6 +66,7 @@ VAR
   device_delay : REAL;
   drop_time    : REAL;
   pick_unit_id : INT;     (* unit_id picked up from lift station *)
+  xfer_total   : REAL;    (* transfer time for UI progress bar *)
   sink_unit_id : INT;     (* unit_id being placed at sink station *)
   (* Nearest-station calculation *)
   nearest_num  : INT;
@@ -87,6 +88,18 @@ VAR
   lift_uid       : INT;      (* unit at lift station *)
   treat_cal      : DINT;      (* treatment cal_time for current stage *)
   treat_elapsed  : LINT;     (* seconds spent at lift station *)
+  (* ── TASK_COMPLETE event: phase timestamps per transporter ── *)
+  ts_task_start  : ARRAY[1..3] OF LINT;  (* Phase 0→1: task accepted *)
+  ts_at_lift     : ARRAY[1..3] OF LINT;  (* Phase 1 at_station: arrived at lift *)
+  ts_lift_begin  : ARRAY[1..3] OF LINT;  (* Phase 1→2: can_lift, begin lift *)
+  ts_lift_done   : ARRAY[1..3] OF LINT;  (* Phase 2→3: lift complete *)
+  ts_at_sink     : ARRAY[1..3] OF LINT;  (* Phase 3→4: arrived at sink *)
+  (* TASK_COMPLETE temp vars *)
+  dd_lift_s      : INT;   (* lift device_delay in seconds *)
+  dropping_s     : INT;   (* dropping/valutus time in seconds *)
+  trip_s         : INT;   (* drip tray delay in seconds, 0 if not used *)
+  dur_nosto      : INT;   (* computed nosto duration *)
+  dur_lasku      : INT;   (* computed lasku duration *)
 END_VAR
 
 IF NOT i_run THEN
@@ -106,6 +119,9 @@ FOR i := 1 TO MAX_Transporters DO
     g_transporter[i].Status := 4;  (* auto_run *)
     g_sim_trans[i].ZStage := 0;
     g_sim_trans[i].ZTimer := 0.0;
+    (* Record task start timestamp *)
+    ts_task_start[i] := g_time_s;
+    ts_at_lift[i]    := LINT#0;
 
   (* ── Phase 1: Drive X towards lift station ──────────────── *)
   ELSIF g_transporter[i].Phase = 1 THEN
@@ -159,12 +175,22 @@ FOR i := 1 TO MAX_Transporters DO
                   AND (ABS(g_transporter[i].XPosition - g_transporter[i].XFinalTarget) <= 6);
     IF at_station THEN
       g_transporter[i].CurrentStation := g_transporter[i].LiftStationTarget;
+      (* Record arrival at lift station (first time only) *)
+      IF ts_at_lift[i] = LINT#0 THEN
+        ts_at_lift[i] := g_time_s;
+      END_IF;
 
-      (* ── Wait for treatment time before lifting ──────────────
-         If the unit at the lift station is IN_PROCESS and its
-         treatment cal_time has not yet elapsed, stay at station
-         and do NOT begin the lift sequence. *)
+      (* ── Wait for treatment time AND device_delay before lifting ──
+         Z-movement starts when the LONGER of two has elapsed:
+         1. Remaining treatment time (unit must finish treatment)
+         2. Station device_delay (covers must be open)
+         Both timers run simultaneously from transporter arrival.
+         This matches JS behavior: max(treatment, device_delay). *)
       can_lift := TRUE;
+      lookup(station_number := g_transporter[i].LiftStationTarget);
+      device_delay := lookup.device_delay_s;
+
+      (* Check treatment time *)
       lift_uid := g_station_loc[g_transporter[i].LiftStationTarget].UnitId;
       IF lift_uid >= 1 AND lift_uid <= MAX_Units THEN
         IF g_batch[lift_uid].State = IN_PROCESS
@@ -180,13 +206,41 @@ FOR i := 1 TO MAX_Transporters DO
         END_IF;
       END_IF;
 
+      (* Check device_delay — covers must have had time to open since arrival *)
+      IF can_lift AND device_delay > 0.0 THEN
+        IF LINT_TO_REAL(g_time_s - ts_at_lift[i]) < device_delay THEN
+          can_lift := FALSE;
+        END_IF;
+      END_IF;
+
       IF can_lift THEN
-      lookup(station_number := g_transporter[i].LiftStationTarget);
-      device_delay := lookup.device_delay_s;
+      (* Record lift begin timestamp *)
+      ts_lift_begin[i] := g_time_s;
       drop_time    := lookup.dropping_time_s;
-      g_sim_trans[i].ZTimer := device_delay + drop_time;
-      g_sim_trans[i].ZStage := 1;
+      (* Skip stage 1 — device_delay already overlapped above.
+         Z-movement starts immediately (stage 2).
+         dropping_time and drip_tray_delay happen at the TOP. *)
+      g_transporter[i].ZPosition := 0;
+      g_sim_trans[i].ZTimer := 0.0;
+      g_sim_trans[i].ZStage := 2;
       g_transporter[i].Phase := 2;
+
+      (* ── Calculate transfer time (used by event + batch times) ── *)
+      xfer_total := STC_CalcTransferTime(
+        i_from_stn            := g_transporter[i].LiftStationTarget,
+        i_to_stn              := g_transporter[i].SinkStationTarget,
+        i_move                := g_move[i],
+        i_from_dropping_x10   := g_station[g_transporter[i].LiftStationTarget].DrippingTime,
+        i_to_device_delay_x10 := g_station[g_transporter[i].SinkStationTarget].DeviceDelay,
+        i_drip_tray_delay_x10 := g_cfg[i].DripTrayDelay
+      );
+      IF xfer_total < 1.0 THEN
+        xfer_total := INT_TO_REAL(
+          ABS(g_transporter[i].SinkStationTarget
+              - g_transporter[i].LiftStationTarget)
+        ) * 8.0;
+      END_IF;
+      IF xfer_total < 5.0 THEN xfer_total := 60.0; END_IF;
 
       (* ── Emit LIFT event (msg_type=2) ── *)
       evt_unit := g_station_loc[g_transporter[i].LiftStationTarget].UnitId;
@@ -194,12 +248,12 @@ FOR i := 1 TO MAX_Transporters DO
         g_event_pending.MsgType := 2;
         g_event_pending.TsHi := LINT_TO_INT(g_time_s / LINT#65536);
         g_event_pending.TsLo := LINT_TO_INT(g_time_s MOD LINT#65536);
-        g_event_pending.Payload[1]  := i;
-        g_event_pending.Payload[2]  := evt_unit;
-        g_event_pending.Payload[3]  := g_transporter[i].LiftStationTarget;
-        g_event_pending.Payload[4]  := g_batch[evt_unit].BatchCode;
-        g_event_pending.Payload[5]  := g_batch[evt_unit].State;
-        g_event_pending.Payload[6]  := g_batch[evt_unit].ProgId;
+        g_event_pending.Payload[1]  := LINT_TO_INT(g_transporter[i].TaskId / LINT#65536);   (* TaskId_Hi *)
+        g_event_pending.Payload[2]  := LINT_TO_INT(g_transporter[i].TaskId MOD LINT#65536);  (* TaskId_Lo *)
+        g_event_pending.Payload[3]  := i;
+        g_event_pending.Payload[4]  := evt_unit;
+        g_event_pending.Payload[5]  := g_transporter[i].LiftStationTarget;
+        g_event_pending.Payload[6]  := g_batch[evt_unit].BatchCode;
         g_event_pending.Payload[7]  := g_batch[evt_unit].CurStage;
         evt_diff := g_time_s - g_station_loc[g_transporter[i].LiftStationTarget].ChangeTime;
         IF evt_diff > LINT#32000 THEN
@@ -210,7 +264,7 @@ FOR i := 1 TO MAX_Transporters DO
         g_event_pending.Payload[9]  := DINT_TO_INT(g_sim_trans[i].TreatmentTime);
         g_event_pending.Payload[10] := DINT_TO_INT(g_sim_trans[i].MinTime);
         g_event_pending.Payload[11] := DINT_TO_INT(g_sim_trans[i].MaxTime);
-        g_event_pending.Payload[12] := 0;
+        g_event_pending.Payload[12] := REAL_TO_INT(xfer_total);
         g_event_pending_valid := TRUE;
       END_IF;
 
@@ -224,6 +278,12 @@ FOR i := 1 TO MAX_Transporters DO
         ELSIF i = 3 THEN
           upd_loc3(i_unit := pick_unit_id, i_location := i);
         END_IF;
+
+        (* Set batch transfer times for UI progress bar — matches JS behavior *)
+        g_batch[pick_unit_id].StartTime := g_time_s;
+        g_batch[pick_unit_id].CalTime   := REAL_TO_DINT(xfer_total);
+        g_batch[pick_unit_id].MinTime   := g_batch[pick_unit_id].CalTime;
+        g_batch[pick_unit_id].MaxTime   := 600;
       END_IF;
       END_IF;  (* can_lift *)
     END_IF;
@@ -248,6 +308,7 @@ FOR i := 1 TO MAX_Transporters DO
         SpeedLiftSlow_Z := g_cfg[i].SpeedLiftSlow_Z,
         SpeedLiftFast_Z := g_cfg[i].SpeedLiftFast_Z,
         DripTrayDelay   := g_cfg[i].DripTrayDelay,
+        DroppingTime    := g_station[g_transporter[i].LiftStationTarget].DrippingTime,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -265,6 +326,7 @@ FOR i := 1 TO MAX_Transporters DO
         SpeedLiftSlow_Z := g_cfg[i].SpeedLiftSlow_Z,
         SpeedLiftFast_Z := g_cfg[i].SpeedLiftFast_Z,
         DripTrayDelay   := g_cfg[i].DripTrayDelay,
+        DroppingTime    := g_station[g_transporter[i].LiftStationTarget].DrippingTime,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -282,6 +344,7 @@ FOR i := 1 TO MAX_Transporters DO
         SpeedLiftSlow_Z := g_cfg[i].SpeedLiftSlow_Z,
         SpeedLiftFast_Z := g_cfg[i].SpeedLiftFast_Z,
         DripTrayDelay   := g_cfg[i].DripTrayDelay,
+        DroppingTime    := g_station[g_transporter[i].LiftStationTarget].DrippingTime,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -292,6 +355,8 @@ FOR i := 1 TO MAX_Transporters DO
     g_sim_trans[i].ZStage   := tmp_zs;
     g_sim_trans[i].ZTimer := tmp_zt;
     IF arrived_z THEN
+      (* Record lift done timestamp *)
+      ts_lift_done[i] := g_time_s;
       lookup(station_number := g_transporter[i].SinkStationTarget);
       g_transporter[i].XFinalTarget := lookup.x_mm;
       g_transporter[i].Phase := 3;
@@ -349,6 +414,8 @@ FOR i := 1 TO MAX_Transporters DO
                   AND (ABS(g_transporter[i].XPosition - g_transporter[i].XFinalTarget) <= 6);
     IF at_station THEN
       g_transporter[i].CurrentStation := g_transporter[i].SinkStationTarget;
+      (* Record arrival at sink timestamp *)
+      ts_at_sink[i] := g_time_s;
       lookup(station_number := g_transporter[i].SinkStationTarget);
       device_delay := lookup.device_delay_s;
       g_sim_trans[i].ZTimer := device_delay + INT_TO_REAL(g_cfg[i].DripTrayDelay) / 10.0;
@@ -376,6 +443,7 @@ FOR i := 1 TO MAX_Transporters DO
         SpeedLiftSlow_Z := g_cfg[i].SpeedLiftSlow_Z,
         SpeedLiftFast_Z := g_cfg[i].SpeedLiftFast_Z,
         DripTrayDelay   := g_cfg[i].DripTrayDelay,
+        DroppingTime    := 0,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -393,6 +461,7 @@ FOR i := 1 TO MAX_Transporters DO
         SpeedLiftSlow_Z := g_cfg[i].SpeedLiftSlow_Z,
         SpeedLiftFast_Z := g_cfg[i].SpeedLiftFast_Z,
         DripTrayDelay   := g_cfg[i].DripTrayDelay,
+        DroppingTime    := 0,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -410,6 +479,7 @@ FOR i := 1 TO MAX_Transporters DO
         SpeedLiftSlow_Z := g_cfg[i].SpeedLiftSlow_Z,
         SpeedLiftFast_Z := g_cfg[i].SpeedLiftFast_Z,
         DripTrayDelay   := g_cfg[i].DripTrayDelay,
+        DroppingTime    := 0,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -420,6 +490,43 @@ FOR i := 1 TO MAX_Transporters DO
     g_sim_trans[i].ZStage   := tmp_zs;
     g_sim_trans[i].ZTimer := tmp_zt;
     IF arrived_z THEN
+      (* ── Emit TASK_COMPLETE event (msg_type=3) before Phase reset ── *)
+      IF NOT g_event_pending_valid THEN
+        (* Config-based sub-phase durations *)
+        dropping_s := g_transporter[i].DrippingTime / 10;
+        IF g_cfg[i].DripTrayInUse THEN
+          trip_s := g_cfg[i].DripTrayDelay / 10;
+        ELSE
+          trip_s := 0;
+        END_IF;
+        (* Nosto = total lift phase - dropping - trip_close
+           device_delay no longer in lift phase (overlapped in Phase 1) *)
+        dur_nosto := LINT_TO_INT(ts_lift_done[i] - ts_lift_begin[i])
+                     - dropping_s - trip_s;
+        IF dur_nosto < 0 THEN dur_nosto := 0; END_IF;
+        (* Lasku = total sink phase - device_delay - trip_open *)
+        dd_lift_s := g_sim_trans[i].SinkDeviceDelay / 10;
+        dur_lasku := LINT_TO_INT(g_time_s - ts_at_sink[i]) - dd_lift_s - trip_s;
+        IF dur_lasku < 0 THEN dur_lasku := 0; END_IF;
+
+        g_event_pending.MsgType := 3;
+        g_event_pending.TsHi := LINT_TO_INT(g_time_s / LINT#65536);
+        g_event_pending.TsLo := LINT_TO_INT(g_time_s MOD LINT#65536);
+        g_event_pending.Payload[1]  := LINT_TO_INT(g_transporter[i].TaskId / LINT#65536);   (* TaskId_Hi *)
+        g_event_pending.Payload[2]  := LINT_TO_INT(g_transporter[i].TaskId MOD LINT#65536);  (* TaskId_Lo *)
+        g_event_pending.Payload[3]  := i;                                                     (* transporter *)
+        g_event_pending.Payload[4]  := LINT_TO_INT(ts_at_lift[i] - ts_task_start[i]);         (* siirto nostoasemalle *)
+        g_event_pending.Payload[5]  := LINT_TO_INT(ts_lift_begin[i] - ts_at_lift[i]);         (* odotus ennen nostoa (max(treat,dev_delay)) *)
+        g_event_pending.Payload[6]  := dur_nosto;                                             (* nosto *)
+        g_event_pending.Payload[7]  := dropping_s;                                            (* valutus *)
+        g_event_pending.Payload[8]  := trip_s;                                                (* trip close *)
+        g_event_pending.Payload[9]  := LINT_TO_INT(ts_at_sink[i] - ts_lift_done[i]);          (* siirto laskuasemalle *)
+        g_event_pending.Payload[10] := trip_s;                                                (* trip open *)
+        g_event_pending.Payload[11] := dur_lasku;                                             (* lasku *)
+        g_event_pending.Payload[12] := LINT_TO_INT(g_time_s - ts_task_start[i]);              (* total *)
+        g_event_pending_valid := TRUE;
+      END_IF;
+
       (* Unit moves from transporter → sink station *)
       sink_unit_id := g_station_loc[i].UnitId;
       IF sink_unit_id >= 1 THEN

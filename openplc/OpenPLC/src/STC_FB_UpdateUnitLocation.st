@@ -18,6 +18,7 @@ VAR_INPUT
 END_VAR
 VAR_EXTERNAL CONSTANT
     MAX_Units           : INT;
+    MAX_Transporters    : INT;
     MAX_STEPS_PER_PROGRAM          : INT;
     MIN_StationIndex : INT;
     MAX_StationIndex   : INT;
@@ -29,11 +30,14 @@ VAR_EXTERNAL
   g_station_loc : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
   g_batch       : ARRAY[1..MAX_Units] OF UDT_BatchType;
   g_program     : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
+  g_transporter : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
+  g_move        : ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType;
   g_time_s      : LINT;
 END_VAR
 VAR
-  old_loc : INT;
-  new_stg : INT;
+  old_loc    : INT;
+  new_stg    : INT;
+  xfer_total : REAL;
 END_VAR
 
 IF (i_unit >= 1) AND (i_unit <= MAX_Units) THEN
@@ -47,6 +51,10 @@ IF (i_unit >= 1) AND (i_unit <= MAX_Units) THEN
 
   (* --- Update unit location --- *)
   g_unit[i_unit].location := i_location;
+
+  (* NOTE: transporter batch times are set directly in SIM_FB_RunTasks
+     at LIFT moment, not here — UpdateUnitLocation's transporter block
+     was unreliably executing. *)
 
   (* --- Set unit_id on new location (unified: transporter or station) --- *)
   IF (i_location >= 1) AND (i_location <= MAX_StationIndex) THEN

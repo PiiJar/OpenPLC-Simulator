@@ -120,6 +120,24 @@ function Transporter2D({
   const unitBatchBarBottom = unitBoxBottom - 3;
   const unitBatchBarHeight = Math.max(12, unitBatchBarBottom - unitBatchBarY);
 
+  // DEBUG: render batch debug info on transporter
+  const renderBatchDebug = () => {
+    const cal = batch ? Number(batch.calc_time_s) : -1;
+    const st = batch ? Number(batch.start_time) : -1;
+    const el = batch ? Math.max(0, currentSimMs - st) : -1;
+    const gr = cal > 0 ? Math.min(1, el / cal) : 0;
+    return (
+      <g>
+        <text x={transporterX + 2} y={transporterY + transporterHeight + 14} fontSize={9} fill="#c00" fontWeight="700">
+          {`csm=${currentSimMs} cal=${cal} st=${st}`}
+        </text>
+        <text x={transporterX + 2} y={transporterY + transporterHeight + 24} fontSize={9} fill="#c00" fontWeight="700">
+          {`el=${el} gr=${gr.toFixed(3)} b=${batch ? 'Y' : 'N'} u=${hasUnit ? 'Y' : 'N'}`}
+        </text>
+      </g>
+    );
+  };
+
   // Render batch on transporter
   const renderBatchOnTransporter = () => {
     if (!batch) return null;
@@ -380,6 +398,9 @@ function Transporter2D({
 
       {/* Batch on transporter - only in production view */}
       {!isProcessView && renderBatchOnTransporter()}
+
+      {/* DEBUG: batch timing info */}
+      {!isProcessView && renderBatchDebug()}
 
       {/* Unit target indicator — rendered AFTER batch so it appears on top */}
       {!isProcessView && hasUnit && unit.target && unit.target !== 'none' && unit.target !== 'empty' && (

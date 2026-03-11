@@ -35,6 +35,7 @@ VAR_EXTERNAL
   g_schedule : ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType;
   g_station_count : INT;
   g_move    : ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType;
+  g_cfg     : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
 END_VAR
 VAR
   st         : INT;      (* loop: stage index *)
@@ -185,7 +186,14 @@ FOR st := start_st TO g_program[i_unit].StepCount DO
 
     (* Estimate this stage's time window *)
     tmp_move := g_move[i_trans];
-    xfer_t := STC_CalcTransferTime(i_from_stn := prev_stn, i_to_stn := cand_arr[1], i_move := tmp_move);
+    xfer_t := STC_CalcTransferTime(
+      i_from_stn            := prev_stn,
+      i_to_stn              := cand_arr[1],
+      i_move                := tmp_move,
+      i_from_dropping_x10   := g_station[prev_stn].DrippingTime,
+      i_to_device_delay_x10 := g_station[cand_arr[1]].DeviceDelay,
+      i_drip_tray_delay_x10 := g_cfg[i_trans].DripTrayDelay
+    );
     my_entry := exit_t + REAL_TO_LINT(xfer_t);
     my_exit  := my_entry + REAL_TO_LINT(calc_s);
 
@@ -257,7 +265,14 @@ FOR st := start_st TO g_program[i_unit].StepCount DO
 
   (* -- Calculate transfer time from prev_stn to stn_num -- *)
   tmp_move := g_move[i_trans];
-  xfer_t := STC_CalcTransferTime(i_from_stn := prev_stn, i_to_stn := stn_num, i_move := tmp_move);
+  xfer_t := STC_CalcTransferTime(
+    i_from_stn            := prev_stn,
+    i_to_stn              := stn_num,
+    i_move                := tmp_move,
+    i_from_dropping_x10   := g_station[prev_stn].DrippingTime,
+    i_to_device_delay_x10 := g_station[stn_num].DeviceDelay,
+    i_drip_tray_delay_x10 := g_cfg[i_trans].DripTrayDelay
+  );
 
   (* -- Calculate entry and exit times -- *)
   IF is_first AND is_on_stn AND st = cur_stage THEN

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-10T10:26:29"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-10T10:26:29">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-11T14:44:58"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-11T14:44:58">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -1312,6 +1312,15 @@ END_IF;]]></xhtml:p>
             <variable name="i_move">
               <type><derived name="UDT_JC_MoveTimesType"/></type>
             </variable>
+            <variable name="i_from_dropping_x10">
+              <type><INT/></type>
+            </variable>
+            <variable name="i_to_device_delay_x10">
+              <type><INT/></type>
+            </variable>
+            <variable name="i_drip_tray_delay_x10">
+              <type><INT/></type>
+            </variable>
           </inputVars>
           <localVars>
             <variable name="from_idx">
@@ -1330,9 +1339,16 @@ IF i_from_stn > 0 AND i_from_stn <> i_to_stn THEN
   to_idx   := i_to_stn - 100;
   IF from_idx >= 1 AND from_idx <= 25 AND to_idx >= 1 AND to_idx <= 25 THEN
     STC_CalcTransferTime :=
+      (* Phase 2: lift + dropping + drip tray *)
       INT_TO_REAL(i_move.LiftTime[from_idx]) / 10.0
+      + INT_TO_REAL(i_from_dropping_x10) / 10.0
+      + INT_TO_REAL(i_drip_tray_delay_x10) / 10.0
+      (* Phase 3: horizontal travel *)
       + INT_TO_REAL(i_move.Travel[from_idx].ToTime[to_idx]) / 10.0
-      + INT_TO_REAL(i_move.SinkTime[to_idx]) / 10.0;
+      (* Phase 4: sink + drip tray + device delay *)
+      + INT_TO_REAL(i_move.SinkTime[to_idx]) / 10.0
+      + INT_TO_REAL(i_drip_tray_delay_x10) / 10.0
+      + INT_TO_REAL(i_to_device_delay_x10) / 10.0;
   END_IF;
 END_IF;]]></xhtml:p>
           </ST>
@@ -2039,6 +2055,9 @@ END_IF;]]></xhtml:p>
             <variable name="g_task">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType"/></type>
             </variable>
+            <variable name="g_station">
+              <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
+            </variable>
             <variable name="g_cfg">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterType"/></type>
             </variable>
@@ -2252,6 +2271,9 @@ END_IF;]]></xhtml:p>
             </variable>
             <variable name="max_cal">
               <type><DINT/></type>
+            </variable>
+            <variable name="est_finish">
+              <type><LINT/></type>
             </variable>
             <variable name="s0_slot_si">
               <type><INT/></type>
@@ -2520,6 +2542,35 @@ ELSIF phase = 1030 THEN
     g_task[ti].Count := write_idx;
   END_FOR;
 
+  (* ── G04: Inject in-flight pseudo-tasks for active transporters ── *)
+  (* Matches JS: build inFlightTasks from transporter states.         *)
+  (* When a transporter is executing a transfer (Phase 1-4), the      *)
+  (* dispatched task is no longer in g_task[].Queue. We inject a      *)
+  (* pseudo-task [now → est_finish] so idle-slot calculation sees     *)
+  (* the transporter as occupied until the transfer completes.        *)
+  FOR ti := 1 TO MAX_Transporters DO
+    IF g_transporter[ti].Phase >= 1 AND g_transporter[ti].Phase <= 4 THEN
+      est_finish := i_time_s + DINT_TO_LINT(g_transporter[ti].TaskRemainingTime);
+      IF est_finish > i_time_s AND g_task[ti].Count < 10 THEN
+        (* Shift existing tasks up by 1 to make room at position 1 *)
+        FOR qi := g_task[ti].Count TO 1 BY -1 DO
+          g_task[ti].Queue[qi + 1] := g_task[ti].Queue[qi];
+        END_FOR;
+        (* Insert in-flight pseudo-task at position 1 *)
+        g_task[ti].Queue[1].Unit              := 0;    (* pseudo — no unit *)
+        g_task[ti].Queue[1].Stage             := -1;   (* pseudo-stage marker *)
+        g_task[ti].Queue[1].LiftStationTarget := g_transporter[ti].LiftStationTarget;
+        g_task[ti].Queue[1].SinkStationTarget := g_transporter[ti].SinkStationTarget;
+        g_task[ti].Queue[1].StartTime         := i_time_s;
+        g_task[ti].Queue[1].FinishTime        := est_finish;
+        g_task[ti].Queue[1].CalcTime          := 0;
+        g_task[ti].Queue[1].MinTime           := 0;
+        g_task[ti].Queue[1].MaxTime           := 0;
+        g_task[ti].Count := g_task[ti].Count + 1;
+      END_IF;
+    END_IF;
+  END_FOR;
+
   next_phase := 1040;
 
 (* ════════════════════════════════════════════════════════════ *)
@@ -2576,7 +2627,14 @@ ELSIF phase = 2000 THEN
   IF next_phase <> 9000 THEN
     (* Calculate transfer time for pickup *)
     tmp_move := g_move[sched_trans];
-    xfer_dur := STC_CalcTransferTime(i_from_stn := loading_stn, i_to_stn := first_stn, i_move := tmp_move);
+    xfer_dur := STC_CalcTransferTime(
+      i_from_stn            := loading_stn,
+      i_to_stn              := first_stn,
+      i_move                := tmp_move,
+      i_from_dropping_x10   := g_station[loading_stn].DrippingTime,
+      i_to_device_delay_x10 := g_station[first_stn].DeviceDelay,
+      i_drip_tray_delay_x10 := g_cfg[sched_trans].DripTrayDelay
+    );
     IF xfer_dur < 1.0 THEN xfer_dur := 1.0; END_IF;
 
     s0_task_dur := REAL_TO_LINT(xfer_dur);
@@ -2850,10 +2908,26 @@ ELSIF phase = 8000 THEN
   g_dep_pending.BatchUnit  := cur_wait_unit;
   g_dep_pending.BatchStage := 0;    (* cur_stage = 0, JS: batch.Stage = 0 *)
   g_dep_pending.BatchState := 1;    (* NOT_PROCESSED → IN_PROCESS *)
-  (* Stage 0 times — same naming as UDT_TreatmentProgramStepType: MinTime, MaxTime, CalTime *)
-  g_dep_pending.BatchCalTime  := REAL_TO_DINT(stage0_pending_delay);
-  g_dep_pending.BatchMinTime  := REAL_TO_DINT(stage0_pending_delay);
-  g_dep_pending.BatchMaxTime  := REAL_TO_DINT(2.0 * stage0_pending_delay);
+  (* ── Stage 0 batch times — matches JS ACTIVATE logic ──────────
+     JS: sandboxBatch.calc_time_s = stage0Sched.treatment_time_s
+         sandboxBatch.calc_time_s += action.delay   (if idle-slot delay)
+         sandboxBatch.min_time_s  = sandboxBatch.calc_time_s
+         sandboxBatch.max_time_s  = max(calc, 2*calc)
+     PLC: program Steps[0] = first treatment station (= JS stage0Sched)
+          stage0_pending_delay = idle-slot delay (= JS action.delay)
+     ──────────────────────────────────────────────────────────── *)
+  IF stage0_pending_delay > MARGIN_S THEN
+    (* Delay case: calc = treatment + delay, min = calc, max = 2*calc *)
+    g_dep_pending.BatchCalTime := g_program[cur_wait_unit].Steps[0].CalTime
+                                  + REAL_TO_DINT(stage0_pending_delay);
+    g_dep_pending.BatchMinTime := g_dep_pending.BatchCalTime;
+    g_dep_pending.BatchMaxTime := 2 * g_dep_pending.BatchCalTime;
+  ELSE
+    (* No delay: use first treatment step times directly *)
+    g_dep_pending.BatchCalTime := g_program[cur_wait_unit].Steps[0].CalTime;
+    g_dep_pending.BatchMinTime := g_program[cur_wait_unit].Steps[0].MinTime;
+    g_dep_pending.BatchMaxTime := g_program[cur_wait_unit].Steps[0].MaxTime;
+  END_IF;
   IF g_dep_pending.BatchMaxTime < g_dep_pending.BatchCalTime THEN
     g_dep_pending.BatchMaxTime := g_dep_pending.BatchCalTime;
   END_IF;
@@ -3287,6 +3361,9 @@ END_FOR;]]></xhtml:p>
             <variable name="pick_unit_id">
               <type><INT/></type>
             </variable>
+            <variable name="xfer_total">
+              <type><REAL/></type>
+            </variable>
             <variable name="sink_unit_id">
               <type><INT/></type>
             </variable>
@@ -3335,6 +3412,61 @@ END_FOR;]]></xhtml:p>
             <variable name="treat_elapsed">
               <type><LINT/></type>
             </variable>
+            <variable name="ts_task_start">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><LINT/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="ts_at_lift">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><LINT/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="ts_lift_begin">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><LINT/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="ts_lift_done">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><LINT/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="ts_at_sink">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><LINT/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="dd_lift_s">
+              <type><INT/></type>
+            </variable>
+            <variable name="dropping_s">
+              <type><INT/></type>
+            </variable>
+            <variable name="trip_s">
+              <type><INT/></type>
+            </variable>
+            <variable name="dur_nosto">
+              <type><INT/></type>
+            </variable>
+            <variable name="dur_lasku">
+              <type><INT/></type>
+            </variable>
           </localVars>
         </interface>
         <body>
@@ -3356,6 +3488,9 @@ FOR i := 1 TO MAX_Transporters DO
     g_transporter[i].Status := 4;  (* auto_run *)
     g_sim_trans[i].ZStage := 0;
     g_sim_trans[i].ZTimer := 0.0;
+    (* Record task start timestamp *)
+    ts_task_start[i] := g_time_s;
+    ts_at_lift[i]    := LINT#0;
 
   (* ── Phase 1: Drive X towards lift station ──────────────── *)
   ELSIF g_transporter[i].Phase = 1 THEN
@@ -3409,12 +3544,22 @@ FOR i := 1 TO MAX_Transporters DO
                   AND (ABS(g_transporter[i].XPosition - g_transporter[i].XFinalTarget) <= 6);
     IF at_station THEN
       g_transporter[i].CurrentStation := g_transporter[i].LiftStationTarget;
+      (* Record arrival at lift station (first time only) *)
+      IF ts_at_lift[i] = LINT#0 THEN
+        ts_at_lift[i] := g_time_s;
+      END_IF;
 
-      (* ── Wait for treatment time before lifting ──────────────
-         If the unit at the lift station is IN_PROCESS and its
-         treatment cal_time has not yet elapsed, stay at station
-         and do NOT begin the lift sequence. *)
+      (* ── Wait for treatment time AND device_delay before lifting ──
+         Z-movement starts when the LONGER of two has elapsed:
+         1. Remaining treatment time (unit must finish treatment)
+         2. Station device_delay (covers must be open)
+         Both timers run simultaneously from transporter arrival.
+         This matches JS behavior: max(treatment, device_delay). *)
       can_lift := TRUE;
+      lookup(station_number := g_transporter[i].LiftStationTarget);
+      device_delay := lookup.device_delay_s;
+
+      (* Check treatment time *)
       lift_uid := g_station_loc[g_transporter[i].LiftStationTarget].UnitId;
       IF lift_uid >= 1 AND lift_uid <= MAX_Units THEN
         IF g_batch[lift_uid].State = IN_PROCESS
@@ -3430,13 +3575,41 @@ FOR i := 1 TO MAX_Transporters DO
         END_IF;
       END_IF;
 
+      (* Check device_delay — covers must have had time to open since arrival *)
+      IF can_lift AND device_delay > 0.0 THEN
+        IF LINT_TO_REAL(g_time_s - ts_at_lift[i]) < device_delay THEN
+          can_lift := FALSE;
+        END_IF;
+      END_IF;
+
       IF can_lift THEN
-      lookup(station_number := g_transporter[i].LiftStationTarget);
-      device_delay := lookup.device_delay_s;
+      (* Record lift begin timestamp *)
+      ts_lift_begin[i] := g_time_s;
       drop_time    := lookup.dropping_time_s;
-      g_sim_trans[i].ZTimer := device_delay + drop_time;
-      g_sim_trans[i].ZStage := 1;
+      (* Skip stage 1 — device_delay already overlapped above.
+         Z-movement starts immediately (stage 2).
+         dropping_time and drip_tray_delay happen at the TOP. *)
+      g_transporter[i].ZPosition := 0;
+      g_sim_trans[i].ZTimer := 0.0;
+      g_sim_trans[i].ZStage := 2;
       g_transporter[i].Phase := 2;
+
+      (* ── Calculate transfer time (used by event + batch times) ── *)
+      xfer_total := STC_CalcTransferTime(
+        i_from_stn            := g_transporter[i].LiftStationTarget,
+        i_to_stn              := g_transporter[i].SinkStationTarget,
+        i_move                := g_move[i],
+        i_from_dropping_x10   := g_station[g_transporter[i].LiftStationTarget].DrippingTime,
+        i_to_device_delay_x10 := g_station[g_transporter[i].SinkStationTarget].DeviceDelay,
+        i_drip_tray_delay_x10 := g_cfg[i].DripTrayDelay
+      );
+      IF xfer_total < 1.0 THEN
+        xfer_total := INT_TO_REAL(
+          ABS(g_transporter[i].SinkStationTarget
+              - g_transporter[i].LiftStationTarget)
+        ) * 8.0;
+      END_IF;
+      IF xfer_total < 5.0 THEN xfer_total := 60.0; END_IF;
 
       (* ── Emit LIFT event (msg_type=2) ── *)
       evt_unit := g_station_loc[g_transporter[i].LiftStationTarget].UnitId;
@@ -3444,12 +3617,12 @@ FOR i := 1 TO MAX_Transporters DO
         g_event_pending.MsgType := 2;
         g_event_pending.TsHi := LINT_TO_INT(g_time_s / LINT#65536);
         g_event_pending.TsLo := LINT_TO_INT(g_time_s MOD LINT#65536);
-        g_event_pending.Payload[1]  := i;
-        g_event_pending.Payload[2]  := evt_unit;
-        g_event_pending.Payload[3]  := g_transporter[i].LiftStationTarget;
-        g_event_pending.Payload[4]  := g_batch[evt_unit].BatchCode;
-        g_event_pending.Payload[5]  := g_batch[evt_unit].State;
-        g_event_pending.Payload[6]  := g_batch[evt_unit].ProgId;
+        g_event_pending.Payload[1]  := LINT_TO_INT(g_transporter[i].TaskId / LINT#65536);   (* TaskId_Hi *)
+        g_event_pending.Payload[2]  := LINT_TO_INT(g_transporter[i].TaskId MOD LINT#65536);  (* TaskId_Lo *)
+        g_event_pending.Payload[3]  := i;
+        g_event_pending.Payload[4]  := evt_unit;
+        g_event_pending.Payload[5]  := g_transporter[i].LiftStationTarget;
+        g_event_pending.Payload[6]  := g_batch[evt_unit].BatchCode;
         g_event_pending.Payload[7]  := g_batch[evt_unit].CurStage;
         evt_diff := g_time_s - g_station_loc[g_transporter[i].LiftStationTarget].ChangeTime;
         IF evt_diff > LINT#32000 THEN
@@ -3460,7 +3633,7 @@ FOR i := 1 TO MAX_Transporters DO
         g_event_pending.Payload[9]  := DINT_TO_INT(g_sim_trans[i].TreatmentTime);
         g_event_pending.Payload[10] := DINT_TO_INT(g_sim_trans[i].MinTime);
         g_event_pending.Payload[11] := DINT_TO_INT(g_sim_trans[i].MaxTime);
-        g_event_pending.Payload[12] := 0;
+        g_event_pending.Payload[12] := REAL_TO_INT(xfer_total);
         g_event_pending_valid := TRUE;
       END_IF;
 
@@ -3474,6 +3647,12 @@ FOR i := 1 TO MAX_Transporters DO
         ELSIF i = 3 THEN
           upd_loc3(i_unit := pick_unit_id, i_location := i);
         END_IF;
+
+        (* Set batch transfer times for UI progress bar — matches JS behavior *)
+        g_batch[pick_unit_id].StartTime := g_time_s;
+        g_batch[pick_unit_id].CalTime   := REAL_TO_DINT(xfer_total);
+        g_batch[pick_unit_id].MinTime   := g_batch[pick_unit_id].CalTime;
+        g_batch[pick_unit_id].MaxTime   := 600;
       END_IF;
       END_IF;  (* can_lift *)
     END_IF;
@@ -3498,6 +3677,7 @@ FOR i := 1 TO MAX_Transporters DO
         SpeedLiftSlow_Z := g_cfg[i].SpeedLiftSlow_Z,
         SpeedLiftFast_Z := g_cfg[i].SpeedLiftFast_Z,
         DripTrayDelay   := g_cfg[i].DripTrayDelay,
+        DroppingTime    := g_station[g_transporter[i].LiftStationTarget].DrippingTime,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -3515,6 +3695,7 @@ FOR i := 1 TO MAX_Transporters DO
         SpeedLiftSlow_Z := g_cfg[i].SpeedLiftSlow_Z,
         SpeedLiftFast_Z := g_cfg[i].SpeedLiftFast_Z,
         DripTrayDelay   := g_cfg[i].DripTrayDelay,
+        DroppingTime    := g_station[g_transporter[i].LiftStationTarget].DrippingTime,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -3532,6 +3713,7 @@ FOR i := 1 TO MAX_Transporters DO
         SpeedLiftSlow_Z := g_cfg[i].SpeedLiftSlow_Z,
         SpeedLiftFast_Z := g_cfg[i].SpeedLiftFast_Z,
         DripTrayDelay   := g_cfg[i].DripTrayDelay,
+        DroppingTime    := g_station[g_transporter[i].LiftStationTarget].DrippingTime,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -3542,6 +3724,8 @@ FOR i := 1 TO MAX_Transporters DO
     g_sim_trans[i].ZStage   := tmp_zs;
     g_sim_trans[i].ZTimer := tmp_zt;
     IF arrived_z THEN
+      (* Record lift done timestamp *)
+      ts_lift_done[i] := g_time_s;
       lookup(station_number := g_transporter[i].SinkStationTarget);
       g_transporter[i].XFinalTarget := lookup.x_mm;
       g_transporter[i].Phase := 3;
@@ -3599,6 +3783,8 @@ FOR i := 1 TO MAX_Transporters DO
                   AND (ABS(g_transporter[i].XPosition - g_transporter[i].XFinalTarget) <= 6);
     IF at_station THEN
       g_transporter[i].CurrentStation := g_transporter[i].SinkStationTarget;
+      (* Record arrival at sink timestamp *)
+      ts_at_sink[i] := g_time_s;
       lookup(station_number := g_transporter[i].SinkStationTarget);
       device_delay := lookup.device_delay_s;
       g_sim_trans[i].ZTimer := device_delay + INT_TO_REAL(g_cfg[i].DripTrayDelay) / 10.0;
@@ -3626,6 +3812,7 @@ FOR i := 1 TO MAX_Transporters DO
         SpeedLiftSlow_Z := g_cfg[i].SpeedLiftSlow_Z,
         SpeedLiftFast_Z := g_cfg[i].SpeedLiftFast_Z,
         DripTrayDelay   := g_cfg[i].DripTrayDelay,
+        DroppingTime    := 0,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -3643,6 +3830,7 @@ FOR i := 1 TO MAX_Transporters DO
         SpeedLiftSlow_Z := g_cfg[i].SpeedLiftSlow_Z,
         SpeedLiftFast_Z := g_cfg[i].SpeedLiftFast_Z,
         DripTrayDelay   := g_cfg[i].DripTrayDelay,
+        DroppingTime    := 0,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -3660,6 +3848,7 @@ FOR i := 1 TO MAX_Transporters DO
         SpeedLiftSlow_Z := g_cfg[i].SpeedLiftSlow_Z,
         SpeedLiftFast_Z := g_cfg[i].SpeedLiftFast_Z,
         DripTrayDelay   := g_cfg[i].DripTrayDelay,
+        DroppingTime    := 0,
         z_mm          := tmp_z,
         z_stage       := tmp_zs,
         z_timer_s     := tmp_zt
@@ -3670,6 +3859,43 @@ FOR i := 1 TO MAX_Transporters DO
     g_sim_trans[i].ZStage   := tmp_zs;
     g_sim_trans[i].ZTimer := tmp_zt;
     IF arrived_z THEN
+      (* ── Emit TASK_COMPLETE event (msg_type=3) before Phase reset ── *)
+      IF NOT g_event_pending_valid THEN
+        (* Config-based sub-phase durations *)
+        dropping_s := g_transporter[i].DrippingTime / 10;
+        IF g_cfg[i].DripTrayInUse THEN
+          trip_s := g_cfg[i].DripTrayDelay / 10;
+        ELSE
+          trip_s := 0;
+        END_IF;
+        (* Nosto = total lift phase - dropping - trip_close
+           device_delay no longer in lift phase (overlapped in Phase 1) *)
+        dur_nosto := LINT_TO_INT(ts_lift_done[i] - ts_lift_begin[i])
+                     - dropping_s - trip_s;
+        IF dur_nosto < 0 THEN dur_nosto := 0; END_IF;
+        (* Lasku = total sink phase - device_delay - trip_open *)
+        dd_lift_s := g_sim_trans[i].SinkDeviceDelay / 10;
+        dur_lasku := LINT_TO_INT(g_time_s - ts_at_sink[i]) - dd_lift_s - trip_s;
+        IF dur_lasku < 0 THEN dur_lasku := 0; END_IF;
+
+        g_event_pending.MsgType := 3;
+        g_event_pending.TsHi := LINT_TO_INT(g_time_s / LINT#65536);
+        g_event_pending.TsLo := LINT_TO_INT(g_time_s MOD LINT#65536);
+        g_event_pending.Payload[1]  := LINT_TO_INT(g_transporter[i].TaskId / LINT#65536);   (* TaskId_Hi *)
+        g_event_pending.Payload[2]  := LINT_TO_INT(g_transporter[i].TaskId MOD LINT#65536);  (* TaskId_Lo *)
+        g_event_pending.Payload[3]  := i;                                                     (* transporter *)
+        g_event_pending.Payload[4]  := LINT_TO_INT(ts_at_lift[i] - ts_task_start[i]);         (* siirto nostoasemalle *)
+        g_event_pending.Payload[5]  := LINT_TO_INT(ts_lift_begin[i] - ts_at_lift[i]);         (* odotus ennen nostoa (max(treat,dev_delay)) *)
+        g_event_pending.Payload[6]  := dur_nosto;                                             (* nosto *)
+        g_event_pending.Payload[7]  := dropping_s;                                            (* valutus *)
+        g_event_pending.Payload[8]  := trip_s;                                                (* trip close *)
+        g_event_pending.Payload[9]  := LINT_TO_INT(ts_at_sink[i] - ts_lift_done[i]);          (* siirto laskuasemalle *)
+        g_event_pending.Payload[10] := trip_s;                                                (* trip open *)
+        g_event_pending.Payload[11] := dur_lasku;                                             (* lasku *)
+        g_event_pending.Payload[12] := LINT_TO_INT(g_time_s - ts_task_start[i]);              (* total *)
+        g_event_pending_valid := TRUE;
+      END_IF;
+
       (* Unit moves from transporter → sink station *)
       sink_unit_id := g_station_loc[i].UnitId;
       IF sink_unit_id >= 1 THEN
@@ -3974,6 +4200,9 @@ END_IF;]]></xhtml:p>
             <variable name="DripTrayDelay">
               <type><INT/></type>
             </variable>
+            <variable name="DroppingTime">
+              <type><INT/></type>
+            </variable>
           </inputVars>
           <outputVars>
             <variable name="done">
@@ -4018,6 +4247,9 @@ END_IF;]]></xhtml:p>
             <variable name="r_drip">
               <type><REAL/></type>
             </variable>
+            <variable name="r_drop">
+              <type><REAL/></type>
+            </variable>
             <variable name="z_total_mm">
               <type><DINT/></type>
             </variable>
@@ -4035,6 +4267,7 @@ r_slow_end  := DINT_TO_REAL(ZPosSlowEnd);
 r_slow_spd  := DINT_TO_REAL(SpeedLiftSlow_Z);
 r_fast_spd  := DINT_TO_REAL(SpeedLiftFast_Z);
 r_drip      := INT_TO_REAL(DripTrayDelay) / 10.0;
+r_drop      := INT_TO_REAL(DroppingTime) / 10.0;
 
 (* Select slow zone based on station kind *)
 IF station_kind = KIND_WET THEN
@@ -4045,14 +4278,8 @@ END_IF;
 
 CASE z_stage OF
 
-  (* === LIFT: stages 1-5 — nosto altaasta ylös (z kasvaa: 0 → z_total) === *)
-
-  1: (* Init delay: device_delay + dropping_time *)
-    z_timer_s := z_timer_s - delta_t;
-    IF z_timer_s <= 0.0 THEN
-      z_stage := 2;
-      z_mm := 0;
-    END_IF;
+  (* === LIFT: stages 2-5,9 — nosto altaasta ylös (z kasvaa: 0 → z_total) === *)
+  (* Stage 1 no longer used for lift — device_delay overlaps with treatment wait *)
 
   2: (* Slow lift start — hidas nosto nesteestä *)
     r_z := r_z + r_slow_spd * delta_t;
@@ -4072,13 +4299,20 @@ CASE z_stage OF
     r_z := r_z + r_slow_spd * delta_t;
     IF r_z >= r_total THEN
       z_mm := z_total_mm;
-      z_timer_s := r_drip;
+      z_timer_s := r_drop;
       z_stage := 5;
     ELSE
       z_mm := REAL_TO_DINT(r_z);
     END_IF;
 
-  5: (* Drip delay — tippumisviive yläasemassa *)
+  5: (* Dropping / dripping — valutusaika yläasemassa *)
+    z_timer_s := z_timer_s - delta_t;
+    IF z_timer_s <= 0.0 THEN
+      z_timer_s := r_drip;
+      z_stage := 9;
+    END_IF;
+
+  9: (* Drip tray close — tippakouru sulkeutuu *)
     z_timer_s := z_timer_s - delta_t;
     IF z_timer_s <= 0.0 THEN
       z_stage := 0;
@@ -4801,6 +5035,9 @@ END_FOR;]]></xhtml:p>
             <variable name="g_move">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType"/></type>
             </variable>
+            <variable name="g_cfg">
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterType"/></type>
+            </variable>
             <variable name="g_time_s">
               <type><LINT/></type>
             </variable>
@@ -4896,8 +5133,17 @@ END_FOR;]]></xhtml:p>
             <variable name="task_max">
               <type><INT/></type>
             </variable>
+            <variable name="can_start_early">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="elapsed_s">
+              <type><LINT/></type>
+            </variable>
             <variable name="sh">
               <type><INT/></type>
+            </variable>
+            <variable name="xfer_total">
+              <type><REAL/></type>
             </variable>
           </localVars>
         </interface>
@@ -5098,31 +5344,36 @@ END_FOR;]]></xhtml:p>
           g_sim_trans[ti].MaxTime := g_task[ti].Queue[1].MaxTime;
           g_transporter[ti].TaskRemainingTime := t_calc_time;
 
-          (* ── Update batch times: transfer duration as time bar ── *)
-          IF t_unit >= 1 AND t_unit <= MAX_Units THEN
-            g_batch[t_unit].StartTime := g_time_s;
-            g_batch[t_unit].CalTime   := LINT_TO_DINT(t_finish - t_start);
-            g_batch[t_unit].MinTime   := g_batch[t_unit].CalTime;
-            g_batch[t_unit].MaxTime   := LINT_TO_DINT((t_finish - t_start) * LINT#2);
-          END_IF;
-
           (* ── Emit TASK_DISPATCHED event (msg_type=1) ── *)
+          (* Compute transfer time for xfer_total field *)
+          xfer_total := STC_CalcTransferTime(
+            i_from_stn            := t_lift,
+            i_to_stn              := sink_stn,
+            i_move                := g_move[ti],
+            i_from_dropping_x10   := g_station[t_lift].DrippingTime,
+            i_to_device_delay_x10 := g_station[sink_stn].DeviceDelay,
+            i_drip_tray_delay_x10 := g_cfg[ti].DripTrayDelay
+          );
+          IF xfer_total < 1.0 THEN
+            xfer_total := INT_TO_REAL(ABS(sink_stn - t_lift)) * 8.0;
+          END_IF;
+          IF xfer_total < 5.0 THEN xfer_total := 60.0; END_IF;
           IF NOT g_event_pending_valid THEN
             g_event_pending.MsgType := 1;
             g_event_pending.TsHi := LINT_TO_INT(g_time_s / LINT#65536);
             g_event_pending.TsLo := LINT_TO_INT(g_time_s MOD LINT#65536);
-            g_event_pending.Payload[1]  := ti;
-            g_event_pending.Payload[2]  := t_unit;
-            g_event_pending.Payload[3]  := t_lift;
-            g_event_pending.Payload[4]  := sink_stn;
-            g_event_pending.Payload[5]  := t_stage;
-            g_event_pending.Payload[6]  := g_batch[t_unit].BatchCode;
-            g_event_pending.Payload[7]  := g_batch[t_unit].State;
-            g_event_pending.Payload[8]  := g_batch[t_unit].ProgId;
-            g_event_pending.Payload[9]  := g_unit[t_unit].Target;
-            g_event_pending.Payload[10] := DINT_TO_INT(t_calc_time);
-            g_event_pending.Payload[11] := DINT_TO_INT(g_task[ti].Queue[1].MinTime);
-            g_event_pending.Payload[12] := DINT_TO_INT(g_task[ti].Queue[1].MaxTime);
+            g_event_pending.Payload[1]  := LINT_TO_INT(t_start / LINT#65536);   (* TaskId_Hi *)
+            g_event_pending.Payload[2]  := LINT_TO_INT(t_start MOD LINT#65536);  (* TaskId_Lo *)
+            g_event_pending.Payload[3]  := ti;
+            g_event_pending.Payload[4]  := t_unit;
+            g_event_pending.Payload[5]  := t_lift;
+            g_event_pending.Payload[6]  := sink_stn;
+            g_event_pending.Payload[7]  := t_stage;
+            g_event_pending.Payload[8]  := g_batch[t_unit].BatchCode;
+            g_event_pending.Payload[9]  := DINT_TO_INT(t_calc_time);
+            g_event_pending.Payload[10] := DINT_TO_INT(g_task[ti].Queue[1].MinTime);
+            g_event_pending.Payload[11] := DINT_TO_INT(g_task[ti].Queue[1].MaxTime);
+            g_event_pending.Payload[12] := REAL_TO_INT(xfer_total);
             g_event_pending_valid := TRUE;
           END_IF;
 
@@ -5924,6 +6175,9 @@ END_IF; (* production_queue AND NOT has_loading *)]]></xhtml:p>
             <variable name="g_task">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType"/></type>
             </variable>
+            <variable name="g_time_s">
+              <type><LINT/></type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="sc">
@@ -5937,6 +6191,9 @@ END_IF; (* production_queue AND NOT has_loading *)]]></xhtml:p>
             </variable>
             <variable name="ti">
               <type><INT/></type>
+            </variable>
+            <variable name="duration">
+              <type><LINT/></type>
             </variable>
           </localVars>
         </interface>
@@ -5953,6 +6210,12 @@ FOR si := i_from_stage TO sc DO
       g_schedule[i_unit].Stages[si].EntryTime + REAL_TO_LINT(i_amount);
     g_schedule[i_unit].Stages[si].ExitTime :=
       g_schedule[i_unit].Stages[si].ExitTime + REAL_TO_LINT(i_amount);
+    (* GAP-3: Past-clamp — don't let EntryTime go before now+1 *)
+    IF i_amount < 0.0 AND g_schedule[i_unit].Stages[si].EntryTime < g_time_s + LINT#1 THEN
+      g_schedule[i_unit].Stages[si].ExitTime := g_time_s + LINT#1
+        + (g_schedule[i_unit].Stages[si].ExitTime - g_schedule[i_unit].Stages[si].EntryTime);
+      g_schedule[i_unit].Stages[si].EntryTime := g_time_s + LINT#1;
+    END_IF;
   END_IF;
 END_FOR;
 
@@ -5965,6 +6228,12 @@ FOR ti := 1 TO MAX_Transporters DO
         g_task[ti].Queue[qi].StartTime + REAL_TO_LINT(i_amount);
       g_task[ti].Queue[qi].FinishTime :=
         g_task[ti].Queue[qi].FinishTime + REAL_TO_LINT(i_amount);
+      (* GAP-3: Past-clamp — don't let StartTime go before now+1 *)
+      IF i_amount < 0.0 AND g_task[ti].Queue[qi].StartTime < g_time_s + LINT#1 THEN
+        duration := g_task[ti].Queue[qi].FinishTime - g_task[ti].Queue[qi].StartTime;
+        g_task[ti].Queue[qi].StartTime := g_time_s + LINT#1;
+        g_task[ti].Queue[qi].FinishTime := g_time_s + LINT#1 + duration;
+      END_IF;
     END_IF;
   END_FOR;
 END_FOR;]]></xhtml:p>
@@ -5981,6 +6250,15 @@ END_FOR;]]></xhtml:p>
           <externalVars>
             <variable name="g_task">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType"/></type>
+            </variable>
+            <variable name="g_batch">
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
+            </variable>
+            <variable name="g_unit">
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>
+            </variable>
+            <variable name="g_time_s">
+              <type><LINT/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -6005,6 +6283,27 @@ END_FOR;]]></xhtml:p>
             <variable name="tmp_task">
               <type><derived name="UDT_JC_TskTaskType"/></type>
             </variable>
+            <variable name="tmp_unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="cur_unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="tmp_ratio">
+              <type><REAL/></type>
+            </variable>
+            <variable name="cur_ratio">
+              <type><REAL/></type>
+            </variable>
+            <variable name="tmp_emerg">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="cur_emerg">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="do_shift">
+              <type><BOOL/></type>
+            </variable>
           </localVars>
         </interface>
         <body>
@@ -6022,11 +6321,64 @@ FOR ti := t_start TO t_end DO
   IF ins_cnt >= 2 THEN
     FOR ins_i := 2 TO ins_cnt DO
       tmp_task := g_task[ti].Queue[ins_i];
+
+      (* ── Compute overtime ratio for the task being inserted ── *)
+      tmp_ratio := 0.0;
+      tmp_unit  := tmp_task.Unit;
+      IF tmp_unit >= 1 AND tmp_unit <= MAX_Units THEN
+        IF g_batch[tmp_unit].State = 1                                   (* IN_PROCESS *)
+           AND g_batch[tmp_unit].CurStage = tmp_task.Stage
+           AND g_unit[tmp_unit].location = tmp_task.LiftStationTarget
+           AND g_batch[tmp_unit].StartTime > LINT#0
+           AND g_batch[tmp_unit].MaxTime > 0 THEN
+          tmp_ratio := LINT_TO_REAL(g_time_s - g_batch[tmp_unit].StartTime)
+                       / DINT_TO_REAL(g_batch[tmp_unit].MaxTime);
+        END_IF;
+      END_IF;
+      tmp_emerg := tmp_ratio > 1.0;
+
+      (* ── Insertion sort with emergency-aware comparator ── *)
       ins_j := ins_i - 1;
-      WHILE ins_j >= 1 AND g_task[ti].Queue[ins_j].StartTime > tmp_task.StartTime DO
+      WHILE ins_j >= 1 DO
+        (* Compute overtime ratio for the element at ins_j *)
+        cur_ratio := 0.0;
+        cur_unit  := g_task[ti].Queue[ins_j].Unit;
+        IF cur_unit >= 1 AND cur_unit <= MAX_Units THEN
+          IF g_batch[cur_unit].State = 1
+             AND g_batch[cur_unit].CurStage = g_task[ti].Queue[ins_j].Stage
+             AND g_unit[cur_unit].location = g_task[ti].Queue[ins_j].LiftStationTarget
+             AND g_batch[cur_unit].StartTime > LINT#0
+             AND g_batch[cur_unit].MaxTime > 0 THEN
+            cur_ratio := LINT_TO_REAL(g_time_s - g_batch[cur_unit].StartTime)
+                         / DINT_TO_REAL(g_batch[cur_unit].MaxTime);
+          END_IF;
+        END_IF;
+        cur_emerg := cur_ratio > 1.0;
+
+        (* Decide: should Queue[ins_j] shift right to make room for tmp_task? *)
+        do_shift := FALSE;
+        IF tmp_emerg AND NOT cur_emerg THEN
+          (* tmp is emergency, cur is not → tmp goes first *)
+          do_shift := TRUE;
+        ELSIF tmp_emerg AND cur_emerg THEN
+          (* both emergency → higher ratio first *)
+          IF tmp_ratio > cur_ratio THEN
+            do_shift := TRUE;
+          END_IF;
+        ELSIF NOT tmp_emerg AND NOT cur_emerg THEN
+          (* normal order: earlier StartTime first *)
+          IF g_task[ti].Queue[ins_j].StartTime > tmp_task.StartTime THEN
+            do_shift := TRUE;
+          END_IF;
+        (* ELSE: cur is emergency, tmp is not → cur stays, stop *)
+        END_IF;
+
+        IF NOT do_shift THEN EXIT; END_IF;
+
         g_task[ti].Queue[ins_j + 1] := g_task[ti].Queue[ins_j];
         ins_j := ins_j - 1;
       END_WHILE;
+
       g_task[ti].Queue[ins_j + 1] := tmp_task;
     END_FOR;
   END_IF;
@@ -6060,6 +6412,12 @@ END_FOR;]]></xhtml:p>
             <variable name="g_program">
               <type><derived name="ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType"/></type>
             </variable>
+            <variable name="g_transporter">
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
+            </variable>
+            <variable name="g_move">
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType"/></type>
+            </variable>
             <variable name="g_time_s">
               <type><LINT/></type>
             </variable>
@@ -6070,6 +6428,9 @@ END_FOR;]]></xhtml:p>
             </variable>
             <variable name="new_stg">
               <type><INT/></type>
+            </variable>
+            <variable name="xfer_total">
+              <type><REAL/></type>
             </variable>
           </localVars>
         </interface>
@@ -6086,6 +6447,10 @@ END_FOR;]]></xhtml:p>
 
   (* --- Update unit location --- *)
   g_unit[i_unit].location := i_location;
+
+  (* NOTE: transporter batch times are set directly in SIM_FB_RunTasks
+     at LIFT moment, not here — UpdateUnitLocation's transporter block
+     was unreliably executing. *)
 
   (* --- Set unit_id on new location (unified: transporter or station) --- *)
   IF (i_location >= 1) AND (i_location <= MAX_StationIndex) THEN
@@ -6631,6 +6996,9 @@ checked_count := total_tasks;]]></xhtml:p>
             <variable name="g_move">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType"/></type>
             </variable>
+            <variable name="g_cfg">
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterType"/></type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="st">
@@ -6859,7 +7227,14 @@ FOR st := start_st TO g_program[i_unit].StepCount DO
 
     (* Estimate this stage's time window *)
     tmp_move := g_move[i_trans];
-    xfer_t := STC_CalcTransferTime(i_from_stn := prev_stn, i_to_stn := cand_arr[1], i_move := tmp_move);
+    xfer_t := STC_CalcTransferTime(
+      i_from_stn            := prev_stn,
+      i_to_stn              := cand_arr[1],
+      i_move                := tmp_move,
+      i_from_dropping_x10   := g_station[prev_stn].DrippingTime,
+      i_to_device_delay_x10 := g_station[cand_arr[1]].DeviceDelay,
+      i_drip_tray_delay_x10 := g_cfg[i_trans].DripTrayDelay
+    );
     my_entry := exit_t + REAL_TO_LINT(xfer_t);
     my_exit  := my_entry + REAL_TO_LINT(calc_s);
 
@@ -6931,7 +7306,14 @@ FOR st := start_st TO g_program[i_unit].StepCount DO
 
   (* -- Calculate transfer time from prev_stn to stn_num -- *)
   tmp_move := g_move[i_trans];
-  xfer_t := STC_CalcTransferTime(i_from_stn := prev_stn, i_to_stn := stn_num, i_move := tmp_move);
+  xfer_t := STC_CalcTransferTime(
+    i_from_stn            := prev_stn,
+    i_to_stn              := stn_num,
+    i_move                := tmp_move,
+    i_from_dropping_x10   := g_station[prev_stn].DrippingTime,
+    i_to_device_delay_x10 := g_station[stn_num].DeviceDelay,
+    i_drip_tray_delay_x10 := g_cfg[i_trans].DripTrayDelay
+  );
 
   (* -- Calculate entry and exit times -- *)
   IF is_first AND is_on_stn AND st = cur_stage THEN
@@ -7084,6 +7466,9 @@ END_FOR;]]></xhtml:p>
             </variable>
             <variable name="g_transporter">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
+            </variable>
+            <variable name="g_station">
+              <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
             </variable>
             <variable name="g_station_loc">
               <type><derived name="ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation"/></type>
@@ -7401,7 +7786,14 @@ END_FOR;]]></xhtml:p>
           IF dest_stn > 0 THEN
             (* Calculate timing *)
             tmp_move := g_move[cov_t];
-            xfer_s := STC_CalcTransferTime(i_from_stn := loc, i_to_stn := dest_stn, i_move := tmp_move);
+            xfer_s := STC_CalcTransferTime(
+              i_from_stn            := loc,
+              i_to_stn              := dest_stn,
+              i_move                := tmp_move,
+              i_from_dropping_x10   := g_station[loc].DrippingTime,
+              i_to_device_delay_x10 := g_station[dest_stn].DeviceDelay,
+              i_drip_tray_delay_x10 := g_cfg[cov_t].DripTrayDelay
+            );
 
             task_start := i_time_s;
             task_end   := task_start + REAL_TO_LINT(xfer_s);
@@ -7538,6 +7930,9 @@ END_FOR;]]></xhtml:p>
             <variable name="g_batch">
               <type><derived name="ARRAY[1..MAX_Units] OF UDT_BatchType"/></type>
             </variable>
+            <variable name="g_program">
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType"/></type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="remain">
@@ -7605,6 +8000,24 @@ END_FOR;]]></xhtml:p>
             </variable>
             <variable name="eff_del">
               <type><REAL/></type>
+            </variable>
+            <variable name="prev_conf_stage">
+              <type><INT/></type>
+            </variable>
+            <variable name="is_pcs_locked">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="prev_sink_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="next_lift_stn">
+              <type><INT/></type>
+            </variable>
+            <variable name="is_blk_adv_locked">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="qi">
+              <type><INT/></type>
             </variable>
             <variable name="fb_shift">
               <type><derived name="STC_FB_ShiftSchedule"/></type>
@@ -7714,6 +8127,12 @@ IF can_advance AND chain_flex_down >= remain THEN
           g_schedule[i_blocked_unit].Stages[si].ExitTime - REAL_TO_LINT(walk_amount);
         fb_shift(i_unit := i_blocked_unit, i_from_stage := si + 1, i_amount := -walk_amount);
 
+        (* GAP-2: Persist to g_program so next CalcSchedule cycle sees the change *)
+        IF si >= 1 THEN
+          g_program[i_blocked_unit].Steps[si - 1].CalTime :=
+            g_schedule[i_blocked_unit].Stages[si].CalcTime;
+        END_IF;
+
         walk_remain := walk_remain - walk_amount;
         o_total_adv := o_total_adv + walk_amount;
       END_IF;
@@ -7764,6 +8183,12 @@ IF can_delay AND chain_flex_up >= remain THEN
         g_schedule[i_conf_unit].Stages[si].ExitTime :=
           g_schedule[i_conf_unit].Stages[si].ExitTime + REAL_TO_LINT(walk_amount);
         fb_shift(i_unit := i_conf_unit, i_from_stage := si + 1, i_amount := walk_amount);
+
+        (* GAP-2: Persist to g_program so next CalcSchedule cycle sees the change *)
+        IF si >= 1 THEN
+          g_program[i_conf_unit].Steps[si - 1].CalTime :=
+            g_schedule[i_conf_unit].Stages[si].CalcTime;
+        END_IF;
 
         walk_remain := walk_remain - walk_amount;
         o_total_delay := o_total_delay + walk_amount;
@@ -7819,6 +8244,11 @@ IF eff_adv + eff_del >= remain THEN
           g_schedule[i_blocked_unit].Stages[si].ExitTime :=
             g_schedule[i_blocked_unit].Stages[si].ExitTime - REAL_TO_LINT(walk_amount);
           fb_shift(i_unit := i_blocked_unit, i_from_stage := si + 1, i_amount := -walk_amount);
+          (* GAP-2: Persist to g_program *)
+          IF si >= 1 THEN
+            g_program[i_blocked_unit].Steps[si - 1].CalTime :=
+              g_schedule[i_blocked_unit].Stages[si].CalcTime;
+          END_IF;
           walk_remain := walk_remain - walk_amount;
           o_total_adv := o_total_adv + walk_amount;
         END_IF;
@@ -7851,6 +8281,11 @@ IF eff_adv + eff_del >= remain THEN
           g_schedule[i_conf_unit].Stages[si].ExitTime :=
             g_schedule[i_conf_unit].Stages[si].ExitTime + REAL_TO_LINT(walk_amount);
           fb_shift(i_unit := i_conf_unit, i_from_stage := si + 1, i_amount := walk_amount);
+          (* GAP-2: Persist to g_program *)
+          IF si >= 1 THEN
+            g_program[i_conf_unit].Steps[si - 1].CalTime :=
+              g_schedule[i_conf_unit].Stages[si].CalcTime;
+          END_IF;
           walk_remain := walk_remain - walk_amount;
           o_total_delay := o_total_delay + walk_amount;
         END_IF;
@@ -7869,6 +8304,148 @@ IF eff_adv + eff_del >= remain THEN
   IF remain <= 0.1 THEN
     o_solved := TRUE;
     RETURN;
+  END_IF;
+END_IF;
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* PRIORITY 4: PRECEDING_DELAY — delay conf batch at stage-1    *)
+(* (GAP-8 / JS Phase 3)                                        *)
+(* Delay the conf batch's PREVIOUS stage to push everything     *)
+(* ══════════════════════════════════════════════════════════════ *)
+prev_conf_stage := i_conf_stage - 1;
+IF remain > 0.1 AND prev_conf_stage >= 1 AND i_conf_unit >= 1 AND i_conf_unit <= MAX_Units THEN
+  (* Check lock: is prev_conf_stage locked ADVANCE? → cannot DELAY *)
+  is_pcs_locked := FALSE;
+  FOR lock_i := 1 TO io_lock_cnt DO
+    IF io_locks[lock_i].Unit = i_conf_unit
+       AND io_locks[lock_i].Stage = prev_conf_stage
+       AND io_locks[lock_i].Direction = 1 THEN
+      is_pcs_locked := TRUE;
+    END_IF;
+  END_FOR;
+
+  IF NOT is_pcs_locked THEN
+    walk_flex := DINT_TO_REAL(g_schedule[i_conf_unit].Stages[prev_conf_stage].MaxTime
+                - g_schedule[i_conf_unit].Stages[prev_conf_stage].CalcTime);
+    IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
+
+    IF walk_flex > 0.1 THEN
+      IF g_batch[i_conf_unit].CurStage = prev_conf_stage THEN
+        walk_cap := 0.9;
+      ELSE
+        walk_cap := 0.5;
+      END_IF;
+      walk_amount := walk_flex * walk_cap;
+      IF walk_amount > remain THEN walk_amount := remain; END_IF;
+
+      g_schedule[i_conf_unit].Stages[prev_conf_stage].CalcTime :=
+        g_schedule[i_conf_unit].Stages[prev_conf_stage].CalcTime + REAL_TO_DINT(walk_amount);
+      g_schedule[i_conf_unit].Stages[prev_conf_stage].ExitTime :=
+        g_schedule[i_conf_unit].Stages[prev_conf_stage].ExitTime + REAL_TO_LINT(walk_amount);
+      fb_shift(i_unit := i_conf_unit, i_from_stage := prev_conf_stage + 1, i_amount := walk_amount);
+
+      (* GAP-2: Persist to g_program *)
+      IF prev_conf_stage >= 1 THEN
+        g_program[i_conf_unit].Steps[prev_conf_stage - 1].CalTime :=
+          g_schedule[i_conf_unit].Stages[prev_conf_stage].CalcTime;
+      END_IF;
+
+      remain := remain - walk_amount;
+      o_total_delay := o_total_delay + walk_amount;
+
+      (* Record lock *)
+      IF io_lock_cnt < 50 THEN
+        io_lock_cnt := io_lock_cnt + 1;
+        io_locks[io_lock_cnt].Unit := i_conf_unit;
+        io_locks[io_lock_cnt].Stage := prev_conf_stage;
+        io_locks[io_lock_cnt].Direction := 2;
+      END_IF;
+
+      IF remain <= 0.1 THEN
+        o_solved := TRUE;
+        RETURN;
+      END_IF;
+    END_IF;
+  END_IF;
+END_IF;
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* PRIORITY 5: DELAY_PREV_PAST_NEXT — delay blocked batch to    *)
+(* force order swap (GAP-8 / JS Phase 4)                        *)
+(* Only if NOT swappable: prev.sink ≠ next.lift                 *)
+(* ══════════════════════════════════════════════════════════════ *)
+IF remain > 0.1 AND i_blocked_unit >= 1 AND i_blocked_unit <= MAX_Units THEN
+  (* Find blocked and conf tasks in queue to check swap condition *)
+  prev_sink_stn := 0;
+  next_lift_stn := 0;
+  IF i_conf_trans >= 1 AND i_conf_trans <= MAX_Transporters THEN
+    FOR qi := 1 TO g_task[i_conf_trans].Count DO
+      IF g_task[i_conf_trans].Queue[qi].Unit = i_blocked_unit
+         AND g_task[i_conf_trans].Queue[qi].Stage = i_blocked_stage THEN
+        prev_sink_stn := g_task[i_conf_trans].Queue[qi].SinkStationTarget;
+      END_IF;
+      IF g_task[i_conf_trans].Queue[qi].Unit = i_conf_unit
+         AND g_task[i_conf_trans].Queue[qi].Stage = i_conf_stage THEN
+        next_lift_stn := g_task[i_conf_trans].Queue[qi].LiftStationTarget;
+      END_IF;
+    END_FOR;
+  END_IF;
+
+  (* Swap check: if prev.sink = next.lift → swappable, skip *)
+  IF NOT (prev_sink_stn > 0 AND next_lift_stn > 0 AND prev_sink_stn = next_lift_stn) THEN
+    (* Check lock: is blocked stage locked ADVANCE? → cannot DELAY *)
+    is_blk_adv_locked := FALSE;
+    FOR lock_i := 1 TO io_lock_cnt DO
+      IF io_locks[lock_i].Unit = i_blocked_unit
+         AND io_locks[lock_i].Stage = i_blocked_stage
+         AND io_locks[lock_i].Direction = 1 THEN
+        is_blk_adv_locked := TRUE;
+      END_IF;
+    END_FOR;
+
+    IF NOT is_blk_adv_locked THEN
+      walk_flex := DINT_TO_REAL(g_schedule[i_blocked_unit].Stages[i_blocked_stage].MaxTime
+                  - g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime);
+      IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
+
+      IF walk_flex > 0.1 THEN
+        IF g_batch[i_blocked_unit].CurStage = i_blocked_stage THEN
+          walk_cap := 0.9;
+        ELSE
+          walk_cap := 0.5;
+        END_IF;
+        walk_amount := walk_flex * walk_cap;
+        IF walk_amount > remain THEN walk_amount := remain; END_IF;
+
+        g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime :=
+          g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime + REAL_TO_DINT(walk_amount);
+        g_schedule[i_blocked_unit].Stages[i_blocked_stage].ExitTime :=
+          g_schedule[i_blocked_unit].Stages[i_blocked_stage].ExitTime + REAL_TO_LINT(walk_amount);
+        fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := walk_amount);
+
+        (* GAP-2: Persist to g_program *)
+        IF i_blocked_stage >= 1 THEN
+          g_program[i_blocked_unit].Steps[i_blocked_stage - 1].CalTime :=
+            g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime;
+        END_IF;
+
+        remain := remain - walk_amount;
+        o_total_delay := o_total_delay + walk_amount;
+
+        (* Record lock: DELAY on blocked stage *)
+        IF io_lock_cnt < 50 THEN
+          io_lock_cnt := io_lock_cnt + 1;
+          io_locks[io_lock_cnt].Unit := i_blocked_unit;
+          io_locks[io_lock_cnt].Stage := i_blocked_stage;
+          io_locks[io_lock_cnt].Direction := 2;
+        END_IF;
+
+        IF remain <= 0.1 THEN
+          o_solved := TRUE;
+          RETURN;
+        END_IF;
+      END_IF;
+    END_IF;
   END_IF;
 END_IF;
 

@@ -45,6 +45,8 @@ VAR_EXTERNAL CONSTANT
     MAX_Units          : INT;
     DEP_MAX_WAITING    : INT;
     DEP_MAX_IDLE_SLOTS : INT;
+    MIN_StationIndex   : INT;
+    MAX_StationIndex   : INT;
 END_VAR
 
 VAR_EXTERNAL
@@ -53,6 +55,7 @@ VAR_EXTERNAL
   g_program         : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
   g_schedule         : ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType;
   g_task            : ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType;
+  g_station          : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
   g_cfg              : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
   g_transporter      : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
   g_dep_sandbox      : UDT_JC_DepSandboxType;
@@ -143,6 +146,7 @@ VAR
   old_cal       : DINT;
   new_cal       : DINT;
   max_cal       : DINT;
+  est_finish    : LINT;          (* G04: in-flight estimated finish time *)
 
   (* ── Stage 0 inline fit variables (matches JS inline code) ── *)
   s0_slot_si       : INT;
@@ -363,6 +367,35 @@ ELSIF phase = 1030 THEN
     g_task[ti].Count := write_idx;
   END_FOR;
 
+  (* ── G04: Inject in-flight pseudo-tasks for active transporters ── *)
+  (* Matches JS: build inFlightTasks from transporter states.         *)
+  (* When a transporter is executing a transfer (Phase 1-4), the      *)
+  (* dispatched task is no longer in g_task[].Queue. We inject a      *)
+  (* pseudo-task [now → est_finish] so idle-slot calculation sees     *)
+  (* the transporter as occupied until the transfer completes.        *)
+  FOR ti := 1 TO MAX_Transporters DO
+    IF g_transporter[ti].Phase >= 1 AND g_transporter[ti].Phase <= 4 THEN
+      est_finish := i_time_s + DINT_TO_LINT(g_transporter[ti].TaskRemainingTime);
+      IF est_finish > i_time_s AND g_task[ti].Count < 10 THEN
+        (* Shift existing tasks up by 1 to make room at position 1 *)
+        FOR qi := g_task[ti].Count TO 1 BY -1 DO
+          g_task[ti].Queue[qi + 1] := g_task[ti].Queue[qi];
+        END_FOR;
+        (* Insert in-flight pseudo-task at position 1 *)
+        g_task[ti].Queue[1].Unit              := 0;    (* pseudo — no unit *)
+        g_task[ti].Queue[1].Stage             := -1;   (* pseudo-stage marker *)
+        g_task[ti].Queue[1].LiftStationTarget := g_transporter[ti].LiftStationTarget;
+        g_task[ti].Queue[1].SinkStationTarget := g_transporter[ti].SinkStationTarget;
+        g_task[ti].Queue[1].StartTime         := i_time_s;
+        g_task[ti].Queue[1].FinishTime        := est_finish;
+        g_task[ti].Queue[1].CalcTime          := 0;
+        g_task[ti].Queue[1].MinTime           := 0;
+        g_task[ti].Queue[1].MaxTime           := 0;
+        g_task[ti].Count := g_task[ti].Count + 1;
+      END_IF;
+    END_IF;
+  END_FOR;
+
   next_phase := 1040;
 
 (* ════════════════════════════════════════════════════════════ *)
@@ -419,7 +452,14 @@ ELSIF phase = 2000 THEN
   IF next_phase <> 9000 THEN
     (* Calculate transfer time for pickup *)
     tmp_move := g_move[sched_trans];
-    xfer_dur := STC_CalcTransferTime(i_from_stn := loading_stn, i_to_stn := first_stn, i_move := tmp_move);
+    xfer_dur := STC_CalcTransferTime(
+      i_from_stn            := loading_stn,
+      i_to_stn              := first_stn,
+      i_move                := tmp_move,
+      i_from_dropping_x10   := g_station[loading_stn].DrippingTime,
+      i_to_device_delay_x10 := g_station[first_stn].DeviceDelay,
+      i_drip_tray_delay_x10 := g_cfg[sched_trans].DripTrayDelay
+    );
     IF xfer_dur < 1.0 THEN xfer_dur := 1.0; END_IF;
 
     s0_task_dur := REAL_TO_LINT(xfer_dur);
@@ -693,10 +733,26 @@ ELSIF phase = 8000 THEN
   g_dep_pending.BatchUnit  := cur_wait_unit;
   g_dep_pending.BatchStage := 0;    (* cur_stage = 0, JS: batch.Stage = 0 *)
   g_dep_pending.BatchState := 1;    (* NOT_PROCESSED → IN_PROCESS *)
-  (* Stage 0 times — same naming as UDT_TreatmentProgramStepType: MinTime, MaxTime, CalTime *)
-  g_dep_pending.BatchCalTime  := REAL_TO_DINT(stage0_pending_delay);
-  g_dep_pending.BatchMinTime  := REAL_TO_DINT(stage0_pending_delay);
-  g_dep_pending.BatchMaxTime  := REAL_TO_DINT(2.0 * stage0_pending_delay);
+  (* ── Stage 0 batch times — matches JS ACTIVATE logic ──────────
+     JS: sandboxBatch.calc_time_s = stage0Sched.treatment_time_s
+         sandboxBatch.calc_time_s += action.delay   (if idle-slot delay)
+         sandboxBatch.min_time_s  = sandboxBatch.calc_time_s
+         sandboxBatch.max_time_s  = max(calc, 2*calc)
+     PLC: program Steps[0] = first treatment station (= JS stage0Sched)
+          stage0_pending_delay = idle-slot delay (= JS action.delay)
+     ──────────────────────────────────────────────────────────── *)
+  IF stage0_pending_delay > MARGIN_S THEN
+    (* Delay case: calc = treatment + delay, min = calc, max = 2*calc *)
+    g_dep_pending.BatchCalTime := g_program[cur_wait_unit].Steps[0].CalTime
+                                  + REAL_TO_DINT(stage0_pending_delay);
+    g_dep_pending.BatchMinTime := g_dep_pending.BatchCalTime;
+    g_dep_pending.BatchMaxTime := 2 * g_dep_pending.BatchCalTime;
+  ELSE
+    (* No delay: use first treatment step times directly *)
+    g_dep_pending.BatchCalTime := g_program[cur_wait_unit].Steps[0].CalTime;
+    g_dep_pending.BatchMinTime := g_program[cur_wait_unit].Steps[0].MinTime;
+    g_dep_pending.BatchMaxTime := g_program[cur_wait_unit].Steps[0].MaxTime;
+  END_IF;
   IF g_dep_pending.BatchMaxTime < g_dep_pending.BatchCalTime THEN
     g_dep_pending.BatchMaxTime := g_dep_pending.BatchCalTime;
   END_IF;

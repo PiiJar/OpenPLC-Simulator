@@ -126,14 +126,14 @@ const OPERATION_NAMES = {
 // Z-stage names for UI
 const Z_STAGE_NAMES = {
   0: 'idle',
-  1: 'waiting_device',   // lift: wait for device delay + drop
-  2: 'slow_start',       // lift: slow descend
-  3: 'fast_middle',      // lift: fast descend
-  4: 'slow_end',         // lift: slow to bottom
-  5: 'drip_wait',        // lift: drip delay
-  6: 'waiting_device',   // sink: wait for device delay
-  7: 'fast_rise',        // sink: fast rise
-  8: 'slow_top'          // sink: slow to top
+  2: 'slow_start',       // lift: slow lift from tank
+  3: 'fast_middle',      // lift: fast lift
+  4: 'slow_end',         // lift: slow to top
+  5: 'drip',             // lift: dropping/dripping at top (blue bar in UI)
+  9: 'trip_close',       // lift: drip tray closing at top
+  6: 'waiting_device',   // sink: wait for device delay + drip tray open
+  7: 'fast_rise',        // sink: fast sink down
+  8: 'slow_top'          // sink: slow sink into tank
 };
 
 // --- Modbus client ---
@@ -354,6 +354,7 @@ async function readPLCState() {
         status: toSigned(r[base + 10]),
         task_id_hi: toSigned(r[base + 11]),
         task_id_lo: toSigned(r[base + 12]),
+        ztimer_x10: toSigned(r[BLOCKS.transporter_extended.start + (i - 1) * 13 + 7]),
       }));
     }
 
@@ -581,7 +582,7 @@ function buildTransporterState(id, cfg, regs) {
       target_x: 0,
       target_y: 0,
       z_stage: Z_STAGE_NAMES[regs.z_stage] || 'idle',
-      z_timer: 0,
+      z_timer: (regs.ztimer_x10 || 0) / 10.0,
       velocity_z: 0,
       pending_batch_id: null,
       current_task_batch_id: null,
