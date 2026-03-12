@@ -130,7 +130,8 @@ IF can_advance
 
   IF stage_flex > 0.1 THEN
     (* Cap: 90% if batch is on this stage, 50% otherwise *)
-    IF g_batch[i_blocked_unit].CurStage = i_blocked_stage THEN
+    (* Use ProgramStage for CurStage comparison — schedule index ≠ program stage when prepend entry exists *)
+    IF g_batch[i_blocked_unit].CurStage = g_schedule[i_blocked_unit].Stages[i_blocked_stage].ProgramStage THEN
       cap := 0.9;
     ELSE
       cap := 0.5;
@@ -189,7 +190,7 @@ IF can_delay AND remain > 0.1
   IF stage_flex < 0.0 THEN stage_flex := 0.0; END_IF;
 
   IF stage_flex > 0.1 THEN
-    IF g_batch[i_conf_unit].CurStage = i_conf_stage THEN
+    IF g_batch[i_conf_unit].CurStage = g_schedule[i_conf_unit].Stages[i_conf_stage].ProgramStage THEN
       cap := 0.9;
     ELSE
       cap := 0.5;
@@ -206,7 +207,7 @@ IF can_delay AND remain > 0.1
     fb_shift(i_unit := i_conf_unit, i_from_stage := i_conf_stage + 1, i_amount := amount);
 
     (* JS: propagateDelayToBatch updates batch.calc_time_s ONLY if batch is on this stage *)
-    IF g_batch[i_conf_unit].CurStage = i_conf_stage THEN
+    IF g_batch[i_conf_unit].CurStage = g_schedule[i_conf_unit].Stages[i_conf_stage].ProgramStage THEN
       g_batch[i_conf_unit].CalTime :=
         g_batch[i_conf_unit].CalTime + REAL_TO_DINT(amount);
       IF g_batch[i_conf_unit].CalTime > g_batch[i_conf_unit].MaxTime THEN
@@ -255,7 +256,7 @@ IF remain > 0.1 AND prev_conf_stage >= 1 AND i_conf_unit >= 1 AND i_conf_unit <=
     IF stage_flex < 0.0 THEN stage_flex := 0.0; END_IF;
 
     IF stage_flex > 0.1 THEN
-      IF g_batch[i_conf_unit].CurStage = prev_conf_stage THEN
+      IF g_batch[i_conf_unit].CurStage = g_schedule[i_conf_unit].Stages[prev_conf_stage].ProgramStage THEN
         cap := 0.9;
       ELSE
         cap := 0.5;
@@ -271,7 +272,7 @@ IF remain > 0.1 AND prev_conf_stage >= 1 AND i_conf_unit >= 1 AND i_conf_unit <=
 
       (* JS: propagateDelayToBatch with propagateFromStage=conf_stage
          updates batch.calc_time_s ONLY if batch is on conf_stage *)
-      IF g_batch[i_conf_unit].CurStage = i_conf_stage THEN
+      IF g_batch[i_conf_unit].CurStage = g_schedule[i_conf_unit].Stages[i_conf_stage].ProgramStage THEN
         g_batch[i_conf_unit].CalTime :=
           g_batch[i_conf_unit].CalTime + REAL_TO_DINT(amount);
         IF g_batch[i_conf_unit].CalTime > g_batch[i_conf_unit].MaxTime THEN
@@ -338,7 +339,7 @@ IF remain > 0.1 AND i_blocked_unit >= 1 AND i_blocked_unit <= MAX_Units THEN
       IF stage_flex < 0.0 THEN stage_flex := 0.0; END_IF;
 
       IF stage_flex > 0.1 THEN
-        IF g_batch[i_blocked_unit].CurStage = i_blocked_stage THEN
+        IF g_batch[i_blocked_unit].CurStage = g_schedule[i_blocked_unit].Stages[i_blocked_stage].ProgramStage THEN
           cap := 0.9;
         ELSE
           cap := 0.5;
@@ -353,7 +354,7 @@ IF remain > 0.1 AND i_blocked_unit >= 1 AND i_blocked_unit <= MAX_Units THEN
         fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := amount);
 
         (* JS: propagateDelayToBatch updates batch.calc_time_s ONLY if batch is on this stage *)
-        IF g_batch[i_blocked_unit].CurStage = i_blocked_stage THEN
+        IF g_batch[i_blocked_unit].CurStage = g_schedule[i_blocked_unit].Stages[i_blocked_stage].ProgramStage THEN
           g_batch[i_blocked_unit].CalTime :=
             g_batch[i_blocked_unit].CalTime + REAL_TO_DINT(amount);
           IF g_batch[i_blocked_unit].CalTime > g_batch[i_blocked_unit].MaxTime THEN

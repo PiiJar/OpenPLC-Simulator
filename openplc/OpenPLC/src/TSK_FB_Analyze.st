@@ -149,104 +149,11 @@ FOR ti := 1 TO MAX_Transporters DO
 END_FOR;
 
 (* ══════════════════════════════════════════════════════════════════════ *)
-(* CHECK 2: TRANSPORTER_COLLISION — X+time overlap, different trans.   *)
-(* Compares every task pair across different transporters.              *)
-(* ══════════════════════════════════════════════════════════════════════ *)
-FOR ti := 1 TO MAX_Transporters DO
-  FOR qi := 1 TO g_task[ti].Count DO
-    IF g_task[ti].Queue[qi].Unit > 0 THEN
-
-      (* X range for task A *)
-      l_idx := g_task[ti].Queue[qi].LiftStationTarget - 100;
-      s_idx := g_task[ti].Queue[qi].SinkStationTarget - 100;
-      IF l_idx >= 1 AND l_idx <= 30 THEN
-        lift_x := DINT_TO_REAL(g_station[g_task[ti].Queue[qi].LiftStationTarget].XPosition);
-      ELSE
-        lift_x := 0.0;
-      END_IF;
-      IF s_idx >= 1 AND s_idx <= 30 THEN
-        sink_x := DINT_TO_REAL(g_station[g_task[ti].Queue[qi].SinkStationTarget].XPosition);
-      ELSE
-        sink_x := 0.0;
-      END_IF;
-      IF lift_x < sink_x THEN
-        x1_min := lift_x;
-        x1_max := sink_x;
-      ELSE
-        x1_min := sink_x;
-        x1_max := lift_x;
-      END_IF;
-
-      FOR tj := ti + 1 TO MAX_Transporters DO
-        FOR qj := 1 TO g_task[tj].Count DO
-          IF g_task[tj].Queue[qj].Unit > 0 THEN
-
-            (* X range for task B *)
-            l_idx2 := g_task[tj].Queue[qj].LiftStationTarget - 100;
-            s_idx2 := g_task[tj].Queue[qj].SinkStationTarget - 100;
-            IF l_idx2 >= 1 AND l_idx2 <= 30 THEN
-              lift_x2 := DINT_TO_REAL(g_station[g_task[tj].Queue[qj].LiftStationTarget].XPosition);
-            ELSE
-              lift_x2 := 0.0;
-            END_IF;
-            IF s_idx2 >= 1 AND s_idx2 <= 30 THEN
-              sink_x2 := DINT_TO_REAL(g_station[g_task[tj].Queue[qj].SinkStationTarget].XPosition);
-            ELSE
-              sink_x2 := 0.0;
-            END_IF;
-            IF lift_x2 < sink_x2 THEN
-              x2_min := lift_x2;
-              x2_max := sink_x2;
-            ELSE
-              x2_min := sink_x2;
-              x2_max := lift_x2;
-            END_IF;
-
-            (* X overlap *)
-            xo_start := x1_min;
-            IF x2_min > xo_start THEN xo_start := x2_min; END_IF;
-            xo_end := x1_max;
-            IF x2_max < xo_end THEN xo_end := x2_max; END_IF;
-
-            IF xo_start < xo_end THEN
-              (* Time overlap *)
-              to_start := g_task[ti].Queue[qi].StartTime;
-              IF g_task[tj].Queue[qj].StartTime > to_start THEN
-                to_start := g_task[tj].Queue[qj].StartTime;
-              END_IF;
-              to_end := g_task[ti].Queue[qi].FinishTime;
-              IF g_task[tj].Queue[qj].FinishTime < to_end THEN
-                to_end := g_task[tj].Queue[qj].FinishTime;
-              END_IF;
-
-              IF to_start < to_end THEN
-                deficit_s := LINT_TO_REAL(to_end - to_start) + 2.0;
-                o_has_conflict  := TRUE;
-                o_conf_type     := 2;  (* TRANSPORTER_COLLISION *)
-                o_conf_unit     := g_task[tj].Queue[qj].Unit;
-                o_conf_stage    := g_task[tj].Queue[qj].Stage;
-                o_conf_trans    := tj;
-                o_blocked_unit  := g_task[ti].Queue[qi].Unit;
-                o_blocked_stage := g_task[ti].Queue[qi].Stage;
-                o_deficit       := deficit_s;
-                checked_count   := total_tasks;
-                RETURN;
-              END_IF;
-            END_IF;
-
-          END_IF;
-        END_FOR;
-      END_FOR;
-
-    END_IF;
-  END_FOR;
-END_FOR;
-
-(* ══════════════════════════════════════════════════════════════════════ *)
-(* CHECK 3: CROSS_TRANSPORTER_HANDOFF                                  *)
+(* CHECK 2: CROSS_TRANSPORTER_HANDOFF                                  *)
 (* Same batch, consecutive stages on different transporters.           *)
 (* Does the receiving transporter have time to reach handoff station?  *)
 (*                                                                      *)
+(* JS checks HANDOFF before COLLISION (per-task loop order).           *)
 (* Conflict targets the DELIVERING task (current transporter);         *)
 (* resolver will delay the preceding stage so the batch waits longer   *)
 (* on the delivering transporter's side.                               *)
@@ -321,6 +228,110 @@ FOR ti := 1 TO MAX_Transporters DO
             END_IF;
           END_FOR;
         END_IF;
+      END_FOR;
+
+    END_IF;
+  END_FOR;
+END_FOR;
+
+(* ══════════════════════════════════════════════════════════════════════ *)
+(* CHECK 3: TRANSPORTER_COLLISION — X+time overlap, different trans.   *)
+(* Compares every task pair across different transporters.              *)
+(* JS: conf = later task (timeline), blocked = earlier task.           *)
+(* ══════════════════════════════════════════════════════════════════════ *)
+FOR ti := 1 TO MAX_Transporters DO
+  FOR qi := 1 TO g_task[ti].Count DO
+    IF g_task[ti].Queue[qi].Unit > 0 THEN
+
+      (* X range for task A *)
+      l_idx := g_task[ti].Queue[qi].LiftStationTarget - 100;
+      s_idx := g_task[ti].Queue[qi].SinkStationTarget - 100;
+      IF l_idx >= 1 AND l_idx <= 30 THEN
+        lift_x := DINT_TO_REAL(g_station[g_task[ti].Queue[qi].LiftStationTarget].XPosition);
+      ELSE
+        lift_x := 0.0;
+      END_IF;
+      IF s_idx >= 1 AND s_idx <= 30 THEN
+        sink_x := DINT_TO_REAL(g_station[g_task[ti].Queue[qi].SinkStationTarget].XPosition);
+      ELSE
+        sink_x := 0.0;
+      END_IF;
+      IF lift_x < sink_x THEN
+        x1_min := lift_x;
+        x1_max := sink_x;
+      ELSE
+        x1_min := sink_x;
+        x1_max := lift_x;
+      END_IF;
+
+      FOR tj := ti + 1 TO MAX_Transporters DO
+        FOR qj := 1 TO g_task[tj].Count DO
+          IF g_task[tj].Queue[qj].Unit > 0 THEN
+
+            (* X range for task B *)
+            l_idx2 := g_task[tj].Queue[qj].LiftStationTarget - 100;
+            s_idx2 := g_task[tj].Queue[qj].SinkStationTarget - 100;
+            IF l_idx2 >= 1 AND l_idx2 <= 30 THEN
+              lift_x2 := DINT_TO_REAL(g_station[g_task[tj].Queue[qj].LiftStationTarget].XPosition);
+            ELSE
+              lift_x2 := 0.0;
+            END_IF;
+            IF s_idx2 >= 1 AND s_idx2 <= 30 THEN
+              sink_x2 := DINT_TO_REAL(g_station[g_task[tj].Queue[qj].SinkStationTarget].XPosition);
+            ELSE
+              sink_x2 := 0.0;
+            END_IF;
+            IF lift_x2 < sink_x2 THEN
+              x2_min := lift_x2;
+              x2_max := sink_x2;
+            ELSE
+              x2_min := sink_x2;
+              x2_max := lift_x2;
+            END_IF;
+
+            (* X overlap *)
+            xo_start := x1_min;
+            IF x2_min > xo_start THEN xo_start := x2_min; END_IF;
+            xo_end := x1_max;
+            IF x2_max < xo_end THEN xo_end := x2_max; END_IF;
+
+            IF xo_start < xo_end THEN
+              (* Time overlap *)
+              to_start := g_task[ti].Queue[qi].StartTime;
+              IF g_task[tj].Queue[qj].StartTime > to_start THEN
+                to_start := g_task[tj].Queue[qj].StartTime;
+              END_IF;
+              to_end := g_task[ti].Queue[qi].FinishTime;
+              IF g_task[tj].Queue[qj].FinishTime < to_end THEN
+                to_end := g_task[tj].Queue[qj].FinishTime;
+              END_IF;
+
+              IF to_start < to_end THEN
+                deficit_s := LINT_TO_REAL(to_end - to_start) + 2.0;
+                o_has_conflict  := TRUE;
+                o_conf_type     := 2;  (* TRANSPORTER_COLLISION *)
+                (* Assign conf = later task (timeline), blocked = earlier task — matches JS *)
+                IF g_task[ti].Queue[qi].StartTime <= g_task[tj].Queue[qj].StartTime THEN
+                  o_conf_unit     := g_task[tj].Queue[qj].Unit;
+                  o_conf_stage    := g_task[tj].Queue[qj].Stage;
+                  o_conf_trans    := tj;
+                  o_blocked_unit  := g_task[ti].Queue[qi].Unit;
+                  o_blocked_stage := g_task[ti].Queue[qi].Stage;
+                ELSE
+                  o_conf_unit     := g_task[ti].Queue[qi].Unit;
+                  o_conf_stage    := g_task[ti].Queue[qi].Stage;
+                  o_conf_trans    := ti;
+                  o_blocked_unit  := g_task[tj].Queue[qj].Unit;
+                  o_blocked_stage := g_task[tj].Queue[qj].Stage;
+                END_IF;
+                o_deficit       := deficit_s;
+                checked_count   := total_tasks;
+                RETURN;
+              END_IF;
+            END_IF;
+
+          END_IF;
+        END_FOR;
       END_FOR;
 
     END_IF;

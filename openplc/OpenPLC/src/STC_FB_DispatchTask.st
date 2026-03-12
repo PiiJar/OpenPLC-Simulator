@@ -42,6 +42,7 @@ VAR_EXTERNAL
   g_batch       : ARRAY[1..MAX_Units] OF UDT_BatchType;
   g_move        : ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType;
   g_cfg         : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
+  g_schedule    : ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType;
   g_time_s      : LINT;
   g_event_pending       : UDT_JC_EventMsgType;
   g_event_pending_valid : BOOL;
@@ -94,12 +95,19 @@ FOR ti := 1 TO MAX_Transporters DO
 
     (* Read task fields from queue position 1 *)
     t_unit      := g_task[ti].Queue[1].Unit;
-    t_stage     := g_task[ti].Queue[1].Stage;
+    t_stage     := g_task[ti].Queue[1].Stage;  (* schedule index *)
     t_lift      := g_task[ti].Queue[1].LiftStationTarget;
     t_sink      := g_task[ti].Queue[1].SinkStationTarget;
     t_start     := g_task[ti].Queue[1].StartTime;
     t_finish    := g_task[ti].Queue[1].FinishTime;
     t_calc_time := g_task[ti].Queue[1].CalcTime;
+
+    (* Convert schedule index → program stage number for g_program access *)
+    prog_stage := 0;
+    IF t_unit >= 1 AND t_unit <= MAX_Units
+       AND t_stage >= 1 AND t_stage <= g_schedule[t_unit].StageCount THEN
+      prog_stage := g_schedule[t_unit].Stages[t_stage].ProgramStage;
+    END_IF;
 
     (* ── 2. Time check ── *)
     travel_s := 0.0;
@@ -134,11 +142,11 @@ FOR ti := 1 TO MAX_Transporters DO
         best_stn := 0;
         best_change := LINT#2000000000;
 
-        IF t_stage >= 1 AND t_stage <= MAX_STEPS_PER_PROGRAM
+        IF prog_stage >= 1 AND prog_stage <= MAX_STEPS_PER_PROGRAM
            AND t_unit >= 1 AND t_unit <= MAX_Units THEN
           (* Treatment task — look in g_program for parallel stations *)
           FOR si := 0 TO MAX_STATIONS_PER_STEP - 1 DO
-            cand_stn := g_program[t_unit].Steps[t_stage - 1].Stations[si];
+            cand_stn := g_program[t_unit].Steps[prog_stage - 1].Stations[si];
             IF cand_stn > 0 AND cand_stn <> t_sink THEN
               IF cand_stn >= MIN_StationIndex AND cand_stn <= MAX_StationIndex THEN
                 cand_free := TRUE;
@@ -157,7 +165,7 @@ FOR ti := 1 TO MAX_Transporters DO
             END_IF;
           END_FOR;
 
-        ELSIF t_stage = 0 AND t_unit >= 1 AND t_unit <= MAX_Units THEN
+        ELSIF prog_stage = 0 AND t_unit >= 1 AND t_unit <= MAX_Units THEN
           (* No-treatment task — look in g_ntt for alternatives *)
           tgt := g_unit[t_unit].Target;
           IF tgt >= 1 AND tgt <= 5 THEN

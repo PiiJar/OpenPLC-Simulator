@@ -85,6 +85,7 @@ out_count := 0;
 (* -- Clear old schedule -- *)
 FOR st := 1 TO 30 DO
   g_schedule[i_unit].Stages[st].station := 0;
+  g_schedule[i_unit].Stages[st].ProgramStage := 0;
   g_schedule[i_unit].Stages[st].EntryTime := 0;
   g_schedule[i_unit].Stages[st].ExitTime := 0;
   g_schedule[i_unit].Stages[st].MinTime := 0;
@@ -147,6 +148,7 @@ IF is_on_stn AND start_st >= 1 THEN
   IF stn_num = 0 THEN
     out_count := out_count + 1;
     g_schedule[i_unit].Stages[out_count].station       := location;
+    g_schedule[i_unit].Stages[out_count].ProgramStage := 0;  (* pre-position entry, not a program stage *)
     g_schedule[i_unit].Stages[out_count].EntryTime    := exit_t;
     g_schedule[i_unit].Stages[out_count].ExitTime     := exit_t;
     g_schedule[i_unit].Stages[out_count].MinTime      := 0;
@@ -278,13 +280,14 @@ FOR st := start_st TO g_program[i_unit].StepCount DO
   IF is_first AND is_on_stn AND st = cur_stage THEN
     (* Batch is currently at this station *)
     entry_t := i_time_s;
-    (* Remaining time: calc_time - elapsed since arrival *)
+    (* Remaining time: use g_batch[].CalTime (resolver-modified)
+       JS: remainingTimeS = max(1, batch.calc_time_s - elapsed) *)
     IF g_batch[i_unit].StartTime > 0 THEN
       elapsed_s := LINT_TO_REAL(i_time_s - g_batch[i_unit].StartTime);
     ELSE
       elapsed_s := 0.0;
     END_IF;
-    remain_s := calc_s - elapsed_s;
+    remain_s := DINT_TO_REAL(g_batch[i_unit].CalTime) - elapsed_s;
     IF remain_s < 1.0 THEN remain_s := 1.0; END_IF;
     exit_t := i_time_s + REAL_TO_LINT(remain_s);
   ELSIF is_first AND NOT is_on_stn THEN
@@ -301,6 +304,7 @@ FOR st := start_st TO g_program[i_unit].StepCount DO
   out_count := out_count + 1;
   IF out_count <= 30 THEN
     g_schedule[i_unit].Stages[out_count].station       := stn_num;
+    g_schedule[i_unit].Stages[out_count].ProgramStage := st;  (* program stage number (1..N) *)
     g_schedule[i_unit].Stages[out_count].EntryTime    := entry_t;
     g_schedule[i_unit].Stages[out_count].ExitTime     := exit_t;
     g_schedule[i_unit].Stages[out_count].MinTime      := REAL_TO_DINT(min_s);

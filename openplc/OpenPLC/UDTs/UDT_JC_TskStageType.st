@@ -3,6 +3,7 @@
 TYPE UDT_JC_TskStageType :
 STRUCT
     Station      : INT;  (* station number, 0 = unused stage *)
+    ProgramStage : INT;  (* batch program stage number (1..N), 0 = pre-position entry *)
     EntryTime    : LINT; (* absolute arrival time (s), unix seconds *)
     ExitTime     : LINT; (* absolute departure time (s), unix seconds *)
     MinTime      : DINT; (* minimum treatment time (seconds) *)

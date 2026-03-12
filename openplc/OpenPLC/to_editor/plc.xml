@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-12T13:09:38"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-12T13:09:38">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-12T14:09:48"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-12T14:09:48">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -396,6 +396,9 @@
         <baseType>
           <struct>
             <variable name="Station">
+              <type><INT/></type>
+            </variable>
+            <variable name="ProgramStage">
               <type><INT/></type>
             </variable>
             <variable name="EntryTime">
@@ -5131,6 +5134,9 @@ END_FOR;]]></xhtml:p>
             <variable name="g_cfg">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterType"/></type>
             </variable>
+            <variable name="g_schedule">
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType"/></type>
+            </variable>
             <variable name="g_time_s">
               <type><LINT/></type>
             </variable>
@@ -5246,12 +5252,19 @@ END_FOR;]]></xhtml:p>
 
     (* Read task fields from queue position 1 *)
     t_unit      := g_task[ti].Queue[1].Unit;
-    t_stage     := g_task[ti].Queue[1].Stage;
+    t_stage     := g_task[ti].Queue[1].Stage;  (* schedule index *)
     t_lift      := g_task[ti].Queue[1].LiftStationTarget;
     t_sink      := g_task[ti].Queue[1].SinkStationTarget;
     t_start     := g_task[ti].Queue[1].StartTime;
     t_finish    := g_task[ti].Queue[1].FinishTime;
     t_calc_time := g_task[ti].Queue[1].CalcTime;
+
+    (* Convert schedule index → program stage number for g_program access *)
+    prog_stage := 0;
+    IF t_unit >= 1 AND t_unit <= MAX_Units
+       AND t_stage >= 1 AND t_stage <= g_schedule[t_unit].StageCount THEN
+      prog_stage := g_schedule[t_unit].Stages[t_stage].ProgramStage;
+    END_IF;
 
     (* ── 2. Time check ── *)
     travel_s := 0.0;
@@ -5286,11 +5299,11 @@ END_FOR;]]></xhtml:p>
         best_stn := 0;
         best_change := LINT#2000000000;
 
-        IF t_stage >= 1 AND t_stage <= MAX_STEPS_PER_PROGRAM
+        IF prog_stage >= 1 AND prog_stage <= MAX_STEPS_PER_PROGRAM
            AND t_unit >= 1 AND t_unit <= MAX_Units THEN
           (* Treatment task — look in g_program for parallel stations *)
           FOR si := 0 TO MAX_STATIONS_PER_STEP - 1 DO
-            cand_stn := g_program[t_unit].Steps[t_stage - 1].Stations[si];
+            cand_stn := g_program[t_unit].Steps[prog_stage - 1].Stations[si];
             IF cand_stn > 0 AND cand_stn <> t_sink THEN
               IF cand_stn >= MIN_StationIndex AND cand_stn <= MAX_StationIndex THEN
                 cand_free := TRUE;
@@ -5309,7 +5322,7 @@ END_FOR;]]></xhtml:p>
             END_IF;
           END_FOR;
 
-        ELSIF t_stage = 0 AND t_unit >= 1 AND t_unit <= MAX_Units THEN
+        ELSIF prog_stage = 0 AND t_unit >= 1 AND t_unit <= MAX_Units THEN
           (* No-treatment task — look in g_ntt for alternatives *)
           tgt := g_unit[t_unit].Target;
           IF tgt >= 1 AND tgt <= 5 THEN
@@ -6348,6 +6361,9 @@ END_FOR;]]></xhtml:p>
             <variable name="g_unit">
               <type><derived name="ARRAY[1..MAX_Units] OF UDT_UnitType"/></type>
             </variable>
+            <variable name="g_schedule">
+              <type><derived name="ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType"/></type>
+            </variable>
             <variable name="g_time_s">
               <type><LINT/></type>
             </variable>
@@ -6418,7 +6434,9 @@ FOR ti := t_start TO t_end DO
       tmp_unit  := tmp_task.Unit;
       IF tmp_unit >= 1 AND tmp_unit <= MAX_Units THEN
         IF g_batch[tmp_unit].State = 1                                   (* IN_PROCESS *)
-           AND g_batch[tmp_unit].CurStage = tmp_task.Stage
+           AND tmp_task.Stage >= 1
+           AND tmp_task.Stage <= g_schedule[tmp_unit].StageCount
+           AND g_batch[tmp_unit].CurStage = g_schedule[tmp_unit].Stages[tmp_task.Stage].ProgramStage
            AND g_unit[tmp_unit].location = tmp_task.LiftStationTarget
            AND g_batch[tmp_unit].StartTime > LINT#0
            AND g_batch[tmp_unit].MaxTime > 0 THEN
@@ -6436,7 +6454,9 @@ FOR ti := t_start TO t_end DO
         cur_unit  := g_task[ti].Queue[ins_j].Unit;
         IF cur_unit >= 1 AND cur_unit <= MAX_Units THEN
           IF g_batch[cur_unit].State = 1
-             AND g_batch[cur_unit].CurStage = g_task[ti].Queue[ins_j].Stage
+             AND g_task[ti].Queue[ins_j].Stage >= 1
+             AND g_task[ti].Queue[ins_j].Stage <= g_schedule[cur_unit].StageCount
+             AND g_batch[cur_unit].CurStage = g_schedule[cur_unit].Stages[g_task[ti].Queue[ins_j].Stage].ProgramStage
              AND g_unit[cur_unit].location = g_task[ti].Queue[ins_j].LiftStationTarget
              AND g_batch[cur_unit].StartTime > LINT#0
              AND g_batch[cur_unit].MaxTime > 0 THEN
@@ -6876,104 +6896,11 @@ FOR ti := 1 TO MAX_Transporters DO
 END_FOR;
 
 (* ══════════════════════════════════════════════════════════════════════ *)
-(* CHECK 2: TRANSPORTER_COLLISION — X+time overlap, different trans.   *)
-(* Compares every task pair across different transporters.              *)
-(* ══════════════════════════════════════════════════════════════════════ *)
-FOR ti := 1 TO MAX_Transporters DO
-  FOR qi := 1 TO g_task[ti].Count DO
-    IF g_task[ti].Queue[qi].Unit > 0 THEN
-
-      (* X range for task A *)
-      l_idx := g_task[ti].Queue[qi].LiftStationTarget - 100;
-      s_idx := g_task[ti].Queue[qi].SinkStationTarget - 100;
-      IF l_idx >= 1 AND l_idx <= 30 THEN
-        lift_x := DINT_TO_REAL(g_station[g_task[ti].Queue[qi].LiftStationTarget].XPosition);
-      ELSE
-        lift_x := 0.0;
-      END_IF;
-      IF s_idx >= 1 AND s_idx <= 30 THEN
-        sink_x := DINT_TO_REAL(g_station[g_task[ti].Queue[qi].SinkStationTarget].XPosition);
-      ELSE
-        sink_x := 0.0;
-      END_IF;
-      IF lift_x < sink_x THEN
-        x1_min := lift_x;
-        x1_max := sink_x;
-      ELSE
-        x1_min := sink_x;
-        x1_max := lift_x;
-      END_IF;
-
-      FOR tj := ti + 1 TO MAX_Transporters DO
-        FOR qj := 1 TO g_task[tj].Count DO
-          IF g_task[tj].Queue[qj].Unit > 0 THEN
-
-            (* X range for task B *)
-            l_idx2 := g_task[tj].Queue[qj].LiftStationTarget - 100;
-            s_idx2 := g_task[tj].Queue[qj].SinkStationTarget - 100;
-            IF l_idx2 >= 1 AND l_idx2 <= 30 THEN
-              lift_x2 := DINT_TO_REAL(g_station[g_task[tj].Queue[qj].LiftStationTarget].XPosition);
-            ELSE
-              lift_x2 := 0.0;
-            END_IF;
-            IF s_idx2 >= 1 AND s_idx2 <= 30 THEN
-              sink_x2 := DINT_TO_REAL(g_station[g_task[tj].Queue[qj].SinkStationTarget].XPosition);
-            ELSE
-              sink_x2 := 0.0;
-            END_IF;
-            IF lift_x2 < sink_x2 THEN
-              x2_min := lift_x2;
-              x2_max := sink_x2;
-            ELSE
-              x2_min := sink_x2;
-              x2_max := lift_x2;
-            END_IF;
-
-            (* X overlap *)
-            xo_start := x1_min;
-            IF x2_min > xo_start THEN xo_start := x2_min; END_IF;
-            xo_end := x1_max;
-            IF x2_max < xo_end THEN xo_end := x2_max; END_IF;
-
-            IF xo_start < xo_end THEN
-              (* Time overlap *)
-              to_start := g_task[ti].Queue[qi].StartTime;
-              IF g_task[tj].Queue[qj].StartTime > to_start THEN
-                to_start := g_task[tj].Queue[qj].StartTime;
-              END_IF;
-              to_end := g_task[ti].Queue[qi].FinishTime;
-              IF g_task[tj].Queue[qj].FinishTime < to_end THEN
-                to_end := g_task[tj].Queue[qj].FinishTime;
-              END_IF;
-
-              IF to_start < to_end THEN
-                deficit_s := LINT_TO_REAL(to_end - to_start) + 2.0;
-                o_has_conflict  := TRUE;
-                o_conf_type     := 2;  (* TRANSPORTER_COLLISION *)
-                o_conf_unit     := g_task[tj].Queue[qj].Unit;
-                o_conf_stage    := g_task[tj].Queue[qj].Stage;
-                o_conf_trans    := tj;
-                o_blocked_unit  := g_task[ti].Queue[qi].Unit;
-                o_blocked_stage := g_task[ti].Queue[qi].Stage;
-                o_deficit       := deficit_s;
-                checked_count   := total_tasks;
-                RETURN;
-              END_IF;
-            END_IF;
-
-          END_IF;
-        END_FOR;
-      END_FOR;
-
-    END_IF;
-  END_FOR;
-END_FOR;
-
-(* ══════════════════════════════════════════════════════════════════════ *)
-(* CHECK 3: CROSS_TRANSPORTER_HANDOFF                                  *)
+(* CHECK 2: CROSS_TRANSPORTER_HANDOFF                                  *)
 (* Same batch, consecutive stages on different transporters.           *)
 (* Does the receiving transporter have time to reach handoff station?  *)
 (*                                                                      *)
+(* JS checks HANDOFF before COLLISION (per-task loop order).           *)
 (* Conflict targets the DELIVERING task (current transporter);         *)
 (* resolver will delay the preceding stage so the batch waits longer   *)
 (* on the delivering transporter's side.                               *)
@@ -7048,6 +6975,110 @@ FOR ti := 1 TO MAX_Transporters DO
             END_IF;
           END_FOR;
         END_IF;
+      END_FOR;
+
+    END_IF;
+  END_FOR;
+END_FOR;
+
+(* ══════════════════════════════════════════════════════════════════════ *)
+(* CHECK 3: TRANSPORTER_COLLISION — X+time overlap, different trans.   *)
+(* Compares every task pair across different transporters.              *)
+(* JS: conf = later task (timeline), blocked = earlier task.           *)
+(* ══════════════════════════════════════════════════════════════════════ *)
+FOR ti := 1 TO MAX_Transporters DO
+  FOR qi := 1 TO g_task[ti].Count DO
+    IF g_task[ti].Queue[qi].Unit > 0 THEN
+
+      (* X range for task A *)
+      l_idx := g_task[ti].Queue[qi].LiftStationTarget - 100;
+      s_idx := g_task[ti].Queue[qi].SinkStationTarget - 100;
+      IF l_idx >= 1 AND l_idx <= 30 THEN
+        lift_x := DINT_TO_REAL(g_station[g_task[ti].Queue[qi].LiftStationTarget].XPosition);
+      ELSE
+        lift_x := 0.0;
+      END_IF;
+      IF s_idx >= 1 AND s_idx <= 30 THEN
+        sink_x := DINT_TO_REAL(g_station[g_task[ti].Queue[qi].SinkStationTarget].XPosition);
+      ELSE
+        sink_x := 0.0;
+      END_IF;
+      IF lift_x < sink_x THEN
+        x1_min := lift_x;
+        x1_max := sink_x;
+      ELSE
+        x1_min := sink_x;
+        x1_max := lift_x;
+      END_IF;
+
+      FOR tj := ti + 1 TO MAX_Transporters DO
+        FOR qj := 1 TO g_task[tj].Count DO
+          IF g_task[tj].Queue[qj].Unit > 0 THEN
+
+            (* X range for task B *)
+            l_idx2 := g_task[tj].Queue[qj].LiftStationTarget - 100;
+            s_idx2 := g_task[tj].Queue[qj].SinkStationTarget - 100;
+            IF l_idx2 >= 1 AND l_idx2 <= 30 THEN
+              lift_x2 := DINT_TO_REAL(g_station[g_task[tj].Queue[qj].LiftStationTarget].XPosition);
+            ELSE
+              lift_x2 := 0.0;
+            END_IF;
+            IF s_idx2 >= 1 AND s_idx2 <= 30 THEN
+              sink_x2 := DINT_TO_REAL(g_station[g_task[tj].Queue[qj].SinkStationTarget].XPosition);
+            ELSE
+              sink_x2 := 0.0;
+            END_IF;
+            IF lift_x2 < sink_x2 THEN
+              x2_min := lift_x2;
+              x2_max := sink_x2;
+            ELSE
+              x2_min := sink_x2;
+              x2_max := lift_x2;
+            END_IF;
+
+            (* X overlap *)
+            xo_start := x1_min;
+            IF x2_min > xo_start THEN xo_start := x2_min; END_IF;
+            xo_end := x1_max;
+            IF x2_max < xo_end THEN xo_end := x2_max; END_IF;
+
+            IF xo_start < xo_end THEN
+              (* Time overlap *)
+              to_start := g_task[ti].Queue[qi].StartTime;
+              IF g_task[tj].Queue[qj].StartTime > to_start THEN
+                to_start := g_task[tj].Queue[qj].StartTime;
+              END_IF;
+              to_end := g_task[ti].Queue[qi].FinishTime;
+              IF g_task[tj].Queue[qj].FinishTime < to_end THEN
+                to_end := g_task[tj].Queue[qj].FinishTime;
+              END_IF;
+
+              IF to_start < to_end THEN
+                deficit_s := LINT_TO_REAL(to_end - to_start) + 2.0;
+                o_has_conflict  := TRUE;
+                o_conf_type     := 2;  (* TRANSPORTER_COLLISION *)
+                (* Assign conf = later task (timeline), blocked = earlier task — matches JS *)
+                IF g_task[ti].Queue[qi].StartTime <= g_task[tj].Queue[qj].StartTime THEN
+                  o_conf_unit     := g_task[tj].Queue[qj].Unit;
+                  o_conf_stage    := g_task[tj].Queue[qj].Stage;
+                  o_conf_trans    := tj;
+                  o_blocked_unit  := g_task[ti].Queue[qi].Unit;
+                  o_blocked_stage := g_task[ti].Queue[qi].Stage;
+                ELSE
+                  o_conf_unit     := g_task[ti].Queue[qi].Unit;
+                  o_conf_stage    := g_task[ti].Queue[qi].Stage;
+                  o_conf_trans    := ti;
+                  o_blocked_unit  := g_task[tj].Queue[qj].Unit;
+                  o_blocked_stage := g_task[tj].Queue[qj].Stage;
+                END_IF;
+                o_deficit       := deficit_s;
+                checked_count   := total_tasks;
+                RETURN;
+              END_IF;
+            END_IF;
+
+          END_IF;
+        END_FOR;
       END_FOR;
 
     END_IF;
@@ -7227,6 +7258,7 @@ out_count := 0;
 (* -- Clear old schedule -- *)
 FOR st := 1 TO 30 DO
   g_schedule[i_unit].Stages[st].station := 0;
+  g_schedule[i_unit].Stages[st].ProgramStage := 0;
   g_schedule[i_unit].Stages[st].EntryTime := 0;
   g_schedule[i_unit].Stages[st].ExitTime := 0;
   g_schedule[i_unit].Stages[st].MinTime := 0;
@@ -7289,6 +7321,7 @@ IF is_on_stn AND start_st >= 1 THEN
   IF stn_num = 0 THEN
     out_count := out_count + 1;
     g_schedule[i_unit].Stages[out_count].station       := location;
+    g_schedule[i_unit].Stages[out_count].ProgramStage := 0;  (* pre-position entry, not a program stage *)
     g_schedule[i_unit].Stages[out_count].EntryTime    := exit_t;
     g_schedule[i_unit].Stages[out_count].ExitTime     := exit_t;
     g_schedule[i_unit].Stages[out_count].MinTime      := 0;
@@ -7420,13 +7453,14 @@ FOR st := start_st TO g_program[i_unit].StepCount DO
   IF is_first AND is_on_stn AND st = cur_stage THEN
     (* Batch is currently at this station *)
     entry_t := i_time_s;
-    (* Remaining time: calc_time - elapsed since arrival *)
+    (* Remaining time: use g_batch[].CalTime (resolver-modified)
+       JS: remainingTimeS = max(1, batch.calc_time_s - elapsed) *)
     IF g_batch[i_unit].StartTime > 0 THEN
       elapsed_s := LINT_TO_REAL(i_time_s - g_batch[i_unit].StartTime);
     ELSE
       elapsed_s := 0.0;
     END_IF;
-    remain_s := calc_s - elapsed_s;
+    remain_s := DINT_TO_REAL(g_batch[i_unit].CalTime) - elapsed_s;
     IF remain_s < 1.0 THEN remain_s := 1.0; END_IF;
     exit_t := i_time_s + REAL_TO_LINT(remain_s);
   ELSIF is_first AND NOT is_on_stn THEN
@@ -7443,6 +7477,7 @@ FOR st := start_st TO g_program[i_unit].StepCount DO
   out_count := out_count + 1;
   IF out_count <= 30 THEN
     g_schedule[i_unit].Stages[out_count].station       := stn_num;
+    g_schedule[i_unit].Stages[out_count].ProgramStage := st;  (* program stage number (1..N) *)
     g_schedule[i_unit].Stages[out_count].EntryTime    := entry_t;
     g_schedule[i_unit].Stages[out_count].ExitTime     := exit_t;
     g_schedule[i_unit].Stages[out_count].MinTime      := REAL_TO_DINT(min_s);
@@ -7532,7 +7567,7 @@ FOR si := 1 TO sc - 1 DO
       qi := g_task[tid].Count + 1;
       IF qi <= MAX_TASK_QUEUE THEN
         g_task[tid].Queue[qi].Unit         := i_unit;
-        g_task[tid].Queue[qi].Stage        := si;  (* schedule index, used by Resolve/ShiftSchedule *)
+        g_task[tid].Queue[qi].Stage        := si;  (* schedule index — used by Resolve/ShiftSchedule as g_schedule array index *)
         g_task[tid].Queue[qi].LiftStationTarget := lift_stn;
         g_task[tid].Queue[qi].SinkStationTarget := sink_stn;
         g_task[tid].Queue[qi].StartTime   := g_schedule[i_unit].Stages[si].ExitTime;
@@ -8251,7 +8286,8 @@ IF can_advance
 
   IF stage_flex > 0.1 THEN
     (* Cap: 90% if batch is on this stage, 50% otherwise *)
-    IF g_batch[i_blocked_unit].CurStage = i_blocked_stage THEN
+    (* Use ProgramStage for CurStage comparison — schedule index ≠ program stage when prepend entry exists *)
+    IF g_batch[i_blocked_unit].CurStage = g_schedule[i_blocked_unit].Stages[i_blocked_stage].ProgramStage THEN
       cap := 0.9;
     ELSE
       cap := 0.5;
@@ -8310,7 +8346,7 @@ IF can_delay AND remain > 0.1
   IF stage_flex < 0.0 THEN stage_flex := 0.0; END_IF;
 
   IF stage_flex > 0.1 THEN
-    IF g_batch[i_conf_unit].CurStage = i_conf_stage THEN
+    IF g_batch[i_conf_unit].CurStage = g_schedule[i_conf_unit].Stages[i_conf_stage].ProgramStage THEN
       cap := 0.9;
     ELSE
       cap := 0.5;
@@ -8327,7 +8363,7 @@ IF can_delay AND remain > 0.1
     fb_shift(i_unit := i_conf_unit, i_from_stage := i_conf_stage + 1, i_amount := amount);
 
     (* JS: propagateDelayToBatch updates batch.calc_time_s ONLY if batch is on this stage *)
-    IF g_batch[i_conf_unit].CurStage = i_conf_stage THEN
+    IF g_batch[i_conf_unit].CurStage = g_schedule[i_conf_unit].Stages[i_conf_stage].ProgramStage THEN
       g_batch[i_conf_unit].CalTime :=
         g_batch[i_conf_unit].CalTime + REAL_TO_DINT(amount);
       IF g_batch[i_conf_unit].CalTime > g_batch[i_conf_unit].MaxTime THEN
@@ -8376,7 +8412,7 @@ IF remain > 0.1 AND prev_conf_stage >= 1 AND i_conf_unit >= 1 AND i_conf_unit <=
     IF stage_flex < 0.0 THEN stage_flex := 0.0; END_IF;
 
     IF stage_flex > 0.1 THEN
-      IF g_batch[i_conf_unit].CurStage = prev_conf_stage THEN
+      IF g_batch[i_conf_unit].CurStage = g_schedule[i_conf_unit].Stages[prev_conf_stage].ProgramStage THEN
         cap := 0.9;
       ELSE
         cap := 0.5;
@@ -8392,7 +8428,7 @@ IF remain > 0.1 AND prev_conf_stage >= 1 AND i_conf_unit >= 1 AND i_conf_unit <=
 
       (* JS: propagateDelayToBatch with propagateFromStage=conf_stage
          updates batch.calc_time_s ONLY if batch is on conf_stage *)
-      IF g_batch[i_conf_unit].CurStage = i_conf_stage THEN
+      IF g_batch[i_conf_unit].CurStage = g_schedule[i_conf_unit].Stages[i_conf_stage].ProgramStage THEN
         g_batch[i_conf_unit].CalTime :=
           g_batch[i_conf_unit].CalTime + REAL_TO_DINT(amount);
         IF g_batch[i_conf_unit].CalTime > g_batch[i_conf_unit].MaxTime THEN
@@ -8459,7 +8495,7 @@ IF remain > 0.1 AND i_blocked_unit >= 1 AND i_blocked_unit <= MAX_Units THEN
       IF stage_flex < 0.0 THEN stage_flex := 0.0; END_IF;
 
       IF stage_flex > 0.1 THEN
-        IF g_batch[i_blocked_unit].CurStage = i_blocked_stage THEN
+        IF g_batch[i_blocked_unit].CurStage = g_schedule[i_blocked_unit].Stages[i_blocked_stage].ProgramStage THEN
           cap := 0.9;
         ELSE
           cap := 0.5;
@@ -8474,7 +8510,7 @@ IF remain > 0.1 AND i_blocked_unit >= 1 AND i_blocked_unit <= MAX_Units THEN
         fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := amount);
 
         (* JS: propagateDelayToBatch updates batch.calc_time_s ONLY if batch is on this stage *)
-        IF g_batch[i_blocked_unit].CurStage = i_blocked_stage THEN
+        IF g_batch[i_blocked_unit].CurStage = g_schedule[i_blocked_unit].Stages[i_blocked_stage].ProgramStage THEN
           g_batch[i_blocked_unit].CalTime :=
             g_batch[i_blocked_unit].CalTime + REAL_TO_DINT(amount);
           IF g_batch[i_blocked_unit].CalTime > g_batch[i_blocked_unit].MaxTime THEN
