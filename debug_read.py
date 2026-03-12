@@ -3,7 +3,7 @@
 import sys, time
 from pyModbusTCP.client import ModbusClient
 
-PLC_IP = "172.22.0.4"
+PLC_IP = "172.22.0.2"
 PLC_PORT = 502
 
 c = ModbusClient(host=PLC_IP, port=PLC_PORT, auto_open=True, auto_close=False, timeout=2)

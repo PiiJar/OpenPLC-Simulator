@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-12T14:09:48"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-12T14:09:48">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-12T17:20:49"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-12T17:20:49">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -162,7 +162,7 @@
             <variable name="Flags">
               <type>
                 <array>
-                  <dimension lower="101" upper="130"/>
+                  <dimension lower="0" upper="200"/>
                   <baseType><BOOL/></baseType>
                 </array>
               </type>
