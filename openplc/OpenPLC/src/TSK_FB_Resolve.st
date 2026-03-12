@@ -50,7 +50,6 @@ VAR_EXTERNAL
   g_task    : ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType;
   g_schedule : ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType;
   g_batch   : ARRAY[1..MAX_Units] OF UDT_BatchType;
-  g_program : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
 END_VAR
 VAR_OUTPUT
   o_solved      : BOOL;
@@ -148,9 +147,12 @@ IF can_advance
     (* Shift all subsequent stages and tasks *)
     fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := -amount);
 
-    (* Persist to g_program *)
-    g_program[i_blocked_unit].Steps[i_blocked_stage - 1].CalTime :=
-      g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime;
+    (* JS: propagateEarlierToBatch always updates batch.calc_time_s *)
+    g_batch[i_blocked_unit].CalTime :=
+      g_batch[i_blocked_unit].CalTime - REAL_TO_DINT(amount);
+    IF g_batch[i_blocked_unit].CalTime < g_batch[i_blocked_unit].MinTime THEN
+      g_batch[i_blocked_unit].CalTime := g_batch[i_blocked_unit].MinTime;
+    END_IF;
 
     remain := remain - amount;
     o_total_adv := o_total_adv + amount;
@@ -203,8 +205,14 @@ IF can_delay AND remain > 0.1
 
     fb_shift(i_unit := i_conf_unit, i_from_stage := i_conf_stage + 1, i_amount := amount);
 
-    g_program[i_conf_unit].Steps[i_conf_stage - 1].CalTime :=
-      g_schedule[i_conf_unit].Stages[i_conf_stage].CalcTime;
+    (* JS: propagateDelayToBatch updates batch.calc_time_s ONLY if batch is on this stage *)
+    IF g_batch[i_conf_unit].CurStage = i_conf_stage THEN
+      g_batch[i_conf_unit].CalTime :=
+        g_batch[i_conf_unit].CalTime + REAL_TO_DINT(amount);
+      IF g_batch[i_conf_unit].CalTime > g_batch[i_conf_unit].MaxTime THEN
+        g_batch[i_conf_unit].CalTime := g_batch[i_conf_unit].MaxTime;
+      END_IF;
+    END_IF;
 
     remain := remain - amount;
     o_total_delay := o_total_delay + amount;
@@ -261,10 +269,14 @@ IF remain > 0.1 AND prev_conf_stage >= 1 AND i_conf_unit >= 1 AND i_conf_unit <=
         g_schedule[i_conf_unit].Stages[prev_conf_stage].ExitTime + REAL_TO_LINT(amount);
       fb_shift(i_unit := i_conf_unit, i_from_stage := prev_conf_stage + 1, i_amount := amount);
 
-      (* Persist to g_program *)
-      IF prev_conf_stage >= 1 THEN
-        g_program[i_conf_unit].Steps[prev_conf_stage - 1].CalTime :=
-          g_schedule[i_conf_unit].Stages[prev_conf_stage].CalcTime;
+      (* JS: propagateDelayToBatch with propagateFromStage=conf_stage
+         updates batch.calc_time_s ONLY if batch is on conf_stage *)
+      IF g_batch[i_conf_unit].CurStage = i_conf_stage THEN
+        g_batch[i_conf_unit].CalTime :=
+          g_batch[i_conf_unit].CalTime + REAL_TO_DINT(amount);
+        IF g_batch[i_conf_unit].CalTime > g_batch[i_conf_unit].MaxTime THEN
+          g_batch[i_conf_unit].CalTime := g_batch[i_conf_unit].MaxTime;
+        END_IF;
       END_IF;
 
       remain := remain - amount;
@@ -340,10 +352,13 @@ IF remain > 0.1 AND i_blocked_unit >= 1 AND i_blocked_unit <= MAX_Units THEN
           g_schedule[i_blocked_unit].Stages[i_blocked_stage].ExitTime + REAL_TO_LINT(amount);
         fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := amount);
 
-        (* Persist to g_program *)
-        IF i_blocked_stage >= 1 THEN
-          g_program[i_blocked_unit].Steps[i_blocked_stage - 1].CalTime :=
-            g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime;
+        (* JS: propagateDelayToBatch updates batch.calc_time_s ONLY if batch is on this stage *)
+        IF g_batch[i_blocked_unit].CurStage = i_blocked_stage THEN
+          g_batch[i_blocked_unit].CalTime :=
+            g_batch[i_blocked_unit].CalTime + REAL_TO_DINT(amount);
+          IF g_batch[i_blocked_unit].CalTime > g_batch[i_blocked_unit].MaxTime THEN
+            g_batch[i_blocked_unit].CalTime := g_batch[i_blocked_unit].MaxTime;
+          END_IF;
         END_IF;
 
         remain := remain - amount;
