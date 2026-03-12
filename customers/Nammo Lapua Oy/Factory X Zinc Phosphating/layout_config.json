@@ -33,7 +33,7 @@
       "heightMM": 1400,
       "widthScaleFactor": 0.8,
       "showUtilizationPie": false,
-      "showDriveLimits": false
+      "showDriveLimits": true
     },
     "cross-transporters": {
       "showConnections": true,

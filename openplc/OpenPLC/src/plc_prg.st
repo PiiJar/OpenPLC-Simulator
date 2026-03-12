@@ -35,6 +35,8 @@ VAR_EXTERNAL
   g_dep_overlap       : UDT_JC_DepOverlapType;
   g_dep_pending       : UDT_JC_DepPendingWriteType;
   g_dep_waiting       : ARRAY[1..DEP_MAX_WAITING] OF INT;
+  g_dep_wait_sched    : UDT_JC_TskScheduleType;
+  g_dep_wait_unit     : INT;
   (* --- Calibration --- *)
   g_cal              : ARRAY[1..MAX_Transporters] OF UDT_JC_CalibrationType;
   g_cal_active       : BOOL;
@@ -1119,6 +1121,11 @@ VAR
   sch_last_req   : INT := 0;      (* last exported unit_id *)
   sch_copy       : UDT_JC_TskScheduleType; (* temp copy of requested schedule *)
   sch_s          : INT;            (* loop counter for stages *)
+  (* Waiting batch at station 114 — shortcut *)
+  fb_wait_calc   : TSK_FB_CalcSchedule;
+  dep_wait_114_unit : INT := 0;    (* unit currently at stn 114 with State=0 *)
+  dep_wait_114_last : INT := 0;    (* last calculated unit — trigger recalc on change *)
+  wait_i         : INT;
 END_VAR
 (* ============================================================
    CONFIG UPLOAD HANDLER
@@ -2256,6 +2263,32 @@ IF g_dep_overlap.Flags[130] THEN qw_ov_s130_flag := 1; ELSE qw_ov_s130_flag := 0
 
 (* --- END GENERATED MODBUS OUTPUT --- *)
 
+(* ── WAITING BATCH AT STATION 114 — shortcut for UI ──
+   Scan for NOT_PROCESSED unit at station 114 with valid program.
+   Calculate schedule once when a new unit appears there. *)
+dep_wait_114_unit := 0;
+FOR wait_i := 1 TO 10 DO
+  IF g_unit[wait_i].location = 114
+     AND g_batch[wait_i].State = 0
+     AND g_program[wait_i].ProgramId > 0
+     AND g_batch[wait_i].ProgId = g_program[wait_i].ProgramId THEN
+    dep_wait_114_unit := wait_i;
+  END_IF;
+END_FOR;
+
+IF dep_wait_114_unit <> dep_wait_114_last THEN
+  dep_wait_114_last := dep_wait_114_unit;
+  IF dep_wait_114_unit > 0 THEN
+    fb_wait_calc(i_unit := dep_wait_114_unit, i_trans := 1, i_time_s := g_time_s);
+    g_dep_wait_sched := g_schedule[dep_wait_114_unit];
+    g_dep_wait_unit  := dep_wait_114_unit;
+    (* Clear temp schedule so active-schedule path stays empty *)
+    g_schedule[dep_wait_114_unit].StageCount := 0;
+  ELSE
+    g_dep_wait_unit := 0;
+  END_IF;
+END_IF;
+
 (* ── SCHEDULE WINDOW EXPORT ──
    Gateway writes iw_schedule_req_unit = N (1..10).
    PLC copies g_schedule[N] into the window registers and bumps seq.
@@ -2263,7 +2296,13 @@ IF g_dep_overlap.Flags[130] THEN qw_ov_s130_flag := 1; ELSE qw_ov_s130_flag := 0
 IF iw_schedule_req_unit >= 1 AND iw_schedule_req_unit <= 10
    AND iw_schedule_req_unit <> sch_last_req THEN
   sch_last_req := iw_schedule_req_unit;
-  sch_copy := g_schedule[iw_schedule_req_unit];
+  (* Use DEP waiting batch schedule if active schedule is empty *)
+  IF g_schedule[iw_schedule_req_unit].StageCount = 0
+     AND g_dep_wait_unit = iw_schedule_req_unit THEN
+    sch_copy := g_dep_wait_sched;
+  ELSE
+    sch_copy := g_schedule[iw_schedule_req_unit];
+  END_IF;
 
   qw_schedule_window_unit_id := iw_schedule_req_unit;
   qw_schedule_window_stage_count := sch_copy.StageCount;

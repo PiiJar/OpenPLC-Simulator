@@ -812,9 +812,8 @@
                 let totalBars = 0;
                 
                 newSchedules.forEach((schedule, scheduleIdx) => {
-                    // Odottava batch (stage 90): näytä aina vasemmassa reunassa
-                    // Sen aikataulu on "mitä tapahtuisi jos lähtisi NYT"
-                    const isWaitingBatch = schedule.batchStage === 90;
+                    // Odottava batch (batchState=0 = NOT_PROCESSED)
+                    const isWaitingBatch = schedule.batchState === 0;
                     const stage0Entry = schedule.stages[0]?.entry_time_s || displayStartTime;
                     
                     schedule.stages.forEach((stage, stageIdx) => {
@@ -923,7 +922,7 @@
                     let maxExitFromNow = 0;
                     schedules.forEach(sch => {
                         if (sch.stages && sch.stages.length > 0) {
-                            const isWaiting = sch.batchStage === 90;
+                            const isWaiting = sch.batchState === 0;
                             const stage0Entry = sch.stages[0]?.entry_time_s || currentTimeSec;
                             
                             sch.stages.forEach(stage => {
@@ -1137,8 +1136,8 @@
                     // Find all schedule entries for this station
                     schedules.forEach((sch) => {
                         if (sch.stages) {
-                            // Odottava batch: käytä suhteellista aikaa stage0:sta
-                            const isWaiting = sch.batchStage === 90;
+                            // Odottava batch: batchState=0 = NOT_PROCESSED
+                            const isWaiting = sch.batchState === 0;
                             const stage0Entry = sch.stages[0]?.entry_time_s || currentTimeSec;
                             
                             sch.stages.forEach((stage) => {
@@ -1253,7 +1252,7 @@
                     
                     if (sch && sch.stages) {
                         const color = getBatchColor(sch.batch_id);
-                        const isWaiting = sch.batchStage === 90;
+                        const isWaiting = sch.batchState === 0;
                         // Odottava batch: käytä suhteellista aikaa stage0:sta
                         const stage0Entry = sch.stages[0]?.entry_time_s || currentTimeSec;
                         

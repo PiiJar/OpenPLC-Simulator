@@ -91,6 +91,10 @@ VAR
 END_VAR
 
 IF NOT i_run THEN
+  IF phase <> 0 THEN
+    (* Reset: clear task queues so stale tasks don't persist *)
+    fb_clear();
+  END_IF;
   phase := 0;
   o_phase := 0;
   RETURN;
@@ -118,7 +122,8 @@ ELSIF phase = 1 THEN
   locks_initialized := FALSE;
 
   IF batch_count = 0 THEN
-    (* No active batches — still run no-treatment tasks *)
+    (* No active batches — clear stale tasks, then run no-treatment *)
+    fb_clear();
     next_phase := 2204;
   ELSE
     next_phase := 2;

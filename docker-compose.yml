@@ -39,6 +39,7 @@ services:
       - ./customers:/data/customers
       - ./plant_templates:/data/plant_templates
       - ./runtime:/data/runtime
+      - ./PLC Simulator/visualization/public:/app/public:ro
     depends_on:
       - openplc
       - plc_db

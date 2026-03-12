@@ -26,6 +26,8 @@ VAR_GLOBAL
     DepPending             : UDT_JC_DepPendingWriteType;                                        (* ACTIVATE write buffer *)
     DepActivated           : BOOL;                                                       (* handshake TSK ← DEP *)
     DepStable              : BOOL;                                                       (* handshake TSK → DEP: task list stable *)
+    DepWaitSched           : UDT_JC_TskScheduleType;                                             (* last DEP-calculated waiting batch schedule for UI *)
+    DepWaitUnit            : INT;                                                        (* unit index of waiting schedule (0=none) *)
 
     (* ===== Calibration State ===== *)
     Calibration            : ARRAY[1..MAX_Transporters] OF UDT_JC_CalibrationType;               (* calibration plan + results per transporter *)

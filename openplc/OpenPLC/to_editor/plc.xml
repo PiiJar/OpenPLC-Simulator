@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-11T16:00:22"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-11T16:00:22">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-12T12:23:37"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-12T12:23:37">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -1604,6 +1604,9 @@ END_FOR;]]></xhtml:p>
             <variable name="i_margin_s">
               <type><REAL/></type>
             </variable>
+            <variable name="i_conflict_margin_s">
+              <type><REAL/></type>
+            </variable>
           </inputVars>
           <outputVars>
             <variable name="o_result">
@@ -1730,19 +1733,19 @@ FOR si := 1 TO DEP_MAX_IDLE_SLOTS DO
     travel_from := STC_CalcHorizontalTravel(i_from_stn := i_sink_stn, i_to_stn := to_stn, i_move := tmp_move);
   END_IF;
 
-  (* Earliest start = max(slot_start, task_start + shift) + travel_to + margin *)
+  (* Earliest start = max(slot_start, task_start + shift) + travel_to + conflict_margin *)
   IF slot_start > (i_task_start + REAL_TO_LINT(i_shift_s)) THEN
-    earliest := slot_start + REAL_TO_LINT(travel_to + i_margin_s);
+    earliest := slot_start + REAL_TO_LINT(travel_to + i_conflict_margin_s);
   ELSE
-    earliest := i_task_start + REAL_TO_LINT(i_shift_s + travel_to + i_margin_s);
+    earliest := i_task_start + REAL_TO_LINT(i_shift_s + travel_to + i_conflict_margin_s);
   END_IF;
 
-  (* Latest end = slot_end - travel_from - margin *)
+  (* Latest end = slot_end - travel_from - conflict_margin *)
   IF slot_end > LINT#9000000000 THEN
     (* Open-ended slot *)
     latest := LINT#9000000000;
   ELSE
-    latest := slot_end - REAL_TO_LINT(travel_from + i_margin_s);
+    latest := slot_end - REAL_TO_LINT(travel_from + i_conflict_margin_s);
   END_IF;
 
   (* Check if task fits *)
@@ -1750,8 +1753,8 @@ FOR si := 1 TO DEP_MAX_IDLE_SLOTS DO
     delay := LINT_TO_REAL(earliest - i_task_start) - i_shift_s;
     IF delay < 0.0 THEN delay := 0.0; END_IF;
 
-    (* Flex constraint: delay must not exceed capped flex *)
-    IF delay <= capped_flex + i_margin_s THEN
+    (* Flex constraint: small delays always OK; larger must be within flex + 1s *)
+    IF delay <= i_margin_s OR delay <= capped_flex + 1.0 THEN
       IF delay < best_delay THEN
         best_delay := delay;
         best_slot  := si;
@@ -1996,11 +1999,18 @@ END_FOR;  (* round *)]]></xhtml:p>
 
 ELSIF i_cmd = 2 THEN
   (* ── RESTORE: sandbox → globals ── *)
+  (* Only restore entries that existed at snapshot time.
+     Gateway may have loaded new programs/batches between
+     snapshot and restore — protect those writes. *)
   IF g_dep_sandbox.Valid THEN
     FOR ui := 1 TO MAX_Units DO
       g_schedule[ui] := g_dep_sandbox.Schedule[ui];
-      g_batch[ui]  := g_dep_sandbox.Batches[ui];
-      g_program[ui] := g_dep_sandbox.Programs[ui];
+      IF g_dep_sandbox.Batches[ui].BatchCode > 0 THEN
+        g_batch[ui]  := g_dep_sandbox.Batches[ui];
+      END_IF;
+      IF g_dep_sandbox.Programs[ui].ProgramId > 0 THEN
+        g_program[ui] := g_dep_sandbox.Programs[ui];
+      END_IF;
     END_FOR;
     FOR ti := 1 TO MAX_Transporters DO
       g_task[ti] := g_dep_sandbox.Tasks[ti];
@@ -2089,6 +2099,12 @@ END_IF;]]></xhtml:p>
               <type><derived name="ARRAY[1..DEP_MAX_WAITING] OF INT"/></type>
             </variable>
             <variable name="g_dep_waiting_count">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_dep_wait_sched">
+              <type><derived name="UDT_JC_TskScheduleType"/></type>
+            </variable>
+            <variable name="g_dep_wait_unit">
               <type><INT/></type>
             </variable>
           </externalVars>
@@ -2340,6 +2356,9 @@ END_IF;]]></xhtml:p>
             <variable name="ci">
               <type><INT/></type>
             </variable>
+            <variable name="prepend_offset">
+              <type><INT/></type>
+            </variable>
             <variable name="tmp_unit">
               <type><INT/></type>
             </variable>
@@ -2455,6 +2474,7 @@ ELSIF phase = 1000 THEN
     cur_wait_unit := waiting_list[cur_wait_idx];
     fit_round := 0;
     sched_base_time := i_time_s;
+    stage0_pending_delay := 0.0;
     next_phase := 1010;
   END_IF;
 
@@ -2491,7 +2511,15 @@ ELSIF phase = 1021 THEN
   IF create_idx <= batch_count THEN
     fb_create_tasks(i_unit := batch_list[create_idx]);
     create_idx := create_idx + 1;
-    next_phase := 1021;   (* stay until all batches done *)
+    next_phase := 1021;   (* stay until all active batches done *)
+  ELSIF create_idx = batch_count + 1 THEN
+    (* ★ FIX: Also create tasks for the current waiting batch,
+       so phase 1030 EXTRACT_WAIT can find and separate them.
+       JS: CHECK_CREATE_TASKS creates tasks from ALL schedules,
+       then splits into existingTasks and waitingBatchTasks. *)
+    fb_create_tasks(i_unit := cur_wait_unit);
+    create_idx := create_idx + 1;
+    next_phase := 1022;   (* waiting batch done → sort *)
   ELSE
     next_phase := 1022;   (* all batches created → sort *)
   END_IF;
@@ -2552,6 +2580,19 @@ ELSIF phase = 1030 THEN
     IF g_transporter[ti].Phase >= 1 AND g_transporter[ti].Phase <= 4 THEN
       est_finish := i_time_s + DINT_TO_LINT(g_transporter[ti].TaskRemainingTime);
       IF est_finish > i_time_s AND g_task[ti].Count < 10 THEN
+        (* ★ FIX: Remove schedule-derived task matching in-flight transfer
+           to avoid duplicate (JS: inFlightTasks replace schedule tasks) *)
+        FOR qi := 1 TO g_task[ti].Count DO
+          IF g_task[ti].Queue[qi].LiftStationTarget = g_transporter[ti].LiftStationTarget
+             AND g_task[ti].Queue[qi].SinkStationTarget = g_transporter[ti].SinkStationTarget THEN
+            FOR bi := qi TO g_task[ti].Count - 1 DO
+              g_task[ti].Queue[bi] := g_task[ti].Queue[bi + 1];
+            END_FOR;
+            g_task[ti].Queue[g_task[ti].Count].Unit := 0;
+            g_task[ti].Count := g_task[ti].Count - 1;
+            EXIT;
+          END_IF;
+        END_FOR;
         (* Shift existing tasks up by 1 to make room at position 1 *)
         FOR qi := g_task[ti].Count TO 1 BY -1 DO
           g_task[ti].Queue[qi + 1] := g_task[ti].Queue[qi];
@@ -2593,10 +2634,21 @@ ELSIF phase = 1040 THEN
 ELSIF phase = 2000 THEN
   loading_stn := g_unit[cur_wait_unit].location;
 
-  (* Find first treatment station from schedule *)
+  (* Find first treatment station from schedule.
+     If CalcSchedule prepended the loading station (loading ≠ first treatment),
+     Stages[1] = loading (CalcTime=0), Stages[2] = first treatment.
+     Otherwise Stages[1] = first treatment directly. *)
   first_stn := 0;
+  prepend_offset := 0;
   IF g_schedule[cur_wait_unit].StageCount >= 1 THEN
     first_stn := g_schedule[cur_wait_unit].Stages[1].station;
+    (* Detect prepend: first schedule stage = loading station with zero calc_time *)
+    IF first_stn = loading_stn
+       AND g_schedule[cur_wait_unit].Stages[1].CalcTime = 0
+       AND g_schedule[cur_wait_unit].StageCount >= 2 THEN
+      first_stn := g_schedule[cur_wait_unit].Stages[2].station;
+      prepend_offset := 1;
+    END_IF;
   END_IF;
 
   IF first_stn = 0 THEN
@@ -2704,10 +2756,8 @@ ELSIF phase = 2000 THEN
 
             (* Record stage 0 delay — shift sched_base_time for stage 1+ *)
             IF stage0_delay > MARGIN_S THEN
-              stage0_pending_delay := stage0_delay;
+              stage0_pending_delay := stage0_pending_delay + stage0_delay;
               sched_base_time := sched_base_time + REAL_TO_LINT(stage0_delay);
-            ELSE
-              stage0_pending_delay := 0.0;
             END_IF;
 
             EXIT;  (* Found a fitting slot *)
@@ -2721,11 +2771,18 @@ ELSIF phase = 2000 THEN
       next_phase := 9000;
     ELSE
       (* JS: stage 0 delay NEVER triggers RECALC alone.
-         continue → proceed to stage 1+ tasks. *)
-      IF w_task_cnt = 0 THEN
-        next_phase := 8000;    (* No stage 1+ → ACTIVATE *)
+         continue → proceed to stage 1+ tasks.
+         Skip pickup task if CalcSchedule prepended the loading station:
+         it was already fitted inline above. *)
+      IF prepend_offset = 1 THEN
+        cur_task_idx := 2;   (* skip prepended pickup task *)
       ELSE
         cur_task_idx := 1;
+      END_IF;
+
+      IF cur_task_idx > w_task_cnt THEN
+        next_phase := 8000;    (* No stage 1+ → ACTIVATE *)
+      ELSE
         next_phase := 2001;    (* Continue to stage 1+ fit *)
       END_IF;
     END_IF;
@@ -2767,7 +2824,8 @@ ELSIF phase = 2001 THEN
       i_calc_time_s  := w_tasks[cur_task_idx].CalcTime,
       i_max_time_s   := w_tasks[cur_task_idx].MaxTime,
       i_flex_factor  := FLEX_FACTOR,
-      i_margin_s     := MARGIN_S
+      i_margin_s     := MARGIN_S,
+      i_conflict_margin_s := CONFLICT_MARGIN_S
     );
 
     total_delay_s := ovlp_delay_s + DINT_TO_REAL(fb_fit.o_result.DelayTime);
@@ -2836,7 +2894,7 @@ ELSIF phase = 2001 THEN
                 (* Stage 0 / batch delay: shift base time *)
                 sched_base_time := sched_base_time + DINT_TO_LINT(chain_delays[ci].DelayTime);
               ELSIF chain_delays[ci].Target = 1 THEN
-                prog_idx := chain_delays[ci].Stage;
+                prog_idx := chain_delays[ci].Stage - prepend_offset;
                 IF prog_idx >= 1 AND prog_idx <= 30 THEN
                   old_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].CalTime;
                   max_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].MaxTime;
@@ -2850,11 +2908,19 @@ ELSIF phase = 2001 THEN
             END_IF;
           END_FOR;
 
-          (* Also apply the current task's total delay *)
+          (* ★ FIX: Also apply the current task's delay to the program
+             (JS: pendingDelays includes both chain + current task delays) *)
           IF total_delay_s > MARGIN_S THEN
-            delay_stage  := si;
-            delay_amount := total_delay_s;
-            delay_target := 1;
+            prog_idx := si - prepend_offset;
+            IF prog_idx >= 1 AND prog_idx <= 30 THEN
+              old_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].CalTime;
+              max_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].MaxTime;
+              new_cal := old_cal + REAL_TO_DINT(total_delay_s);
+              IF new_cal > max_cal AND max_cal > 0 THEN
+                new_cal := max_cal;
+              END_IF;
+              g_program[cur_wait_unit].Steps[prog_idx - 1].CalTime := new_cal;
+            END_IF;
           END_IF;
 
           fit_round := fit_round + 1;
@@ -2880,8 +2946,10 @@ ELSIF phase = 3000 THEN
     next_phase := 9000;
   ELSE
     IF delay_target = 1 THEN
-      (* Program stage delay: increase cal_time *)
-      prog_idx := delay_stage;
+      (* Program stage delay: increase cal_time.
+         Subtract prepend_offset: task.Stage is schedule index which
+         includes the prepended loading station. *)
+      prog_idx := delay_stage - prepend_offset;
       IF prog_idx >= 1 AND prog_idx <= 30 THEN
         old_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].CalTime;
         max_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].MaxTime;
@@ -2960,13 +3028,13 @@ ELSIF phase = 8020 THEN
   end_delay_cnt := 0;
   next_phase := 8021;
 
-ELSIF phase >= 8021 AND phase <= 8120 THEN
+ELSIF phase >= 8021 AND phase <= 8099 THEN
   end_delay_cnt := end_delay_cnt + 1;
   IF end_delay_cnt >= END_DELAY_TICKS THEN
     next_phase := 8100;
   ELSE
     next_phase := phase + 1;
-    IF next_phase > 8120 THEN
+    IF next_phase > 8099 THEN
       next_phase := 8100;
     END_IF;
   END_IF;
@@ -3068,6 +3136,9 @@ o_phase := phase;]]></xhtml:p>
             </variable>
             <variable name="g_dep_waiting">
               <type><derived name="ARRAY[1..DEP_MAX_WAITING] OF INT"/></type>
+            </variable>
+            <variable name="g_dep_wait_unit">
+              <type><INT/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -3252,6 +3323,7 @@ g_dep_pending.BatchState := 0;
 g_dep_activated     := FALSE;
 g_dep_stable        := FALSE;
 g_dep_waiting_count := 0;
+g_dep_wait_unit     := 0;
 FOR i := 1 TO 5 DO
   g_dep_waiting[i] := 0;
 END_FOR;]]></xhtml:p>
@@ -3630,9 +3702,20 @@ FOR i := 1 TO MAX_Transporters DO
         ELSE
           g_event_pending.Payload[8] := LINT_TO_INT(evt_diff);
         END_IF;
-        g_event_pending.Payload[9]  := DINT_TO_INT(g_sim_trans[i].TreatmentTime);
-        g_event_pending.Payload[10] := DINT_TO_INT(g_sim_trans[i].MinTime);
-        g_event_pending.Payload[11] := DINT_TO_INT(g_sim_trans[i].MaxTime);
+        (* ── Original program calc/min/max for this stage ── *)
+        (* g_sim_trans holds dispatch-time scheduler values which may differ
+           from the treatment program originals. Read directly from g_program
+           using the batch's current stage (CurStage=1-based program index). *)
+        IF g_batch[evt_unit].CurStage >= 1 AND g_batch[evt_unit].CurStage <= 30 THEN
+          g_event_pending.Payload[9]  := DINT_TO_INT(g_program[evt_unit].Steps[g_batch[evt_unit].CurStage - 1].CalTime);
+          g_event_pending.Payload[10] := DINT_TO_INT(g_program[evt_unit].Steps[g_batch[evt_unit].CurStage - 1].MinTime);
+          g_event_pending.Payload[11] := DINT_TO_INT(g_program[evt_unit].Steps[g_batch[evt_unit].CurStage - 1].MaxTime);
+        ELSE
+          (* Stage 0 (pickup) — no program step *)
+          g_event_pending.Payload[9]  := 0;
+          g_event_pending.Payload[10] := 0;
+          g_event_pending.Payload[11] := 0;
+        END_IF;
         g_event_pending.Payload[12] := REAL_TO_INT(xfer_total);
         g_event_pending_valid := TRUE;
       END_IF;
@@ -4961,6 +5044,9 @@ END_FOR;]]></xhtml:p>
             <variable name="g_program">
               <type><derived name="ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType"/></type>
             </variable>
+            <variable name="g_station_loc">
+              <type><derived name="ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation"/></type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="ui">
@@ -4975,27 +5061,34 @@ FOR ui := 1 TO MAX_Units DO
   o_list[ui] := 0;
 END_FOR;
 
+IF i_mode = 1 THEN
+  (* ── Waiting batch: direct lookup at station 114 ── *)
+  ui := g_station_loc[114].UnitId;
+  IF ui >= 1 AND ui <= MAX_Units THEN
+    IF g_unit[ui].Status = 1
+       AND g_unit[ui].Target = 0
+       AND g_batch[ui].State = 0
+       AND g_batch[ui].ProgId = g_program[ui].ProgramId
+       AND g_program[ui].ProgramId > 0 THEN
+      o_count := 1;
+      o_list[1] := ui;
+    END_IF;
+  END_IF;
+  RETURN;
+END_IF;
+
+(* ── Mode 0: active batches — loop ── *)
 FOR ui := 1 TO MAX_Units DO
-  (* Common conditions: unit USED, target TO_NONE, valid program *)
   IF g_unit[ui].Status = 1
      AND g_unit[ui].Target = 0
      AND g_batch[ui].ProgId = g_program[ui].ProgramId
      AND g_program[ui].ProgramId > 0 THEN
 
-    IF i_mode = 0 THEN
-      (* Active batches: IN_PROCESS, stage 0..99 *)
-      IF g_batch[ui].State = 1
-         AND g_batch[ui].CurStage >= 0
-         AND g_batch[ui].CurStage <= 99 THEN
-        o_count := o_count + 1;
-        o_list[o_count] := ui;
-      END_IF;
-    ELSIF i_mode = 1 THEN
-      (* Waiting batches: NOT_PROCESSED *)
-      IF g_batch[ui].State = 0 THEN
-        o_count := o_count + 1;
-        o_list[o_count] := ui;
-      END_IF;
+    IF g_batch[ui].State = 1
+       AND g_batch[ui].CurStage >= 0
+       AND g_batch[ui].CurStage <= 99 THEN
+      o_count := o_count + 1;
+      o_list[o_count] := ui;
     END_IF;
   END_IF;
 END_FOR;]]></xhtml:p>
@@ -6705,6 +6798,12 @@ END_FOR;]]></xhtml:p>
             <variable name="rk">
               <type><INT/></type>
             </variable>
+            <variable name="recv_prev_unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="recv_prev_stg">
+              <type><INT/></type>
+            </variable>
             <variable name="recv_travel">
               <type><REAL/></type>
             </variable>
@@ -6900,6 +6999,8 @@ FOR ti := 1 TO MAX_Transporters DO
                 has_recv_prev := FALSE;
                 recv_prev_end  := 0;
                 recv_prev_sink := 0;
+                recv_prev_unit := 0;
+                recv_prev_stg  := 0;
                 FOR rk := 1 TO g_task[tj].Count DO
                   IF rk <> qj THEN
                     IF g_task[tj].Queue[rk].FinishTime <= g_task[tj].Queue[qj].StartTime THEN
@@ -6907,6 +7008,8 @@ FOR ti := 1 TO MAX_Transporters DO
                         has_recv_prev := TRUE;
                         recv_prev_end  := g_task[tj].Queue[rk].FinishTime;
                         recv_prev_sink := g_task[tj].Queue[rk].SinkStationTarget;
+                        recv_prev_unit := g_task[tj].Queue[rk].Unit;
+                        recv_prev_stg  := g_task[tj].Queue[rk].Stage;
                       END_IF;
                     END_IF;
                   END_IF;
@@ -6932,8 +7035,8 @@ FOR ti := 1 TO MAX_Transporters DO
                     o_conf_stage    := g_task[ti].Queue[qi].Stage;
                     o_conf_trans    := ti;
                     (* Blocked by receiver's previous task *)
-                    o_blocked_unit  := g_task[tj].Queue[rk].Unit;
-                    o_blocked_stage := g_task[tj].Queue[rk].Stage;
+                    o_blocked_unit  := recv_prev_unit;
+                    o_blocked_stage := recv_prev_stg;
                     o_deficit       := handoff_deficit;
                     checked_count   := total_tasks;
                     RETURN;
@@ -7605,6 +7708,51 @@ END_FOR;]]></xhtml:p>
             <variable name="sh">
               <type><INT/></type>
             </variable>
+            <variable name="ot">
+              <type><INT/></type>
+            </variable>
+            <variable name="oq">
+              <type><INT/></type>
+            </variable>
+            <variable name="overlap_conflict">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="dest_x">
+              <type><DINT/></type>
+            </variable>
+            <variable name="avoid_dist">
+              <type><DINT/></type>
+            </variable>
+            <variable name="cov_min_x">
+              <type><DINT/></type>
+            </variable>
+            <variable name="cov_max_x">
+              <type><DINT/></type>
+            </variable>
+            <variable name="ot_min_x">
+              <type><DINT/></type>
+            </variable>
+            <variable name="ot_max_x">
+              <type><DINT/></type>
+            </variable>
+            <variable name="zone_min_x">
+              <type><DINT/></type>
+            </variable>
+            <variable name="zone_max_x">
+              <type><DINT/></type>
+            </variable>
+            <variable name="danger_min">
+              <type><DINT/></type>
+            </variable>
+            <variable name="danger_max">
+              <type><DINT/></type>
+            </variable>
+            <variable name="ot_lift_x">
+              <type><DINT/></type>
+            </variable>
+            <variable name="ot_sink_x">
+              <type><DINT/></type>
+            </variable>
           </localVars>
         </interface>
         <body>
@@ -7837,6 +7985,76 @@ END_FOR;]]></xhtml:p>
             END_IF;
           END_IF;
 
+          (* ── Multi-transporter overlap check (JS: _hasOverlapConflict) ──
+             Uses X-positions and avoid_distance to define a danger zone
+             in the shared drive area. If another transporter has tasks
+             whose lift/sink X falls in the danger zone during
+             task_start..task_end, skip this NTT. *)
+          IF dest_stn > 0 THEN
+            overlap_conflict := FALSE;
+            dest_x := g_station[dest_stn].XPosition;
+            avoid_dist := g_cfg[cov_t].AvoidanceWidth;
+            cov_min_x := g_cfg[cov_t].DrivePosMin;
+            cov_max_x := g_cfg[cov_t].DrivePosMax;
+
+            FOR ot := 1 TO MAX_Transporters DO
+              IF ot <> cov_t AND NOT overlap_conflict
+                 AND g_transporter[ot].IsActive THEN
+                ot_min_x := g_cfg[ot].DrivePosMin;
+                ot_max_x := g_cfg[ot].DrivePosMax;
+
+                (* Shared drive overlap zone *)
+                IF cov_min_x > ot_min_x THEN zone_min_x := cov_min_x;
+                ELSE zone_min_x := ot_min_x; END_IF;
+                IF cov_max_x < ot_max_x THEN zone_max_x := cov_max_x;
+                ELSE zone_max_x := ot_max_x; END_IF;
+
+                IF zone_min_x >= zone_max_x THEN
+                  CONTINUE; (* No drive overlap → no conflict possible *)
+                END_IF;
+
+                (* Is dest_stn in the overlap zone? *)
+                IF dest_x < zone_min_x OR dest_x > zone_max_x THEN
+                  CONTINUE; (* dest outside shared area *)
+                END_IF;
+
+                (* Danger zone = overlap ± avoid_distance *)
+                danger_min := zone_min_x - avoid_dist;
+                danger_max := zone_max_x + avoid_dist;
+
+                (* 1. Currently active task → check lift/sink in danger zone *)
+                IF g_transporter[ot].Phase >= 1 AND g_transporter[ot].Phase <= 4
+                   AND g_task[ot].Count > 0 THEN
+                  ot_lift_x := g_station[g_task[ot].Queue[1].LiftStationTarget].XPosition;
+                  ot_sink_x := g_station[g_task[ot].Queue[1].SinkStationTarget].XPosition;
+                  IF (ot_lift_x >= danger_min AND ot_lift_x <= danger_max)
+                     OR (ot_sink_x >= danger_min AND ot_sink_x <= danger_max) THEN
+                    overlap_conflict := TRUE;
+                  END_IF;
+                END_IF;
+
+                (* 2. Queued tasks: time overlap + position in danger zone *)
+                FOR oq := 1 TO g_task[ot].Count DO
+                  IF NOT overlap_conflict THEN
+                    IF g_task[ot].Queue[oq].FinishTime > task_start
+                       AND g_task[ot].Queue[oq].StartTime < task_end THEN
+                      ot_lift_x := g_station[g_task[ot].Queue[oq].LiftStationTarget].XPosition;
+                      ot_sink_x := g_station[g_task[ot].Queue[oq].SinkStationTarget].XPosition;
+                      IF (ot_lift_x >= danger_min AND ot_lift_x <= danger_max)
+                         OR (ot_sink_x >= danger_min AND ot_sink_x <= danger_max) THEN
+                        overlap_conflict := TRUE;
+                      END_IF;
+                    END_IF;
+                  END_IF;
+                END_FOR;
+              END_IF;
+            END_FOR;
+
+            IF overlap_conflict THEN
+              dest_stn := 0;
+            END_IF;
+          END_IF;
+
           IF dest_stn > 0 THEN
             (* Insert as FIRST task — shift existing tasks down *)
             IF g_task[cov_t].Count < MAX_TASK_QUEUE THEN
@@ -7939,22 +8157,7 @@ END_FOR;]]></xhtml:p>
             <variable name="cap">
               <type><REAL/></type>
             </variable>
-            <variable name="flex">
-              <type><REAL/></type>
-            </variable>
             <variable name="amount">
-              <type><REAL/></type>
-            </variable>
-            <variable name="si">
-              <type><INT/></type>
-            </variable>
-            <variable name="sc">
-              <type><INT/></type>
-            </variable>
-            <variable name="chain_flex_down">
-              <type><REAL/></type>
-            </variable>
-            <variable name="chain_flex_up">
               <type><REAL/></type>
             </variable>
             <variable name="stage_flex">
@@ -7966,38 +8169,14 @@ END_FOR;]]></xhtml:p>
             <variable name="is_locked_del">
               <type><BOOL/></type>
             </variable>
-            <variable name="lock_i">
-              <type><INT/></type>
-            </variable>
-            <variable name="walk_remain">
-              <type><REAL/></type>
-            </variable>
-            <variable name="walk_flex">
-              <type><REAL/></type>
-            </variable>
-            <variable name="walk_amount">
-              <type><REAL/></type>
-            </variable>
-            <variable name="walk_cap">
-              <type><REAL/></type>
-            </variable>
-            <variable name="use_adv">
-              <type><REAL/></type>
-            </variable>
-            <variable name="use_del">
-              <type><REAL/></type>
-            </variable>
             <variable name="can_advance">
               <type><BOOL/></type>
             </variable>
             <variable name="can_delay">
               <type><BOOL/></type>
             </variable>
-            <variable name="eff_adv">
-              <type><REAL/></type>
-            </variable>
-            <variable name="eff_del">
-              <type><REAL/></type>
+            <variable name="lock_i">
+              <type><INT/></type>
             </variable>
             <variable name="prev_conf_stage">
               <type><INT/></type>
@@ -8057,257 +8236,120 @@ END_FOR;
 can_advance := NOT is_locked_adv;
 can_delay   := NOT is_locked_del;
 
-(* ══════ Calculate chain flex DOWN for blocked batch ══════ *)
-(* Sum of flex_down (calc_time - min_time) from stage 1 to blocked_stage *)
-chain_flex_down := 0.0;
-IF can_advance AND i_blocked_unit >= 1 AND i_blocked_unit <= MAX_Units THEN
-  sc := g_schedule[i_blocked_unit].StageCount;
-  FOR si := 1 TO sc DO
-    IF si <= i_blocked_stage THEN
-      stage_flex := DINT_TO_REAL(g_schedule[i_blocked_unit].Stages[si].CalcTime
-                  - g_schedule[i_blocked_unit].Stages[si].MinTime);
-      IF stage_flex > 0.0 THEN
-        chain_flex_down := chain_flex_down + stage_flex;
-      END_IF;
+(* ══════════════════════════════════════════════════════════════ *)
+(* PHASE 1: ADVANCE — advance blocked batch (JS Vaihe 1)       *)
+(* Single-stage flex: blocked_stage CalcTime - MinTime          *)
+(* Flat shift applied to blocked_stage onward.                  *)
+(* Partial advance is OK — remainder goes to Phase 2.           *)
+(* ══════════════════════════════════════════════════════════════ *)
+IF can_advance
+   AND i_blocked_unit >= 1 AND i_blocked_unit <= MAX_Units
+   AND i_blocked_stage >= 1
+   AND i_blocked_stage <= g_schedule[i_blocked_unit].StageCount THEN
+
+  stage_flex := DINT_TO_REAL(
+    g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime
+    - g_schedule[i_blocked_unit].Stages[i_blocked_stage].MinTime);
+  IF stage_flex < 0.0 THEN stage_flex := 0.0; END_IF;
+
+  IF stage_flex > 0.1 THEN
+    (* Cap: 90% if batch is on this stage, 50% otherwise *)
+    IF g_batch[i_blocked_unit].CurStage = i_blocked_stage THEN
+      cap := 0.9;
+    ELSE
+      cap := 0.5;
     END_IF;
-  END_FOR;
-END_IF;
+    amount := stage_flex * cap;
+    IF amount > remain THEN amount := remain; END_IF;
 
-(* ══════ Calculate chain flex UP for conflict batch ══════ *)
-(* Sum of flex_up (max_time - calc_time) from stage 1 to conf_stage *)
-chain_flex_up := 0.0;
-IF can_delay AND i_conf_unit >= 1 AND i_conf_unit <= MAX_Units THEN
-  sc := g_schedule[i_conf_unit].StageCount;
-  FOR si := 1 TO sc DO
-    IF si <= i_conf_stage THEN
-      stage_flex := DINT_TO_REAL(g_schedule[i_conf_unit].Stages[si].MaxTime
-                  - g_schedule[i_conf_unit].Stages[si].CalcTime);
-      IF stage_flex > 0.0 THEN
-        chain_flex_up := chain_flex_up + stage_flex;
-      END_IF;
-    END_IF;
-  END_FOR;
-END_IF;
+    (* Apply: reduce CalcTime of blocked_stage *)
+    g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime :=
+      g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime - REAL_TO_DINT(amount);
+    g_schedule[i_blocked_unit].Stages[i_blocked_stage].ExitTime :=
+      g_schedule[i_blocked_unit].Stages[i_blocked_stage].ExitTime - REAL_TO_LINT(amount);
 
-(* Effective flex considering locks *)
-IF can_advance THEN eff_adv := chain_flex_down; ELSE eff_adv := 0.0; END_IF;
-IF can_delay   THEN eff_del := chain_flex_up;   ELSE eff_del := 0.0; END_IF;
+    (* Shift all subsequent stages and tasks *)
+    fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := -amount);
 
-(* ══════════════════════════════════════════════════════════════ *)
-(* PRIORITY 1: CHAIN_BACKWARD — advance blocked batch           *)
-(* Walk backward from blocked_stage, reduce calc_time per stage *)
-(* ══════════════════════════════════════════════════════════════ *)
-IF can_advance AND chain_flex_down >= remain THEN
-  walk_remain := remain;
-  sc := g_schedule[i_blocked_unit].StageCount;
+    (* Persist to g_program *)
+    g_program[i_blocked_unit].Steps[i_blocked_stage - 1].CalTime :=
+      g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime;
 
-  (* Walk from blocked_stage backward to stage 1 *)
-  FOR si := i_blocked_stage TO 1 BY -1 DO
-    IF si >= 1 AND si <= sc AND walk_remain > 0.1 THEN
-      walk_flex := DINT_TO_REAL(g_schedule[i_blocked_unit].Stages[si].CalcTime
-                  - g_schedule[i_blocked_unit].Stages[si].MinTime);
-      IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
+    remain := remain - amount;
+    o_total_adv := o_total_adv + amount;
 
-      IF walk_flex > 0.1 THEN
-        (* Cap: 90% if on stage, 50% otherwise *)
-        IF g_batch[i_blocked_unit].CurStage = si THEN
-          walk_cap := 0.9;
-        ELSE
-          walk_cap := 0.5;
-        END_IF;
-        walk_amount := walk_flex * walk_cap;
-        IF walk_amount > walk_remain THEN walk_amount := walk_remain; END_IF;
-
-        (* Apply: reduce calc_time + shift subsequent stages *)
-        g_schedule[i_blocked_unit].Stages[si].CalcTime :=
-          g_schedule[i_blocked_unit].Stages[si].CalcTime - REAL_TO_DINT(walk_amount);
-        g_schedule[i_blocked_unit].Stages[si].ExitTime :=
-          g_schedule[i_blocked_unit].Stages[si].ExitTime - REAL_TO_LINT(walk_amount);
-        fb_shift(i_unit := i_blocked_unit, i_from_stage := si + 1, i_amount := -walk_amount);
-
-        (* GAP-2: Persist to g_program so next CalcSchedule cycle sees the change *)
-        IF si >= 1 THEN
-          g_program[i_blocked_unit].Steps[si - 1].CalTime :=
-            g_schedule[i_blocked_unit].Stages[si].CalcTime;
-        END_IF;
-
-        walk_remain := walk_remain - walk_amount;
-        o_total_adv := o_total_adv + walk_amount;
-      END_IF;
-    END_IF;
-  END_FOR;
-
-  remain := remain - o_total_adv;
-
-  (* Record lock: ADVANCE on blocked stage *)
-  IF io_lock_cnt < 50 THEN
-    io_lock_cnt := io_lock_cnt + 1;
-    io_locks[io_lock_cnt].Unit := i_blocked_unit;
-    io_locks[io_lock_cnt].Stage := i_blocked_stage;
-    io_locks[io_lock_cnt].Direction := 1;  (* 1=ADVANCE *)
-  END_IF;
-
-  IF remain <= 0.1 THEN
-    o_solved := TRUE;
-    RETURN;
-  END_IF;
-END_IF;
-
-(* ══════════════════════════════════════════════════════════════ *)
-(* PRIORITY 2: CHAIN_FORWARD — delay conflict batch             *)
-(* Walk backward from conf_stage, increase calc_time per stage  *)
-(* ══════════════════════════════════════════════════════════════ *)
-IF can_delay AND chain_flex_up >= remain THEN
-  walk_remain := remain;
-  sc := g_schedule[i_conf_unit].StageCount;
-
-  FOR si := i_conf_stage TO 1 BY -1 DO
-    IF si >= 1 AND si <= sc AND walk_remain > 0.1 THEN
-      walk_flex := DINT_TO_REAL(g_schedule[i_conf_unit].Stages[si].MaxTime
-                  - g_schedule[i_conf_unit].Stages[si].CalcTime);
-      IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
-
-      IF walk_flex > 0.1 THEN
-        IF g_batch[i_conf_unit].CurStage = si THEN
-          walk_cap := 0.9;
-        ELSE
-          walk_cap := 0.5;
-        END_IF;
-        walk_amount := walk_flex * walk_cap;
-        IF walk_amount > walk_remain THEN walk_amount := walk_remain; END_IF;
-
-        g_schedule[i_conf_unit].Stages[si].CalcTime :=
-          g_schedule[i_conf_unit].Stages[si].CalcTime + REAL_TO_DINT(walk_amount);
-        g_schedule[i_conf_unit].Stages[si].ExitTime :=
-          g_schedule[i_conf_unit].Stages[si].ExitTime + REAL_TO_LINT(walk_amount);
-        fb_shift(i_unit := i_conf_unit, i_from_stage := si + 1, i_amount := walk_amount);
-
-        (* GAP-2: Persist to g_program so next CalcSchedule cycle sees the change *)
-        IF si >= 1 THEN
-          g_program[i_conf_unit].Steps[si - 1].CalTime :=
-            g_schedule[i_conf_unit].Stages[si].CalcTime;
-        END_IF;
-
-        walk_remain := walk_remain - walk_amount;
-        o_total_delay := o_total_delay + walk_amount;
-      END_IF;
-    END_IF;
-  END_FOR;
-
-  remain := remain - o_total_delay;
-
-  (* Record lock: DELAY on conf stage *)
-  IF io_lock_cnt < 50 THEN
-    io_lock_cnt := io_lock_cnt + 1;
-    io_locks[io_lock_cnt].Unit := i_conf_unit;
-    io_locks[io_lock_cnt].Stage := i_conf_stage;
-    io_locks[io_lock_cnt].Direction := 2;  (* 2=DELAY *)
-  END_IF;
-
-  IF remain <= 0.1 THEN
-    o_solved := TRUE;
-    RETURN;
-  END_IF;
-END_IF;
-
-(* ══════════════════════════════════════════════════════════════ *)
-(* PRIORITY 3: CHAIN_COMBINED — use both backward + forward     *)
-(* First consume advance flex, then delay flex for the rest     *)
-(* ══════════════════════════════════════════════════════════════ *)
-IF eff_adv + eff_del >= remain THEN
-  (* Distribute: advance first, delay for remainder *)
-  use_adv := eff_adv;
-  IF use_adv > remain THEN use_adv := remain; END_IF;
-  use_del := remain - use_adv;
-  IF use_del > eff_del THEN
-    use_del := eff_del;
-    use_adv := remain - use_del;
-  END_IF;
-
-  (* Apply ADVANCE portion *)
-  IF can_advance AND use_adv > 0.1 THEN
-    walk_remain := use_adv;
-    sc := g_schedule[i_blocked_unit].StageCount;
-    FOR si := i_blocked_stage TO 1 BY -1 DO
-      IF si >= 1 AND si <= sc AND walk_remain > 0.1 THEN
-        walk_flex := DINT_TO_REAL(g_schedule[i_blocked_unit].Stages[si].CalcTime
-                  - g_schedule[i_blocked_unit].Stages[si].MinTime);
-        IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
-        IF walk_flex > 0.1 THEN
-          IF g_batch[i_blocked_unit].CurStage = si THEN walk_cap := 0.9; ELSE walk_cap := 0.5; END_IF;
-          walk_amount := walk_flex * walk_cap;
-          IF walk_amount > walk_remain THEN walk_amount := walk_remain; END_IF;
-          g_schedule[i_blocked_unit].Stages[si].CalcTime :=
-          g_schedule[i_blocked_unit].Stages[si].CalcTime - REAL_TO_DINT(walk_amount);
-          g_schedule[i_blocked_unit].Stages[si].ExitTime :=
-            g_schedule[i_blocked_unit].Stages[si].ExitTime - REAL_TO_LINT(walk_amount);
-          fb_shift(i_unit := i_blocked_unit, i_from_stage := si + 1, i_amount := -walk_amount);
-          (* GAP-2: Persist to g_program *)
-          IF si >= 1 THEN
-            g_program[i_blocked_unit].Steps[si - 1].CalTime :=
-              g_schedule[i_blocked_unit].Stages[si].CalcTime;
-          END_IF;
-          walk_remain := walk_remain - walk_amount;
-          o_total_adv := o_total_adv + walk_amount;
-        END_IF;
-      END_IF;
-    END_FOR;
-
+    (* Record lock: ADVANCE on blocked stage *)
     IF io_lock_cnt < 50 THEN
       io_lock_cnt := io_lock_cnt + 1;
       io_locks[io_lock_cnt].Unit := i_blocked_unit;
       io_locks[io_lock_cnt].Stage := i_blocked_stage;
-      io_locks[io_lock_cnt].Direction := 1;
+      io_locks[io_lock_cnt].Direction := 1;  (* 1=ADVANCE *)
     END_IF;
-  END_IF;
 
-  (* Apply DELAY portion *)
-  IF can_delay AND use_del > 0.1 THEN
-    walk_remain := use_del;
-    sc := g_schedule[i_conf_unit].StageCount;
-    FOR si := i_conf_stage TO 1 BY -1 DO
-      IF si >= 1 AND si <= sc AND walk_remain > 0.1 THEN
-        walk_flex := DINT_TO_REAL(g_schedule[i_conf_unit].Stages[si].MaxTime
-                  - g_schedule[i_conf_unit].Stages[si].CalcTime);
-        IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
-        IF walk_flex > 0.1 THEN
-          IF g_batch[i_conf_unit].CurStage = si THEN walk_cap := 0.9; ELSE walk_cap := 0.5; END_IF;
-          walk_amount := walk_flex * walk_cap;
-          IF walk_amount > walk_remain THEN walk_amount := walk_remain; END_IF;
-          g_schedule[i_conf_unit].Stages[si].CalcTime :=
-          g_schedule[i_conf_unit].Stages[si].CalcTime + REAL_TO_DINT(walk_amount);
-          g_schedule[i_conf_unit].Stages[si].ExitTime :=
-            g_schedule[i_conf_unit].Stages[si].ExitTime + REAL_TO_LINT(walk_amount);
-          fb_shift(i_unit := i_conf_unit, i_from_stage := si + 1, i_amount := walk_amount);
-          (* GAP-2: Persist to g_program *)
-          IF si >= 1 THEN
-            g_program[i_conf_unit].Steps[si - 1].CalTime :=
-              g_schedule[i_conf_unit].Stages[si].CalcTime;
-          END_IF;
-          walk_remain := walk_remain - walk_amount;
-          o_total_delay := o_total_delay + walk_amount;
-        END_IF;
-      END_IF;
-    END_FOR;
-
-    IF io_lock_cnt < 50 THEN
-      io_lock_cnt := io_lock_cnt + 1;
-      io_locks[io_lock_cnt].Unit := i_conf_unit;
-      io_locks[io_lock_cnt].Stage := i_conf_stage;
-      io_locks[io_lock_cnt].Direction := 2;
+    IF remain <= 0.1 THEN
+      o_solved := TRUE;
+      RETURN;
     END_IF;
-  END_IF;
-
-  remain := remain - o_total_adv - o_total_delay;
-  IF remain <= 0.1 THEN
-    o_solved := TRUE;
-    RETURN;
   END_IF;
 END_IF;
 
 (* ══════════════════════════════════════════════════════════════ *)
-(* PRIORITY 4: PRECEDING_DELAY — delay conf batch at stage-1    *)
-(* (GAP-8 / JS Phase 3)                                        *)
+(* PHASE 2: DELAY — delay conflict batch (JS Vaihe 2)          *)
+(* Single-stage flex: conf_stage MaxTime - CalcTime             *)
+(* Flat shift applied to conf_stage onward.                     *)
+(* Partial delay is OK — remainder goes to Phase 3.             *)
+(* ══════════════════════════════════════════════════════════════ *)
+IF can_delay AND remain > 0.1
+   AND i_conf_unit >= 1 AND i_conf_unit <= MAX_Units
+   AND i_conf_stage >= 1
+   AND i_conf_stage <= g_schedule[i_conf_unit].StageCount THEN
+
+  stage_flex := DINT_TO_REAL(
+    g_schedule[i_conf_unit].Stages[i_conf_stage].MaxTime
+    - g_schedule[i_conf_unit].Stages[i_conf_stage].CalcTime);
+  IF stage_flex < 0.0 THEN stage_flex := 0.0; END_IF;
+
+  IF stage_flex > 0.1 THEN
+    IF g_batch[i_conf_unit].CurStage = i_conf_stage THEN
+      cap := 0.9;
+    ELSE
+      cap := 0.5;
+    END_IF;
+    amount := stage_flex * cap;
+    IF amount > remain THEN amount := remain; END_IF;
+
+    (* Apply: increase CalcTime of conf_stage *)
+    g_schedule[i_conf_unit].Stages[i_conf_stage].CalcTime :=
+      g_schedule[i_conf_unit].Stages[i_conf_stage].CalcTime + REAL_TO_DINT(amount);
+    g_schedule[i_conf_unit].Stages[i_conf_stage].ExitTime :=
+      g_schedule[i_conf_unit].Stages[i_conf_stage].ExitTime + REAL_TO_LINT(amount);
+
+    fb_shift(i_unit := i_conf_unit, i_from_stage := i_conf_stage + 1, i_amount := amount);
+
+    g_program[i_conf_unit].Steps[i_conf_stage - 1].CalTime :=
+      g_schedule[i_conf_unit].Stages[i_conf_stage].CalcTime;
+
+    remain := remain - amount;
+    o_total_delay := o_total_delay + amount;
+
+    (* Record lock: DELAY on conf stage *)
+    IF io_lock_cnt < 50 THEN
+      io_lock_cnt := io_lock_cnt + 1;
+      io_locks[io_lock_cnt].Unit := i_conf_unit;
+      io_locks[io_lock_cnt].Stage := i_conf_stage;
+      io_locks[io_lock_cnt].Direction := 2;  (* 2=DELAY *)
+    END_IF;
+
+    IF remain <= 0.1 THEN
+      o_solved := TRUE;
+      RETURN;
+    END_IF;
+  END_IF;
+END_IF;
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* PHASE 3: PRECEDING_DELAY — delay conf batch at stage-1       *)
+(* (JS Vaihe 3)                                                 *)
 (* Delay the conf batch's PREVIOUS stage to push everything     *)
 (* ══════════════════════════════════════════════════════════════ *)
 prev_conf_stage := i_conf_stage - 1;
@@ -8323,33 +8365,33 @@ IF remain > 0.1 AND prev_conf_stage >= 1 AND i_conf_unit >= 1 AND i_conf_unit <=
   END_FOR;
 
   IF NOT is_pcs_locked THEN
-    walk_flex := DINT_TO_REAL(g_schedule[i_conf_unit].Stages[prev_conf_stage].MaxTime
+    stage_flex := DINT_TO_REAL(g_schedule[i_conf_unit].Stages[prev_conf_stage].MaxTime
                 - g_schedule[i_conf_unit].Stages[prev_conf_stage].CalcTime);
-    IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
+    IF stage_flex < 0.0 THEN stage_flex := 0.0; END_IF;
 
-    IF walk_flex > 0.1 THEN
+    IF stage_flex > 0.1 THEN
       IF g_batch[i_conf_unit].CurStage = prev_conf_stage THEN
-        walk_cap := 0.9;
+        cap := 0.9;
       ELSE
-        walk_cap := 0.5;
+        cap := 0.5;
       END_IF;
-      walk_amount := walk_flex * walk_cap;
-      IF walk_amount > remain THEN walk_amount := remain; END_IF;
+      amount := stage_flex * cap;
+      IF amount > remain THEN amount := remain; END_IF;
 
       g_schedule[i_conf_unit].Stages[prev_conf_stage].CalcTime :=
-        g_schedule[i_conf_unit].Stages[prev_conf_stage].CalcTime + REAL_TO_DINT(walk_amount);
+        g_schedule[i_conf_unit].Stages[prev_conf_stage].CalcTime + REAL_TO_DINT(amount);
       g_schedule[i_conf_unit].Stages[prev_conf_stage].ExitTime :=
-        g_schedule[i_conf_unit].Stages[prev_conf_stage].ExitTime + REAL_TO_LINT(walk_amount);
-      fb_shift(i_unit := i_conf_unit, i_from_stage := prev_conf_stage + 1, i_amount := walk_amount);
+        g_schedule[i_conf_unit].Stages[prev_conf_stage].ExitTime + REAL_TO_LINT(amount);
+      fb_shift(i_unit := i_conf_unit, i_from_stage := prev_conf_stage + 1, i_amount := amount);
 
-      (* GAP-2: Persist to g_program *)
+      (* Persist to g_program *)
       IF prev_conf_stage >= 1 THEN
         g_program[i_conf_unit].Steps[prev_conf_stage - 1].CalTime :=
           g_schedule[i_conf_unit].Stages[prev_conf_stage].CalcTime;
       END_IF;
 
-      remain := remain - walk_amount;
-      o_total_delay := o_total_delay + walk_amount;
+      remain := remain - amount;
+      o_total_delay := o_total_delay + amount;
 
       (* Record lock *)
       IF io_lock_cnt < 50 THEN
@@ -8368,8 +8410,8 @@ IF remain > 0.1 AND prev_conf_stage >= 1 AND i_conf_unit >= 1 AND i_conf_unit <=
 END_IF;
 
 (* ══════════════════════════════════════════════════════════════ *)
-(* PRIORITY 5: DELAY_PREV_PAST_NEXT — delay blocked batch to    *)
-(* force order swap (GAP-8 / JS Phase 4)                        *)
+(* PHASE 4: DELAY_PREV_PAST_NEXT — delay blocked batch to       *)
+(* force order swap (JS Vaihe 4)                                *)
 (* Only if NOT swappable: prev.sink ≠ next.lift                 *)
 (* ══════════════════════════════════════════════════════════════ *)
 IF remain > 0.1 AND i_blocked_unit >= 1 AND i_blocked_unit <= MAX_Units THEN
@@ -8402,33 +8444,33 @@ IF remain > 0.1 AND i_blocked_unit >= 1 AND i_blocked_unit <= MAX_Units THEN
     END_FOR;
 
     IF NOT is_blk_adv_locked THEN
-      walk_flex := DINT_TO_REAL(g_schedule[i_blocked_unit].Stages[i_blocked_stage].MaxTime
+      stage_flex := DINT_TO_REAL(g_schedule[i_blocked_unit].Stages[i_blocked_stage].MaxTime
                   - g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime);
-      IF walk_flex < 0.0 THEN walk_flex := 0.0; END_IF;
+      IF stage_flex < 0.0 THEN stage_flex := 0.0; END_IF;
 
-      IF walk_flex > 0.1 THEN
+      IF stage_flex > 0.1 THEN
         IF g_batch[i_blocked_unit].CurStage = i_blocked_stage THEN
-          walk_cap := 0.9;
+          cap := 0.9;
         ELSE
-          walk_cap := 0.5;
+          cap := 0.5;
         END_IF;
-        walk_amount := walk_flex * walk_cap;
-        IF walk_amount > remain THEN walk_amount := remain; END_IF;
+        amount := stage_flex * cap;
+        IF amount > remain THEN amount := remain; END_IF;
 
         g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime :=
-          g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime + REAL_TO_DINT(walk_amount);
+          g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime + REAL_TO_DINT(amount);
         g_schedule[i_blocked_unit].Stages[i_blocked_stage].ExitTime :=
-          g_schedule[i_blocked_unit].Stages[i_blocked_stage].ExitTime + REAL_TO_LINT(walk_amount);
-        fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := walk_amount);
+          g_schedule[i_blocked_unit].Stages[i_blocked_stage].ExitTime + REAL_TO_LINT(amount);
+        fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := amount);
 
-        (* GAP-2: Persist to g_program *)
+        (* Persist to g_program *)
         IF i_blocked_stage >= 1 THEN
           g_program[i_blocked_unit].Steps[i_blocked_stage - 1].CalTime :=
             g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime;
         END_IF;
 
-        remain := remain - walk_amount;
-        o_total_delay := o_total_delay + walk_amount;
+        remain := remain - amount;
+        o_total_delay := o_total_delay + amount;
 
         (* Record lock: DELAY on blocked stage *)
         IF io_lock_cnt < 50 THEN
@@ -8601,6 +8643,10 @@ END_IF;
         <body>
           <ST>
             <xhtml:p><![CDATA[IF NOT i_run THEN
+  IF phase <> 0 THEN
+    (* Reset: clear task queues so stale tasks don't persist *)
+    fb_clear();
+  END_IF;
   phase := 0;
   o_phase := 0;
   RETURN;
@@ -8628,7 +8674,8 @@ ELSIF phase = 1 THEN
   locks_initialized := FALSE;
 
   IF batch_count = 0 THEN
-    (* No active batches — still run no-treatment tasks *)
+    (* No active batches — clear stale tasks, then run no-treatment *)
+    fb_clear();
     next_phase := 2204;
   ELSE
     next_phase := 2;
@@ -9498,6 +9545,12 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
             </variable>
             <variable name="g_dep_waiting">
               <type><derived name="ARRAY[1..DEP_MAX_WAITING] OF INT"/></type>
+            </variable>
+            <variable name="g_dep_wait_sched">
+              <type><derived name="UDT_JC_TskScheduleType"/></type>
+            </variable>
+            <variable name="g_dep_wait_unit">
+              <type><INT/></type>
             </variable>
             <variable name="g_cal">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_CalibrationType"/></type>
@@ -12678,6 +12731,20 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
             <variable name="sch_s">
               <type><INT/></type>
             </variable>
+            <variable name="fb_wait_calc">
+              <type><derived name="TSK_FB_CalcSchedule"/></type>
+            </variable>
+            <variable name="dep_wait_114_unit">
+              <type><INT/></type>
+              <initialValue><simpleValue value="0"/></initialValue>
+            </variable>
+            <variable name="dep_wait_114_last">
+              <type><INT/></type>
+              <initialValue><simpleValue value="0"/></initialValue>
+            </variable>
+            <variable name="wait_i">
+              <type><INT/></type>
+            </variable>
           </localVars>
         </interface>
         <body>
@@ -13818,6 +13885,32 @@ IF g_dep_overlap.Flags[130] THEN qw_ov_s130_flag := 1; ELSE qw_ov_s130_flag := 0
 
 (* --- END GENERATED MODBUS OUTPUT --- *)
 
+(* ── WAITING BATCH AT STATION 114 — shortcut for UI ──
+   Scan for NOT_PROCESSED unit at station 114 with valid program.
+   Calculate schedule once when a new unit appears there. *)
+dep_wait_114_unit := 0;
+FOR wait_i := 1 TO 10 DO
+  IF g_unit[wait_i].location = 114
+     AND g_batch[wait_i].State = 0
+     AND g_program[wait_i].ProgramId > 0
+     AND g_batch[wait_i].ProgId = g_program[wait_i].ProgramId THEN
+    dep_wait_114_unit := wait_i;
+  END_IF;
+END_FOR;
+
+IF dep_wait_114_unit <> dep_wait_114_last THEN
+  dep_wait_114_last := dep_wait_114_unit;
+  IF dep_wait_114_unit > 0 THEN
+    fb_wait_calc(i_unit := dep_wait_114_unit, i_trans := 1, i_time_s := g_time_s);
+    g_dep_wait_sched := g_schedule[dep_wait_114_unit];
+    g_dep_wait_unit  := dep_wait_114_unit;
+    (* Clear temp schedule so active-schedule path stays empty *)
+    g_schedule[dep_wait_114_unit].StageCount := 0;
+  ELSE
+    g_dep_wait_unit := 0;
+  END_IF;
+END_IF;
+
 (* ── SCHEDULE WINDOW EXPORT ──
    Gateway writes iw_schedule_req_unit = N (1..10).
    PLC copies g_schedule[N] into the window registers and bumps seq.
@@ -13825,7 +13918,13 @@ IF g_dep_overlap.Flags[130] THEN qw_ov_s130_flag := 1; ELSE qw_ov_s130_flag := 0
 IF iw_schedule_req_unit >= 1 AND iw_schedule_req_unit <= 10
    AND iw_schedule_req_unit <> sch_last_req THEN
   sch_last_req := iw_schedule_req_unit;
-  sch_copy := g_schedule[iw_schedule_req_unit];
+  (* Use DEP waiting batch schedule if active schedule is empty *)
+  IF g_schedule[iw_schedule_req_unit].StageCount = 0
+     AND g_dep_wait_unit = iw_schedule_req_unit THEN
+    sch_copy := g_dep_wait_sched;
+  ELSE
+    sch_copy := g_schedule[iw_schedule_req_unit];
+  END_IF;
 
   qw_schedule_window_unit_id := iw_schedule_req_unit;
   qw_schedule_window_stage_count := sch_copy.StageCount;
@@ -14288,6 +14387,12 @@ END_IF;]]></xhtml:p>
           </variable>
           <variable name="g_dep_stable">
             <type><BOOL/></type>
+          </variable>
+          <variable name="g_dep_wait_sched">
+            <type><derived name="UDT_JC_TskScheduleType"/></type>
+          </variable>
+          <variable name="g_dep_wait_unit">
+            <type><INT/></type>
           </variable>
           <variable name="g_cal">
             <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_CalibrationType"/></type>

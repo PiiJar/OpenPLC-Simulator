@@ -26,7 +26,8 @@ VAR_INPUT
   i_calc_time_s  : DINT;    (* treatment calc_time (s) *)
   i_max_time_s   : DINT;    (* treatment max_time (s) *)
   i_flex_factor  : REAL;    (* flex_up usage factor, e.g. 0.5 *)
-  i_margin_s     : REAL;    (* minimum margin between tasks (s) *)
+  i_margin_s     : REAL;    (* delay significance threshold (s) *)
+  i_conflict_margin_s : REAL; (* slot boundary margin (s), typ. 1.0 *)
 END_VAR
 VAR_OUTPUT
   o_result : UDT_JC_DepFitResultType;
@@ -110,19 +111,19 @@ FOR si := 1 TO DEP_MAX_IDLE_SLOTS DO
     travel_from := STC_CalcHorizontalTravel(i_from_stn := i_sink_stn, i_to_stn := to_stn, i_move := tmp_move);
   END_IF;
 
-  (* Earliest start = max(slot_start, task_start + shift) + travel_to + margin *)
+  (* Earliest start = max(slot_start, task_start + shift) + travel_to + conflict_margin *)
   IF slot_start > (i_task_start + REAL_TO_LINT(i_shift_s)) THEN
-    earliest := slot_start + REAL_TO_LINT(travel_to + i_margin_s);
+    earliest := slot_start + REAL_TO_LINT(travel_to + i_conflict_margin_s);
   ELSE
-    earliest := i_task_start + REAL_TO_LINT(i_shift_s + travel_to + i_margin_s);
+    earliest := i_task_start + REAL_TO_LINT(i_shift_s + travel_to + i_conflict_margin_s);
   END_IF;
 
-  (* Latest end = slot_end - travel_from - margin *)
+  (* Latest end = slot_end - travel_from - conflict_margin *)
   IF slot_end > LINT#9000000000 THEN
     (* Open-ended slot *)
     latest := LINT#9000000000;
   ELSE
-    latest := slot_end - REAL_TO_LINT(travel_from + i_margin_s);
+    latest := slot_end - REAL_TO_LINT(travel_from + i_conflict_margin_s);
   END_IF;
 
   (* Check if task fits *)
@@ -130,8 +131,8 @@ FOR si := 1 TO DEP_MAX_IDLE_SLOTS DO
     delay := LINT_TO_REAL(earliest - i_task_start) - i_shift_s;
     IF delay < 0.0 THEN delay := 0.0; END_IF;
 
-    (* Flex constraint: delay must not exceed capped flex *)
-    IF delay <= capped_flex + i_margin_s THEN
+    (* Flex constraint: small delays always OK; larger must be within flex + 1s *)
+    IF delay <= i_margin_s OR delay <= capped_flex + 1.0 THEN
       IF delay < best_delay THEN
         best_delay := delay;
         best_slot  := si;

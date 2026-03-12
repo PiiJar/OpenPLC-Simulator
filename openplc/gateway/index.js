@@ -536,11 +536,13 @@ async function pollScheduleWindow() {
       }
 
       const unitInfo   = plcUnits.find(pu => pu.unit_id === schReqUnit);
-      const batchStage = unitInfo ? unitInfo.batch_stage : 0;
+      let   batchStage = unitInfo ? unitInfo.batch_stage : 0;
+      const batchState = unitInfo ? unitInfo.batch_state_int : 0;
 
       const entry = {
         batch_id:         schReqUnit,
         batchStage,
+        batchState,
         stage_count:      stageCount,
         total_duration_s: stages[stages.length - 1].exit_time_s - stages[0].entry_time_s,
         stages
@@ -723,6 +725,9 @@ legacyStubs.init({
   })
 });
 app.use('/api', legacyStubs.router);
+
+// Serve static visualization files (schedule.html etc.)
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Serve static config files from current customer/plant
 app.get('/api/config/:filename', (req, res) => {

@@ -14,7 +14,8 @@
                    batch.state = IN_PROCESS (1)
                    batch.CurStage >= 0 AND <= 99
      i_mode = 1 — waiting batches:
-                   batch.state = NOT_PROCESSED (0)
+                   Direct lookup: g_station_loc[114].UnitId
+                   Only station 114 can hold a waiting batch.
 
    Replaces 3× duplicated collection loops in:
      TSK_FB_Scheduler (phase 1, active batches)
@@ -27,11 +28,13 @@ VAR_INPUT
 END_VAR
 VAR_EXTERNAL CONSTANT
     MAX_Units : INT;
+    MAX_StationIndex : INT;
 END_VAR
 VAR_EXTERNAL
-  g_batch   : ARRAY[1..MAX_Units] OF UDT_BatchType;
-  g_unit    : ARRAY[1..MAX_Units] OF UDT_UnitType;
-  g_program : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
+  g_batch       : ARRAY[1..MAX_Units] OF UDT_BatchType;
+  g_unit        : ARRAY[1..MAX_Units] OF UDT_UnitType;
+  g_program     : ARRAY[1..MAX_Units] OF UDT_TreatmentProgramType;
+  g_station_loc : ARRAY[1..MAX_StationIndex] OF UDT_UnitLocation;
 END_VAR
 VAR_OUTPUT
   o_list  : ARRAY[1..MAX_Units] OF INT;  (* unit indices *)
@@ -46,27 +49,34 @@ FOR ui := 1 TO MAX_Units DO
   o_list[ui] := 0;
 END_FOR;
 
+IF i_mode = 1 THEN
+  (* ── Waiting batch: direct lookup at station 114 ── *)
+  ui := g_station_loc[114].UnitId;
+  IF ui >= 1 AND ui <= MAX_Units THEN
+    IF g_unit[ui].Status = 1
+       AND g_unit[ui].Target = 0
+       AND g_batch[ui].State = 0
+       AND g_batch[ui].ProgId = g_program[ui].ProgramId
+       AND g_program[ui].ProgramId > 0 THEN
+      o_count := 1;
+      o_list[1] := ui;
+    END_IF;
+  END_IF;
+  RETURN;
+END_IF;
+
+(* ── Mode 0: active batches — loop ── *)
 FOR ui := 1 TO MAX_Units DO
-  (* Common conditions: unit USED, target TO_NONE, valid program *)
   IF g_unit[ui].Status = 1
      AND g_unit[ui].Target = 0
      AND g_batch[ui].ProgId = g_program[ui].ProgramId
      AND g_program[ui].ProgramId > 0 THEN
 
-    IF i_mode = 0 THEN
-      (* Active batches: IN_PROCESS, stage 0..99 *)
-      IF g_batch[ui].State = 1
-         AND g_batch[ui].CurStage >= 0
-         AND g_batch[ui].CurStage <= 99 THEN
-        o_count := o_count + 1;
-        o_list[o_count] := ui;
-      END_IF;
-    ELSIF i_mode = 1 THEN
-      (* Waiting batches: NOT_PROCESSED *)
-      IF g_batch[ui].State = 0 THEN
-        o_count := o_count + 1;
-        o_list[o_count] := ui;
-      END_IF;
+    IF g_batch[ui].State = 1
+       AND g_batch[ui].CurStage >= 0
+       AND g_batch[ui].CurStage <= 99 THEN
+      o_count := o_count + 1;
+      o_list[o_count] := ui;
     END_IF;
   END_IF;
 END_FOR;

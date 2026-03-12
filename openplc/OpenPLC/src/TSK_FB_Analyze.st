@@ -89,6 +89,8 @@ VAR
   recv_prev_sink : INT;
   has_recv_prev  : BOOL;
   rk       : INT;     (* receiver prev search *)
+  recv_prev_unit : INT;    (* saved receiver prev task unit *)
+  recv_prev_stg  : INT;    (* saved receiver prev task stage *)
   recv_travel    : REAL;
   recv_earliest  : LINT;
   handoff_deficit : REAL;
@@ -270,6 +272,8 @@ FOR ti := 1 TO MAX_Transporters DO
                 has_recv_prev := FALSE;
                 recv_prev_end  := 0;
                 recv_prev_sink := 0;
+                recv_prev_unit := 0;
+                recv_prev_stg  := 0;
                 FOR rk := 1 TO g_task[tj].Count DO
                   IF rk <> qj THEN
                     IF g_task[tj].Queue[rk].FinishTime <= g_task[tj].Queue[qj].StartTime THEN
@@ -277,6 +281,8 @@ FOR ti := 1 TO MAX_Transporters DO
                         has_recv_prev := TRUE;
                         recv_prev_end  := g_task[tj].Queue[rk].FinishTime;
                         recv_prev_sink := g_task[tj].Queue[rk].SinkStationTarget;
+                        recv_prev_unit := g_task[tj].Queue[rk].Unit;
+                        recv_prev_stg  := g_task[tj].Queue[rk].Stage;
                       END_IF;
                     END_IF;
                   END_IF;
@@ -302,8 +308,8 @@ FOR ti := 1 TO MAX_Transporters DO
                     o_conf_stage    := g_task[ti].Queue[qi].Stage;
                     o_conf_trans    := ti;
                     (* Blocked by receiver's previous task *)
-                    o_blocked_unit  := g_task[tj].Queue[rk].Unit;
-                    o_blocked_stage := g_task[tj].Queue[rk].Stage;
+                    o_blocked_unit  := recv_prev_unit;
+                    o_blocked_stage := recv_prev_stg;
                     o_deficit       := handoff_deficit;
                     checked_count   := total_tasks;
                     RETURN;

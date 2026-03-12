@@ -261,9 +261,20 @@ FOR i := 1 TO MAX_Transporters DO
         ELSE
           g_event_pending.Payload[8] := LINT_TO_INT(evt_diff);
         END_IF;
-        g_event_pending.Payload[9]  := DINT_TO_INT(g_sim_trans[i].TreatmentTime);
-        g_event_pending.Payload[10] := DINT_TO_INT(g_sim_trans[i].MinTime);
-        g_event_pending.Payload[11] := DINT_TO_INT(g_sim_trans[i].MaxTime);
+        (* ── Original program calc/min/max for this stage ── *)
+        (* g_sim_trans holds dispatch-time scheduler values which may differ
+           from the treatment program originals. Read directly from g_program
+           using the batch's current stage (CurStage=1-based program index). *)
+        IF g_batch[evt_unit].CurStage >= 1 AND g_batch[evt_unit].CurStage <= 30 THEN
+          g_event_pending.Payload[9]  := DINT_TO_INT(g_program[evt_unit].Steps[g_batch[evt_unit].CurStage - 1].CalTime);
+          g_event_pending.Payload[10] := DINT_TO_INT(g_program[evt_unit].Steps[g_batch[evt_unit].CurStage - 1].MinTime);
+          g_event_pending.Payload[11] := DINT_TO_INT(g_program[evt_unit].Steps[g_batch[evt_unit].CurStage - 1].MaxTime);
+        ELSE
+          (* Stage 0 (pickup) — no program step *)
+          g_event_pending.Payload[9]  := 0;
+          g_event_pending.Payload[10] := 0;
+          g_event_pending.Payload[11] := 0;
+        END_IF;
         g_event_pending.Payload[12] := REAL_TO_INT(xfer_total);
         g_event_pending_valid := TRUE;
       END_IF;

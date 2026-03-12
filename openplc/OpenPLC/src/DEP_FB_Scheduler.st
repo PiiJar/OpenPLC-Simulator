@@ -67,6 +67,8 @@ VAR_EXTERNAL
   g_move              : ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType;
   g_dep_waiting      : ARRAY[1..DEP_MAX_WAITING] OF INT;
   g_dep_waiting_count : INT;
+  g_dep_wait_sched    : UDT_JC_TskScheduleType;
+  g_dep_wait_unit     : INT;
 END_VAR
 VAR_OUTPUT
   o_phase     : INT;
@@ -171,6 +173,9 @@ VAR
   use_delay        : REAL;
   bk               : INT;     (* backward loop index *)
   ci               : INT;     (* chain apply loop index *)
+
+  (* ── Prepend offset: 1 if CalcSchedule prepended loading station ── *)
+  prepend_offset : INT;
 
   (* ── G06: Waiting list sort variables ── *)
   tmp_unit : INT;
@@ -280,6 +285,7 @@ ELSIF phase = 1000 THEN
     cur_wait_unit := waiting_list[cur_wait_idx];
     fit_round := 0;
     sched_base_time := i_time_s;
+    stage0_pending_delay := 0.0;
     next_phase := 1010;
   END_IF;
 
@@ -316,7 +322,15 @@ ELSIF phase = 1021 THEN
   IF create_idx <= batch_count THEN
     fb_create_tasks(i_unit := batch_list[create_idx]);
     create_idx := create_idx + 1;
-    next_phase := 1021;   (* stay until all batches done *)
+    next_phase := 1021;   (* stay until all active batches done *)
+  ELSIF create_idx = batch_count + 1 THEN
+    (* ★ FIX: Also create tasks for the current waiting batch,
+       so phase 1030 EXTRACT_WAIT can find and separate them.
+       JS: CHECK_CREATE_TASKS creates tasks from ALL schedules,
+       then splits into existingTasks and waitingBatchTasks. *)
+    fb_create_tasks(i_unit := cur_wait_unit);
+    create_idx := create_idx + 1;
+    next_phase := 1022;   (* waiting batch done → sort *)
   ELSE
     next_phase := 1022;   (* all batches created → sort *)
   END_IF;
@@ -377,6 +391,19 @@ ELSIF phase = 1030 THEN
     IF g_transporter[ti].Phase >= 1 AND g_transporter[ti].Phase <= 4 THEN
       est_finish := i_time_s + DINT_TO_LINT(g_transporter[ti].TaskRemainingTime);
       IF est_finish > i_time_s AND g_task[ti].Count < 10 THEN
+        (* ★ FIX: Remove schedule-derived task matching in-flight transfer
+           to avoid duplicate (JS: inFlightTasks replace schedule tasks) *)
+        FOR qi := 1 TO g_task[ti].Count DO
+          IF g_task[ti].Queue[qi].LiftStationTarget = g_transporter[ti].LiftStationTarget
+             AND g_task[ti].Queue[qi].SinkStationTarget = g_transporter[ti].SinkStationTarget THEN
+            FOR bi := qi TO g_task[ti].Count - 1 DO
+              g_task[ti].Queue[bi] := g_task[ti].Queue[bi + 1];
+            END_FOR;
+            g_task[ti].Queue[g_task[ti].Count].Unit := 0;
+            g_task[ti].Count := g_task[ti].Count - 1;
+            EXIT;
+          END_IF;
+        END_FOR;
         (* Shift existing tasks up by 1 to make room at position 1 *)
         FOR qi := g_task[ti].Count TO 1 BY -1 DO
           g_task[ti].Queue[qi + 1] := g_task[ti].Queue[qi];
@@ -418,10 +445,21 @@ ELSIF phase = 1040 THEN
 ELSIF phase = 2000 THEN
   loading_stn := g_unit[cur_wait_unit].location;
 
-  (* Find first treatment station from schedule *)
+  (* Find first treatment station from schedule.
+     If CalcSchedule prepended the loading station (loading ≠ first treatment),
+     Stages[1] = loading (CalcTime=0), Stages[2] = first treatment.
+     Otherwise Stages[1] = first treatment directly. *)
   first_stn := 0;
+  prepend_offset := 0;
   IF g_schedule[cur_wait_unit].StageCount >= 1 THEN
     first_stn := g_schedule[cur_wait_unit].Stages[1].station;
+    (* Detect prepend: first schedule stage = loading station with zero calc_time *)
+    IF first_stn = loading_stn
+       AND g_schedule[cur_wait_unit].Stages[1].CalcTime = 0
+       AND g_schedule[cur_wait_unit].StageCount >= 2 THEN
+      first_stn := g_schedule[cur_wait_unit].Stages[2].station;
+      prepend_offset := 1;
+    END_IF;
   END_IF;
 
   IF first_stn = 0 THEN
@@ -529,10 +567,8 @@ ELSIF phase = 2000 THEN
 
             (* Record stage 0 delay — shift sched_base_time for stage 1+ *)
             IF stage0_delay > MARGIN_S THEN
-              stage0_pending_delay := stage0_delay;
+              stage0_pending_delay := stage0_pending_delay + stage0_delay;
               sched_base_time := sched_base_time + REAL_TO_LINT(stage0_delay);
-            ELSE
-              stage0_pending_delay := 0.0;
             END_IF;
 
             EXIT;  (* Found a fitting slot *)
@@ -546,11 +582,18 @@ ELSIF phase = 2000 THEN
       next_phase := 9000;
     ELSE
       (* JS: stage 0 delay NEVER triggers RECALC alone.
-         continue → proceed to stage 1+ tasks. *)
-      IF w_task_cnt = 0 THEN
-        next_phase := 8000;    (* No stage 1+ → ACTIVATE *)
+         continue → proceed to stage 1+ tasks.
+         Skip pickup task if CalcSchedule prepended the loading station:
+         it was already fitted inline above. *)
+      IF prepend_offset = 1 THEN
+        cur_task_idx := 2;   (* skip prepended pickup task *)
       ELSE
         cur_task_idx := 1;
+      END_IF;
+
+      IF cur_task_idx > w_task_cnt THEN
+        next_phase := 8000;    (* No stage 1+ → ACTIVATE *)
+      ELSE
         next_phase := 2001;    (* Continue to stage 1+ fit *)
       END_IF;
     END_IF;
@@ -592,7 +635,8 @@ ELSIF phase = 2001 THEN
       i_calc_time_s  := w_tasks[cur_task_idx].CalcTime,
       i_max_time_s   := w_tasks[cur_task_idx].MaxTime,
       i_flex_factor  := FLEX_FACTOR,
-      i_margin_s     := MARGIN_S
+      i_margin_s     := MARGIN_S,
+      i_conflict_margin_s := CONFLICT_MARGIN_S
     );
 
     total_delay_s := ovlp_delay_s + DINT_TO_REAL(fb_fit.o_result.DelayTime);
@@ -661,7 +705,7 @@ ELSIF phase = 2001 THEN
                 (* Stage 0 / batch delay: shift base time *)
                 sched_base_time := sched_base_time + DINT_TO_LINT(chain_delays[ci].DelayTime);
               ELSIF chain_delays[ci].Target = 1 THEN
-                prog_idx := chain_delays[ci].Stage;
+                prog_idx := chain_delays[ci].Stage - prepend_offset;
                 IF prog_idx >= 1 AND prog_idx <= 30 THEN
                   old_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].CalTime;
                   max_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].MaxTime;
@@ -675,11 +719,19 @@ ELSIF phase = 2001 THEN
             END_IF;
           END_FOR;
 
-          (* Also apply the current task's total delay *)
+          (* ★ FIX: Also apply the current task's delay to the program
+             (JS: pendingDelays includes both chain + current task delays) *)
           IF total_delay_s > MARGIN_S THEN
-            delay_stage  := si;
-            delay_amount := total_delay_s;
-            delay_target := 1;
+            prog_idx := si - prepend_offset;
+            IF prog_idx >= 1 AND prog_idx <= 30 THEN
+              old_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].CalTime;
+              max_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].MaxTime;
+              new_cal := old_cal + REAL_TO_DINT(total_delay_s);
+              IF new_cal > max_cal AND max_cal > 0 THEN
+                new_cal := max_cal;
+              END_IF;
+              g_program[cur_wait_unit].Steps[prog_idx - 1].CalTime := new_cal;
+            END_IF;
           END_IF;
 
           fit_round := fit_round + 1;
@@ -705,8 +757,10 @@ ELSIF phase = 3000 THEN
     next_phase := 9000;
   ELSE
     IF delay_target = 1 THEN
-      (* Program stage delay: increase cal_time *)
-      prog_idx := delay_stage;
+      (* Program stage delay: increase cal_time.
+         Subtract prepend_offset: task.Stage is schedule index which
+         includes the prepended loading station. *)
+      prog_idx := delay_stage - prepend_offset;
       IF prog_idx >= 1 AND prog_idx <= 30 THEN
         old_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].CalTime;
         max_cal := g_program[cur_wait_unit].Steps[prog_idx - 1].MaxTime;
@@ -785,13 +839,13 @@ ELSIF phase = 8020 THEN
   end_delay_cnt := 0;
   next_phase := 8021;
 
-ELSIF phase >= 8021 AND phase <= 8120 THEN
+ELSIF phase >= 8021 AND phase <= 8099 THEN
   end_delay_cnt := end_delay_cnt + 1;
   IF end_delay_cnt >= END_DELAY_TICKS THEN
     next_phase := 8100;
   ELSE
     next_phase := phase + 1;
-    IF next_phase > 8120 THEN
+    IF next_phase > 8099 THEN
       next_phase := 8100;
     END_IF;
   END_IF;

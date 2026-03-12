@@ -24,45 +24,78 @@ CREATE INDEX IF NOT EXISTS idx_events_msg_type ON events (msg_type);
 -- ============================================================
 -- VIEW: task_dispatched
 -- msg_type = 1: Task assigned to transporter by DispatchTask FB
+-- Payload: f1=TaskId_Hi f2=TaskId_Lo f3=transporter f4=UnitId
+--          f5=lift_stn f6=sink_stn f7=stage f8=batch_code
+--          f9=calc_time(s) f10=min_time(s) f11=max_time(s)
+--          f12=xfer_total(s)
 -- ============================================================
 CREATE OR REPLACE VIEW task_dispatched AS
 SELECT
   id, seq, plc_ts, received_at,
-  f1              AS transporter_id,
-  f2              AS unit_id,
-  f3              AS lift_station,
-  f4              AS sink_station,
-  f5              AS stage,            -- 0 = NTT (no-treatment task)
-  f6              AS batch_code,
-  f7              AS batch_state,      -- 0=not_processed, 1=in_process, 2=processed
-  f8              AS batch_program,
-  f9              AS target,           -- 0=none,1=loading,2=buffer,3=process,4=unload,5=avoid
-  f10             AS calc_time_s,
-  f11             AS min_time_s,
-  f12             AS max_time_s
+  f1 * 65536 + f2 AS task_id,
+  f3              AS transporter_id,
+  f4              AS unit_id,
+  f5              AS lift_station,
+  f6              AS sink_station,
+  f7              AS stage,            -- 0 = NTT (no-treatment task)
+  f8              AS batch_code,
+  f9              AS calc_time_s,
+  f10             AS min_time_s,
+  f11             AS max_time_s,
+  f12             AS xfer_total_s      -- calculated transfer time (seconds)
 FROM events
 WHERE msg_type = 1;
 
 -- ============================================================
 -- VIEW: lift_events
 -- msg_type = 2: Transporter lifts unit from station
+-- Payload: f1=TaskId_Hi f2=TaskId_Lo f3=transporter f4=UnitId
+--          f5=lift_stn f6=batch_code f7=stage f8=actual_time(s)
+--          f9=calc_time(s) f10=min_time(s) f11=max_time(s)
+--          f12=xfer_total(s)
 -- ============================================================
 CREATE OR REPLACE VIEW lift_events AS
 SELECT
   id, seq, plc_ts, received_at,
-  f1              AS transporter_id,
-  f2              AS unit_id,
-  f3              AS station,
-  f4              AS batch_code,
-  f5              AS batch_state,
-  f6              AS batch_program,
+  f1 * 65536 + f2 AS task_id,
+  f3              AS transporter_id,
+  f4              AS unit_id,
+  f5              AS station,
+  f6              AS batch_code,
   f7              AS stage,
-  f8              AS actual_time_s,   -- how long unit was at station (seconds)
+  f8              AS actual_time_s,    -- how long unit was at station (seconds)
   f9              AS calc_time_s,
   f10             AS min_time_s,
-  f11             AS max_time_s
+  f11             AS max_time_s,
+  f12             AS xfer_total_s      -- calculated transfer time (seconds)
 FROM events
 WHERE msg_type = 2;
+
+-- ============================================================
+-- VIEW: task_complete
+-- msg_type = 3: Full task lifecycle timing breakdown
+-- Payload: f1=TaskId_Hi f2=TaskId_Lo f3=transporter
+--          f4=siirto_nostoasemalle(s)  f5=odotus_ennen_nostoa(s)
+--          f6=nosto(s) f7=valutus(s) f8=trip_close(s)
+--          f9=siirto_laskuasemalle(s) f10=trip_open(s)
+--          f11=lasku(s) f12=total(s)
+-- ============================================================
+CREATE OR REPLACE VIEW task_complete AS
+SELECT
+  id, seq, plc_ts, received_at,
+  f1 * 65536 + f2 AS task_id,
+  f3              AS transporter_id,
+  f4              AS travel_to_lift_s,   -- siirto nostoasemalle
+  f5              AS wait_before_lift_s, -- odotus ennen nostoa (max(treat,dev_delay))
+  f6              AS lift_s,             -- nosto
+  f7              AS dripping_s,         -- valutus
+  f8              AS trip_close_s,       -- trip close (drip tray)
+  f9              AS travel_to_sink_s,   -- siirto laskuasemalle
+  f10             AS trip_open_s,        -- trip open (drip tray)
+  f11             AS sink_s,             -- lasku
+  f12             AS total_s             -- kokonaisaika
+FROM events
+WHERE msg_type = 3;
 
 -- ============================================================
 -- TABLE: sim_log

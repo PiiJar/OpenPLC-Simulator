@@ -90,6 +90,8 @@ VAR_NAME_MAP = {
     "DepPending": "g_dep_pending",
     "DepActivated": "g_dep_activated",
     "DepStable": "g_dep_stable",
+    "DepWaitSched": "g_dep_wait_sched",
+    "DepWaitUnit": "g_dep_wait_unit",
     "Calibration": "g_cal",
     "CalibrationActive": "g_cal_active",
     "ProductionQueue": "g_production_queue",

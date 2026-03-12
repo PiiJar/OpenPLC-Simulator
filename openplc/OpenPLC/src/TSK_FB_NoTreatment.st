@@ -18,6 +18,12 @@
      - Covering transporter is idle (phase = 0, active)
      - A free destination station exists in g_ntt
      - Destination station MUST be actually free (no unit present)
+     - No overlap conflict with OTHER transporters that share the
+       destination area (mirrors JS _hasOverlapConflict):
+       * If another transporter also covers dest_stn and is actively
+         moving (Phase 1-4) with its task in the shared zone → skip
+       * If another transporter has queued tasks that overlap in time
+         AND operate in cov_t's task area → skip
    ============================================================ *)
 
 FUNCTION_BLOCK TSK_FB_NoTreatment
@@ -91,6 +97,22 @@ VAR
   qi3            : INT;   (* queue loop for idle-slot calc *)
   slot_ok        : BOOL;
   sh             : INT;   (* shift loop for insert-at-first *)
+  (* Multi-transporter overlap conflict check — mirrors JS _hasOverlapConflict *)
+  ot             : INT;   (* other transporter loop *)
+  oq             : INT;   (* other transporter queue loop *)
+  overlap_conflict : BOOL;
+  dest_x         : DINT;  (* dest_stn X position mm *)
+  avoid_dist     : DINT;  (* cov_t avoid distance mm *)
+  cov_min_x      : DINT;  (* cov_t drive limit min mm *)
+  cov_max_x      : DINT;  (* cov_t drive limit max mm *)
+  ot_min_x       : DINT;  (* other transporter drive limit min mm *)
+  ot_max_x       : DINT;  (* other transporter drive limit max mm *)
+  zone_min_x     : DINT;  (* shared overlap zone min mm *)
+  zone_max_x     : DINT;  (* shared overlap zone max mm *)
+  danger_min     : DINT;  (* zone_min - avoid_dist *)
+  danger_max     : DINT;  (* zone_max + avoid_dist *)
+  ot_lift_x      : DINT;  (* other task lift X mm *)
+  ot_sink_x      : DINT;  (* other task sink X mm *)
 END_VAR
 
 FOR ui := 1 TO MAX_Units DO
@@ -318,6 +340,76 @@ FOR ui := 1 TO MAX_Units DO
               ELSE
                 dest_stn := 0;  (* NTT doesn't fit → skip *)
               END_IF;
+            END_IF;
+          END_IF;
+
+          (* ── Multi-transporter overlap check (JS: _hasOverlapConflict) ──
+             Uses X-positions and avoid_distance to define a danger zone
+             in the shared drive area. If another transporter has tasks
+             whose lift/sink X falls in the danger zone during
+             task_start..task_end, skip this NTT. *)
+          IF dest_stn > 0 THEN
+            overlap_conflict := FALSE;
+            dest_x := g_station[dest_stn].XPosition;
+            avoid_dist := g_cfg[cov_t].AvoidanceWidth;
+            cov_min_x := g_cfg[cov_t].DrivePosMin;
+            cov_max_x := g_cfg[cov_t].DrivePosMax;
+
+            FOR ot := 1 TO MAX_Transporters DO
+              IF ot <> cov_t AND NOT overlap_conflict
+                 AND g_transporter[ot].IsActive THEN
+                ot_min_x := g_cfg[ot].DrivePosMin;
+                ot_max_x := g_cfg[ot].DrivePosMax;
+
+                (* Shared drive overlap zone *)
+                IF cov_min_x > ot_min_x THEN zone_min_x := cov_min_x;
+                ELSE zone_min_x := ot_min_x; END_IF;
+                IF cov_max_x < ot_max_x THEN zone_max_x := cov_max_x;
+                ELSE zone_max_x := ot_max_x; END_IF;
+
+                IF zone_min_x >= zone_max_x THEN
+                  CONTINUE; (* No drive overlap → no conflict possible *)
+                END_IF;
+
+                (* Is dest_stn in the overlap zone? *)
+                IF dest_x < zone_min_x OR dest_x > zone_max_x THEN
+                  CONTINUE; (* dest outside shared area *)
+                END_IF;
+
+                (* Danger zone = overlap ± avoid_distance *)
+                danger_min := zone_min_x - avoid_dist;
+                danger_max := zone_max_x + avoid_dist;
+
+                (* 1. Currently active task → check lift/sink in danger zone *)
+                IF g_transporter[ot].Phase >= 1 AND g_transporter[ot].Phase <= 4
+                   AND g_task[ot].Count > 0 THEN
+                  ot_lift_x := g_station[g_task[ot].Queue[1].LiftStationTarget].XPosition;
+                  ot_sink_x := g_station[g_task[ot].Queue[1].SinkStationTarget].XPosition;
+                  IF (ot_lift_x >= danger_min AND ot_lift_x <= danger_max)
+                     OR (ot_sink_x >= danger_min AND ot_sink_x <= danger_max) THEN
+                    overlap_conflict := TRUE;
+                  END_IF;
+                END_IF;
+
+                (* 2. Queued tasks: time overlap + position in danger zone *)
+                FOR oq := 1 TO g_task[ot].Count DO
+                  IF NOT overlap_conflict THEN
+                    IF g_task[ot].Queue[oq].FinishTime > task_start
+                       AND g_task[ot].Queue[oq].StartTime < task_end THEN
+                      ot_lift_x := g_station[g_task[ot].Queue[oq].LiftStationTarget].XPosition;
+                      ot_sink_x := g_station[g_task[ot].Queue[oq].SinkStationTarget].XPosition;
+                      IF (ot_lift_x >= danger_min AND ot_lift_x <= danger_max)
+                         OR (ot_sink_x >= danger_min AND ot_sink_x <= danger_max) THEN
+                        overlap_conflict := TRUE;
+                      END_IF;
+                    END_IF;
+                  END_IF;
+                END_FOR;
+              END_IF;
+            END_FOR;
+
+            IF overlap_conflict THEN
+              dest_stn := 0;
             END_IF;
           END_IF;
 

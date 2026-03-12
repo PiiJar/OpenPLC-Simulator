@@ -49,11 +49,18 @@ IF i_cmd = 1 THEN
 
 ELSIF i_cmd = 2 THEN
   (* ── RESTORE: sandbox → globals ── *)
+  (* Only restore entries that existed at snapshot time.
+     Gateway may have loaded new programs/batches between
+     snapshot and restore — protect those writes. *)
   IF g_dep_sandbox.Valid THEN
     FOR ui := 1 TO MAX_Units DO
       g_schedule[ui] := g_dep_sandbox.Schedule[ui];
-      g_batch[ui]  := g_dep_sandbox.Batches[ui];
-      g_program[ui] := g_dep_sandbox.Programs[ui];
+      IF g_dep_sandbox.Batches[ui].BatchCode > 0 THEN
+        g_batch[ui]  := g_dep_sandbox.Batches[ui];
+      END_IF;
+      IF g_dep_sandbox.Programs[ui].ProgramId > 0 THEN
+        g_program[ui] := g_dep_sandbox.Programs[ui];
+      END_IF;
     END_FOR;
     FOR ti := 1 TO MAX_Transporters DO
       g_task[ti] := g_dep_sandbox.Tasks[ti];
