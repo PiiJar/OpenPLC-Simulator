@@ -36,6 +36,7 @@ VAR_EXTERNAL
   g_station_count : INT;
   g_move    : ARRAY[1..MAX_Transporters] OF UDT_JC_MoveTimesType;
   g_cfg     : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
+  g_transporter : ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType;
 END_VAR
 VAR
   st         : INT;      (* loop: stage index *)
@@ -266,15 +267,35 @@ FOR st := start_st TO g_program[i_unit].StepCount DO
   max_s  := DINT_TO_REAL(g_program[i_unit].Steps[st - 1].MaxTime);
 
   (* -- Calculate transfer time from prev_stn to stn_num -- *)
+  (* Cross-transfer check: if prev_stn has Crosstransport and different Y line
+     → use ChangeStation as effective source for transfer time calc
+     JS: calculateTransferTimeWithCrossCheck *)
   tmp_move := g_move[i_trans];
-  xfer_t := STC_CalcTransferTime(
-    i_from_stn            := prev_stn,
-    i_to_stn              := stn_num,
-    i_move                := tmp_move,
-    i_from_dropping_x10   := g_station[prev_stn].DrippingTime,
-    i_to_device_delay_x10 := g_station[stn_num].DeviceDelay,
-    i_drip_tray_delay_x10 := g_cfg[i_trans].DripTrayDelay
-  );
+  IF prev_stn >= MIN_StationIndex AND prev_stn <= MAX_StationIndex
+     AND stn_num >= MIN_StationIndex AND stn_num <= MAX_StationIndex
+     AND g_station[prev_stn].Crosstransport > 0
+     AND g_station[prev_stn].ChangeStation > 0
+     AND g_station[prev_stn].YPosition <> g_station[stn_num].YPosition THEN
+    (* Cross-transfer: belt time + transfer from ChangeStation to sink *)
+    xfer_t := INT_TO_REAL(g_station[prev_stn].CrossTransportTime)
+            + STC_CalcTransferTime(
+                i_from_stn            := g_station[prev_stn].ChangeStation,
+                i_to_stn              := stn_num,
+                i_move                := tmp_move,
+                i_from_dropping_x10   := g_station[g_station[prev_stn].ChangeStation].DrippingTime,
+                i_to_device_delay_x10 := g_station[stn_num].DeviceDelay,
+                i_drip_tray_delay_x10 := g_cfg[i_trans].DripTrayDelay
+              );
+  ELSE
+    xfer_t := STC_CalcTransferTime(
+      i_from_stn            := prev_stn,
+      i_to_stn              := stn_num,
+      i_move                := tmp_move,
+      i_from_dropping_x10   := g_station[prev_stn].DrippingTime,
+      i_to_device_delay_x10 := g_station[stn_num].DeviceDelay,
+      i_drip_tray_delay_x10 := g_cfg[i_trans].DripTrayDelay
+    );
+  END_IF;
 
   (* -- Calculate entry and exit times -- *)
   IF is_first AND is_on_stn AND st = cur_stage THEN
@@ -291,8 +312,15 @@ FOR st := start_st TO g_program[i_unit].StepCount DO
     IF remain_s < 1.0 THEN remain_s := 1.0; END_IF;
     exit_t := i_time_s + REAL_TO_LINT(remain_s);
   ELSIF is_first AND NOT is_on_stn THEN
-    (* Batch is on transporter: entry = now (transfer in progress) *)
-    entry_t := exit_t;
+    (* Batch is on transporter: anchor to est_finish if available
+       JS: prevExitTime = estFinish = currentTime + taskRemainingTime
+       No transfer time added — transfer already in progress *)
+    IF g_transporter[i_trans].TaskRemainingTime > 0
+       AND g_transporter[i_trans].Phase > 0 THEN
+      entry_t := i_time_s + DINT_TO_LINT(g_transporter[i_trans].TaskRemainingTime);
+    ELSE
+      entry_t := exit_t;  (* fallback: now *)
+    END_IF;
     exit_t  := entry_t + REAL_TO_LINT(calc_s);
   ELSE
     (* Normal stage: entry = prev exit + transfer *)

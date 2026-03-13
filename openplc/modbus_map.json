@@ -285,6 +285,24 @@
     },
 
     {
+      "name": "scheduler_debug",
+      "comment": "Scheduler debug observability — MainScheduler outputs",
+      "direction": "out",
+      "fields": [
+        { "suffix": "tsk_phase",        "source": "g_sched_dbg_tsk_phase",        "convert": null,          "api": "tsk_phase",        "comment": "TSK scheduler current phase" },
+        { "suffix": "dep_phase",        "source": "g_sched_dbg_dep_phase",        "convert": null,          "api": "dep_phase",        "comment": "DEP scheduler current phase" },
+        { "suffix": "turn",             "source": "g_sched_dbg_turn",             "convert": null,          "api": "turn",             "comment": "1=TSK ran, 2=DEP ran this cycle" },
+        { "suffix": "skip_cnt",         "source": "g_sched_dbg_skip_cnt",         "convert": null,          "api": "skip_cnt",         "comment": "DEP skip count (debug)" },
+        { "suffix": "conflict_resolved","source": "g_conflict_resolved",           "convert": "BOOL_TO_INT", "api": "conflict_resolved","comment": "1=no TSK conflicts, DEP may proceed" },
+        { "suffix": "dep_reject_cnt",   "source": "g_sched_dbg_dep_reject_cnt",   "convert": null,          "api": "dep_reject_cnt",   "comment": "DEP reject count this cycle" },
+        { "suffix": "dep_fit_round",    "source": "g_sched_dbg_dep_fit_round",    "convert": null,          "api": "dep_fit_round",    "comment": "DEP fit round counter" },
+        { "suffix": "dep_cur_wait_unit","source": "g_sched_dbg_dep_cur_wait_unit","convert": null,          "api": "dep_cur_wait_unit","comment": "DEP current waiting batch unit" },
+        { "suffix": "dep_wait_cnt",     "source": "g_sched_dbg_dep_wait_cnt",     "convert": null,          "api": "dep_wait_cnt",     "comment": "DEP waiting batch count" },
+        { "suffix": "batch_cnt",        "source": "g_sched_dbg_batch_cnt",        "convert": null,          "api": "batch_cnt",        "comment": "TSK active batch count" }
+      ]
+    },
+
+    {
       "name": "schedule_window",
       "comment": "Sliding window: one unit schedule at a time (PLC fills on request)",
       "direction": "out",

@@ -152,6 +152,10 @@ let plcAlive = false;
 let simStartTime = Date.now();
 let simRunning = false;
 
+// --- Departure + Scheduler debug state (from Modbus) ---
+let depState = {};
+let schedulerDebug = {};
+
 // --- TWA dynamic drive limits (from Modbus) ---
 let twaLimits = { 1: { x_min: 0, x_max: 0 }, 2: { x_min: 0, x_max: 0 }, 3: { x_min: 0, x_max: 0 } };
 
@@ -321,7 +325,8 @@ async function readPLCState() {
   if (!connected) return null;
   try {
     // Read all output registers in chunks of 125 (Modbus FC3 limit)
-    const totalOut = BLOCKS.task_queue.end + 1; // up to end of task_queue
+    // Include dep_state, dep_waiting, dep_overlap, scheduler_debug blocks
+    const totalOut = BLOCKS.scheduler_debug.end + 1;
     const r = new Array(totalOut).fill(0);
     const CHUNK = 125;
     for (let offset = 0; offset < totalOut; offset += CHUNK) {
@@ -474,6 +479,40 @@ async function readPLCState() {
       }
       plcTaskQueues[t] = { count, tasks };
     }
+
+    // DEP state (registers 699-707)
+    const depPendTimeHi = r[REG.qw_dep_state_pend_time_hi] || 0;
+    const depPendTimeLo = r[REG.qw_dep_state_pend_time_lo] || 0;
+    depState = {
+      dep_activated:    toSigned(r[REG.qw_dep_state_activated]),
+      dep_stable:       toSigned(r[REG.qw_dep_state_stable]),
+      dep_waiting_count: toSigned(r[REG.qw_dep_state_waiting_cnt]),
+      dep_overlap_count: toSigned(r[REG.qw_dep_state_overlap_cnt]),
+      dep_pending_valid: toSigned(r[REG.qw_dep_state_pend_valid]),
+      dep_pending_unit:  toSigned(r[REG.qw_dep_state_pend_unit]),
+      dep_pending_stage: toSigned(r[REG.qw_dep_state_pend_stage]),
+      dep_pending_time:  depPendTimeHi * 65536 + depPendTimeLo,
+    };
+
+    // DEP waiting batch list (registers 708-712)
+    depState.waiting_units = [];
+    for (let w = 0; w < BLOCKS.dep_waiting.count; w++) {
+      depState.waiting_units.push(toSigned(r[BLOCKS.dep_waiting.start + w]));
+    }
+
+    // Scheduler debug (registers 743-752)
+    schedulerDebug = {
+      tsk_phase:        toSigned(r[REG.qw_scheduler_debug_tsk_phase]),
+      dep_phase:        toSigned(r[REG.qw_scheduler_debug_dep_phase]),
+      turn:             toSigned(r[REG.qw_scheduler_debug_turn]),
+      skip_cnt:         toSigned(r[REG.qw_scheduler_debug_skip_cnt]),
+      conflict_resolved: toSigned(r[REG.qw_scheduler_debug_conflict_resolved]),
+      dep_reject_cnt:   toSigned(r[REG.qw_scheduler_debug_dep_reject_cnt]),
+      dep_fit_round:    toSigned(r[REG.qw_scheduler_debug_dep_fit_round]),
+      dep_cur_wait_unit: toSigned(r[REG.qw_scheduler_debug_dep_cur_wait_unit]),
+      dep_wait_cnt:     toSigned(r[REG.qw_scheduler_debug_dep_wait_cnt]),
+      batch_cnt:        toSigned(r[REG.qw_scheduler_debug_batch_cnt]),
+    };
 
     return plcState;
   } catch (err) {
@@ -1881,6 +1920,15 @@ app.get('/api/plc/status', (req, res) => {
     production_queue: plcMeta.production_queue || 0,
     host: PLC_HOST,
     port: PLC_PORT
+  });
+});
+
+// Scheduler debug endpoint — DEP state + scheduler internals
+app.get('/api/scheduler/debug', (req, res) => {
+  res.json({
+    dep_state: depState,
+    scheduler: schedulerDebug,
+    timestamp: new Date().toISOString(),
   });
 });
 

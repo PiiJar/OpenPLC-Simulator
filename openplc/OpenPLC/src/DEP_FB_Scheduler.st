@@ -74,6 +74,9 @@ VAR_OUTPUT
   o_phase     : INT;
   o_wait_cnt  : INT;      (* waiting batch count *)
   o_activated : BOOL;     (* batch activated this cycle *)
+  o_reject_cnt    : INT;  (* how many batches rejected this cycle *)
+  o_fit_round     : INT;  (* current fit round counter *)
+  o_cur_wait_unit : INT;  (* which unit is being evaluated *)
 END_VAR
 VAR
   phase       : INT := 0;
@@ -223,6 +226,9 @@ ELSIF phase = 100 THEN
   END_FOR;
 
   o_wait_cnt := waiting_cnt;
+  o_reject_cnt := 0;
+  o_fit_round := 0;
+  o_cur_wait_unit := 0;
   g_dep_waiting_count := waiting_cnt;
   FOR ui := 1 TO waiting_cnt DO
     g_dep_waiting[ui] := waiting_list[ui];
@@ -283,7 +289,9 @@ ELSIF phase = 1000 THEN
     next_phase := 1;
   ELSE
     cur_wait_unit := waiting_list[cur_wait_idx];
+    o_cur_wait_unit := cur_wait_unit;
     fit_round := 0;
+    o_fit_round := 0;
     sched_base_time := i_time_s;
     stage0_pending_delay := 0.0;
     next_phase := 1010;
@@ -735,6 +743,7 @@ ELSIF phase = 2001 THEN
           END_IF;
 
           fit_round := fit_round + 1;
+          o_fit_round := fit_round;
           IF fit_round > MAX_FIT_ROUNDS THEN
             next_phase := 9000;
           ELSE
@@ -753,6 +762,7 @@ ELSIF phase = 2001 THEN
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 3000 THEN
   fit_round := fit_round + 1;
+  o_fit_round := fit_round;
   IF fit_round > MAX_FIT_ROUNDS THEN
     next_phase := 9000;
   ELSE
@@ -863,6 +873,7 @@ ELSIF phase = 8100 THEN
 ELSIF phase = 9000 THEN
   (* Restore globals from sandbox (undo changes for this batch) *)
   fb_sandbox(i_cmd := 2);
+  o_reject_cnt := o_reject_cnt + 1;
 
   (* Try next waiting batch *)
   cur_wait_idx := cur_wait_idx + 1;

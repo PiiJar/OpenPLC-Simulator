@@ -21,6 +21,8 @@ VAR_EXTERNAL CONSTANT
     MAX_Transporters : INT;
     MAX_Units        : INT;
     MAX_TASK_QUEUE   : INT;
+    MIN_StationIndex : INT;
+    MAX_StationIndex : INT;
 END_VAR
 
 VAR_EXTERNAL
@@ -28,6 +30,7 @@ VAR_EXTERNAL
   g_schedule : ARRAY[1..MAX_Units] OF UDT_JC_TskScheduleType;
   g_task    : ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType;
   g_cfg    : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
+  g_station : ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType;
 END_VAR
 VAR
   si         : INT;     (* schedule stage index *)
@@ -37,6 +40,8 @@ VAR
   tid        : INT;     (* transporter id found *)
   qi         : INT;     (* queue write index *)
   fb_find    : STC_FindTransporter;  (* transporter lookup *)
+  (* Cross-transfer detection — JS: isCrossTransporterOp + findCrossTransporterEndStation *)
+  eff_lift_stn : INT;   (* effective lift station after cross-transfer check *)
 END_VAR
 
 IF i_unit < 1 OR i_unit > MAX_Units THEN RETURN; END_IF;
@@ -54,8 +59,21 @@ FOR si := 1 TO sc - 1 DO
   sink_stn := g_schedule[i_unit].Stages[si + 1].station;
 
   IF lift_stn > 0 AND sink_stn > 0 THEN
-    (* -- Find transporter via task_area matching -- *)
-    fb_find(i_lift_stn := lift_stn, i_sink_stn := sink_stn);
+    (* -- Cross-transfer detection -- *)
+    (* JS: if station.operation === 10 && lift.y_position !== sink.y_position
+       → use ChangeStation as effective lift (belt other end, same line as sink) *)
+    eff_lift_stn := lift_stn;
+    IF lift_stn >= MIN_StationIndex AND lift_stn <= MAX_StationIndex
+       AND sink_stn >= MIN_StationIndex AND sink_stn <= MAX_StationIndex THEN
+      IF g_station[lift_stn].Crosstransport > 0
+         AND g_station[lift_stn].ChangeStation > 0
+         AND g_station[lift_stn].YPosition <> g_station[sink_stn].YPosition THEN
+        eff_lift_stn := g_station[lift_stn].ChangeStation;
+      END_IF;
+    END_IF;
+
+    (* -- Find transporter via task_area matching (with scoring) -- *)
+    fb_find(i_lift_stn := eff_lift_stn, i_sink_stn := sink_stn);
     tid := fb_find.o_trans;
 
     (* -- Append task to transporter queue -- *)
@@ -64,7 +82,7 @@ FOR si := 1 TO sc - 1 DO
       IF qi <= MAX_TASK_QUEUE THEN
         g_task[tid].Queue[qi].Unit         := i_unit;
         g_task[tid].Queue[qi].Stage        := si;  (* schedule index — used by Resolve/ShiftSchedule as g_schedule array index *)
-        g_task[tid].Queue[qi].LiftStationTarget := lift_stn;
+        g_task[tid].Queue[qi].LiftStationTarget := eff_lift_stn;
         g_task[tid].Queue[qi].SinkStationTarget := sink_stn;
         g_task[tid].Queue[qi].StartTime   := g_schedule[i_unit].Stages[si].ExitTime;
         g_task[tid].Queue[qi].FinishTime  := g_schedule[i_unit].Stages[si + 1].EntryTime;

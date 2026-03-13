@@ -45,6 +45,7 @@ VAR_EXTERNAL
   g_cfg    : ARRAY[1..MAX_Transporters] OF UDT_TransporterType;
   (* DEP handshake *)
   g_dep_pending : UDT_JC_DepPendingWriteType;
+  g_conflict_resolved : BOOL;
 END_VAR
 VAR_OUTPUT
   o_phase      : INT;     (* current phase *)
@@ -81,6 +82,11 @@ VAR
   lock_cnt        : INT := 0;
   locks_initialized : BOOL := FALSE;
   fb_find    : STC_FindTransporter;
+  (* candidateStretches — JS: resolve decisions persisted to g_program *)
+  stretches     : ARRAY[1..20] OF UDT_JC_TskStretchType;
+  stretch_cnt   : INT := 0;
+  si            : INT;   (* stretch apply loop *)
+  new_cal       : DINT;  (* clamped calc time *)
   (* Temp *)
   bi         : INT;
   ti         : INT;
@@ -120,12 +126,19 @@ ELSIF phase = 1 THEN
   o_batch_cnt := batch_count;
   conflict_iter := 0;
   locks_initialized := FALSE;
+  stretch_cnt := 0;  (* Reset stretch collection for new cycle *)
 
   IF batch_count = 0 THEN
     (* No active batches — clear stale tasks, then run no-treatment *)
     fb_clear();
+    g_conflict_resolved := TRUE;  (* Empty line is stable — JS: conflictResolved = true on reset *)
     next_phase := 2204;
   ELSE
+    (* Defensively reset — situation may have changed since last cycle.
+       Safe because g_dep_stable also requires tsk_phase >= 10000,
+       which is FALSE during all computation phases (1..2205).
+       g_conflict_resolved will be set TRUE/FALSE in Phase 2202 ANALYZE. *)
+    g_conflict_resolved := FALSE;
     next_phase := 2;
   END_IF;
 
@@ -229,8 +242,10 @@ ELSIF phase = 2202 THEN
   fb_analyze();
   o_conflict := fb_analyze.o_has_conflict;
   IF fb_analyze.o_has_conflict THEN
+    g_conflict_resolved := FALSE;  (* Conflicts found — DEP must not proceed *)
     next_phase := 2203;
   ELSE
+    g_conflict_resolved := TRUE;  (* No conflicts — JS: state.conflictResolved = true *)
     next_phase := 2204;
   END_IF;
 
@@ -250,6 +265,23 @@ ELSIF phase = 2203 THEN
     io_lock_cnt     := lock_cnt
   );
 
+  (* -- Collect stretches from resolve decisions -- *)
+  (* JS: TASKS_SAVE collects candidateStretches from resolveHistory *)
+  (* ADVANCE on blocked → negative DelayS *)
+  IF fb_resolve.o_total_adv > 0.1 AND stretch_cnt < 20 THEN
+    stretch_cnt := stretch_cnt + 1;
+    stretches[stretch_cnt].Unit   := fb_analyze.o_blocked_unit;
+    stretches[stretch_cnt].Stage  := fb_analyze.o_blocked_stage;
+    stretches[stretch_cnt].DelayS := -REAL_TO_DINT(fb_resolve.o_total_adv);
+  END_IF;
+  (* DELAY on conf → positive DelayS *)
+  IF fb_resolve.o_total_delay > 0.1 AND stretch_cnt < 20 THEN
+    stretch_cnt := stretch_cnt + 1;
+    stretches[stretch_cnt].Unit   := fb_analyze.o_conf_unit;
+    stretches[stretch_cnt].Stage  := fb_analyze.o_conf_stage;
+    stretches[stretch_cnt].DelayS := REAL_TO_DINT(fb_resolve.o_total_delay);
+  END_IF;
+
   conflict_iter := conflict_iter + 1;
 
   IF conflict_iter >= MAX_CONFLICT_ITER THEN
@@ -267,6 +299,37 @@ ELSIF phase = 2203 THEN
 ELSIF phase = 2204 THEN
   fb_notrt(i_time_s := i_time_s);
   o_conflict := FALSE;
+  next_phase := 2205;
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* PHASE 2205: APPLY_STRETCHES — persist resolve decisions      *)
+(* JS: TASKS_SAVE → candidateStretches → applyTreatmentProgramStretches *)
+(* Write accumulated delay/advance to g_program CalTime so next *)
+(* cycle builds schedule from adjusted baseline.                *)
+(* ══════════════════════════════════════════════════════════════ *)
+ELSIF phase = 2205 THEN
+  FOR si := 1 TO stretch_cnt DO
+    IF stretches[si].Unit >= 1 AND stretches[si].Unit <= MAX_Units
+       AND stretches[si].Stage >= 1
+       AND stretches[si].Stage <= g_program[stretches[si].Unit].StepCount THEN
+      (* Clamp new CalTime between MinTime and MaxTime *)
+      new_cal := g_program[stretches[si].Unit].Steps[stretches[si].Stage - 1].CalTime
+               + stretches[si].DelayS;
+      IF new_cal < g_program[stretches[si].Unit].Steps[stretches[si].Stage - 1].MinTime THEN
+        new_cal := g_program[stretches[si].Unit].Steps[stretches[si].Stage - 1].MinTime;
+      END_IF;
+      IF new_cal > g_program[stretches[si].Unit].Steps[stretches[si].Stage - 1].MaxTime THEN
+        new_cal := g_program[stretches[si].Unit].Steps[stretches[si].Stage - 1].MaxTime;
+      END_IF;
+      g_program[stretches[si].Unit].Steps[stretches[si].Stage - 1].CalTime := new_cal;
+
+      (* If batch is currently on this stage, also update runtime batch.CalTime *)
+      IF g_batch[stretches[si].Unit].CurStage = stretches[si].Stage THEN
+        g_batch[stretches[si].Unit].CalTime := new_cal;
+      END_IF;
+    END_IF;
+  END_FOR;
+  stretch_cnt := 0;
   next_phase := 10000;
 
 (* ══════════════════════════════════════════════════════════════ *)
@@ -311,6 +374,7 @@ ELSIF phase = 10100 THEN
       g_batch[g_dep_pending.BatchUnit].CalTime     := g_dep_pending.BatchCalTime;
     END_IF;
     g_dep_pending.Valid := FALSE;
+    g_conflict_resolved := FALSE;  (* Force TSK to re-stabilize after DEP activation — JS: tasksConflictResolved = false *)
     (* Full recalculation with new data *)
     next_phase := 1;
   ELSE

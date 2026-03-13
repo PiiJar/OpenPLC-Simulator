@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns:ns1="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.plcopen.org/xml/tc6_0201">
-  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-12T17:20:49"/>
-  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-12T17:20:49">
+  <fileHeader companyName="Nammo" productName="OpenPLC" productVersion="1" creationDateTime="2026-03-13T10:14:12"/>
+  <contentHeader name="PhysicsSimulator" modificationDateTime="2026-03-13T10:14:12">
     <coordinateInfo>
       <fbd>
         <scaling x="0" y="0"/>
@@ -435,6 +435,21 @@
                   <baseType><derived name="UDT_JC_TskStageType"/></baseType>
                 </array>
               </type>
+            </variable>
+          </struct>
+        </baseType>
+      </dataType>
+      <dataType name="UDT_JC_TskStretchType">
+        <baseType>
+          <struct>
+            <variable name="Unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="Stage">
+              <type><INT/></type>
+            </variable>
+            <variable name="DelayS">
+              <type><DINT/></type>
             </variable>
           </struct>
         </baseType>
@@ -2051,6 +2066,15 @@ END_IF;]]></xhtml:p>
             <variable name="o_activated">
               <type><BOOL/></type>
             </variable>
+            <variable name="o_reject_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="o_fit_round">
+              <type><INT/></type>
+            </variable>
+            <variable name="o_cur_wait_unit">
+              <type><INT/></type>
+            </variable>
           </outputVars>
           <externalVars>
             <variable name="g_batch">
@@ -2415,6 +2439,9 @@ ELSIF phase = 100 THEN
   END_FOR;
 
   o_wait_cnt := waiting_cnt;
+  o_reject_cnt := 0;
+  o_fit_round := 0;
+  o_cur_wait_unit := 0;
   g_dep_waiting_count := waiting_cnt;
   FOR ui := 1 TO waiting_cnt DO
     g_dep_waiting[ui] := waiting_list[ui];
@@ -2475,7 +2502,9 @@ ELSIF phase = 1000 THEN
     next_phase := 1;
   ELSE
     cur_wait_unit := waiting_list[cur_wait_idx];
+    o_cur_wait_unit := cur_wait_unit;
     fit_round := 0;
+    o_fit_round := 0;
     sched_base_time := i_time_s;
     stage0_pending_delay := 0.0;
     next_phase := 1010;
@@ -2927,6 +2956,7 @@ ELSIF phase = 2001 THEN
           END_IF;
 
           fit_round := fit_round + 1;
+          o_fit_round := fit_round;
           IF fit_round > MAX_FIT_ROUNDS THEN
             next_phase := 9000;
           ELSE
@@ -2945,6 +2975,7 @@ ELSIF phase = 2001 THEN
 (* ════════════════════════════════════════════════════════════ *)
 ELSIF phase = 3000 THEN
   fit_round := fit_round + 1;
+  o_fit_round := fit_round;
   IF fit_round > MAX_FIT_ROUNDS THEN
     next_phase := 9000;
   ELSE
@@ -3055,6 +3086,7 @@ ELSIF phase = 8100 THEN
 ELSIF phase = 9000 THEN
   (* Restore globals from sandbox (undo changes for this batch) *)
   fb_sandbox(i_cmd := 2);
+  o_reject_cnt := o_reject_cnt + 1;
 
   (* Try next waiting batch *)
   cur_wait_idx := cur_wait_idx + 1;
@@ -5755,11 +5787,41 @@ dropping_time_s := 0.0;]]></xhtml:p>
             <variable name="g_dep_stable">
               <type><BOOL/></type>
             </variable>
+            <variable name="g_conflict_resolved">
+              <type><BOOL/></type>
+            </variable>
             <variable name="g_dep_pending">
               <type><derived name="UDT_JC_DepPendingWriteType"/></type>
             </variable>
             <variable name="g_cal_active">
               <type><BOOL/></type>
+            </variable>
+            <variable name="g_sched_dbg_tsk_phase">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_sched_dbg_dep_phase">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_sched_dbg_turn">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_sched_dbg_skip_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_sched_dbg_dep_reject_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_sched_dbg_dep_fit_round">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_sched_dbg_dep_cur_wait_unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_sched_dbg_dep_wait_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_sched_dbg_batch_cnt">
+              <type><INT/></type>
             </variable>
           </externalVars>
           <localVars>
@@ -5845,7 +5907,8 @@ IF turn = 1 THEN
   tsk_phase := tsk_sched.o_phase;
 
   (* Compute stability flag after TSK call *)
-  g_dep_stable := (tsk_phase >= 10000);
+  (* JS: DEP stable requires BOTH phase >= READY AND conflictResolved *)
+  g_dep_stable := (tsk_phase >= 10000) AND g_conflict_resolved;
 
 ELSIF turn = 2 THEN
   (* DEP turn *)
@@ -5860,7 +5923,18 @@ END_IF;
 o_tsk_phase := tsk_sched.o_phase;
 o_dep_phase := dep_sched.o_phase;
 o_turn      := turn;
-o_skip_cnt  := skip_cnt;]]></xhtml:p>
+o_skip_cnt  := skip_cnt;
+
+(* ── Forward to scheduler debug globals (Modbus-readable) ── *)
+g_sched_dbg_tsk_phase        := tsk_sched.o_phase;
+g_sched_dbg_dep_phase        := dep_sched.o_phase;
+g_sched_dbg_turn             := turn;
+g_sched_dbg_skip_cnt         := skip_cnt;
+g_sched_dbg_dep_reject_cnt   := dep_sched.o_reject_cnt;
+g_sched_dbg_dep_fit_round    := dep_sched.o_fit_round;
+g_sched_dbg_dep_cur_wait_unit := dep_sched.o_cur_wait_unit;
+g_sched_dbg_dep_wait_cnt     := dep_sched.o_wait_cnt;
+g_sched_dbg_batch_cnt        := tsk_sched.o_batch_cnt;]]></xhtml:p>
           </ST>
         </body>
       </pou>
@@ -6632,6 +6706,9 @@ END_IF;]]></xhtml:p>
             <variable name="g_cfg">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterType"/></type>
             </variable>
+            <variable name="g_task">
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_JC_TskQueueType"/></type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="ti">
@@ -6649,33 +6726,122 @@ END_IF;]]></xhtml:p>
             <variable name="can_sink">
               <type><BOOL/></type>
             </variable>
+            <variable name="capable">
+              <type>
+                <array>
+                  <dimension lower="1" upper="3"/>
+                  <baseType><INT/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="cap_count">
+              <type><INT/></type>
+            </variable>
+            <variable name="best_idx">
+              <type><INT/></type>
+            </variable>
+            <variable name="best_count">
+              <type><INT/></type>
+            </variable>
+            <variable name="best_dist">
+              <type><INT/></type>
+            </variable>
+            <variable name="cur_count">
+              <type><INT/></type>
+            </variable>
+            <variable name="cur_dist">
+              <type><INT/></type>
+            </variable>
+            <variable name="last_sink">
+              <type><INT/></type>
+            </variable>
+            <variable name="ci">
+              <type><INT/></type>
+            </variable>
+            <variable name="qi">
+              <type><INT/></type>
+            </variable>
           </localVars>
         </interface>
         <body>
           <ST>
             <xhtml:p><![CDATA[o_trans := 0;
+cap_count := 0;
+
+(* Phase 1: Collect all capable transporters *)
 FOR ti := 1 TO MAX_Transporters DO
-  IF o_trans = 0 THEN
-    FOR ai := 1 TO 4 DO
-      IF o_trans = 0 THEN
-        area := g_cfg[ti].TaskArea[ai];
-        IF area.MinLift > 0 OR area.MaxLift > 0 THEN
-          can_lift := (i_lift_stn >= area.MinLift) AND (i_lift_stn <= area.MaxLift);
-          IF i_sink_stn = 0 THEN
-            IF can_lift THEN
-              o_trans := ti;
+  FOR ai := 1 TO 4 DO
+    IF cap_count < 3 THEN
+      area := g_cfg[ti].TaskArea[ai];
+      IF area.MinLift > 0 OR area.MaxLift > 0 THEN
+        can_lift := (i_lift_stn >= area.MinLift) AND (i_lift_stn <= area.MaxLift);
+        IF i_sink_stn = 0 THEN
+          IF can_lift THEN
+            (* Check not already added *)
+            IF cap_count = 0 OR (capable[cap_count] <> ti) THEN
+              cap_count := cap_count + 1;
+              capable[cap_count] := ti;
             END_IF;
-          ELSE
-            can_sink := (i_sink_stn >= area.MinSink) AND (i_sink_stn <= area.MaxSink);
-            IF can_lift AND can_sink THEN
-              o_trans := ti;
+          END_IF;
+        ELSE
+          can_sink := (i_sink_stn >= area.MinSink) AND (i_sink_stn <= area.MaxSink);
+          IF can_lift AND can_sink THEN
+            IF cap_count = 0 OR (capable[cap_count] <> ti) THEN
+              cap_count := cap_count + 1;
+              capable[cap_count] := ti;
             END_IF;
           END_IF;
         END_IF;
       END_IF;
-    END_FOR;
+    END_IF;
+  END_FOR;
+END_FOR;
+
+(* Phase 2: Select best — score by task count then distance *)
+IF cap_count = 0 THEN
+  o_trans := 0;
+ELSIF cap_count = 1 THEN
+  o_trans := capable[1];
+ELSE
+  (* JS: scored.sort((a,b) => a.count - b.count || a.distFromLastTask - b.distFromLastTask) *)
+  best_idx := 1;
+  best_count := g_task[capable[1]].Count;
+  (* Find last sink station for first candidate *)
+  last_sink := 0;
+  IF best_count > 0 THEN
+    last_sink := g_task[capable[1]].Queue[best_count].SinkStationTarget;
   END_IF;
-END_FOR;]]></xhtml:p>
+  IF last_sink > 0 THEN
+    best_dist := ABS(last_sink - i_lift_stn);
+  ELSE
+    best_dist := 0;
+  END_IF;
+
+  FOR ci := 2 TO cap_count DO
+    cur_count := g_task[capable[ci]].Count;
+    last_sink := 0;
+    IF cur_count > 0 THEN
+      last_sink := g_task[capable[ci]].Queue[cur_count].SinkStationTarget;
+    END_IF;
+    IF last_sink > 0 THEN
+      cur_dist := ABS(last_sink - i_lift_stn);
+    ELSE
+      cur_dist := 0;
+    END_IF;
+
+    IF cur_count < best_count THEN
+      best_idx := ci;
+      best_count := cur_count;
+      best_dist := cur_dist;
+    ELSIF cur_count = best_count AND cur_dist < best_dist THEN
+      best_idx := ci;
+      best_count := cur_count;
+      best_dist := cur_dist;
+    END_IF;
+  END_FOR;
+
+  o_trans := capable[best_idx];
+END_IF;]]></xhtml:p>
           </ST>
         </body>
       </pou>
@@ -7131,6 +7297,9 @@ checked_count := total_tasks;]]></xhtml:p>
             <variable name="g_cfg">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterType"/></type>
             </variable>
+            <variable name="g_transporter">
+              <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterStatusType"/></type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="st">
@@ -7439,15 +7608,35 @@ FOR st := start_st TO g_program[i_unit].StepCount DO
   max_s  := DINT_TO_REAL(g_program[i_unit].Steps[st - 1].MaxTime);
 
   (* -- Calculate transfer time from prev_stn to stn_num -- *)
+  (* Cross-transfer check: if prev_stn has Crosstransport and different Y line
+     → use ChangeStation as effective source for transfer time calc
+     JS: calculateTransferTimeWithCrossCheck *)
   tmp_move := g_move[i_trans];
-  xfer_t := STC_CalcTransferTime(
-    i_from_stn            := prev_stn,
-    i_to_stn              := stn_num,
-    i_move                := tmp_move,
-    i_from_dropping_x10   := g_station[prev_stn].DrippingTime,
-    i_to_device_delay_x10 := g_station[stn_num].DeviceDelay,
-    i_drip_tray_delay_x10 := g_cfg[i_trans].DripTrayDelay
-  );
+  IF prev_stn >= MIN_StationIndex AND prev_stn <= MAX_StationIndex
+     AND stn_num >= MIN_StationIndex AND stn_num <= MAX_StationIndex
+     AND g_station[prev_stn].Crosstransport > 0
+     AND g_station[prev_stn].ChangeStation > 0
+     AND g_station[prev_stn].YPosition <> g_station[stn_num].YPosition THEN
+    (* Cross-transfer: belt time + transfer from ChangeStation to sink *)
+    xfer_t := INT_TO_REAL(g_station[prev_stn].CrossTransportTime)
+            + STC_CalcTransferTime(
+                i_from_stn            := g_station[prev_stn].ChangeStation,
+                i_to_stn              := stn_num,
+                i_move                := tmp_move,
+                i_from_dropping_x10   := g_station[g_station[prev_stn].ChangeStation].DrippingTime,
+                i_to_device_delay_x10 := g_station[stn_num].DeviceDelay,
+                i_drip_tray_delay_x10 := g_cfg[i_trans].DripTrayDelay
+              );
+  ELSE
+    xfer_t := STC_CalcTransferTime(
+      i_from_stn            := prev_stn,
+      i_to_stn              := stn_num,
+      i_move                := tmp_move,
+      i_from_dropping_x10   := g_station[prev_stn].DrippingTime,
+      i_to_device_delay_x10 := g_station[stn_num].DeviceDelay,
+      i_drip_tray_delay_x10 := g_cfg[i_trans].DripTrayDelay
+    );
+  END_IF;
 
   (* -- Calculate entry and exit times -- *)
   IF is_first AND is_on_stn AND st = cur_stage THEN
@@ -7464,8 +7653,15 @@ FOR st := start_st TO g_program[i_unit].StepCount DO
     IF remain_s < 1.0 THEN remain_s := 1.0; END_IF;
     exit_t := i_time_s + REAL_TO_LINT(remain_s);
   ELSIF is_first AND NOT is_on_stn THEN
-    (* Batch is on transporter: entry = now (transfer in progress) *)
-    entry_t := exit_t;
+    (* Batch is on transporter: anchor to est_finish if available
+       JS: prevExitTime = estFinish = currentTime + taskRemainingTime
+       No transfer time added — transfer already in progress *)
+    IF g_transporter[i_trans].TaskRemainingTime > 0
+       AND g_transporter[i_trans].Phase > 0 THEN
+      entry_t := i_time_s + DINT_TO_LINT(g_transporter[i_trans].TaskRemainingTime);
+    ELSE
+      entry_t := exit_t;  (* fallback: now *)
+    END_IF;
     exit_t  := entry_t + REAL_TO_LINT(calc_s);
   ELSE
     (* Normal stage: entry = prev exit + transfer *)
@@ -7516,6 +7712,9 @@ g_schedule[i_unit].StageCount := out_count;]]></xhtml:p>
             <variable name="g_cfg">
               <type><derived name="ARRAY[1..MAX_Transporters] OF UDT_TransporterType"/></type>
             </variable>
+            <variable name="g_station">
+              <type><derived name="ARRAY[MIN_StationIndex..MAX_StationIndex] OF UDT_StationType"/></type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="si">
@@ -7539,6 +7738,9 @@ g_schedule[i_unit].StageCount := out_count;]]></xhtml:p>
             <variable name="fb_find">
               <type><derived name="STC_FindTransporter"/></type>
             </variable>
+            <variable name="eff_lift_stn">
+              <type><INT/></type>
+            </variable>
           </localVars>
         </interface>
         <body>
@@ -7558,8 +7760,21 @@ FOR si := 1 TO sc - 1 DO
   sink_stn := g_schedule[i_unit].Stages[si + 1].station;
 
   IF lift_stn > 0 AND sink_stn > 0 THEN
-    (* -- Find transporter via task_area matching -- *)
-    fb_find(i_lift_stn := lift_stn, i_sink_stn := sink_stn);
+    (* -- Cross-transfer detection -- *)
+    (* JS: if station.operation === 10 && lift.y_position !== sink.y_position
+       → use ChangeStation as effective lift (belt other end, same line as sink) *)
+    eff_lift_stn := lift_stn;
+    IF lift_stn >= MIN_StationIndex AND lift_stn <= MAX_StationIndex
+       AND sink_stn >= MIN_StationIndex AND sink_stn <= MAX_StationIndex THEN
+      IF g_station[lift_stn].Crosstransport > 0
+         AND g_station[lift_stn].ChangeStation > 0
+         AND g_station[lift_stn].YPosition <> g_station[sink_stn].YPosition THEN
+        eff_lift_stn := g_station[lift_stn].ChangeStation;
+      END_IF;
+    END_IF;
+
+    (* -- Find transporter via task_area matching (with scoring) -- *)
+    fb_find(i_lift_stn := eff_lift_stn, i_sink_stn := sink_stn);
     tid := fb_find.o_trans;
 
     (* -- Append task to transporter queue -- *)
@@ -7568,7 +7783,7 @@ FOR si := 1 TO sc - 1 DO
       IF qi <= MAX_TASK_QUEUE THEN
         g_task[tid].Queue[qi].Unit         := i_unit;
         g_task[tid].Queue[qi].Stage        := si;  (* schedule index — used by Resolve/ShiftSchedule as g_schedule array index *)
-        g_task[tid].Queue[qi].LiftStationTarget := lift_stn;
+        g_task[tid].Queue[qi].LiftStationTarget := eff_lift_stn;
         g_task[tid].Queue[qi].SinkStationTarget := sink_stn;
         g_task[tid].Queue[qi].StartTime   := g_schedule[i_unit].Stages[si].ExitTime;
         g_task[tid].Queue[qi].FinishTime  := g_schedule[i_unit].Stages[si + 1].EntryTime;
@@ -8228,6 +8443,24 @@ END_FOR;]]></xhtml:p>
             <variable name="qi">
               <type><INT/></type>
             </variable>
+            <variable name="chain_flex">
+              <type><REAL/></type>
+            </variable>
+            <variable name="suffix_flex">
+              <type><REAL/></type>
+            </variable>
+            <variable name="earlier_stg">
+              <type><INT/></type>
+            </variable>
+            <variable name="earlier_flex">
+              <type><REAL/></type>
+            </variable>
+            <variable name="chain_amount">
+              <type><REAL/></type>
+            </variable>
+            <variable name="suffix_amount">
+              <type><REAL/></type>
+            </variable>
             <variable name="fb_shift">
               <type><derived name="STC_FB_ShiftSchedule"/></type>
             </variable>
@@ -8270,15 +8503,17 @@ can_delay   := NOT is_locked_del;
 
 (* ══════════════════════════════════════════════════════════════ *)
 (* PHASE 1: ADVANCE — advance blocked batch (JS Vaihe 1)       *)
-(* Single-stage flex: blocked_stage CalcTime - MinTime          *)
-(* Flat shift applied to blocked_stage onward.                  *)
-(* Partial advance is OK — remainder goes to Phase 2.           *)
+(* Chain bottleneck: walk backward through earlier stages to    *)
+(* find smallest flex_down < conflictFlexDown.                  *)
+(* CHAIN_ADVANCE uses bottleneck, SUFFIX_ADVANCE uses remainder *)
+(* JS: resolveConflict() lines 1738-1860                        *)
 (* ══════════════════════════════════════════════════════════════ *)
 IF can_advance
    AND i_blocked_unit >= 1 AND i_blocked_unit <= MAX_Units
    AND i_blocked_stage >= 1
    AND i_blocked_stage <= g_schedule[i_blocked_unit].StageCount THEN
 
+  (* Conflict stage's own flex_down *)
   stage_flex := DINT_TO_REAL(
     g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime
     - g_schedule[i_blocked_unit].Stages[i_blocked_stage].MinTime);
@@ -8286,33 +8521,75 @@ IF can_advance
 
   IF stage_flex > 0.1 THEN
     (* Cap: 90% if batch is on this stage, 50% otherwise *)
-    (* Use ProgramStage for CurStage comparison — schedule index ≠ program stage when prepend entry exists *)
     IF g_batch[i_blocked_unit].CurStage = g_schedule[i_blocked_unit].Stages[i_blocked_stage].ProgramStage THEN
       cap := 0.9;
     ELSE
       cap := 0.5;
     END_IF;
-    amount := stage_flex * cap;
-    IF amount > remain THEN amount := remain; END_IF;
 
-    (* Apply: reduce CalcTime of blocked_stage *)
-    g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime :=
-      g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime - REAL_TO_DINT(amount);
-    g_schedule[i_blocked_unit].Stages[i_blocked_stage].ExitTime :=
-      g_schedule[i_blocked_unit].Stages[i_blocked_stage].ExitTime - REAL_TO_LINT(amount);
+    (* -- Chain bottleneck search -- *)
+    (* JS: walk backward through prevBatchTasks (stages < conflictStage) *)
+    (* Find smallest flex_down among earlier stages that is < conflictFlexDown *)
+    chain_flex := stage_flex;  (* init to conflict stage flex = no bottleneck *)
+    FOR earlier_stg := 1 TO i_blocked_stage - 1 DO
+      earlier_flex := DINT_TO_REAL(
+        g_schedule[i_blocked_unit].Stages[earlier_stg].CalcTime
+        - g_schedule[i_blocked_unit].Stages[earlier_stg].MinTime);
+      IF earlier_flex < 0.0 THEN earlier_flex := 0.0; END_IF;
+      IF earlier_flex > 0.0 AND earlier_flex < chain_flex THEN
+        chain_flex := earlier_flex;
+      END_IF;
+    END_FOR;
+    (* If no earlier stage had positive flex < conflictFlex, chain_flex = stage_flex *)
+    (* In that case suffix_flex = 0 and all advance comes from chain *)
 
-    (* Shift all subsequent stages and tasks *)
-    fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := -amount);
+    (* -- CHAIN_ADVANCE: apply bottleneck amount -- *)
+    chain_amount := chain_flex * cap;
+    IF chain_amount > remain THEN chain_amount := remain; END_IF;
 
-    (* JS: propagateEarlierToBatch always updates batch.calc_time_s *)
-    g_batch[i_blocked_unit].CalTime :=
-      g_batch[i_blocked_unit].CalTime - REAL_TO_DINT(amount);
-    IF g_batch[i_blocked_unit].CalTime < g_batch[i_blocked_unit].MinTime THEN
-      g_batch[i_blocked_unit].CalTime := g_batch[i_blocked_unit].MinTime;
+    IF chain_amount > 0.1 THEN
+      g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime :=
+        g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime - REAL_TO_DINT(chain_amount);
+      g_schedule[i_blocked_unit].Stages[i_blocked_stage].ExitTime :=
+        g_schedule[i_blocked_unit].Stages[i_blocked_stage].ExitTime - REAL_TO_LINT(chain_amount);
+
+      fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := -chain_amount);
+
+      g_batch[i_blocked_unit].CalTime :=
+        g_batch[i_blocked_unit].CalTime - REAL_TO_DINT(chain_amount);
+      IF g_batch[i_blocked_unit].CalTime < g_batch[i_blocked_unit].MinTime THEN
+        g_batch[i_blocked_unit].CalTime := g_batch[i_blocked_unit].MinTime;
+      END_IF;
+
+      remain := remain - chain_amount;
+      o_total_adv := o_total_adv + chain_amount;
     END_IF;
 
-    remain := remain - amount;
-    o_total_adv := o_total_adv + amount;
+    (* -- SUFFIX_ADVANCE: use remaining flex beyond bottleneck -- *)
+    (* JS: suffixFlexDown = conflictFlexDown - chainFlexDown *)
+    suffix_flex := stage_flex - chain_flex;
+    IF suffix_flex > 0.1 AND remain > 0.1 THEN
+      suffix_amount := suffix_flex * cap;
+      IF suffix_amount > remain THEN suffix_amount := remain; END_IF;
+
+      IF suffix_amount > 0.1 THEN
+        g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime :=
+          g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime - REAL_TO_DINT(suffix_amount);
+        g_schedule[i_blocked_unit].Stages[i_blocked_stage].ExitTime :=
+          g_schedule[i_blocked_unit].Stages[i_blocked_stage].ExitTime - REAL_TO_LINT(suffix_amount);
+
+        fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := -suffix_amount);
+
+        g_batch[i_blocked_unit].CalTime :=
+          g_batch[i_blocked_unit].CalTime - REAL_TO_DINT(suffix_amount);
+        IF g_batch[i_blocked_unit].CalTime < g_batch[i_blocked_unit].MinTime THEN
+          g_batch[i_blocked_unit].CalTime := g_batch[i_blocked_unit].MinTime;
+        END_IF;
+
+        remain := remain - suffix_amount;
+        o_total_adv := o_total_adv + suffix_amount;
+      END_IF;
+    END_IF;
 
     (* Record lock: ADVANCE on blocked stage *)
     IF io_lock_cnt < 50 THEN
@@ -8591,6 +8868,9 @@ END_IF;
             <variable name="g_dep_pending">
               <type><derived name="UDT_JC_DepPendingWriteType"/></type>
             </variable>
+            <variable name="g_conflict_resolved">
+              <type><BOOL/></type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="phase">
@@ -8668,6 +8948,24 @@ END_IF;
             <variable name="fb_find">
               <type><derived name="STC_FindTransporter"/></type>
             </variable>
+            <variable name="stretches">
+              <type>
+                <array>
+                  <dimension lower="1" upper="20"/>
+                  <baseType><derived name="UDT_JC_TskStretchType"/></baseType>
+                </array>
+              </type>
+            </variable>
+            <variable name="stretch_cnt">
+              <type><INT/></type>
+              <initialValue><simpleValue value="0"/></initialValue>
+            </variable>
+            <variable name="si">
+              <type><INT/></type>
+            </variable>
+            <variable name="new_cal">
+              <type><DINT/></type>
+            </variable>
             <variable name="bi">
               <type><INT/></type>
             </variable>
@@ -8721,12 +9019,19 @@ ELSIF phase = 1 THEN
   o_batch_cnt := batch_count;
   conflict_iter := 0;
   locks_initialized := FALSE;
+  stretch_cnt := 0;  (* Reset stretch collection for new cycle *)
 
   IF batch_count = 0 THEN
     (* No active batches — clear stale tasks, then run no-treatment *)
     fb_clear();
+    g_conflict_resolved := TRUE;  (* Empty line is stable — JS: conflictResolved = true on reset *)
     next_phase := 2204;
   ELSE
+    (* Defensively reset — situation may have changed since last cycle.
+       Safe because g_dep_stable also requires tsk_phase >= 10000,
+       which is FALSE during all computation phases (1..2205).
+       g_conflict_resolved will be set TRUE/FALSE in Phase 2202 ANALYZE. *)
+    g_conflict_resolved := FALSE;
     next_phase := 2;
   END_IF;
 
@@ -8830,8 +9135,10 @@ ELSIF phase = 2202 THEN
   fb_analyze();
   o_conflict := fb_analyze.o_has_conflict;
   IF fb_analyze.o_has_conflict THEN
+    g_conflict_resolved := FALSE;  (* Conflicts found — DEP must not proceed *)
     next_phase := 2203;
   ELSE
+    g_conflict_resolved := TRUE;  (* No conflicts — JS: state.conflictResolved = true *)
     next_phase := 2204;
   END_IF;
 
@@ -8851,6 +9158,23 @@ ELSIF phase = 2203 THEN
     io_lock_cnt     := lock_cnt
   );
 
+  (* -- Collect stretches from resolve decisions -- *)
+  (* JS: TASKS_SAVE collects candidateStretches from resolveHistory *)
+  (* ADVANCE on blocked → negative DelayS *)
+  IF fb_resolve.o_total_adv > 0.1 AND stretch_cnt < 20 THEN
+    stretch_cnt := stretch_cnt + 1;
+    stretches[stretch_cnt].Unit   := fb_analyze.o_blocked_unit;
+    stretches[stretch_cnt].Stage  := fb_analyze.o_blocked_stage;
+    stretches[stretch_cnt].DelayS := -REAL_TO_DINT(fb_resolve.o_total_adv);
+  END_IF;
+  (* DELAY on conf → positive DelayS *)
+  IF fb_resolve.o_total_delay > 0.1 AND stretch_cnt < 20 THEN
+    stretch_cnt := stretch_cnt + 1;
+    stretches[stretch_cnt].Unit   := fb_analyze.o_conf_unit;
+    stretches[stretch_cnt].Stage  := fb_analyze.o_conf_stage;
+    stretches[stretch_cnt].DelayS := REAL_TO_DINT(fb_resolve.o_total_delay);
+  END_IF;
+
   conflict_iter := conflict_iter + 1;
 
   IF conflict_iter >= MAX_CONFLICT_ITER THEN
@@ -8868,6 +9192,37 @@ ELSIF phase = 2203 THEN
 ELSIF phase = 2204 THEN
   fb_notrt(i_time_s := i_time_s);
   o_conflict := FALSE;
+  next_phase := 2205;
+
+(* ══════════════════════════════════════════════════════════════ *)
+(* PHASE 2205: APPLY_STRETCHES — persist resolve decisions      *)
+(* JS: TASKS_SAVE → candidateStretches → applyTreatmentProgramStretches *)
+(* Write accumulated delay/advance to g_program CalTime so next *)
+(* cycle builds schedule from adjusted baseline.                *)
+(* ══════════════════════════════════════════════════════════════ *)
+ELSIF phase = 2205 THEN
+  FOR si := 1 TO stretch_cnt DO
+    IF stretches[si].Unit >= 1 AND stretches[si].Unit <= MAX_Units
+       AND stretches[si].Stage >= 1
+       AND stretches[si].Stage <= g_program[stretches[si].Unit].StepCount THEN
+      (* Clamp new CalTime between MinTime and MaxTime *)
+      new_cal := g_program[stretches[si].Unit].Steps[stretches[si].Stage - 1].CalTime
+               + stretches[si].DelayS;
+      IF new_cal < g_program[stretches[si].Unit].Steps[stretches[si].Stage - 1].MinTime THEN
+        new_cal := g_program[stretches[si].Unit].Steps[stretches[si].Stage - 1].MinTime;
+      END_IF;
+      IF new_cal > g_program[stretches[si].Unit].Steps[stretches[si].Stage - 1].MaxTime THEN
+        new_cal := g_program[stretches[si].Unit].Steps[stretches[si].Stage - 1].MaxTime;
+      END_IF;
+      g_program[stretches[si].Unit].Steps[stretches[si].Stage - 1].CalTime := new_cal;
+
+      (* If batch is currently on this stage, also update runtime batch.CalTime *)
+      IF g_batch[stretches[si].Unit].CurStage = stretches[si].Stage THEN
+        g_batch[stretches[si].Unit].CalTime := new_cal;
+      END_IF;
+    END_IF;
+  END_FOR;
+  stretch_cnt := 0;
   next_phase := 10000;
 
 (* ══════════════════════════════════════════════════════════════ *)
@@ -8912,6 +9267,7 @@ ELSIF phase = 10100 THEN
       g_batch[g_dep_pending.BatchUnit].CalTime     := g_dep_pending.BatchCalTime;
     END_IF;
     g_dep_pending.Valid := FALSE;
+    g_conflict_resolved := FALSE;  (* Force TSK to re-stabilize after DEP activation — JS: tasksConflictResolved = false *)
     (* Full recalculation with new data *)
     next_phase := 1;
   ELSE
@@ -9599,6 +9955,36 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
               <type><derived name="UDT_JC_TskScheduleType"/></type>
             </variable>
             <variable name="g_dep_wait_unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_sched_dbg_tsk_phase">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_sched_dbg_dep_phase">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_sched_dbg_turn">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_sched_dbg_skip_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_conflict_resolved">
+              <type><BOOL/></type>
+            </variable>
+            <variable name="g_sched_dbg_dep_reject_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_sched_dbg_dep_fit_round">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_sched_dbg_dep_cur_wait_unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_sched_dbg_dep_wait_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="g_sched_dbg_batch_cnt">
               <type><INT/></type>
             </variable>
             <variable name="g_cal">
@@ -12679,6 +13065,36 @@ END_IF;  (* n_active >= 2 *)]]></xhtml:p>
             <variable name="iw_event_ack_seq">
               <type><INT/></type>
             </variable>
+            <variable name="qw_scheduler_debug_tsk_phase">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_scheduler_debug_dep_phase">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_scheduler_debug_turn">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_scheduler_debug_skip_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_scheduler_debug_conflict_resolved">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_scheduler_debug_dep_reject_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_scheduler_debug_dep_fit_round">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_scheduler_debug_dep_cur_wait_unit">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_scheduler_debug_dep_wait_cnt">
+              <type><INT/></type>
+            </variable>
+            <variable name="qw_scheduler_debug_batch_cnt">
+              <type><INT/></type>
+            </variable>
           </externalVars>
           <localVars>
             <variable name="init_done">
@@ -13932,6 +14348,18 @@ IF g_dep_overlap.Flags[130] THEN qw_ov_s130_flag := 1; ELSE qw_ov_s130_flag := 0
 (* qw_event_out_f11 — no source (manual) *)
 (* qw_event_out_f12 — no source (manual) *)
 
+(* === Scheduler debug observability — MainScheduler outputs === *)
+qw_scheduler_debug_tsk_phase := g_sched_dbg_tsk_phase;
+qw_scheduler_debug_dep_phase := g_sched_dbg_dep_phase;
+qw_scheduler_debug_turn := g_sched_dbg_turn;
+qw_scheduler_debug_skip_cnt := g_sched_dbg_skip_cnt;
+IF g_conflict_resolved THEN qw_scheduler_debug_conflict_resolved := 1; ELSE qw_scheduler_debug_conflict_resolved := 0; END_IF;
+qw_scheduler_debug_dep_reject_cnt := g_sched_dbg_dep_reject_cnt;
+qw_scheduler_debug_dep_fit_round := g_sched_dbg_dep_fit_round;
+qw_scheduler_debug_dep_cur_wait_unit := g_sched_dbg_dep_cur_wait_unit;
+qw_scheduler_debug_dep_wait_cnt := g_sched_dbg_dep_wait_cnt;
+qw_scheduler_debug_batch_cnt := g_sched_dbg_batch_cnt;
+
 (* --- END GENERATED MODBUS OUTPUT --- *)
 
 (* ── WAITING BATCH AT STATION 114 — shortcut for UI ──
@@ -14437,10 +14865,40 @@ END_IF;]]></xhtml:p>
           <variable name="g_dep_stable">
             <type><BOOL/></type>
           </variable>
+          <variable name="g_conflict_resolved">
+            <type><BOOL/></type>
+          </variable>
           <variable name="g_dep_wait_sched">
             <type><derived name="UDT_JC_TskScheduleType"/></type>
           </variable>
           <variable name="g_dep_wait_unit">
+            <type><INT/></type>
+          </variable>
+          <variable name="g_sched_dbg_tsk_phase">
+            <type><INT/></type>
+          </variable>
+          <variable name="g_sched_dbg_dep_phase">
+            <type><INT/></type>
+          </variable>
+          <variable name="g_sched_dbg_turn">
+            <type><INT/></type>
+          </variable>
+          <variable name="g_sched_dbg_skip_cnt">
+            <type><INT/></type>
+          </variable>
+          <variable name="g_sched_dbg_dep_reject_cnt">
+            <type><INT/></type>
+          </variable>
+          <variable name="g_sched_dbg_dep_fit_round">
+            <type><INT/></type>
+          </variable>
+          <variable name="g_sched_dbg_dep_cur_wait_unit">
+            <type><INT/></type>
+          </variable>
+          <variable name="g_sched_dbg_dep_wait_cnt">
+            <type><INT/></type>
+          </variable>
+          <variable name="g_sched_dbg_batch_cnt">
             <type><INT/></type>
           </variable>
           <variable name="g_cal">
@@ -16693,832 +17151,862 @@ END_IF;]]></xhtml:p>
           <variable name="qw_ov_s130_flag" address="%QW742">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_unit_id" address="%QW743">
+          <variable name="qw_scheduler_debug_tsk_phase" address="%QW743">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_stage_count" address="%QW744">
+          <variable name="qw_scheduler_debug_dep_phase" address="%QW744">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_seq" address="%QW745">
+          <variable name="qw_scheduler_debug_turn" address="%QW745">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s1_stn" address="%QW746">
+          <variable name="qw_scheduler_debug_skip_cnt" address="%QW746">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s1_entry_hi" address="%QW747">
+          <variable name="qw_scheduler_debug_conflict_resolved" address="%QW747">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s1_entry_lo" address="%QW748">
+          <variable name="qw_scheduler_debug_dep_reject_cnt" address="%QW748">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s1_exit_hi" address="%QW749">
+          <variable name="qw_scheduler_debug_dep_fit_round" address="%QW749">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s1_exit_lo" address="%QW750">
+          <variable name="qw_scheduler_debug_dep_cur_wait_unit" address="%QW750">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s1_min_x10" address="%QW751">
+          <variable name="qw_scheduler_debug_dep_wait_cnt" address="%QW751">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s1_max_x10" address="%QW752">
+          <variable name="qw_scheduler_debug_batch_cnt" address="%QW752">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s2_stn" address="%QW753">
+          <variable name="qw_schedule_window_unit_id" address="%QW753">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s2_entry_hi" address="%QW754">
+          <variable name="qw_schedule_window_stage_count" address="%QW754">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s2_entry_lo" address="%QW755">
+          <variable name="qw_schedule_window_seq" address="%QW755">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s2_exit_hi" address="%QW756">
+          <variable name="qw_schedule_window_s1_stn" address="%QW756">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s2_exit_lo" address="%QW757">
+          <variable name="qw_schedule_window_s1_entry_hi" address="%QW757">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s2_min_x10" address="%QW758">
+          <variable name="qw_schedule_window_s1_entry_lo" address="%QW758">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s2_max_x10" address="%QW759">
+          <variable name="qw_schedule_window_s1_exit_hi" address="%QW759">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s3_stn" address="%QW760">
+          <variable name="qw_schedule_window_s1_exit_lo" address="%QW760">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s3_entry_hi" address="%QW761">
+          <variable name="qw_schedule_window_s1_min_x10" address="%QW761">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s3_entry_lo" address="%QW762">
+          <variable name="qw_schedule_window_s1_max_x10" address="%QW762">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s3_exit_hi" address="%QW763">
+          <variable name="qw_schedule_window_s2_stn" address="%QW763">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s3_exit_lo" address="%QW764">
+          <variable name="qw_schedule_window_s2_entry_hi" address="%QW764">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s3_min_x10" address="%QW765">
+          <variable name="qw_schedule_window_s2_entry_lo" address="%QW765">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s3_max_x10" address="%QW766">
+          <variable name="qw_schedule_window_s2_exit_hi" address="%QW766">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s4_stn" address="%QW767">
+          <variable name="qw_schedule_window_s2_exit_lo" address="%QW767">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s4_entry_hi" address="%QW768">
+          <variable name="qw_schedule_window_s2_min_x10" address="%QW768">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s4_entry_lo" address="%QW769">
+          <variable name="qw_schedule_window_s2_max_x10" address="%QW769">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s4_exit_hi" address="%QW770">
+          <variable name="qw_schedule_window_s3_stn" address="%QW770">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s4_exit_lo" address="%QW771">
+          <variable name="qw_schedule_window_s3_entry_hi" address="%QW771">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s4_min_x10" address="%QW772">
+          <variable name="qw_schedule_window_s3_entry_lo" address="%QW772">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s4_max_x10" address="%QW773">
+          <variable name="qw_schedule_window_s3_exit_hi" address="%QW773">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s5_stn" address="%QW774">
+          <variable name="qw_schedule_window_s3_exit_lo" address="%QW774">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s5_entry_hi" address="%QW775">
+          <variable name="qw_schedule_window_s3_min_x10" address="%QW775">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s5_entry_lo" address="%QW776">
+          <variable name="qw_schedule_window_s3_max_x10" address="%QW776">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s5_exit_hi" address="%QW777">
+          <variable name="qw_schedule_window_s4_stn" address="%QW777">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s5_exit_lo" address="%QW778">
+          <variable name="qw_schedule_window_s4_entry_hi" address="%QW778">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s5_min_x10" address="%QW779">
+          <variable name="qw_schedule_window_s4_entry_lo" address="%QW779">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s5_max_x10" address="%QW780">
+          <variable name="qw_schedule_window_s4_exit_hi" address="%QW780">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s6_stn" address="%QW781">
+          <variable name="qw_schedule_window_s4_exit_lo" address="%QW781">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s6_entry_hi" address="%QW782">
+          <variable name="qw_schedule_window_s4_min_x10" address="%QW782">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s6_entry_lo" address="%QW783">
+          <variable name="qw_schedule_window_s4_max_x10" address="%QW783">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s6_exit_hi" address="%QW784">
+          <variable name="qw_schedule_window_s5_stn" address="%QW784">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s6_exit_lo" address="%QW785">
+          <variable name="qw_schedule_window_s5_entry_hi" address="%QW785">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s6_min_x10" address="%QW786">
+          <variable name="qw_schedule_window_s5_entry_lo" address="%QW786">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s6_max_x10" address="%QW787">
+          <variable name="qw_schedule_window_s5_exit_hi" address="%QW787">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s7_stn" address="%QW788">
+          <variable name="qw_schedule_window_s5_exit_lo" address="%QW788">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s7_entry_hi" address="%QW789">
+          <variable name="qw_schedule_window_s5_min_x10" address="%QW789">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s7_entry_lo" address="%QW790">
+          <variable name="qw_schedule_window_s5_max_x10" address="%QW790">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s7_exit_hi" address="%QW791">
+          <variable name="qw_schedule_window_s6_stn" address="%QW791">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s7_exit_lo" address="%QW792">
+          <variable name="qw_schedule_window_s6_entry_hi" address="%QW792">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s7_min_x10" address="%QW793">
+          <variable name="qw_schedule_window_s6_entry_lo" address="%QW793">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s7_max_x10" address="%QW794">
+          <variable name="qw_schedule_window_s6_exit_hi" address="%QW794">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s8_stn" address="%QW795">
+          <variable name="qw_schedule_window_s6_exit_lo" address="%QW795">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s8_entry_hi" address="%QW796">
+          <variable name="qw_schedule_window_s6_min_x10" address="%QW796">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s8_entry_lo" address="%QW797">
+          <variable name="qw_schedule_window_s6_max_x10" address="%QW797">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s8_exit_hi" address="%QW798">
+          <variable name="qw_schedule_window_s7_stn" address="%QW798">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s8_exit_lo" address="%QW799">
+          <variable name="qw_schedule_window_s7_entry_hi" address="%QW799">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s8_min_x10" address="%QW800">
+          <variable name="qw_schedule_window_s7_entry_lo" address="%QW800">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s8_max_x10" address="%QW801">
+          <variable name="qw_schedule_window_s7_exit_hi" address="%QW801">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s9_stn" address="%QW802">
+          <variable name="qw_schedule_window_s7_exit_lo" address="%QW802">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s9_entry_hi" address="%QW803">
+          <variable name="qw_schedule_window_s7_min_x10" address="%QW803">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s9_entry_lo" address="%QW804">
+          <variable name="qw_schedule_window_s7_max_x10" address="%QW804">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s9_exit_hi" address="%QW805">
+          <variable name="qw_schedule_window_s8_stn" address="%QW805">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s9_exit_lo" address="%QW806">
+          <variable name="qw_schedule_window_s8_entry_hi" address="%QW806">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s9_min_x10" address="%QW807">
+          <variable name="qw_schedule_window_s8_entry_lo" address="%QW807">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s9_max_x10" address="%QW808">
+          <variable name="qw_schedule_window_s8_exit_hi" address="%QW808">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s10_stn" address="%QW809">
+          <variable name="qw_schedule_window_s8_exit_lo" address="%QW809">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s10_entry_hi" address="%QW810">
+          <variable name="qw_schedule_window_s8_min_x10" address="%QW810">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s10_entry_lo" address="%QW811">
+          <variable name="qw_schedule_window_s8_max_x10" address="%QW811">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s10_exit_hi" address="%QW812">
+          <variable name="qw_schedule_window_s9_stn" address="%QW812">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s10_exit_lo" address="%QW813">
+          <variable name="qw_schedule_window_s9_entry_hi" address="%QW813">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s10_min_x10" address="%QW814">
+          <variable name="qw_schedule_window_s9_entry_lo" address="%QW814">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s10_max_x10" address="%QW815">
+          <variable name="qw_schedule_window_s9_exit_hi" address="%QW815">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s11_stn" address="%QW816">
+          <variable name="qw_schedule_window_s9_exit_lo" address="%QW816">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s11_entry_hi" address="%QW817">
+          <variable name="qw_schedule_window_s9_min_x10" address="%QW817">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s11_entry_lo" address="%QW818">
+          <variable name="qw_schedule_window_s9_max_x10" address="%QW818">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s11_exit_hi" address="%QW819">
+          <variable name="qw_schedule_window_s10_stn" address="%QW819">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s11_exit_lo" address="%QW820">
+          <variable name="qw_schedule_window_s10_entry_hi" address="%QW820">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s11_min_x10" address="%QW821">
+          <variable name="qw_schedule_window_s10_entry_lo" address="%QW821">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s11_max_x10" address="%QW822">
+          <variable name="qw_schedule_window_s10_exit_hi" address="%QW822">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s12_stn" address="%QW823">
+          <variable name="qw_schedule_window_s10_exit_lo" address="%QW823">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s12_entry_hi" address="%QW824">
+          <variable name="qw_schedule_window_s10_min_x10" address="%QW824">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s12_entry_lo" address="%QW825">
+          <variable name="qw_schedule_window_s10_max_x10" address="%QW825">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s12_exit_hi" address="%QW826">
+          <variable name="qw_schedule_window_s11_stn" address="%QW826">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s12_exit_lo" address="%QW827">
+          <variable name="qw_schedule_window_s11_entry_hi" address="%QW827">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s12_min_x10" address="%QW828">
+          <variable name="qw_schedule_window_s11_entry_lo" address="%QW828">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s12_max_x10" address="%QW829">
+          <variable name="qw_schedule_window_s11_exit_hi" address="%QW829">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s13_stn" address="%QW830">
+          <variable name="qw_schedule_window_s11_exit_lo" address="%QW830">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s13_entry_hi" address="%QW831">
+          <variable name="qw_schedule_window_s11_min_x10" address="%QW831">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s13_entry_lo" address="%QW832">
+          <variable name="qw_schedule_window_s11_max_x10" address="%QW832">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s13_exit_hi" address="%QW833">
+          <variable name="qw_schedule_window_s12_stn" address="%QW833">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s13_exit_lo" address="%QW834">
+          <variable name="qw_schedule_window_s12_entry_hi" address="%QW834">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s13_min_x10" address="%QW835">
+          <variable name="qw_schedule_window_s12_entry_lo" address="%QW835">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s13_max_x10" address="%QW836">
+          <variable name="qw_schedule_window_s12_exit_hi" address="%QW836">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s14_stn" address="%QW837">
+          <variable name="qw_schedule_window_s12_exit_lo" address="%QW837">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s14_entry_hi" address="%QW838">
+          <variable name="qw_schedule_window_s12_min_x10" address="%QW838">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s14_entry_lo" address="%QW839">
+          <variable name="qw_schedule_window_s12_max_x10" address="%QW839">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s14_exit_hi" address="%QW840">
+          <variable name="qw_schedule_window_s13_stn" address="%QW840">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s14_exit_lo" address="%QW841">
+          <variable name="qw_schedule_window_s13_entry_hi" address="%QW841">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s14_min_x10" address="%QW842">
+          <variable name="qw_schedule_window_s13_entry_lo" address="%QW842">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s14_max_x10" address="%QW843">
+          <variable name="qw_schedule_window_s13_exit_hi" address="%QW843">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s15_stn" address="%QW844">
+          <variable name="qw_schedule_window_s13_exit_lo" address="%QW844">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s15_entry_hi" address="%QW845">
+          <variable name="qw_schedule_window_s13_min_x10" address="%QW845">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s15_entry_lo" address="%QW846">
+          <variable name="qw_schedule_window_s13_max_x10" address="%QW846">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s15_exit_hi" address="%QW847">
+          <variable name="qw_schedule_window_s14_stn" address="%QW847">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s15_exit_lo" address="%QW848">
+          <variable name="qw_schedule_window_s14_entry_hi" address="%QW848">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s15_min_x10" address="%QW849">
+          <variable name="qw_schedule_window_s14_entry_lo" address="%QW849">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s15_max_x10" address="%QW850">
+          <variable name="qw_schedule_window_s14_exit_hi" address="%QW850">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s16_stn" address="%QW851">
+          <variable name="qw_schedule_window_s14_exit_lo" address="%QW851">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s16_entry_hi" address="%QW852">
+          <variable name="qw_schedule_window_s14_min_x10" address="%QW852">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s16_entry_lo" address="%QW853">
+          <variable name="qw_schedule_window_s14_max_x10" address="%QW853">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s16_exit_hi" address="%QW854">
+          <variable name="qw_schedule_window_s15_stn" address="%QW854">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s16_exit_lo" address="%QW855">
+          <variable name="qw_schedule_window_s15_entry_hi" address="%QW855">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s16_min_x10" address="%QW856">
+          <variable name="qw_schedule_window_s15_entry_lo" address="%QW856">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s16_max_x10" address="%QW857">
+          <variable name="qw_schedule_window_s15_exit_hi" address="%QW857">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s17_stn" address="%QW858">
+          <variable name="qw_schedule_window_s15_exit_lo" address="%QW858">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s17_entry_hi" address="%QW859">
+          <variable name="qw_schedule_window_s15_min_x10" address="%QW859">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s17_entry_lo" address="%QW860">
+          <variable name="qw_schedule_window_s15_max_x10" address="%QW860">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s17_exit_hi" address="%QW861">
+          <variable name="qw_schedule_window_s16_stn" address="%QW861">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s17_exit_lo" address="%QW862">
+          <variable name="qw_schedule_window_s16_entry_hi" address="%QW862">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s17_min_x10" address="%QW863">
+          <variable name="qw_schedule_window_s16_entry_lo" address="%QW863">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s17_max_x10" address="%QW864">
+          <variable name="qw_schedule_window_s16_exit_hi" address="%QW864">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s18_stn" address="%QW865">
+          <variable name="qw_schedule_window_s16_exit_lo" address="%QW865">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s18_entry_hi" address="%QW866">
+          <variable name="qw_schedule_window_s16_min_x10" address="%QW866">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s18_entry_lo" address="%QW867">
+          <variable name="qw_schedule_window_s16_max_x10" address="%QW867">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s18_exit_hi" address="%QW868">
+          <variable name="qw_schedule_window_s17_stn" address="%QW868">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s18_exit_lo" address="%QW869">
+          <variable name="qw_schedule_window_s17_entry_hi" address="%QW869">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s18_min_x10" address="%QW870">
+          <variable name="qw_schedule_window_s17_entry_lo" address="%QW870">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s18_max_x10" address="%QW871">
+          <variable name="qw_schedule_window_s17_exit_hi" address="%QW871">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s19_stn" address="%QW872">
+          <variable name="qw_schedule_window_s17_exit_lo" address="%QW872">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s19_entry_hi" address="%QW873">
+          <variable name="qw_schedule_window_s17_min_x10" address="%QW873">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s19_entry_lo" address="%QW874">
+          <variable name="qw_schedule_window_s17_max_x10" address="%QW874">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s19_exit_hi" address="%QW875">
+          <variable name="qw_schedule_window_s18_stn" address="%QW875">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s19_exit_lo" address="%QW876">
+          <variable name="qw_schedule_window_s18_entry_hi" address="%QW876">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s19_min_x10" address="%QW877">
+          <variable name="qw_schedule_window_s18_entry_lo" address="%QW877">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s19_max_x10" address="%QW878">
+          <variable name="qw_schedule_window_s18_exit_hi" address="%QW878">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s20_stn" address="%QW879">
+          <variable name="qw_schedule_window_s18_exit_lo" address="%QW879">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s20_entry_hi" address="%QW880">
+          <variable name="qw_schedule_window_s18_min_x10" address="%QW880">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s20_entry_lo" address="%QW881">
+          <variable name="qw_schedule_window_s18_max_x10" address="%QW881">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s20_exit_hi" address="%QW882">
+          <variable name="qw_schedule_window_s19_stn" address="%QW882">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s20_exit_lo" address="%QW883">
+          <variable name="qw_schedule_window_s19_entry_hi" address="%QW883">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s20_min_x10" address="%QW884">
+          <variable name="qw_schedule_window_s19_entry_lo" address="%QW884">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s20_max_x10" address="%QW885">
+          <variable name="qw_schedule_window_s19_exit_hi" address="%QW885">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s21_stn" address="%QW886">
+          <variable name="qw_schedule_window_s19_exit_lo" address="%QW886">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s21_entry_hi" address="%QW887">
+          <variable name="qw_schedule_window_s19_min_x10" address="%QW887">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s21_entry_lo" address="%QW888">
+          <variable name="qw_schedule_window_s19_max_x10" address="%QW888">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s21_exit_hi" address="%QW889">
+          <variable name="qw_schedule_window_s20_stn" address="%QW889">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s21_exit_lo" address="%QW890">
+          <variable name="qw_schedule_window_s20_entry_hi" address="%QW890">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s21_min_x10" address="%QW891">
+          <variable name="qw_schedule_window_s20_entry_lo" address="%QW891">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s21_max_x10" address="%QW892">
+          <variable name="qw_schedule_window_s20_exit_hi" address="%QW892">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s22_stn" address="%QW893">
+          <variable name="qw_schedule_window_s20_exit_lo" address="%QW893">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s22_entry_hi" address="%QW894">
+          <variable name="qw_schedule_window_s20_min_x10" address="%QW894">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s22_entry_lo" address="%QW895">
+          <variable name="qw_schedule_window_s20_max_x10" address="%QW895">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s22_exit_hi" address="%QW896">
+          <variable name="qw_schedule_window_s21_stn" address="%QW896">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s22_exit_lo" address="%QW897">
+          <variable name="qw_schedule_window_s21_entry_hi" address="%QW897">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s22_min_x10" address="%QW898">
+          <variable name="qw_schedule_window_s21_entry_lo" address="%QW898">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s22_max_x10" address="%QW899">
+          <variable name="qw_schedule_window_s21_exit_hi" address="%QW899">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s23_stn" address="%QW900">
+          <variable name="qw_schedule_window_s21_exit_lo" address="%QW900">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s23_entry_hi" address="%QW901">
+          <variable name="qw_schedule_window_s21_min_x10" address="%QW901">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s23_entry_lo" address="%QW902">
+          <variable name="qw_schedule_window_s21_max_x10" address="%QW902">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s23_exit_hi" address="%QW903">
+          <variable name="qw_schedule_window_s22_stn" address="%QW903">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s23_exit_lo" address="%QW904">
+          <variable name="qw_schedule_window_s22_entry_hi" address="%QW904">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s23_min_x10" address="%QW905">
+          <variable name="qw_schedule_window_s22_entry_lo" address="%QW905">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s23_max_x10" address="%QW906">
+          <variable name="qw_schedule_window_s22_exit_hi" address="%QW906">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s24_stn" address="%QW907">
+          <variable name="qw_schedule_window_s22_exit_lo" address="%QW907">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s24_entry_hi" address="%QW908">
+          <variable name="qw_schedule_window_s22_min_x10" address="%QW908">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s24_entry_lo" address="%QW909">
+          <variable name="qw_schedule_window_s22_max_x10" address="%QW909">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s24_exit_hi" address="%QW910">
+          <variable name="qw_schedule_window_s23_stn" address="%QW910">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s24_exit_lo" address="%QW911">
+          <variable name="qw_schedule_window_s23_entry_hi" address="%QW911">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s24_min_x10" address="%QW912">
+          <variable name="qw_schedule_window_s23_entry_lo" address="%QW912">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s24_max_x10" address="%QW913">
+          <variable name="qw_schedule_window_s23_exit_hi" address="%QW913">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s25_stn" address="%QW914">
+          <variable name="qw_schedule_window_s23_exit_lo" address="%QW914">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s25_entry_hi" address="%QW915">
+          <variable name="qw_schedule_window_s23_min_x10" address="%QW915">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s25_entry_lo" address="%QW916">
+          <variable name="qw_schedule_window_s23_max_x10" address="%QW916">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s25_exit_hi" address="%QW917">
+          <variable name="qw_schedule_window_s24_stn" address="%QW917">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s25_exit_lo" address="%QW918">
+          <variable name="qw_schedule_window_s24_entry_hi" address="%QW918">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s25_min_x10" address="%QW919">
+          <variable name="qw_schedule_window_s24_entry_lo" address="%QW919">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s25_max_x10" address="%QW920">
+          <variable name="qw_schedule_window_s24_exit_hi" address="%QW920">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s26_stn" address="%QW921">
+          <variable name="qw_schedule_window_s24_exit_lo" address="%QW921">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s26_entry_hi" address="%QW922">
+          <variable name="qw_schedule_window_s24_min_x10" address="%QW922">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s26_entry_lo" address="%QW923">
+          <variable name="qw_schedule_window_s24_max_x10" address="%QW923">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s26_exit_hi" address="%QW924">
+          <variable name="qw_schedule_window_s25_stn" address="%QW924">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s26_exit_lo" address="%QW925">
+          <variable name="qw_schedule_window_s25_entry_hi" address="%QW925">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s26_min_x10" address="%QW926">
+          <variable name="qw_schedule_window_s25_entry_lo" address="%QW926">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s26_max_x10" address="%QW927">
+          <variable name="qw_schedule_window_s25_exit_hi" address="%QW927">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s27_stn" address="%QW928">
+          <variable name="qw_schedule_window_s25_exit_lo" address="%QW928">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s27_entry_hi" address="%QW929">
+          <variable name="qw_schedule_window_s25_min_x10" address="%QW929">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s27_entry_lo" address="%QW930">
+          <variable name="qw_schedule_window_s25_max_x10" address="%QW930">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s27_exit_hi" address="%QW931">
+          <variable name="qw_schedule_window_s26_stn" address="%QW931">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s27_exit_lo" address="%QW932">
+          <variable name="qw_schedule_window_s26_entry_hi" address="%QW932">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s27_min_x10" address="%QW933">
+          <variable name="qw_schedule_window_s26_entry_lo" address="%QW933">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s27_max_x10" address="%QW934">
+          <variable name="qw_schedule_window_s26_exit_hi" address="%QW934">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s28_stn" address="%QW935">
+          <variable name="qw_schedule_window_s26_exit_lo" address="%QW935">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s28_entry_hi" address="%QW936">
+          <variable name="qw_schedule_window_s26_min_x10" address="%QW936">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s28_entry_lo" address="%QW937">
+          <variable name="qw_schedule_window_s26_max_x10" address="%QW937">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s28_exit_hi" address="%QW938">
+          <variable name="qw_schedule_window_s27_stn" address="%QW938">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s28_exit_lo" address="%QW939">
+          <variable name="qw_schedule_window_s27_entry_hi" address="%QW939">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s28_min_x10" address="%QW940">
+          <variable name="qw_schedule_window_s27_entry_lo" address="%QW940">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s28_max_x10" address="%QW941">
+          <variable name="qw_schedule_window_s27_exit_hi" address="%QW941">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s29_stn" address="%QW942">
+          <variable name="qw_schedule_window_s27_exit_lo" address="%QW942">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s29_entry_hi" address="%QW943">
+          <variable name="qw_schedule_window_s27_min_x10" address="%QW943">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s29_entry_lo" address="%QW944">
+          <variable name="qw_schedule_window_s27_max_x10" address="%QW944">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s29_exit_hi" address="%QW945">
+          <variable name="qw_schedule_window_s28_stn" address="%QW945">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s29_exit_lo" address="%QW946">
+          <variable name="qw_schedule_window_s28_entry_hi" address="%QW946">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s29_min_x10" address="%QW947">
+          <variable name="qw_schedule_window_s28_entry_lo" address="%QW947">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s29_max_x10" address="%QW948">
+          <variable name="qw_schedule_window_s28_exit_hi" address="%QW948">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s30_stn" address="%QW949">
+          <variable name="qw_schedule_window_s28_exit_lo" address="%QW949">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s30_entry_hi" address="%QW950">
+          <variable name="qw_schedule_window_s28_min_x10" address="%QW950">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s30_entry_lo" address="%QW951">
+          <variable name="qw_schedule_window_s28_max_x10" address="%QW951">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s30_exit_hi" address="%QW952">
+          <variable name="qw_schedule_window_s29_stn" address="%QW952">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s30_exit_lo" address="%QW953">
+          <variable name="qw_schedule_window_s29_entry_hi" address="%QW953">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s30_min_x10" address="%QW954">
+          <variable name="qw_schedule_window_s29_entry_lo" address="%QW954">
             <type><INT/></type>
           </variable>
-          <variable name="qw_schedule_window_s30_max_x10" address="%QW955">
+          <variable name="qw_schedule_window_s29_exit_hi" address="%QW955">
             <type><INT/></type>
           </variable>
-          <variable name="iw_schedule_req_unit" address="%QW956">
+          <variable name="qw_schedule_window_s29_exit_lo" address="%QW956">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cmd_t1_start" address="%QW957">
+          <variable name="qw_schedule_window_s29_min_x10" address="%QW957">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cmd_t1_lift" address="%QW958">
+          <variable name="qw_schedule_window_s29_max_x10" address="%QW958">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cmd_t1_sink" address="%QW959">
+          <variable name="qw_schedule_window_s30_stn" address="%QW959">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cmd_t2_start" address="%QW960">
+          <variable name="qw_schedule_window_s30_entry_hi" address="%QW960">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cmd_t2_lift" address="%QW961">
+          <variable name="qw_schedule_window_s30_entry_lo" address="%QW961">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cmd_t2_sink" address="%QW962">
+          <variable name="qw_schedule_window_s30_exit_hi" address="%QW962">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cfg_seq" address="%QW963">
+          <variable name="qw_schedule_window_s30_exit_lo" address="%QW963">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cfg_cmd" address="%QW964">
+          <variable name="qw_schedule_window_s30_min_x10" address="%QW964">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cfg_param" address="%QW965">
+          <variable name="qw_schedule_window_s30_max_x10" address="%QW965">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cfg_d0" address="%QW966">
+          <variable name="iw_schedule_req_unit" address="%QW966">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cfg_d1" address="%QW967">
+          <variable name="iw_cmd_t1_start" address="%QW967">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cfg_d2" address="%QW968">
+          <variable name="iw_cmd_t1_lift" address="%QW968">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cfg_d3" address="%QW969">
+          <variable name="iw_cmd_t1_sink" address="%QW969">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cfg_d4" address="%QW970">
+          <variable name="iw_cmd_t2_start" address="%QW970">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cfg_d5" address="%QW971">
+          <variable name="iw_cmd_t2_lift" address="%QW971">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cfg_d6" address="%QW972">
+          <variable name="iw_cmd_t2_sink" address="%QW972">
             <type><INT/></type>
           </variable>
-          <variable name="iw_cfg_d7" address="%QW973">
+          <variable name="iw_cfg_seq" address="%QW973">
             <type><INT/></type>
           </variable>
-          <variable name="iw_unit_seq" address="%QW974">
+          <variable name="iw_cfg_cmd" address="%QW974">
             <type><INT/></type>
           </variable>
-          <variable name="iw_unit_id" address="%QW975">
+          <variable name="iw_cfg_param" address="%QW975">
             <type><INT/></type>
           </variable>
-          <variable name="iw_unit_loc" address="%QW976">
+          <variable name="iw_cfg_d0" address="%QW976">
             <type><INT/></type>
           </variable>
-          <variable name="iw_unit_status" address="%QW977">
+          <variable name="iw_cfg_d1" address="%QW977">
             <type><INT/></type>
           </variable>
-          <variable name="iw_unit_target" address="%QW978">
+          <variable name="iw_cfg_d2" address="%QW978">
             <type><INT/></type>
           </variable>
-          <variable name="iw_batch_seq" address="%QW979">
+          <variable name="iw_cfg_d3" address="%QW979">
             <type><INT/></type>
           </variable>
-          <variable name="iw_batch_unit" address="%QW980">
+          <variable name="iw_cfg_d4" address="%QW980">
             <type><INT/></type>
           </variable>
-          <variable name="iw_batch_code" address="%QW981">
+          <variable name="iw_cfg_d5" address="%QW981">
             <type><INT/></type>
           </variable>
-          <variable name="iw_batch_state" address="%QW982">
+          <variable name="iw_cfg_d6" address="%QW982">
             <type><INT/></type>
           </variable>
-          <variable name="iw_batch_prog_id" address="%QW983">
+          <variable name="iw_cfg_d7" address="%QW983">
             <type><INT/></type>
           </variable>
-          <variable name="iw_prog_seq" address="%QW984">
+          <variable name="iw_unit_seq" address="%QW984">
             <type><INT/></type>
           </variable>
-          <variable name="iw_prog_unit" address="%QW985">
+          <variable name="iw_unit_id" address="%QW985">
             <type><INT/></type>
           </variable>
-          <variable name="iw_prog_stage" address="%QW986">
+          <variable name="iw_unit_loc" address="%QW986">
             <type><INT/></type>
           </variable>
-          <variable name="iw_prog_s1" address="%QW987">
+          <variable name="iw_unit_status" address="%QW987">
             <type><INT/></type>
           </variable>
-          <variable name="iw_prog_s2" address="%QW988">
+          <variable name="iw_unit_target" address="%QW988">
             <type><INT/></type>
           </variable>
-          <variable name="iw_prog_s3" address="%QW989">
+          <variable name="iw_batch_seq" address="%QW989">
             <type><INT/></type>
           </variable>
-          <variable name="iw_prog_s4" address="%QW990">
+          <variable name="iw_batch_unit" address="%QW990">
             <type><INT/></type>
           </variable>
-          <variable name="iw_prog_s5" address="%QW991">
+          <variable name="iw_batch_code" address="%QW991">
             <type><INT/></type>
           </variable>
-          <variable name="iw_prog_min_time" address="%QW992">
+          <variable name="iw_batch_state" address="%QW992">
             <type><INT/></type>
           </variable>
-          <variable name="iw_prog_max_time" address="%QW993">
+          <variable name="iw_batch_prog_id" address="%QW993">
             <type><INT/></type>
           </variable>
-          <variable name="iw_prog_cal_time" address="%QW994">
+          <variable name="iw_prog_seq" address="%QW994">
             <type><INT/></type>
           </variable>
-          <variable name="iw_avoid_seq" address="%QW995">
+          <variable name="iw_prog_unit" address="%QW995">
             <type><INT/></type>
           </variable>
-          <variable name="iw_avoid_station" address="%QW996">
+          <variable name="iw_prog_stage" address="%QW996">
             <type><INT/></type>
           </variable>
-          <variable name="iw_avoid_value" address="%QW997">
+          <variable name="iw_prog_s1" address="%QW997">
             <type><INT/></type>
           </variable>
-          <variable name="iw_production_queue" address="%QW998">
+          <variable name="iw_prog_s2" address="%QW998">
             <type><INT/></type>
           </variable>
-          <variable name="iw_time_hi" address="%QW999">
+          <variable name="iw_prog_s3" address="%QW999">
             <type><INT/></type>
           </variable>
-          <variable name="iw_time_lo" address="%QW1000">
+          <variable name="iw_prog_s4" address="%QW1000">
             <type><INT/></type>
           </variable>
-          <variable name="qw_event_out_count" address="%QW1001">
+          <variable name="iw_prog_s5" address="%QW1001">
             <type><INT/></type>
           </variable>
-          <variable name="qw_event_out_seq" address="%QW1002">
+          <variable name="iw_prog_min_time" address="%QW1002">
             <type><INT/></type>
           </variable>
-          <variable name="qw_event_out_type" address="%QW1003">
+          <variable name="iw_prog_max_time" address="%QW1003">
             <type><INT/></type>
           </variable>
-          <variable name="qw_event_out_ts_hi" address="%QW1004">
+          <variable name="iw_prog_cal_time" address="%QW1004">
             <type><INT/></type>
           </variable>
-          <variable name="qw_event_out_ts_lo" address="%QW1005">
+          <variable name="iw_avoid_seq" address="%QW1005">
             <type><INT/></type>
           </variable>
-          <variable name="qw_event_out_f1" address="%QW1006">
+          <variable name="iw_avoid_station" address="%QW1006">
             <type><INT/></type>
           </variable>
-          <variable name="qw_event_out_f2" address="%QW1007">
+          <variable name="iw_avoid_value" address="%QW1007">
             <type><INT/></type>
           </variable>
-          <variable name="qw_event_out_f3" address="%QW1008">
+          <variable name="iw_production_queue" address="%QW1008">
             <type><INT/></type>
           </variable>
-          <variable name="qw_event_out_f4" address="%QW1009">
+          <variable name="iw_time_hi" address="%QW1009">
             <type><INT/></type>
           </variable>
-          <variable name="qw_event_out_f5" address="%QW1010">
+          <variable name="iw_time_lo" address="%QW1010">
             <type><INT/></type>
           </variable>
-          <variable name="qw_event_out_f6" address="%QW1011">
+          <variable name="qw_event_out_count" address="%QW1011">
             <type><INT/></type>
           </variable>
-          <variable name="qw_event_out_f7" address="%QW1012">
+          <variable name="qw_event_out_seq" address="%QW1012">
             <type><INT/></type>
           </variable>
-          <variable name="qw_event_out_f8" address="%QW1013">
+          <variable name="qw_event_out_type" address="%QW1013">
             <type><INT/></type>
           </variable>
-          <variable name="qw_event_out_f9" address="%QW1014">
+          <variable name="qw_event_out_ts_hi" address="%QW1014">
             <type><INT/></type>
           </variable>
-          <variable name="qw_event_out_f10" address="%QW1015">
+          <variable name="qw_event_out_ts_lo" address="%QW1015">
             <type><INT/></type>
           </variable>
-          <variable name="qw_event_out_f11" address="%QW1016">
+          <variable name="qw_event_out_f1" address="%QW1016">
             <type><INT/></type>
           </variable>
-          <variable name="qw_event_out_f12" address="%QW1017">
+          <variable name="qw_event_out_f2" address="%QW1017">
             <type><INT/></type>
           </variable>
-          <variable name="iw_event_ack_seq" address="%QW1018">
+          <variable name="qw_event_out_f3" address="%QW1018">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_f4" address="%QW1019">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_f5" address="%QW1020">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_f6" address="%QW1021">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_f7" address="%QW1022">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_f8" address="%QW1023">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_f9" address="%QW1024">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_f10" address="%QW1025">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_f11" address="%QW1026">
+            <type><INT/></type>
+          </variable>
+          <variable name="qw_event_out_f12" address="%QW1027">
+            <type><INT/></type>
+          </variable>
+          <variable name="iw_event_ack_seq" address="%QW1028">
             <type><INT/></type>
           </variable>
         </globalVars>

@@ -7,7 +7,8 @@
    next phase uses the remainder (partial solutions accumulate):
 
      Phase 1: ADVANCE — advance blocked batch using
-              SINGLE-STAGE flex_down (blocked_stage only)
+              CHAIN bottleneck + SUFFIX flex_down
+              (walks backward through earlier stages)
      Phase 2: DELAY   — delay conflict batch using
               SINGLE-STAGE flex_up (conf_stage only)
      Phase 3: PRECEDING_DELAY — delay conf batch at stage-1
@@ -75,6 +76,13 @@ VAR
   next_lift_stn     : INT;
   is_blk_adv_locked : BOOL;
   qi                : INT;
+  (* Chain advance — JS: walk backward to find bottleneck *)
+  chain_flex     : REAL;   (* bottleneck flex among earlier stages *)
+  suffix_flex    : REAL;   (* conflictFlexDown - chainFlexDown *)
+  earlier_stg    : INT;    (* loop variable for chain walk *)
+  earlier_flex   : REAL;   (* individual earlier stage flex_down *)
+  chain_amount   : REAL;   (* amount from CHAIN_ADVANCE *)
+  suffix_amount  : REAL;   (* amount from SUFFIX_ADVANCE *)
   (* Shared shift FB *)
   fb_shift : STC_FB_ShiftSchedule;
 END_VAR
@@ -114,15 +122,17 @@ can_delay   := NOT is_locked_del;
 
 (* ══════════════════════════════════════════════════════════════ *)
 (* PHASE 1: ADVANCE — advance blocked batch (JS Vaihe 1)       *)
-(* Single-stage flex: blocked_stage CalcTime - MinTime          *)
-(* Flat shift applied to blocked_stage onward.                  *)
-(* Partial advance is OK — remainder goes to Phase 2.           *)
+(* Chain bottleneck: walk backward through earlier stages to    *)
+(* find smallest flex_down < conflictFlexDown.                  *)
+(* CHAIN_ADVANCE uses bottleneck, SUFFIX_ADVANCE uses remainder *)
+(* JS: resolveConflict() lines 1738-1860                        *)
 (* ══════════════════════════════════════════════════════════════ *)
 IF can_advance
    AND i_blocked_unit >= 1 AND i_blocked_unit <= MAX_Units
    AND i_blocked_stage >= 1
    AND i_blocked_stage <= g_schedule[i_blocked_unit].StageCount THEN
 
+  (* Conflict stage's own flex_down *)
   stage_flex := DINT_TO_REAL(
     g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime
     - g_schedule[i_blocked_unit].Stages[i_blocked_stage].MinTime);
@@ -130,33 +140,75 @@ IF can_advance
 
   IF stage_flex > 0.1 THEN
     (* Cap: 90% if batch is on this stage, 50% otherwise *)
-    (* Use ProgramStage for CurStage comparison — schedule index ≠ program stage when prepend entry exists *)
     IF g_batch[i_blocked_unit].CurStage = g_schedule[i_blocked_unit].Stages[i_blocked_stage].ProgramStage THEN
       cap := 0.9;
     ELSE
       cap := 0.5;
     END_IF;
-    amount := stage_flex * cap;
-    IF amount > remain THEN amount := remain; END_IF;
 
-    (* Apply: reduce CalcTime of blocked_stage *)
-    g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime :=
-      g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime - REAL_TO_DINT(amount);
-    g_schedule[i_blocked_unit].Stages[i_blocked_stage].ExitTime :=
-      g_schedule[i_blocked_unit].Stages[i_blocked_stage].ExitTime - REAL_TO_LINT(amount);
+    (* -- Chain bottleneck search -- *)
+    (* JS: walk backward through prevBatchTasks (stages < conflictStage) *)
+    (* Find smallest flex_down among earlier stages that is < conflictFlexDown *)
+    chain_flex := stage_flex;  (* init to conflict stage flex = no bottleneck *)
+    FOR earlier_stg := 1 TO i_blocked_stage - 1 DO
+      earlier_flex := DINT_TO_REAL(
+        g_schedule[i_blocked_unit].Stages[earlier_stg].CalcTime
+        - g_schedule[i_blocked_unit].Stages[earlier_stg].MinTime);
+      IF earlier_flex < 0.0 THEN earlier_flex := 0.0; END_IF;
+      IF earlier_flex > 0.0 AND earlier_flex < chain_flex THEN
+        chain_flex := earlier_flex;
+      END_IF;
+    END_FOR;
+    (* If no earlier stage had positive flex < conflictFlex, chain_flex = stage_flex *)
+    (* In that case suffix_flex = 0 and all advance comes from chain *)
 
-    (* Shift all subsequent stages and tasks *)
-    fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := -amount);
+    (* -- CHAIN_ADVANCE: apply bottleneck amount -- *)
+    chain_amount := chain_flex * cap;
+    IF chain_amount > remain THEN chain_amount := remain; END_IF;
 
-    (* JS: propagateEarlierToBatch always updates batch.calc_time_s *)
-    g_batch[i_blocked_unit].CalTime :=
-      g_batch[i_blocked_unit].CalTime - REAL_TO_DINT(amount);
-    IF g_batch[i_blocked_unit].CalTime < g_batch[i_blocked_unit].MinTime THEN
-      g_batch[i_blocked_unit].CalTime := g_batch[i_blocked_unit].MinTime;
+    IF chain_amount > 0.1 THEN
+      g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime :=
+        g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime - REAL_TO_DINT(chain_amount);
+      g_schedule[i_blocked_unit].Stages[i_blocked_stage].ExitTime :=
+        g_schedule[i_blocked_unit].Stages[i_blocked_stage].ExitTime - REAL_TO_LINT(chain_amount);
+
+      fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := -chain_amount);
+
+      g_batch[i_blocked_unit].CalTime :=
+        g_batch[i_blocked_unit].CalTime - REAL_TO_DINT(chain_amount);
+      IF g_batch[i_blocked_unit].CalTime < g_batch[i_blocked_unit].MinTime THEN
+        g_batch[i_blocked_unit].CalTime := g_batch[i_blocked_unit].MinTime;
+      END_IF;
+
+      remain := remain - chain_amount;
+      o_total_adv := o_total_adv + chain_amount;
     END_IF;
 
-    remain := remain - amount;
-    o_total_adv := o_total_adv + amount;
+    (* -- SUFFIX_ADVANCE: use remaining flex beyond bottleneck -- *)
+    (* JS: suffixFlexDown = conflictFlexDown - chainFlexDown *)
+    suffix_flex := stage_flex - chain_flex;
+    IF suffix_flex > 0.1 AND remain > 0.1 THEN
+      suffix_amount := suffix_flex * cap;
+      IF suffix_amount > remain THEN suffix_amount := remain; END_IF;
+
+      IF suffix_amount > 0.1 THEN
+        g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime :=
+          g_schedule[i_blocked_unit].Stages[i_blocked_stage].CalcTime - REAL_TO_DINT(suffix_amount);
+        g_schedule[i_blocked_unit].Stages[i_blocked_stage].ExitTime :=
+          g_schedule[i_blocked_unit].Stages[i_blocked_stage].ExitTime - REAL_TO_LINT(suffix_amount);
+
+        fb_shift(i_unit := i_blocked_unit, i_from_stage := i_blocked_stage + 1, i_amount := -suffix_amount);
+
+        g_batch[i_blocked_unit].CalTime :=
+          g_batch[i_blocked_unit].CalTime - REAL_TO_DINT(suffix_amount);
+        IF g_batch[i_blocked_unit].CalTime < g_batch[i_blocked_unit].MinTime THEN
+          g_batch[i_blocked_unit].CalTime := g_batch[i_blocked_unit].MinTime;
+        END_IF;
+
+        remain := remain - suffix_amount;
+        o_total_adv := o_total_adv + suffix_amount;
+      END_IF;
+    END_IF;
 
     (* Record lock: ADVANCE on blocked stage *)
     IF io_lock_cnt < 50 THEN

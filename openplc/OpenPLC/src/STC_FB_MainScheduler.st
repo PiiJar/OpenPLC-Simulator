@@ -36,8 +36,19 @@ VAR_INPUT
 END_VAR
 VAR_EXTERNAL
   g_dep_stable  : BOOL;
+  g_conflict_resolved : BOOL;
   g_dep_pending : UDT_JC_DepPendingWriteType;
   g_cal_active  : BOOL;
+  (* Scheduler debug globals — written here, read by Modbus *)
+  g_sched_dbg_tsk_phase        : INT;
+  g_sched_dbg_dep_phase        : INT;
+  g_sched_dbg_turn             : INT;
+  g_sched_dbg_skip_cnt         : INT;
+  g_sched_dbg_dep_reject_cnt   : INT;
+  g_sched_dbg_dep_fit_round    : INT;
+  g_sched_dbg_dep_cur_wait_unit : INT;
+  g_sched_dbg_dep_wait_cnt     : INT;
+  g_sched_dbg_batch_cnt        : INT;
 END_VAR
 VAR_OUTPUT
   o_tsk_phase  : INT;     (* TSK scheduler phase *)
@@ -111,7 +122,8 @@ IF turn = 1 THEN
   tsk_phase := tsk_sched.o_phase;
 
   (* Compute stability flag after TSK call *)
-  g_dep_stable := (tsk_phase >= 10000);
+  (* JS: DEP stable requires BOTH phase >= READY AND conflictResolved *)
+  g_dep_stable := (tsk_phase >= 10000) AND g_conflict_resolved;
 
 ELSIF turn = 2 THEN
   (* DEP turn *)
@@ -127,5 +139,16 @@ o_tsk_phase := tsk_sched.o_phase;
 o_dep_phase := dep_sched.o_phase;
 o_turn      := turn;
 o_skip_cnt  := skip_cnt;
+
+(* ── Forward to scheduler debug globals (Modbus-readable) ── *)
+g_sched_dbg_tsk_phase        := tsk_sched.o_phase;
+g_sched_dbg_dep_phase        := dep_sched.o_phase;
+g_sched_dbg_turn             := turn;
+g_sched_dbg_skip_cnt         := skip_cnt;
+g_sched_dbg_dep_reject_cnt   := dep_sched.o_reject_cnt;
+g_sched_dbg_dep_fit_round    := dep_sched.o_fit_round;
+g_sched_dbg_dep_cur_wait_unit := dep_sched.o_cur_wait_unit;
+g_sched_dbg_dep_wait_cnt     := dep_sched.o_wait_cnt;
+g_sched_dbg_batch_cnt        := tsk_sched.o_batch_cnt;
 
 END_FUNCTION_BLOCK

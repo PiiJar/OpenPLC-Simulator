@@ -1,9 +1,9 @@
 /**
  * Auto-generated Modbus register map — DO NOT EDIT
- * Generated from modbus_map.json (1019 registers)
+ * Generated from modbus_map.json (1029 registers)
  */
 
-const TOTAL_REGISTERS = 1019;
+const TOTAL_REGISTERS = 1029;
 
 // Block address ranges
 const BLOCKS = {
@@ -22,18 +22,19 @@ const BLOCKS = {
   dep_state: { start: 699, end: 707, count: 9, direction: 'out' },
   dep_waiting: { start: 708, end: 712, count: 5, direction: 'out' },
   dep_overlap: { start: 713, end: 742, count: 30, direction: 'out' },
-  schedule_window: { start: 743, end: 955, count: 213, direction: 'out' },
-  schedule_req: { start: 956, end: 956, count: 1, direction: 'in' },
-  cmd_transport: { start: 957, end: 962, count: 6, direction: 'in' },
-  cfg: { start: 963, end: 973, count: 11, direction: 'in' },
-  unit: { start: 974, end: 978, count: 5, direction: 'in' },
-  batch: { start: 979, end: 983, count: 5, direction: 'in' },
-  prog: { start: 984, end: 994, count: 11, direction: 'in' },
-  avoid: { start: 995, end: 997, count: 3, direction: 'in' },
-  production: { start: 998, end: 998, count: 1, direction: 'in' },
-  time: { start: 999, end: 1000, count: 2, direction: 'in' },
-  event_out: { start: 1001, end: 1017, count: 17, direction: 'out' },
-  event_ack: { start: 1018, end: 1018, count: 1, direction: 'in' },
+  scheduler_debug: { start: 743, end: 752, count: 10, direction: 'out' },
+  schedule_window: { start: 753, end: 965, count: 213, direction: 'out' },
+  schedule_req: { start: 966, end: 966, count: 1, direction: 'in' },
+  cmd_transport: { start: 967, end: 972, count: 6, direction: 'in' },
+  cfg: { start: 973, end: 983, count: 11, direction: 'in' },
+  unit: { start: 984, end: 988, count: 5, direction: 'in' },
+  batch: { start: 989, end: 993, count: 5, direction: 'in' },
+  prog: { start: 994, end: 1004, count: 11, direction: 'in' },
+  avoid: { start: 1005, end: 1007, count: 3, direction: 'in' },
+  production: { start: 1008, end: 1008, count: 1, direction: 'in' },
+  time: { start: 1009, end: 1010, count: 2, direction: 'in' },
+  event_out: { start: 1011, end: 1027, count: 17, direction: 'out' },
+  event_ack: { start: 1028, end: 1028, count: 1, direction: 'in' },
 };
 
 // Register addresses
@@ -781,282 +782,292 @@ const REG = {
   qw_ov_s128_flag: 740,  // 1=station in overlap zone
   qw_ov_s129_flag: 741,  // 1=station in overlap zone
   qw_ov_s130_flag: 742,  // 1=station in overlap zone
-  qw_schedule_window_unit_id: 743,  // which unit is in window (0=empty)
-  qw_schedule_window_stage_count: 744,  // active stage count for this unit
-  qw_schedule_window_seq: 745,  // sequence number (bumps on each fill)
-  qw_schedule_window_s1_stn: 746,  // stage 1 station number
-  qw_schedule_window_s1_entry_hi: 747,  // stage 1 entry time upper 16
-  qw_schedule_window_s1_entry_lo: 748,  // stage 1 entry time lower 16
-  qw_schedule_window_s1_exit_hi: 749,  // stage 1 exit time upper 16
-  qw_schedule_window_s1_exit_lo: 750,  // stage 1 exit time lower 16
-  qw_schedule_window_s1_min_x10: 751,  // stage 1 min time ×10
-  qw_schedule_window_s1_max_x10: 752,  // stage 1 max time ×10
-  qw_schedule_window_s2_stn: 753,  // stage 2 station number
-  qw_schedule_window_s2_entry_hi: 754,  // stage 2 entry time upper 16
-  qw_schedule_window_s2_entry_lo: 755,  // stage 2 entry time lower 16
-  qw_schedule_window_s2_exit_hi: 756,  // stage 2 exit time upper 16
-  qw_schedule_window_s2_exit_lo: 757,  // stage 2 exit time lower 16
-  qw_schedule_window_s2_min_x10: 758,  // stage 2 min time ×10
-  qw_schedule_window_s2_max_x10: 759,  // stage 2 max time ×10
-  qw_schedule_window_s3_stn: 760,  // stage 3 station number
-  qw_schedule_window_s3_entry_hi: 761,  // stage 3 entry time upper 16
-  qw_schedule_window_s3_entry_lo: 762,  // stage 3 entry time lower 16
-  qw_schedule_window_s3_exit_hi: 763,  // stage 3 exit time upper 16
-  qw_schedule_window_s3_exit_lo: 764,  // stage 3 exit time lower 16
-  qw_schedule_window_s3_min_x10: 765,  // stage 3 min time ×10
-  qw_schedule_window_s3_max_x10: 766,  // stage 3 max time ×10
-  qw_schedule_window_s4_stn: 767,  // stage 4 station number
-  qw_schedule_window_s4_entry_hi: 768,  // stage 4 entry time upper 16
-  qw_schedule_window_s4_entry_lo: 769,  // stage 4 entry time lower 16
-  qw_schedule_window_s4_exit_hi: 770,  // stage 4 exit time upper 16
-  qw_schedule_window_s4_exit_lo: 771,  // stage 4 exit time lower 16
-  qw_schedule_window_s4_min_x10: 772,  // stage 4 min time ×10
-  qw_schedule_window_s4_max_x10: 773,  // stage 4 max time ×10
-  qw_schedule_window_s5_stn: 774,  // stage 5 station number
-  qw_schedule_window_s5_entry_hi: 775,  // stage 5 entry time upper 16
-  qw_schedule_window_s5_entry_lo: 776,  // stage 5 entry time lower 16
-  qw_schedule_window_s5_exit_hi: 777,  // stage 5 exit time upper 16
-  qw_schedule_window_s5_exit_lo: 778,  // stage 5 exit time lower 16
-  qw_schedule_window_s5_min_x10: 779,  // stage 5 min time ×10
-  qw_schedule_window_s5_max_x10: 780,  // stage 5 max time ×10
-  qw_schedule_window_s6_stn: 781,  // stage 6 station number
-  qw_schedule_window_s6_entry_hi: 782,  // stage 6 entry time upper 16
-  qw_schedule_window_s6_entry_lo: 783,  // stage 6 entry time lower 16
-  qw_schedule_window_s6_exit_hi: 784,  // stage 6 exit time upper 16
-  qw_schedule_window_s6_exit_lo: 785,  // stage 6 exit time lower 16
-  qw_schedule_window_s6_min_x10: 786,  // stage 6 min time ×10
-  qw_schedule_window_s6_max_x10: 787,  // stage 6 max time ×10
-  qw_schedule_window_s7_stn: 788,  // stage 7 station number
-  qw_schedule_window_s7_entry_hi: 789,  // stage 7 entry time upper 16
-  qw_schedule_window_s7_entry_lo: 790,  // stage 7 entry time lower 16
-  qw_schedule_window_s7_exit_hi: 791,  // stage 7 exit time upper 16
-  qw_schedule_window_s7_exit_lo: 792,  // stage 7 exit time lower 16
-  qw_schedule_window_s7_min_x10: 793,  // stage 7 min time ×10
-  qw_schedule_window_s7_max_x10: 794,  // stage 7 max time ×10
-  qw_schedule_window_s8_stn: 795,  // stage 8 station number
-  qw_schedule_window_s8_entry_hi: 796,  // stage 8 entry time upper 16
-  qw_schedule_window_s8_entry_lo: 797,  // stage 8 entry time lower 16
-  qw_schedule_window_s8_exit_hi: 798,  // stage 8 exit time upper 16
-  qw_schedule_window_s8_exit_lo: 799,  // stage 8 exit time lower 16
-  qw_schedule_window_s8_min_x10: 800,  // stage 8 min time ×10
-  qw_schedule_window_s8_max_x10: 801,  // stage 8 max time ×10
-  qw_schedule_window_s9_stn: 802,  // stage 9 station number
-  qw_schedule_window_s9_entry_hi: 803,  // stage 9 entry time upper 16
-  qw_schedule_window_s9_entry_lo: 804,  // stage 9 entry time lower 16
-  qw_schedule_window_s9_exit_hi: 805,  // stage 9 exit time upper 16
-  qw_schedule_window_s9_exit_lo: 806,  // stage 9 exit time lower 16
-  qw_schedule_window_s9_min_x10: 807,  // stage 9 min time ×10
-  qw_schedule_window_s9_max_x10: 808,  // stage 9 max time ×10
-  qw_schedule_window_s10_stn: 809,  // stage 10 station number
-  qw_schedule_window_s10_entry_hi: 810,  // stage 10 entry time upper 16
-  qw_schedule_window_s10_entry_lo: 811,  // stage 10 entry time lower 16
-  qw_schedule_window_s10_exit_hi: 812,  // stage 10 exit time upper 16
-  qw_schedule_window_s10_exit_lo: 813,  // stage 10 exit time lower 16
-  qw_schedule_window_s10_min_x10: 814,  // stage 10 min time ×10
-  qw_schedule_window_s10_max_x10: 815,  // stage 10 max time ×10
-  qw_schedule_window_s11_stn: 816,  // stage 11 station number
-  qw_schedule_window_s11_entry_hi: 817,  // stage 11 entry time upper 16
-  qw_schedule_window_s11_entry_lo: 818,  // stage 11 entry time lower 16
-  qw_schedule_window_s11_exit_hi: 819,  // stage 11 exit time upper 16
-  qw_schedule_window_s11_exit_lo: 820,  // stage 11 exit time lower 16
-  qw_schedule_window_s11_min_x10: 821,  // stage 11 min time ×10
-  qw_schedule_window_s11_max_x10: 822,  // stage 11 max time ×10
-  qw_schedule_window_s12_stn: 823,  // stage 12 station number
-  qw_schedule_window_s12_entry_hi: 824,  // stage 12 entry time upper 16
-  qw_schedule_window_s12_entry_lo: 825,  // stage 12 entry time lower 16
-  qw_schedule_window_s12_exit_hi: 826,  // stage 12 exit time upper 16
-  qw_schedule_window_s12_exit_lo: 827,  // stage 12 exit time lower 16
-  qw_schedule_window_s12_min_x10: 828,  // stage 12 min time ×10
-  qw_schedule_window_s12_max_x10: 829,  // stage 12 max time ×10
-  qw_schedule_window_s13_stn: 830,  // stage 13 station number
-  qw_schedule_window_s13_entry_hi: 831,  // stage 13 entry time upper 16
-  qw_schedule_window_s13_entry_lo: 832,  // stage 13 entry time lower 16
-  qw_schedule_window_s13_exit_hi: 833,  // stage 13 exit time upper 16
-  qw_schedule_window_s13_exit_lo: 834,  // stage 13 exit time lower 16
-  qw_schedule_window_s13_min_x10: 835,  // stage 13 min time ×10
-  qw_schedule_window_s13_max_x10: 836,  // stage 13 max time ×10
-  qw_schedule_window_s14_stn: 837,  // stage 14 station number
-  qw_schedule_window_s14_entry_hi: 838,  // stage 14 entry time upper 16
-  qw_schedule_window_s14_entry_lo: 839,  // stage 14 entry time lower 16
-  qw_schedule_window_s14_exit_hi: 840,  // stage 14 exit time upper 16
-  qw_schedule_window_s14_exit_lo: 841,  // stage 14 exit time lower 16
-  qw_schedule_window_s14_min_x10: 842,  // stage 14 min time ×10
-  qw_schedule_window_s14_max_x10: 843,  // stage 14 max time ×10
-  qw_schedule_window_s15_stn: 844,  // stage 15 station number
-  qw_schedule_window_s15_entry_hi: 845,  // stage 15 entry time upper 16
-  qw_schedule_window_s15_entry_lo: 846,  // stage 15 entry time lower 16
-  qw_schedule_window_s15_exit_hi: 847,  // stage 15 exit time upper 16
-  qw_schedule_window_s15_exit_lo: 848,  // stage 15 exit time lower 16
-  qw_schedule_window_s15_min_x10: 849,  // stage 15 min time ×10
-  qw_schedule_window_s15_max_x10: 850,  // stage 15 max time ×10
-  qw_schedule_window_s16_stn: 851,  // stage 16 station number
-  qw_schedule_window_s16_entry_hi: 852,  // stage 16 entry time upper 16
-  qw_schedule_window_s16_entry_lo: 853,  // stage 16 entry time lower 16
-  qw_schedule_window_s16_exit_hi: 854,  // stage 16 exit time upper 16
-  qw_schedule_window_s16_exit_lo: 855,  // stage 16 exit time lower 16
-  qw_schedule_window_s16_min_x10: 856,  // stage 16 min time ×10
-  qw_schedule_window_s16_max_x10: 857,  // stage 16 max time ×10
-  qw_schedule_window_s17_stn: 858,  // stage 17 station number
-  qw_schedule_window_s17_entry_hi: 859,  // stage 17 entry time upper 16
-  qw_schedule_window_s17_entry_lo: 860,  // stage 17 entry time lower 16
-  qw_schedule_window_s17_exit_hi: 861,  // stage 17 exit time upper 16
-  qw_schedule_window_s17_exit_lo: 862,  // stage 17 exit time lower 16
-  qw_schedule_window_s17_min_x10: 863,  // stage 17 min time ×10
-  qw_schedule_window_s17_max_x10: 864,  // stage 17 max time ×10
-  qw_schedule_window_s18_stn: 865,  // stage 18 station number
-  qw_schedule_window_s18_entry_hi: 866,  // stage 18 entry time upper 16
-  qw_schedule_window_s18_entry_lo: 867,  // stage 18 entry time lower 16
-  qw_schedule_window_s18_exit_hi: 868,  // stage 18 exit time upper 16
-  qw_schedule_window_s18_exit_lo: 869,  // stage 18 exit time lower 16
-  qw_schedule_window_s18_min_x10: 870,  // stage 18 min time ×10
-  qw_schedule_window_s18_max_x10: 871,  // stage 18 max time ×10
-  qw_schedule_window_s19_stn: 872,  // stage 19 station number
-  qw_schedule_window_s19_entry_hi: 873,  // stage 19 entry time upper 16
-  qw_schedule_window_s19_entry_lo: 874,  // stage 19 entry time lower 16
-  qw_schedule_window_s19_exit_hi: 875,  // stage 19 exit time upper 16
-  qw_schedule_window_s19_exit_lo: 876,  // stage 19 exit time lower 16
-  qw_schedule_window_s19_min_x10: 877,  // stage 19 min time ×10
-  qw_schedule_window_s19_max_x10: 878,  // stage 19 max time ×10
-  qw_schedule_window_s20_stn: 879,  // stage 20 station number
-  qw_schedule_window_s20_entry_hi: 880,  // stage 20 entry time upper 16
-  qw_schedule_window_s20_entry_lo: 881,  // stage 20 entry time lower 16
-  qw_schedule_window_s20_exit_hi: 882,  // stage 20 exit time upper 16
-  qw_schedule_window_s20_exit_lo: 883,  // stage 20 exit time lower 16
-  qw_schedule_window_s20_min_x10: 884,  // stage 20 min time ×10
-  qw_schedule_window_s20_max_x10: 885,  // stage 20 max time ×10
-  qw_schedule_window_s21_stn: 886,  // stage 21 station number
-  qw_schedule_window_s21_entry_hi: 887,  // stage 21 entry time upper 16
-  qw_schedule_window_s21_entry_lo: 888,  // stage 21 entry time lower 16
-  qw_schedule_window_s21_exit_hi: 889,  // stage 21 exit time upper 16
-  qw_schedule_window_s21_exit_lo: 890,  // stage 21 exit time lower 16
-  qw_schedule_window_s21_min_x10: 891,  // stage 21 min time ×10
-  qw_schedule_window_s21_max_x10: 892,  // stage 21 max time ×10
-  qw_schedule_window_s22_stn: 893,  // stage 22 station number
-  qw_schedule_window_s22_entry_hi: 894,  // stage 22 entry time upper 16
-  qw_schedule_window_s22_entry_lo: 895,  // stage 22 entry time lower 16
-  qw_schedule_window_s22_exit_hi: 896,  // stage 22 exit time upper 16
-  qw_schedule_window_s22_exit_lo: 897,  // stage 22 exit time lower 16
-  qw_schedule_window_s22_min_x10: 898,  // stage 22 min time ×10
-  qw_schedule_window_s22_max_x10: 899,  // stage 22 max time ×10
-  qw_schedule_window_s23_stn: 900,  // stage 23 station number
-  qw_schedule_window_s23_entry_hi: 901,  // stage 23 entry time upper 16
-  qw_schedule_window_s23_entry_lo: 902,  // stage 23 entry time lower 16
-  qw_schedule_window_s23_exit_hi: 903,  // stage 23 exit time upper 16
-  qw_schedule_window_s23_exit_lo: 904,  // stage 23 exit time lower 16
-  qw_schedule_window_s23_min_x10: 905,  // stage 23 min time ×10
-  qw_schedule_window_s23_max_x10: 906,  // stage 23 max time ×10
-  qw_schedule_window_s24_stn: 907,  // stage 24 station number
-  qw_schedule_window_s24_entry_hi: 908,  // stage 24 entry time upper 16
-  qw_schedule_window_s24_entry_lo: 909,  // stage 24 entry time lower 16
-  qw_schedule_window_s24_exit_hi: 910,  // stage 24 exit time upper 16
-  qw_schedule_window_s24_exit_lo: 911,  // stage 24 exit time lower 16
-  qw_schedule_window_s24_min_x10: 912,  // stage 24 min time ×10
-  qw_schedule_window_s24_max_x10: 913,  // stage 24 max time ×10
-  qw_schedule_window_s25_stn: 914,  // stage 25 station number
-  qw_schedule_window_s25_entry_hi: 915,  // stage 25 entry time upper 16
-  qw_schedule_window_s25_entry_lo: 916,  // stage 25 entry time lower 16
-  qw_schedule_window_s25_exit_hi: 917,  // stage 25 exit time upper 16
-  qw_schedule_window_s25_exit_lo: 918,  // stage 25 exit time lower 16
-  qw_schedule_window_s25_min_x10: 919,  // stage 25 min time ×10
-  qw_schedule_window_s25_max_x10: 920,  // stage 25 max time ×10
-  qw_schedule_window_s26_stn: 921,  // stage 26 station number
-  qw_schedule_window_s26_entry_hi: 922,  // stage 26 entry time upper 16
-  qw_schedule_window_s26_entry_lo: 923,  // stage 26 entry time lower 16
-  qw_schedule_window_s26_exit_hi: 924,  // stage 26 exit time upper 16
-  qw_schedule_window_s26_exit_lo: 925,  // stage 26 exit time lower 16
-  qw_schedule_window_s26_min_x10: 926,  // stage 26 min time ×10
-  qw_schedule_window_s26_max_x10: 927,  // stage 26 max time ×10
-  qw_schedule_window_s27_stn: 928,  // stage 27 station number
-  qw_schedule_window_s27_entry_hi: 929,  // stage 27 entry time upper 16
-  qw_schedule_window_s27_entry_lo: 930,  // stage 27 entry time lower 16
-  qw_schedule_window_s27_exit_hi: 931,  // stage 27 exit time upper 16
-  qw_schedule_window_s27_exit_lo: 932,  // stage 27 exit time lower 16
-  qw_schedule_window_s27_min_x10: 933,  // stage 27 min time ×10
-  qw_schedule_window_s27_max_x10: 934,  // stage 27 max time ×10
-  qw_schedule_window_s28_stn: 935,  // stage 28 station number
-  qw_schedule_window_s28_entry_hi: 936,  // stage 28 entry time upper 16
-  qw_schedule_window_s28_entry_lo: 937,  // stage 28 entry time lower 16
-  qw_schedule_window_s28_exit_hi: 938,  // stage 28 exit time upper 16
-  qw_schedule_window_s28_exit_lo: 939,  // stage 28 exit time lower 16
-  qw_schedule_window_s28_min_x10: 940,  // stage 28 min time ×10
-  qw_schedule_window_s28_max_x10: 941,  // stage 28 max time ×10
-  qw_schedule_window_s29_stn: 942,  // stage 29 station number
-  qw_schedule_window_s29_entry_hi: 943,  // stage 29 entry time upper 16
-  qw_schedule_window_s29_entry_lo: 944,  // stage 29 entry time lower 16
-  qw_schedule_window_s29_exit_hi: 945,  // stage 29 exit time upper 16
-  qw_schedule_window_s29_exit_lo: 946,  // stage 29 exit time lower 16
-  qw_schedule_window_s29_min_x10: 947,  // stage 29 min time ×10
-  qw_schedule_window_s29_max_x10: 948,  // stage 29 max time ×10
-  qw_schedule_window_s30_stn: 949,  // stage 30 station number
-  qw_schedule_window_s30_entry_hi: 950,  // stage 30 entry time upper 16
-  qw_schedule_window_s30_entry_lo: 951,  // stage 30 entry time lower 16
-  qw_schedule_window_s30_exit_hi: 952,  // stage 30 exit time upper 16
-  qw_schedule_window_s30_exit_lo: 953,  // stage 30 exit time lower 16
-  qw_schedule_window_s30_min_x10: 954,  // stage 30 min time ×10
-  qw_schedule_window_s30_max_x10: 955,  // stage 30 max time ×10
-  iw_schedule_req_unit: 956,  // requested unit_id (1-10, gateway writes)
-  iw_cmd_t1_start: 957,  // 1=trigger command
-  iw_cmd_t1_lift: 958,  // lift station number
-  iw_cmd_t1_sink: 959,  // sink station number
-  iw_cmd_t2_start: 960,  // 1=trigger command
-  iw_cmd_t2_lift: 961,  // lift station number
-  iw_cmd_t2_sink: 962,  // sink station number
-  iw_cfg_seq: 963,  // sequence — triggers on change
-  iw_cfg_cmd: 964,  // 1=write_station, 2=init, 3=clear_all
-  iw_cfg_param: 965,  // station_number or station_count
-  iw_cfg_d0: 966,  // tank_id
-  iw_cfg_d1: 967,  // x_position mm
-  iw_cfg_d2: 968,  // y_position mm
-  iw_cfg_d3: 969,  // z_position mm
-  iw_cfg_d4: 970,  // operation
-  iw_cfg_d5: 971,  // dropping_time ×10
-  iw_cfg_d6: 972,  // device_delay ×10
-  iw_cfg_d7: 973,  // kind (0=dry, 1=wet)
-  iw_unit_seq: 974,  // sequence — triggers on change
-  iw_unit_id: 975,  // unit number 1..10
-  iw_unit_loc: 976,  // location (station number)
-  iw_unit_status: 977,  // NOT_USED=0, USED=1
-  iw_unit_target: 978,  // TO_NONE=0..TO_AVOID=5
-  iw_batch_seq: 979,  // sequence — triggers on change
-  iw_batch_unit: 980,  // unit index 1..10
-  iw_batch_code: 981,  // numeric batch code
-  iw_batch_state: 982,  // NOT_PROCESSED=0, IN_PROCESS=1, PROCESSED=2
-  iw_batch_prog_id: 983,  // treatment program ID
-  iw_prog_seq: 984,  // sequence — triggers on change
-  iw_prog_unit: 985,  // unit index 1..10
-  iw_prog_stage: 986,  // stage index 1..30
-  iw_prog_s1: 987,  // station 1 (0=unused)
-  iw_prog_s2: 988,  // station 2
-  iw_prog_s3: 989,  // station 3
-  iw_prog_s4: 990,  // station 4
-  iw_prog_s5: 991,  // station 5
-  iw_prog_min_time: 992,  // min processing time seconds
-  iw_prog_max_time: 993,  // max processing time seconds
-  iw_prog_cal_time: 994,  // calculated time seconds
-  iw_avoid_seq: 995,  // sequence — triggers on change
-  iw_avoid_station: 996,  // station number
-  iw_avoid_value: 997,  // AVOID_NONE=0, PASS=1, BLOCK=2
-  iw_production_queue: 998,  // 1=batches in queue, 0=empty
-  iw_time_hi: 999,  // unix seconds upper 16 bits
-  iw_time_lo: 1000,  // unix seconds lower 16 bits
-  qw_event_out_count: 1001,  // messages in queue (0..10)
-  qw_event_out_seq: 1002,  // head message sequence number
-  qw_event_out_type: 1003,  // message type (1=task,2=lift,...)
-  qw_event_out_ts_hi: 1004,  // timestamp upper 16 bits
-  qw_event_out_ts_lo: 1005,  // timestamp lower 16 bits
-  qw_event_out_f1: 1006,  // payload field 1
-  qw_event_out_f2: 1007,  // payload field 2
-  qw_event_out_f3: 1008,  // payload field 3
-  qw_event_out_f4: 1009,  // payload field 4
-  qw_event_out_f5: 1010,  // payload field 5
-  qw_event_out_f6: 1011,  // payload field 6
-  qw_event_out_f7: 1012,  // payload field 7
-  qw_event_out_f8: 1013,  // payload field 8
-  qw_event_out_f9: 1014,  // payload field 9
-  qw_event_out_f10: 1015,  // payload field 10
-  qw_event_out_f11: 1016,  // payload field 11
-  qw_event_out_f12: 1017,  // payload field 12
-  iw_event_ack_seq: 1018,  // last consumed sequence number
+  qw_scheduler_debug_tsk_phase: 743,  // TSK scheduler current phase
+  qw_scheduler_debug_dep_phase: 744,  // DEP scheduler current phase
+  qw_scheduler_debug_turn: 745,  // 1=TSK ran, 2=DEP ran this cycle
+  qw_scheduler_debug_skip_cnt: 746,  // DEP skip count (debug)
+  qw_scheduler_debug_conflict_resolved: 747,  // 1=no TSK conflicts, DEP may proceed
+  qw_scheduler_debug_dep_reject_cnt: 748,  // DEP reject count this cycle
+  qw_scheduler_debug_dep_fit_round: 749,  // DEP fit round counter
+  qw_scheduler_debug_dep_cur_wait_unit: 750,  // DEP current waiting batch unit
+  qw_scheduler_debug_dep_wait_cnt: 751,  // DEP waiting batch count
+  qw_scheduler_debug_batch_cnt: 752,  // TSK active batch count
+  qw_schedule_window_unit_id: 753,  // which unit is in window (0=empty)
+  qw_schedule_window_stage_count: 754,  // active stage count for this unit
+  qw_schedule_window_seq: 755,  // sequence number (bumps on each fill)
+  qw_schedule_window_s1_stn: 756,  // stage 1 station number
+  qw_schedule_window_s1_entry_hi: 757,  // stage 1 entry time upper 16
+  qw_schedule_window_s1_entry_lo: 758,  // stage 1 entry time lower 16
+  qw_schedule_window_s1_exit_hi: 759,  // stage 1 exit time upper 16
+  qw_schedule_window_s1_exit_lo: 760,  // stage 1 exit time lower 16
+  qw_schedule_window_s1_min_x10: 761,  // stage 1 min time ×10
+  qw_schedule_window_s1_max_x10: 762,  // stage 1 max time ×10
+  qw_schedule_window_s2_stn: 763,  // stage 2 station number
+  qw_schedule_window_s2_entry_hi: 764,  // stage 2 entry time upper 16
+  qw_schedule_window_s2_entry_lo: 765,  // stage 2 entry time lower 16
+  qw_schedule_window_s2_exit_hi: 766,  // stage 2 exit time upper 16
+  qw_schedule_window_s2_exit_lo: 767,  // stage 2 exit time lower 16
+  qw_schedule_window_s2_min_x10: 768,  // stage 2 min time ×10
+  qw_schedule_window_s2_max_x10: 769,  // stage 2 max time ×10
+  qw_schedule_window_s3_stn: 770,  // stage 3 station number
+  qw_schedule_window_s3_entry_hi: 771,  // stage 3 entry time upper 16
+  qw_schedule_window_s3_entry_lo: 772,  // stage 3 entry time lower 16
+  qw_schedule_window_s3_exit_hi: 773,  // stage 3 exit time upper 16
+  qw_schedule_window_s3_exit_lo: 774,  // stage 3 exit time lower 16
+  qw_schedule_window_s3_min_x10: 775,  // stage 3 min time ×10
+  qw_schedule_window_s3_max_x10: 776,  // stage 3 max time ×10
+  qw_schedule_window_s4_stn: 777,  // stage 4 station number
+  qw_schedule_window_s4_entry_hi: 778,  // stage 4 entry time upper 16
+  qw_schedule_window_s4_entry_lo: 779,  // stage 4 entry time lower 16
+  qw_schedule_window_s4_exit_hi: 780,  // stage 4 exit time upper 16
+  qw_schedule_window_s4_exit_lo: 781,  // stage 4 exit time lower 16
+  qw_schedule_window_s4_min_x10: 782,  // stage 4 min time ×10
+  qw_schedule_window_s4_max_x10: 783,  // stage 4 max time ×10
+  qw_schedule_window_s5_stn: 784,  // stage 5 station number
+  qw_schedule_window_s5_entry_hi: 785,  // stage 5 entry time upper 16
+  qw_schedule_window_s5_entry_lo: 786,  // stage 5 entry time lower 16
+  qw_schedule_window_s5_exit_hi: 787,  // stage 5 exit time upper 16
+  qw_schedule_window_s5_exit_lo: 788,  // stage 5 exit time lower 16
+  qw_schedule_window_s5_min_x10: 789,  // stage 5 min time ×10
+  qw_schedule_window_s5_max_x10: 790,  // stage 5 max time ×10
+  qw_schedule_window_s6_stn: 791,  // stage 6 station number
+  qw_schedule_window_s6_entry_hi: 792,  // stage 6 entry time upper 16
+  qw_schedule_window_s6_entry_lo: 793,  // stage 6 entry time lower 16
+  qw_schedule_window_s6_exit_hi: 794,  // stage 6 exit time upper 16
+  qw_schedule_window_s6_exit_lo: 795,  // stage 6 exit time lower 16
+  qw_schedule_window_s6_min_x10: 796,  // stage 6 min time ×10
+  qw_schedule_window_s6_max_x10: 797,  // stage 6 max time ×10
+  qw_schedule_window_s7_stn: 798,  // stage 7 station number
+  qw_schedule_window_s7_entry_hi: 799,  // stage 7 entry time upper 16
+  qw_schedule_window_s7_entry_lo: 800,  // stage 7 entry time lower 16
+  qw_schedule_window_s7_exit_hi: 801,  // stage 7 exit time upper 16
+  qw_schedule_window_s7_exit_lo: 802,  // stage 7 exit time lower 16
+  qw_schedule_window_s7_min_x10: 803,  // stage 7 min time ×10
+  qw_schedule_window_s7_max_x10: 804,  // stage 7 max time ×10
+  qw_schedule_window_s8_stn: 805,  // stage 8 station number
+  qw_schedule_window_s8_entry_hi: 806,  // stage 8 entry time upper 16
+  qw_schedule_window_s8_entry_lo: 807,  // stage 8 entry time lower 16
+  qw_schedule_window_s8_exit_hi: 808,  // stage 8 exit time upper 16
+  qw_schedule_window_s8_exit_lo: 809,  // stage 8 exit time lower 16
+  qw_schedule_window_s8_min_x10: 810,  // stage 8 min time ×10
+  qw_schedule_window_s8_max_x10: 811,  // stage 8 max time ×10
+  qw_schedule_window_s9_stn: 812,  // stage 9 station number
+  qw_schedule_window_s9_entry_hi: 813,  // stage 9 entry time upper 16
+  qw_schedule_window_s9_entry_lo: 814,  // stage 9 entry time lower 16
+  qw_schedule_window_s9_exit_hi: 815,  // stage 9 exit time upper 16
+  qw_schedule_window_s9_exit_lo: 816,  // stage 9 exit time lower 16
+  qw_schedule_window_s9_min_x10: 817,  // stage 9 min time ×10
+  qw_schedule_window_s9_max_x10: 818,  // stage 9 max time ×10
+  qw_schedule_window_s10_stn: 819,  // stage 10 station number
+  qw_schedule_window_s10_entry_hi: 820,  // stage 10 entry time upper 16
+  qw_schedule_window_s10_entry_lo: 821,  // stage 10 entry time lower 16
+  qw_schedule_window_s10_exit_hi: 822,  // stage 10 exit time upper 16
+  qw_schedule_window_s10_exit_lo: 823,  // stage 10 exit time lower 16
+  qw_schedule_window_s10_min_x10: 824,  // stage 10 min time ×10
+  qw_schedule_window_s10_max_x10: 825,  // stage 10 max time ×10
+  qw_schedule_window_s11_stn: 826,  // stage 11 station number
+  qw_schedule_window_s11_entry_hi: 827,  // stage 11 entry time upper 16
+  qw_schedule_window_s11_entry_lo: 828,  // stage 11 entry time lower 16
+  qw_schedule_window_s11_exit_hi: 829,  // stage 11 exit time upper 16
+  qw_schedule_window_s11_exit_lo: 830,  // stage 11 exit time lower 16
+  qw_schedule_window_s11_min_x10: 831,  // stage 11 min time ×10
+  qw_schedule_window_s11_max_x10: 832,  // stage 11 max time ×10
+  qw_schedule_window_s12_stn: 833,  // stage 12 station number
+  qw_schedule_window_s12_entry_hi: 834,  // stage 12 entry time upper 16
+  qw_schedule_window_s12_entry_lo: 835,  // stage 12 entry time lower 16
+  qw_schedule_window_s12_exit_hi: 836,  // stage 12 exit time upper 16
+  qw_schedule_window_s12_exit_lo: 837,  // stage 12 exit time lower 16
+  qw_schedule_window_s12_min_x10: 838,  // stage 12 min time ×10
+  qw_schedule_window_s12_max_x10: 839,  // stage 12 max time ×10
+  qw_schedule_window_s13_stn: 840,  // stage 13 station number
+  qw_schedule_window_s13_entry_hi: 841,  // stage 13 entry time upper 16
+  qw_schedule_window_s13_entry_lo: 842,  // stage 13 entry time lower 16
+  qw_schedule_window_s13_exit_hi: 843,  // stage 13 exit time upper 16
+  qw_schedule_window_s13_exit_lo: 844,  // stage 13 exit time lower 16
+  qw_schedule_window_s13_min_x10: 845,  // stage 13 min time ×10
+  qw_schedule_window_s13_max_x10: 846,  // stage 13 max time ×10
+  qw_schedule_window_s14_stn: 847,  // stage 14 station number
+  qw_schedule_window_s14_entry_hi: 848,  // stage 14 entry time upper 16
+  qw_schedule_window_s14_entry_lo: 849,  // stage 14 entry time lower 16
+  qw_schedule_window_s14_exit_hi: 850,  // stage 14 exit time upper 16
+  qw_schedule_window_s14_exit_lo: 851,  // stage 14 exit time lower 16
+  qw_schedule_window_s14_min_x10: 852,  // stage 14 min time ×10
+  qw_schedule_window_s14_max_x10: 853,  // stage 14 max time ×10
+  qw_schedule_window_s15_stn: 854,  // stage 15 station number
+  qw_schedule_window_s15_entry_hi: 855,  // stage 15 entry time upper 16
+  qw_schedule_window_s15_entry_lo: 856,  // stage 15 entry time lower 16
+  qw_schedule_window_s15_exit_hi: 857,  // stage 15 exit time upper 16
+  qw_schedule_window_s15_exit_lo: 858,  // stage 15 exit time lower 16
+  qw_schedule_window_s15_min_x10: 859,  // stage 15 min time ×10
+  qw_schedule_window_s15_max_x10: 860,  // stage 15 max time ×10
+  qw_schedule_window_s16_stn: 861,  // stage 16 station number
+  qw_schedule_window_s16_entry_hi: 862,  // stage 16 entry time upper 16
+  qw_schedule_window_s16_entry_lo: 863,  // stage 16 entry time lower 16
+  qw_schedule_window_s16_exit_hi: 864,  // stage 16 exit time upper 16
+  qw_schedule_window_s16_exit_lo: 865,  // stage 16 exit time lower 16
+  qw_schedule_window_s16_min_x10: 866,  // stage 16 min time ×10
+  qw_schedule_window_s16_max_x10: 867,  // stage 16 max time ×10
+  qw_schedule_window_s17_stn: 868,  // stage 17 station number
+  qw_schedule_window_s17_entry_hi: 869,  // stage 17 entry time upper 16
+  qw_schedule_window_s17_entry_lo: 870,  // stage 17 entry time lower 16
+  qw_schedule_window_s17_exit_hi: 871,  // stage 17 exit time upper 16
+  qw_schedule_window_s17_exit_lo: 872,  // stage 17 exit time lower 16
+  qw_schedule_window_s17_min_x10: 873,  // stage 17 min time ×10
+  qw_schedule_window_s17_max_x10: 874,  // stage 17 max time ×10
+  qw_schedule_window_s18_stn: 875,  // stage 18 station number
+  qw_schedule_window_s18_entry_hi: 876,  // stage 18 entry time upper 16
+  qw_schedule_window_s18_entry_lo: 877,  // stage 18 entry time lower 16
+  qw_schedule_window_s18_exit_hi: 878,  // stage 18 exit time upper 16
+  qw_schedule_window_s18_exit_lo: 879,  // stage 18 exit time lower 16
+  qw_schedule_window_s18_min_x10: 880,  // stage 18 min time ×10
+  qw_schedule_window_s18_max_x10: 881,  // stage 18 max time ×10
+  qw_schedule_window_s19_stn: 882,  // stage 19 station number
+  qw_schedule_window_s19_entry_hi: 883,  // stage 19 entry time upper 16
+  qw_schedule_window_s19_entry_lo: 884,  // stage 19 entry time lower 16
+  qw_schedule_window_s19_exit_hi: 885,  // stage 19 exit time upper 16
+  qw_schedule_window_s19_exit_lo: 886,  // stage 19 exit time lower 16
+  qw_schedule_window_s19_min_x10: 887,  // stage 19 min time ×10
+  qw_schedule_window_s19_max_x10: 888,  // stage 19 max time ×10
+  qw_schedule_window_s20_stn: 889,  // stage 20 station number
+  qw_schedule_window_s20_entry_hi: 890,  // stage 20 entry time upper 16
+  qw_schedule_window_s20_entry_lo: 891,  // stage 20 entry time lower 16
+  qw_schedule_window_s20_exit_hi: 892,  // stage 20 exit time upper 16
+  qw_schedule_window_s20_exit_lo: 893,  // stage 20 exit time lower 16
+  qw_schedule_window_s20_min_x10: 894,  // stage 20 min time ×10
+  qw_schedule_window_s20_max_x10: 895,  // stage 20 max time ×10
+  qw_schedule_window_s21_stn: 896,  // stage 21 station number
+  qw_schedule_window_s21_entry_hi: 897,  // stage 21 entry time upper 16
+  qw_schedule_window_s21_entry_lo: 898,  // stage 21 entry time lower 16
+  qw_schedule_window_s21_exit_hi: 899,  // stage 21 exit time upper 16
+  qw_schedule_window_s21_exit_lo: 900,  // stage 21 exit time lower 16
+  qw_schedule_window_s21_min_x10: 901,  // stage 21 min time ×10
+  qw_schedule_window_s21_max_x10: 902,  // stage 21 max time ×10
+  qw_schedule_window_s22_stn: 903,  // stage 22 station number
+  qw_schedule_window_s22_entry_hi: 904,  // stage 22 entry time upper 16
+  qw_schedule_window_s22_entry_lo: 905,  // stage 22 entry time lower 16
+  qw_schedule_window_s22_exit_hi: 906,  // stage 22 exit time upper 16
+  qw_schedule_window_s22_exit_lo: 907,  // stage 22 exit time lower 16
+  qw_schedule_window_s22_min_x10: 908,  // stage 22 min time ×10
+  qw_schedule_window_s22_max_x10: 909,  // stage 22 max time ×10
+  qw_schedule_window_s23_stn: 910,  // stage 23 station number
+  qw_schedule_window_s23_entry_hi: 911,  // stage 23 entry time upper 16
+  qw_schedule_window_s23_entry_lo: 912,  // stage 23 entry time lower 16
+  qw_schedule_window_s23_exit_hi: 913,  // stage 23 exit time upper 16
+  qw_schedule_window_s23_exit_lo: 914,  // stage 23 exit time lower 16
+  qw_schedule_window_s23_min_x10: 915,  // stage 23 min time ×10
+  qw_schedule_window_s23_max_x10: 916,  // stage 23 max time ×10
+  qw_schedule_window_s24_stn: 917,  // stage 24 station number
+  qw_schedule_window_s24_entry_hi: 918,  // stage 24 entry time upper 16
+  qw_schedule_window_s24_entry_lo: 919,  // stage 24 entry time lower 16
+  qw_schedule_window_s24_exit_hi: 920,  // stage 24 exit time upper 16
+  qw_schedule_window_s24_exit_lo: 921,  // stage 24 exit time lower 16
+  qw_schedule_window_s24_min_x10: 922,  // stage 24 min time ×10
+  qw_schedule_window_s24_max_x10: 923,  // stage 24 max time ×10
+  qw_schedule_window_s25_stn: 924,  // stage 25 station number
+  qw_schedule_window_s25_entry_hi: 925,  // stage 25 entry time upper 16
+  qw_schedule_window_s25_entry_lo: 926,  // stage 25 entry time lower 16
+  qw_schedule_window_s25_exit_hi: 927,  // stage 25 exit time upper 16
+  qw_schedule_window_s25_exit_lo: 928,  // stage 25 exit time lower 16
+  qw_schedule_window_s25_min_x10: 929,  // stage 25 min time ×10
+  qw_schedule_window_s25_max_x10: 930,  // stage 25 max time ×10
+  qw_schedule_window_s26_stn: 931,  // stage 26 station number
+  qw_schedule_window_s26_entry_hi: 932,  // stage 26 entry time upper 16
+  qw_schedule_window_s26_entry_lo: 933,  // stage 26 entry time lower 16
+  qw_schedule_window_s26_exit_hi: 934,  // stage 26 exit time upper 16
+  qw_schedule_window_s26_exit_lo: 935,  // stage 26 exit time lower 16
+  qw_schedule_window_s26_min_x10: 936,  // stage 26 min time ×10
+  qw_schedule_window_s26_max_x10: 937,  // stage 26 max time ×10
+  qw_schedule_window_s27_stn: 938,  // stage 27 station number
+  qw_schedule_window_s27_entry_hi: 939,  // stage 27 entry time upper 16
+  qw_schedule_window_s27_entry_lo: 940,  // stage 27 entry time lower 16
+  qw_schedule_window_s27_exit_hi: 941,  // stage 27 exit time upper 16
+  qw_schedule_window_s27_exit_lo: 942,  // stage 27 exit time lower 16
+  qw_schedule_window_s27_min_x10: 943,  // stage 27 min time ×10
+  qw_schedule_window_s27_max_x10: 944,  // stage 27 max time ×10
+  qw_schedule_window_s28_stn: 945,  // stage 28 station number
+  qw_schedule_window_s28_entry_hi: 946,  // stage 28 entry time upper 16
+  qw_schedule_window_s28_entry_lo: 947,  // stage 28 entry time lower 16
+  qw_schedule_window_s28_exit_hi: 948,  // stage 28 exit time upper 16
+  qw_schedule_window_s28_exit_lo: 949,  // stage 28 exit time lower 16
+  qw_schedule_window_s28_min_x10: 950,  // stage 28 min time ×10
+  qw_schedule_window_s28_max_x10: 951,  // stage 28 max time ×10
+  qw_schedule_window_s29_stn: 952,  // stage 29 station number
+  qw_schedule_window_s29_entry_hi: 953,  // stage 29 entry time upper 16
+  qw_schedule_window_s29_entry_lo: 954,  // stage 29 entry time lower 16
+  qw_schedule_window_s29_exit_hi: 955,  // stage 29 exit time upper 16
+  qw_schedule_window_s29_exit_lo: 956,  // stage 29 exit time lower 16
+  qw_schedule_window_s29_min_x10: 957,  // stage 29 min time ×10
+  qw_schedule_window_s29_max_x10: 958,  // stage 29 max time ×10
+  qw_schedule_window_s30_stn: 959,  // stage 30 station number
+  qw_schedule_window_s30_entry_hi: 960,  // stage 30 entry time upper 16
+  qw_schedule_window_s30_entry_lo: 961,  // stage 30 entry time lower 16
+  qw_schedule_window_s30_exit_hi: 962,  // stage 30 exit time upper 16
+  qw_schedule_window_s30_exit_lo: 963,  // stage 30 exit time lower 16
+  qw_schedule_window_s30_min_x10: 964,  // stage 30 min time ×10
+  qw_schedule_window_s30_max_x10: 965,  // stage 30 max time ×10
+  iw_schedule_req_unit: 966,  // requested unit_id (1-10, gateway writes)
+  iw_cmd_t1_start: 967,  // 1=trigger command
+  iw_cmd_t1_lift: 968,  // lift station number
+  iw_cmd_t1_sink: 969,  // sink station number
+  iw_cmd_t2_start: 970,  // 1=trigger command
+  iw_cmd_t2_lift: 971,  // lift station number
+  iw_cmd_t2_sink: 972,  // sink station number
+  iw_cfg_seq: 973,  // sequence — triggers on change
+  iw_cfg_cmd: 974,  // 1=write_station, 2=init, 3=clear_all
+  iw_cfg_param: 975,  // station_number or station_count
+  iw_cfg_d0: 976,  // tank_id
+  iw_cfg_d1: 977,  // x_position mm
+  iw_cfg_d2: 978,  // y_position mm
+  iw_cfg_d3: 979,  // z_position mm
+  iw_cfg_d4: 980,  // operation
+  iw_cfg_d5: 981,  // dropping_time ×10
+  iw_cfg_d6: 982,  // device_delay ×10
+  iw_cfg_d7: 983,  // kind (0=dry, 1=wet)
+  iw_unit_seq: 984,  // sequence — triggers on change
+  iw_unit_id: 985,  // unit number 1..10
+  iw_unit_loc: 986,  // location (station number)
+  iw_unit_status: 987,  // NOT_USED=0, USED=1
+  iw_unit_target: 988,  // TO_NONE=0..TO_AVOID=5
+  iw_batch_seq: 989,  // sequence — triggers on change
+  iw_batch_unit: 990,  // unit index 1..10
+  iw_batch_code: 991,  // numeric batch code
+  iw_batch_state: 992,  // NOT_PROCESSED=0, IN_PROCESS=1, PROCESSED=2
+  iw_batch_prog_id: 993,  // treatment program ID
+  iw_prog_seq: 994,  // sequence — triggers on change
+  iw_prog_unit: 995,  // unit index 1..10
+  iw_prog_stage: 996,  // stage index 1..30
+  iw_prog_s1: 997,  // station 1 (0=unused)
+  iw_prog_s2: 998,  // station 2
+  iw_prog_s3: 999,  // station 3
+  iw_prog_s4: 1000,  // station 4
+  iw_prog_s5: 1001,  // station 5
+  iw_prog_min_time: 1002,  // min processing time seconds
+  iw_prog_max_time: 1003,  // max processing time seconds
+  iw_prog_cal_time: 1004,  // calculated time seconds
+  iw_avoid_seq: 1005,  // sequence — triggers on change
+  iw_avoid_station: 1006,  // station number
+  iw_avoid_value: 1007,  // AVOID_NONE=0, PASS=1, BLOCK=2
+  iw_production_queue: 1008,  // 1=batches in queue, 0=empty
+  iw_time_hi: 1009,  // unix seconds upper 16 bits
+  iw_time_lo: 1010,  // unix seconds lower 16 bits
+  qw_event_out_count: 1011,  // messages in queue (0..10)
+  qw_event_out_seq: 1012,  // head message sequence number
+  qw_event_out_type: 1013,  // message type (1=task,2=lift,...)
+  qw_event_out_ts_hi: 1014,  // timestamp upper 16 bits
+  qw_event_out_ts_lo: 1015,  // timestamp lower 16 bits
+  qw_event_out_f1: 1016,  // payload field 1
+  qw_event_out_f2: 1017,  // payload field 2
+  qw_event_out_f3: 1018,  // payload field 3
+  qw_event_out_f4: 1019,  // payload field 4
+  qw_event_out_f5: 1020,  // payload field 5
+  qw_event_out_f6: 1021,  // payload field 6
+  qw_event_out_f7: 1022,  // payload field 7
+  qw_event_out_f8: 1023,  // payload field 8
+  qw_event_out_f9: 1024,  // payload field 9
+  qw_event_out_f10: 1025,  // payload field 10
+  qw_event_out_f11: 1026,  // payload field 11
+  qw_event_out_f12: 1027,  // payload field 12
+  iw_event_ack_seq: 1028,  // last consumed sequence number
 };
 
 // Convert unsigned 16-bit to signed
@@ -2088,360 +2099,372 @@ function decodeRegisters(r) {
   state.dep_overlap[129].overlap_flag = toSigned(r[741]);
   state.dep_overlap[130] = {};
   state.dep_overlap[130].overlap_flag = toSigned(r[742]);
+  // --- scheduler_debug ---
+  state.scheduler_debug = {};
+  state.scheduler_debug.tsk_phase = toSigned(r[743]);
+  state.scheduler_debug.dep_phase = toSigned(r[744]);
+  state.scheduler_debug.turn = toSigned(r[745]);
+  state.scheduler_debug.skip_cnt = toSigned(r[746]);
+  state.scheduler_debug.conflict_resolved = toSigned(r[747]);
+  state.scheduler_debug.dep_reject_cnt = toSigned(r[748]);
+  state.scheduler_debug.dep_fit_round = toSigned(r[749]);
+  state.scheduler_debug.dep_cur_wait_unit = toSigned(r[750]);
+  state.scheduler_debug.dep_wait_cnt = toSigned(r[751]);
+  state.scheduler_debug.batch_cnt = toSigned(r[752]);
   // --- schedule_window ---
   state.schedule_window = {};
-  state.schedule_window.unit_id = toSigned(r[743]);
-  state.schedule_window.stage_count = toSigned(r[744]);
-  state.schedule_window.seq = toSigned(r[745]);
-  state.schedule_window.s1_station = toSigned(r[746]);
-  state.schedule_window._s1_entry_hi = r[747];
-  state.schedule_window._s1_entry_lo = r[748];
+  state.schedule_window.unit_id = toSigned(r[753]);
+  state.schedule_window.stage_count = toSigned(r[754]);
+  state.schedule_window.seq = toSigned(r[755]);
+  state.schedule_window.s1_station = toSigned(r[756]);
+  state.schedule_window._s1_entry_hi = r[757];
+  state.schedule_window._s1_entry_lo = r[758];
   // Combined uint32: s1_entry_time = (hi << 16) | lo
   state.schedule_window.s1_entry_time = ((state.schedule_window._s1_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s1_entry_lo & 0xFFFF);
-  state.schedule_window._s1_exit_hi = r[749];
-  state.schedule_window._s1_exit_lo = r[750];
+  state.schedule_window._s1_exit_hi = r[759];
+  state.schedule_window._s1_exit_lo = r[760];
   // Combined uint32: s1_exit_time = (hi << 16) | lo
   state.schedule_window.s1_exit_time = ((state.schedule_window._s1_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s1_exit_lo & 0xFFFF);
-  state.schedule_window.s1_min_time = toSigned(r[751]) * 0.1;
-  state.schedule_window.s1_max_time = toSigned(r[752]) * 0.1;
-  state.schedule_window.s2_station = toSigned(r[753]);
-  state.schedule_window._s2_entry_hi = r[754];
-  state.schedule_window._s2_entry_lo = r[755];
+  state.schedule_window.s1_min_time = toSigned(r[761]) * 0.1;
+  state.schedule_window.s1_max_time = toSigned(r[762]) * 0.1;
+  state.schedule_window.s2_station = toSigned(r[763]);
+  state.schedule_window._s2_entry_hi = r[764];
+  state.schedule_window._s2_entry_lo = r[765];
   // Combined uint32: s2_entry_time = (hi << 16) | lo
   state.schedule_window.s2_entry_time = ((state.schedule_window._s2_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s2_entry_lo & 0xFFFF);
-  state.schedule_window._s2_exit_hi = r[756];
-  state.schedule_window._s2_exit_lo = r[757];
+  state.schedule_window._s2_exit_hi = r[766];
+  state.schedule_window._s2_exit_lo = r[767];
   // Combined uint32: s2_exit_time = (hi << 16) | lo
   state.schedule_window.s2_exit_time = ((state.schedule_window._s2_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s2_exit_lo & 0xFFFF);
-  state.schedule_window.s2_min_time = toSigned(r[758]) * 0.1;
-  state.schedule_window.s2_max_time = toSigned(r[759]) * 0.1;
-  state.schedule_window.s3_station = toSigned(r[760]);
-  state.schedule_window._s3_entry_hi = r[761];
-  state.schedule_window._s3_entry_lo = r[762];
+  state.schedule_window.s2_min_time = toSigned(r[768]) * 0.1;
+  state.schedule_window.s2_max_time = toSigned(r[769]) * 0.1;
+  state.schedule_window.s3_station = toSigned(r[770]);
+  state.schedule_window._s3_entry_hi = r[771];
+  state.schedule_window._s3_entry_lo = r[772];
   // Combined uint32: s3_entry_time = (hi << 16) | lo
   state.schedule_window.s3_entry_time = ((state.schedule_window._s3_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s3_entry_lo & 0xFFFF);
-  state.schedule_window._s3_exit_hi = r[763];
-  state.schedule_window._s3_exit_lo = r[764];
+  state.schedule_window._s3_exit_hi = r[773];
+  state.schedule_window._s3_exit_lo = r[774];
   // Combined uint32: s3_exit_time = (hi << 16) | lo
   state.schedule_window.s3_exit_time = ((state.schedule_window._s3_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s3_exit_lo & 0xFFFF);
-  state.schedule_window.s3_min_time = toSigned(r[765]) * 0.1;
-  state.schedule_window.s3_max_time = toSigned(r[766]) * 0.1;
-  state.schedule_window.s4_station = toSigned(r[767]);
-  state.schedule_window._s4_entry_hi = r[768];
-  state.schedule_window._s4_entry_lo = r[769];
+  state.schedule_window.s3_min_time = toSigned(r[775]) * 0.1;
+  state.schedule_window.s3_max_time = toSigned(r[776]) * 0.1;
+  state.schedule_window.s4_station = toSigned(r[777]);
+  state.schedule_window._s4_entry_hi = r[778];
+  state.schedule_window._s4_entry_lo = r[779];
   // Combined uint32: s4_entry_time = (hi << 16) | lo
   state.schedule_window.s4_entry_time = ((state.schedule_window._s4_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s4_entry_lo & 0xFFFF);
-  state.schedule_window._s4_exit_hi = r[770];
-  state.schedule_window._s4_exit_lo = r[771];
+  state.schedule_window._s4_exit_hi = r[780];
+  state.schedule_window._s4_exit_lo = r[781];
   // Combined uint32: s4_exit_time = (hi << 16) | lo
   state.schedule_window.s4_exit_time = ((state.schedule_window._s4_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s4_exit_lo & 0xFFFF);
-  state.schedule_window.s4_min_time = toSigned(r[772]) * 0.1;
-  state.schedule_window.s4_max_time = toSigned(r[773]) * 0.1;
-  state.schedule_window.s5_station = toSigned(r[774]);
-  state.schedule_window._s5_entry_hi = r[775];
-  state.schedule_window._s5_entry_lo = r[776];
+  state.schedule_window.s4_min_time = toSigned(r[782]) * 0.1;
+  state.schedule_window.s4_max_time = toSigned(r[783]) * 0.1;
+  state.schedule_window.s5_station = toSigned(r[784]);
+  state.schedule_window._s5_entry_hi = r[785];
+  state.schedule_window._s5_entry_lo = r[786];
   // Combined uint32: s5_entry_time = (hi << 16) | lo
   state.schedule_window.s5_entry_time = ((state.schedule_window._s5_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s5_entry_lo & 0xFFFF);
-  state.schedule_window._s5_exit_hi = r[777];
-  state.schedule_window._s5_exit_lo = r[778];
+  state.schedule_window._s5_exit_hi = r[787];
+  state.schedule_window._s5_exit_lo = r[788];
   // Combined uint32: s5_exit_time = (hi << 16) | lo
   state.schedule_window.s5_exit_time = ((state.schedule_window._s5_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s5_exit_lo & 0xFFFF);
-  state.schedule_window.s5_min_time = toSigned(r[779]) * 0.1;
-  state.schedule_window.s5_max_time = toSigned(r[780]) * 0.1;
-  state.schedule_window.s6_station = toSigned(r[781]);
-  state.schedule_window._s6_entry_hi = r[782];
-  state.schedule_window._s6_entry_lo = r[783];
+  state.schedule_window.s5_min_time = toSigned(r[789]) * 0.1;
+  state.schedule_window.s5_max_time = toSigned(r[790]) * 0.1;
+  state.schedule_window.s6_station = toSigned(r[791]);
+  state.schedule_window._s6_entry_hi = r[792];
+  state.schedule_window._s6_entry_lo = r[793];
   // Combined uint32: s6_entry_time = (hi << 16) | lo
   state.schedule_window.s6_entry_time = ((state.schedule_window._s6_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s6_entry_lo & 0xFFFF);
-  state.schedule_window._s6_exit_hi = r[784];
-  state.schedule_window._s6_exit_lo = r[785];
+  state.schedule_window._s6_exit_hi = r[794];
+  state.schedule_window._s6_exit_lo = r[795];
   // Combined uint32: s6_exit_time = (hi << 16) | lo
   state.schedule_window.s6_exit_time = ((state.schedule_window._s6_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s6_exit_lo & 0xFFFF);
-  state.schedule_window.s6_min_time = toSigned(r[786]) * 0.1;
-  state.schedule_window.s6_max_time = toSigned(r[787]) * 0.1;
-  state.schedule_window.s7_station = toSigned(r[788]);
-  state.schedule_window._s7_entry_hi = r[789];
-  state.schedule_window._s7_entry_lo = r[790];
+  state.schedule_window.s6_min_time = toSigned(r[796]) * 0.1;
+  state.schedule_window.s6_max_time = toSigned(r[797]) * 0.1;
+  state.schedule_window.s7_station = toSigned(r[798]);
+  state.schedule_window._s7_entry_hi = r[799];
+  state.schedule_window._s7_entry_lo = r[800];
   // Combined uint32: s7_entry_time = (hi << 16) | lo
   state.schedule_window.s7_entry_time = ((state.schedule_window._s7_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s7_entry_lo & 0xFFFF);
-  state.schedule_window._s7_exit_hi = r[791];
-  state.schedule_window._s7_exit_lo = r[792];
+  state.schedule_window._s7_exit_hi = r[801];
+  state.schedule_window._s7_exit_lo = r[802];
   // Combined uint32: s7_exit_time = (hi << 16) | lo
   state.schedule_window.s7_exit_time = ((state.schedule_window._s7_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s7_exit_lo & 0xFFFF);
-  state.schedule_window.s7_min_time = toSigned(r[793]) * 0.1;
-  state.schedule_window.s7_max_time = toSigned(r[794]) * 0.1;
-  state.schedule_window.s8_station = toSigned(r[795]);
-  state.schedule_window._s8_entry_hi = r[796];
-  state.schedule_window._s8_entry_lo = r[797];
+  state.schedule_window.s7_min_time = toSigned(r[803]) * 0.1;
+  state.schedule_window.s7_max_time = toSigned(r[804]) * 0.1;
+  state.schedule_window.s8_station = toSigned(r[805]);
+  state.schedule_window._s8_entry_hi = r[806];
+  state.schedule_window._s8_entry_lo = r[807];
   // Combined uint32: s8_entry_time = (hi << 16) | lo
   state.schedule_window.s8_entry_time = ((state.schedule_window._s8_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s8_entry_lo & 0xFFFF);
-  state.schedule_window._s8_exit_hi = r[798];
-  state.schedule_window._s8_exit_lo = r[799];
+  state.schedule_window._s8_exit_hi = r[808];
+  state.schedule_window._s8_exit_lo = r[809];
   // Combined uint32: s8_exit_time = (hi << 16) | lo
   state.schedule_window.s8_exit_time = ((state.schedule_window._s8_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s8_exit_lo & 0xFFFF);
-  state.schedule_window.s8_min_time = toSigned(r[800]) * 0.1;
-  state.schedule_window.s8_max_time = toSigned(r[801]) * 0.1;
-  state.schedule_window.s9_station = toSigned(r[802]);
-  state.schedule_window._s9_entry_hi = r[803];
-  state.schedule_window._s9_entry_lo = r[804];
+  state.schedule_window.s8_min_time = toSigned(r[810]) * 0.1;
+  state.schedule_window.s8_max_time = toSigned(r[811]) * 0.1;
+  state.schedule_window.s9_station = toSigned(r[812]);
+  state.schedule_window._s9_entry_hi = r[813];
+  state.schedule_window._s9_entry_lo = r[814];
   // Combined uint32: s9_entry_time = (hi << 16) | lo
   state.schedule_window.s9_entry_time = ((state.schedule_window._s9_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s9_entry_lo & 0xFFFF);
-  state.schedule_window._s9_exit_hi = r[805];
-  state.schedule_window._s9_exit_lo = r[806];
+  state.schedule_window._s9_exit_hi = r[815];
+  state.schedule_window._s9_exit_lo = r[816];
   // Combined uint32: s9_exit_time = (hi << 16) | lo
   state.schedule_window.s9_exit_time = ((state.schedule_window._s9_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s9_exit_lo & 0xFFFF);
-  state.schedule_window.s9_min_time = toSigned(r[807]) * 0.1;
-  state.schedule_window.s9_max_time = toSigned(r[808]) * 0.1;
-  state.schedule_window.s10_station = toSigned(r[809]);
-  state.schedule_window._s10_entry_hi = r[810];
-  state.schedule_window._s10_entry_lo = r[811];
+  state.schedule_window.s9_min_time = toSigned(r[817]) * 0.1;
+  state.schedule_window.s9_max_time = toSigned(r[818]) * 0.1;
+  state.schedule_window.s10_station = toSigned(r[819]);
+  state.schedule_window._s10_entry_hi = r[820];
+  state.schedule_window._s10_entry_lo = r[821];
   // Combined uint32: s10_entry_time = (hi << 16) | lo
   state.schedule_window.s10_entry_time = ((state.schedule_window._s10_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s10_entry_lo & 0xFFFF);
-  state.schedule_window._s10_exit_hi = r[812];
-  state.schedule_window._s10_exit_lo = r[813];
+  state.schedule_window._s10_exit_hi = r[822];
+  state.schedule_window._s10_exit_lo = r[823];
   // Combined uint32: s10_exit_time = (hi << 16) | lo
   state.schedule_window.s10_exit_time = ((state.schedule_window._s10_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s10_exit_lo & 0xFFFF);
-  state.schedule_window.s10_min_time = toSigned(r[814]) * 0.1;
-  state.schedule_window.s10_max_time = toSigned(r[815]) * 0.1;
-  state.schedule_window.s11_station = toSigned(r[816]);
-  state.schedule_window._s11_entry_hi = r[817];
-  state.schedule_window._s11_entry_lo = r[818];
+  state.schedule_window.s10_min_time = toSigned(r[824]) * 0.1;
+  state.schedule_window.s10_max_time = toSigned(r[825]) * 0.1;
+  state.schedule_window.s11_station = toSigned(r[826]);
+  state.schedule_window._s11_entry_hi = r[827];
+  state.schedule_window._s11_entry_lo = r[828];
   // Combined uint32: s11_entry_time = (hi << 16) | lo
   state.schedule_window.s11_entry_time = ((state.schedule_window._s11_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s11_entry_lo & 0xFFFF);
-  state.schedule_window._s11_exit_hi = r[819];
-  state.schedule_window._s11_exit_lo = r[820];
+  state.schedule_window._s11_exit_hi = r[829];
+  state.schedule_window._s11_exit_lo = r[830];
   // Combined uint32: s11_exit_time = (hi << 16) | lo
   state.schedule_window.s11_exit_time = ((state.schedule_window._s11_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s11_exit_lo & 0xFFFF);
-  state.schedule_window.s11_min_time = toSigned(r[821]) * 0.1;
-  state.schedule_window.s11_max_time = toSigned(r[822]) * 0.1;
-  state.schedule_window.s12_station = toSigned(r[823]);
-  state.schedule_window._s12_entry_hi = r[824];
-  state.schedule_window._s12_entry_lo = r[825];
+  state.schedule_window.s11_min_time = toSigned(r[831]) * 0.1;
+  state.schedule_window.s11_max_time = toSigned(r[832]) * 0.1;
+  state.schedule_window.s12_station = toSigned(r[833]);
+  state.schedule_window._s12_entry_hi = r[834];
+  state.schedule_window._s12_entry_lo = r[835];
   // Combined uint32: s12_entry_time = (hi << 16) | lo
   state.schedule_window.s12_entry_time = ((state.schedule_window._s12_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s12_entry_lo & 0xFFFF);
-  state.schedule_window._s12_exit_hi = r[826];
-  state.schedule_window._s12_exit_lo = r[827];
+  state.schedule_window._s12_exit_hi = r[836];
+  state.schedule_window._s12_exit_lo = r[837];
   // Combined uint32: s12_exit_time = (hi << 16) | lo
   state.schedule_window.s12_exit_time = ((state.schedule_window._s12_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s12_exit_lo & 0xFFFF);
-  state.schedule_window.s12_min_time = toSigned(r[828]) * 0.1;
-  state.schedule_window.s12_max_time = toSigned(r[829]) * 0.1;
-  state.schedule_window.s13_station = toSigned(r[830]);
-  state.schedule_window._s13_entry_hi = r[831];
-  state.schedule_window._s13_entry_lo = r[832];
+  state.schedule_window.s12_min_time = toSigned(r[838]) * 0.1;
+  state.schedule_window.s12_max_time = toSigned(r[839]) * 0.1;
+  state.schedule_window.s13_station = toSigned(r[840]);
+  state.schedule_window._s13_entry_hi = r[841];
+  state.schedule_window._s13_entry_lo = r[842];
   // Combined uint32: s13_entry_time = (hi << 16) | lo
   state.schedule_window.s13_entry_time = ((state.schedule_window._s13_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s13_entry_lo & 0xFFFF);
-  state.schedule_window._s13_exit_hi = r[833];
-  state.schedule_window._s13_exit_lo = r[834];
+  state.schedule_window._s13_exit_hi = r[843];
+  state.schedule_window._s13_exit_lo = r[844];
   // Combined uint32: s13_exit_time = (hi << 16) | lo
   state.schedule_window.s13_exit_time = ((state.schedule_window._s13_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s13_exit_lo & 0xFFFF);
-  state.schedule_window.s13_min_time = toSigned(r[835]) * 0.1;
-  state.schedule_window.s13_max_time = toSigned(r[836]) * 0.1;
-  state.schedule_window.s14_station = toSigned(r[837]);
-  state.schedule_window._s14_entry_hi = r[838];
-  state.schedule_window._s14_entry_lo = r[839];
+  state.schedule_window.s13_min_time = toSigned(r[845]) * 0.1;
+  state.schedule_window.s13_max_time = toSigned(r[846]) * 0.1;
+  state.schedule_window.s14_station = toSigned(r[847]);
+  state.schedule_window._s14_entry_hi = r[848];
+  state.schedule_window._s14_entry_lo = r[849];
   // Combined uint32: s14_entry_time = (hi << 16) | lo
   state.schedule_window.s14_entry_time = ((state.schedule_window._s14_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s14_entry_lo & 0xFFFF);
-  state.schedule_window._s14_exit_hi = r[840];
-  state.schedule_window._s14_exit_lo = r[841];
+  state.schedule_window._s14_exit_hi = r[850];
+  state.schedule_window._s14_exit_lo = r[851];
   // Combined uint32: s14_exit_time = (hi << 16) | lo
   state.schedule_window.s14_exit_time = ((state.schedule_window._s14_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s14_exit_lo & 0xFFFF);
-  state.schedule_window.s14_min_time = toSigned(r[842]) * 0.1;
-  state.schedule_window.s14_max_time = toSigned(r[843]) * 0.1;
-  state.schedule_window.s15_station = toSigned(r[844]);
-  state.schedule_window._s15_entry_hi = r[845];
-  state.schedule_window._s15_entry_lo = r[846];
+  state.schedule_window.s14_min_time = toSigned(r[852]) * 0.1;
+  state.schedule_window.s14_max_time = toSigned(r[853]) * 0.1;
+  state.schedule_window.s15_station = toSigned(r[854]);
+  state.schedule_window._s15_entry_hi = r[855];
+  state.schedule_window._s15_entry_lo = r[856];
   // Combined uint32: s15_entry_time = (hi << 16) | lo
   state.schedule_window.s15_entry_time = ((state.schedule_window._s15_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s15_entry_lo & 0xFFFF);
-  state.schedule_window._s15_exit_hi = r[847];
-  state.schedule_window._s15_exit_lo = r[848];
+  state.schedule_window._s15_exit_hi = r[857];
+  state.schedule_window._s15_exit_lo = r[858];
   // Combined uint32: s15_exit_time = (hi << 16) | lo
   state.schedule_window.s15_exit_time = ((state.schedule_window._s15_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s15_exit_lo & 0xFFFF);
-  state.schedule_window.s15_min_time = toSigned(r[849]) * 0.1;
-  state.schedule_window.s15_max_time = toSigned(r[850]) * 0.1;
-  state.schedule_window.s16_station = toSigned(r[851]);
-  state.schedule_window._s16_entry_hi = r[852];
-  state.schedule_window._s16_entry_lo = r[853];
+  state.schedule_window.s15_min_time = toSigned(r[859]) * 0.1;
+  state.schedule_window.s15_max_time = toSigned(r[860]) * 0.1;
+  state.schedule_window.s16_station = toSigned(r[861]);
+  state.schedule_window._s16_entry_hi = r[862];
+  state.schedule_window._s16_entry_lo = r[863];
   // Combined uint32: s16_entry_time = (hi << 16) | lo
   state.schedule_window.s16_entry_time = ((state.schedule_window._s16_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s16_entry_lo & 0xFFFF);
-  state.schedule_window._s16_exit_hi = r[854];
-  state.schedule_window._s16_exit_lo = r[855];
+  state.schedule_window._s16_exit_hi = r[864];
+  state.schedule_window._s16_exit_lo = r[865];
   // Combined uint32: s16_exit_time = (hi << 16) | lo
   state.schedule_window.s16_exit_time = ((state.schedule_window._s16_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s16_exit_lo & 0xFFFF);
-  state.schedule_window.s16_min_time = toSigned(r[856]) * 0.1;
-  state.schedule_window.s16_max_time = toSigned(r[857]) * 0.1;
-  state.schedule_window.s17_station = toSigned(r[858]);
-  state.schedule_window._s17_entry_hi = r[859];
-  state.schedule_window._s17_entry_lo = r[860];
+  state.schedule_window.s16_min_time = toSigned(r[866]) * 0.1;
+  state.schedule_window.s16_max_time = toSigned(r[867]) * 0.1;
+  state.schedule_window.s17_station = toSigned(r[868]);
+  state.schedule_window._s17_entry_hi = r[869];
+  state.schedule_window._s17_entry_lo = r[870];
   // Combined uint32: s17_entry_time = (hi << 16) | lo
   state.schedule_window.s17_entry_time = ((state.schedule_window._s17_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s17_entry_lo & 0xFFFF);
-  state.schedule_window._s17_exit_hi = r[861];
-  state.schedule_window._s17_exit_lo = r[862];
+  state.schedule_window._s17_exit_hi = r[871];
+  state.schedule_window._s17_exit_lo = r[872];
   // Combined uint32: s17_exit_time = (hi << 16) | lo
   state.schedule_window.s17_exit_time = ((state.schedule_window._s17_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s17_exit_lo & 0xFFFF);
-  state.schedule_window.s17_min_time = toSigned(r[863]) * 0.1;
-  state.schedule_window.s17_max_time = toSigned(r[864]) * 0.1;
-  state.schedule_window.s18_station = toSigned(r[865]);
-  state.schedule_window._s18_entry_hi = r[866];
-  state.schedule_window._s18_entry_lo = r[867];
+  state.schedule_window.s17_min_time = toSigned(r[873]) * 0.1;
+  state.schedule_window.s17_max_time = toSigned(r[874]) * 0.1;
+  state.schedule_window.s18_station = toSigned(r[875]);
+  state.schedule_window._s18_entry_hi = r[876];
+  state.schedule_window._s18_entry_lo = r[877];
   // Combined uint32: s18_entry_time = (hi << 16) | lo
   state.schedule_window.s18_entry_time = ((state.schedule_window._s18_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s18_entry_lo & 0xFFFF);
-  state.schedule_window._s18_exit_hi = r[868];
-  state.schedule_window._s18_exit_lo = r[869];
+  state.schedule_window._s18_exit_hi = r[878];
+  state.schedule_window._s18_exit_lo = r[879];
   // Combined uint32: s18_exit_time = (hi << 16) | lo
   state.schedule_window.s18_exit_time = ((state.schedule_window._s18_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s18_exit_lo & 0xFFFF);
-  state.schedule_window.s18_min_time = toSigned(r[870]) * 0.1;
-  state.schedule_window.s18_max_time = toSigned(r[871]) * 0.1;
-  state.schedule_window.s19_station = toSigned(r[872]);
-  state.schedule_window._s19_entry_hi = r[873];
-  state.schedule_window._s19_entry_lo = r[874];
+  state.schedule_window.s18_min_time = toSigned(r[880]) * 0.1;
+  state.schedule_window.s18_max_time = toSigned(r[881]) * 0.1;
+  state.schedule_window.s19_station = toSigned(r[882]);
+  state.schedule_window._s19_entry_hi = r[883];
+  state.schedule_window._s19_entry_lo = r[884];
   // Combined uint32: s19_entry_time = (hi << 16) | lo
   state.schedule_window.s19_entry_time = ((state.schedule_window._s19_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s19_entry_lo & 0xFFFF);
-  state.schedule_window._s19_exit_hi = r[875];
-  state.schedule_window._s19_exit_lo = r[876];
+  state.schedule_window._s19_exit_hi = r[885];
+  state.schedule_window._s19_exit_lo = r[886];
   // Combined uint32: s19_exit_time = (hi << 16) | lo
   state.schedule_window.s19_exit_time = ((state.schedule_window._s19_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s19_exit_lo & 0xFFFF);
-  state.schedule_window.s19_min_time = toSigned(r[877]) * 0.1;
-  state.schedule_window.s19_max_time = toSigned(r[878]) * 0.1;
-  state.schedule_window.s20_station = toSigned(r[879]);
-  state.schedule_window._s20_entry_hi = r[880];
-  state.schedule_window._s20_entry_lo = r[881];
+  state.schedule_window.s19_min_time = toSigned(r[887]) * 0.1;
+  state.schedule_window.s19_max_time = toSigned(r[888]) * 0.1;
+  state.schedule_window.s20_station = toSigned(r[889]);
+  state.schedule_window._s20_entry_hi = r[890];
+  state.schedule_window._s20_entry_lo = r[891];
   // Combined uint32: s20_entry_time = (hi << 16) | lo
   state.schedule_window.s20_entry_time = ((state.schedule_window._s20_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s20_entry_lo & 0xFFFF);
-  state.schedule_window._s20_exit_hi = r[882];
-  state.schedule_window._s20_exit_lo = r[883];
+  state.schedule_window._s20_exit_hi = r[892];
+  state.schedule_window._s20_exit_lo = r[893];
   // Combined uint32: s20_exit_time = (hi << 16) | lo
   state.schedule_window.s20_exit_time = ((state.schedule_window._s20_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s20_exit_lo & 0xFFFF);
-  state.schedule_window.s20_min_time = toSigned(r[884]) * 0.1;
-  state.schedule_window.s20_max_time = toSigned(r[885]) * 0.1;
-  state.schedule_window.s21_station = toSigned(r[886]);
-  state.schedule_window._s21_entry_hi = r[887];
-  state.schedule_window._s21_entry_lo = r[888];
+  state.schedule_window.s20_min_time = toSigned(r[894]) * 0.1;
+  state.schedule_window.s20_max_time = toSigned(r[895]) * 0.1;
+  state.schedule_window.s21_station = toSigned(r[896]);
+  state.schedule_window._s21_entry_hi = r[897];
+  state.schedule_window._s21_entry_lo = r[898];
   // Combined uint32: s21_entry_time = (hi << 16) | lo
   state.schedule_window.s21_entry_time = ((state.schedule_window._s21_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s21_entry_lo & 0xFFFF);
-  state.schedule_window._s21_exit_hi = r[889];
-  state.schedule_window._s21_exit_lo = r[890];
+  state.schedule_window._s21_exit_hi = r[899];
+  state.schedule_window._s21_exit_lo = r[900];
   // Combined uint32: s21_exit_time = (hi << 16) | lo
   state.schedule_window.s21_exit_time = ((state.schedule_window._s21_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s21_exit_lo & 0xFFFF);
-  state.schedule_window.s21_min_time = toSigned(r[891]) * 0.1;
-  state.schedule_window.s21_max_time = toSigned(r[892]) * 0.1;
-  state.schedule_window.s22_station = toSigned(r[893]);
-  state.schedule_window._s22_entry_hi = r[894];
-  state.schedule_window._s22_entry_lo = r[895];
+  state.schedule_window.s21_min_time = toSigned(r[901]) * 0.1;
+  state.schedule_window.s21_max_time = toSigned(r[902]) * 0.1;
+  state.schedule_window.s22_station = toSigned(r[903]);
+  state.schedule_window._s22_entry_hi = r[904];
+  state.schedule_window._s22_entry_lo = r[905];
   // Combined uint32: s22_entry_time = (hi << 16) | lo
   state.schedule_window.s22_entry_time = ((state.schedule_window._s22_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s22_entry_lo & 0xFFFF);
-  state.schedule_window._s22_exit_hi = r[896];
-  state.schedule_window._s22_exit_lo = r[897];
+  state.schedule_window._s22_exit_hi = r[906];
+  state.schedule_window._s22_exit_lo = r[907];
   // Combined uint32: s22_exit_time = (hi << 16) | lo
   state.schedule_window.s22_exit_time = ((state.schedule_window._s22_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s22_exit_lo & 0xFFFF);
-  state.schedule_window.s22_min_time = toSigned(r[898]) * 0.1;
-  state.schedule_window.s22_max_time = toSigned(r[899]) * 0.1;
-  state.schedule_window.s23_station = toSigned(r[900]);
-  state.schedule_window._s23_entry_hi = r[901];
-  state.schedule_window._s23_entry_lo = r[902];
+  state.schedule_window.s22_min_time = toSigned(r[908]) * 0.1;
+  state.schedule_window.s22_max_time = toSigned(r[909]) * 0.1;
+  state.schedule_window.s23_station = toSigned(r[910]);
+  state.schedule_window._s23_entry_hi = r[911];
+  state.schedule_window._s23_entry_lo = r[912];
   // Combined uint32: s23_entry_time = (hi << 16) | lo
   state.schedule_window.s23_entry_time = ((state.schedule_window._s23_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s23_entry_lo & 0xFFFF);
-  state.schedule_window._s23_exit_hi = r[903];
-  state.schedule_window._s23_exit_lo = r[904];
+  state.schedule_window._s23_exit_hi = r[913];
+  state.schedule_window._s23_exit_lo = r[914];
   // Combined uint32: s23_exit_time = (hi << 16) | lo
   state.schedule_window.s23_exit_time = ((state.schedule_window._s23_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s23_exit_lo & 0xFFFF);
-  state.schedule_window.s23_min_time = toSigned(r[905]) * 0.1;
-  state.schedule_window.s23_max_time = toSigned(r[906]) * 0.1;
-  state.schedule_window.s24_station = toSigned(r[907]);
-  state.schedule_window._s24_entry_hi = r[908];
-  state.schedule_window._s24_entry_lo = r[909];
+  state.schedule_window.s23_min_time = toSigned(r[915]) * 0.1;
+  state.schedule_window.s23_max_time = toSigned(r[916]) * 0.1;
+  state.schedule_window.s24_station = toSigned(r[917]);
+  state.schedule_window._s24_entry_hi = r[918];
+  state.schedule_window._s24_entry_lo = r[919];
   // Combined uint32: s24_entry_time = (hi << 16) | lo
   state.schedule_window.s24_entry_time = ((state.schedule_window._s24_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s24_entry_lo & 0xFFFF);
-  state.schedule_window._s24_exit_hi = r[910];
-  state.schedule_window._s24_exit_lo = r[911];
+  state.schedule_window._s24_exit_hi = r[920];
+  state.schedule_window._s24_exit_lo = r[921];
   // Combined uint32: s24_exit_time = (hi << 16) | lo
   state.schedule_window.s24_exit_time = ((state.schedule_window._s24_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s24_exit_lo & 0xFFFF);
-  state.schedule_window.s24_min_time = toSigned(r[912]) * 0.1;
-  state.schedule_window.s24_max_time = toSigned(r[913]) * 0.1;
-  state.schedule_window.s25_station = toSigned(r[914]);
-  state.schedule_window._s25_entry_hi = r[915];
-  state.schedule_window._s25_entry_lo = r[916];
+  state.schedule_window.s24_min_time = toSigned(r[922]) * 0.1;
+  state.schedule_window.s24_max_time = toSigned(r[923]) * 0.1;
+  state.schedule_window.s25_station = toSigned(r[924]);
+  state.schedule_window._s25_entry_hi = r[925];
+  state.schedule_window._s25_entry_lo = r[926];
   // Combined uint32: s25_entry_time = (hi << 16) | lo
   state.schedule_window.s25_entry_time = ((state.schedule_window._s25_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s25_entry_lo & 0xFFFF);
-  state.schedule_window._s25_exit_hi = r[917];
-  state.schedule_window._s25_exit_lo = r[918];
+  state.schedule_window._s25_exit_hi = r[927];
+  state.schedule_window._s25_exit_lo = r[928];
   // Combined uint32: s25_exit_time = (hi << 16) | lo
   state.schedule_window.s25_exit_time = ((state.schedule_window._s25_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s25_exit_lo & 0xFFFF);
-  state.schedule_window.s25_min_time = toSigned(r[919]) * 0.1;
-  state.schedule_window.s25_max_time = toSigned(r[920]) * 0.1;
-  state.schedule_window.s26_station = toSigned(r[921]);
-  state.schedule_window._s26_entry_hi = r[922];
-  state.schedule_window._s26_entry_lo = r[923];
+  state.schedule_window.s25_min_time = toSigned(r[929]) * 0.1;
+  state.schedule_window.s25_max_time = toSigned(r[930]) * 0.1;
+  state.schedule_window.s26_station = toSigned(r[931]);
+  state.schedule_window._s26_entry_hi = r[932];
+  state.schedule_window._s26_entry_lo = r[933];
   // Combined uint32: s26_entry_time = (hi << 16) | lo
   state.schedule_window.s26_entry_time = ((state.schedule_window._s26_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s26_entry_lo & 0xFFFF);
-  state.schedule_window._s26_exit_hi = r[924];
-  state.schedule_window._s26_exit_lo = r[925];
+  state.schedule_window._s26_exit_hi = r[934];
+  state.schedule_window._s26_exit_lo = r[935];
   // Combined uint32: s26_exit_time = (hi << 16) | lo
   state.schedule_window.s26_exit_time = ((state.schedule_window._s26_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s26_exit_lo & 0xFFFF);
-  state.schedule_window.s26_min_time = toSigned(r[926]) * 0.1;
-  state.schedule_window.s26_max_time = toSigned(r[927]) * 0.1;
-  state.schedule_window.s27_station = toSigned(r[928]);
-  state.schedule_window._s27_entry_hi = r[929];
-  state.schedule_window._s27_entry_lo = r[930];
+  state.schedule_window.s26_min_time = toSigned(r[936]) * 0.1;
+  state.schedule_window.s26_max_time = toSigned(r[937]) * 0.1;
+  state.schedule_window.s27_station = toSigned(r[938]);
+  state.schedule_window._s27_entry_hi = r[939];
+  state.schedule_window._s27_entry_lo = r[940];
   // Combined uint32: s27_entry_time = (hi << 16) | lo
   state.schedule_window.s27_entry_time = ((state.schedule_window._s27_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s27_entry_lo & 0xFFFF);
-  state.schedule_window._s27_exit_hi = r[931];
-  state.schedule_window._s27_exit_lo = r[932];
+  state.schedule_window._s27_exit_hi = r[941];
+  state.schedule_window._s27_exit_lo = r[942];
   // Combined uint32: s27_exit_time = (hi << 16) | lo
   state.schedule_window.s27_exit_time = ((state.schedule_window._s27_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s27_exit_lo & 0xFFFF);
-  state.schedule_window.s27_min_time = toSigned(r[933]) * 0.1;
-  state.schedule_window.s27_max_time = toSigned(r[934]) * 0.1;
-  state.schedule_window.s28_station = toSigned(r[935]);
-  state.schedule_window._s28_entry_hi = r[936];
-  state.schedule_window._s28_entry_lo = r[937];
+  state.schedule_window.s27_min_time = toSigned(r[943]) * 0.1;
+  state.schedule_window.s27_max_time = toSigned(r[944]) * 0.1;
+  state.schedule_window.s28_station = toSigned(r[945]);
+  state.schedule_window._s28_entry_hi = r[946];
+  state.schedule_window._s28_entry_lo = r[947];
   // Combined uint32: s28_entry_time = (hi << 16) | lo
   state.schedule_window.s28_entry_time = ((state.schedule_window._s28_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s28_entry_lo & 0xFFFF);
-  state.schedule_window._s28_exit_hi = r[938];
-  state.schedule_window._s28_exit_lo = r[939];
+  state.schedule_window._s28_exit_hi = r[948];
+  state.schedule_window._s28_exit_lo = r[949];
   // Combined uint32: s28_exit_time = (hi << 16) | lo
   state.schedule_window.s28_exit_time = ((state.schedule_window._s28_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s28_exit_lo & 0xFFFF);
-  state.schedule_window.s28_min_time = toSigned(r[940]) * 0.1;
-  state.schedule_window.s28_max_time = toSigned(r[941]) * 0.1;
-  state.schedule_window.s29_station = toSigned(r[942]);
-  state.schedule_window._s29_entry_hi = r[943];
-  state.schedule_window._s29_entry_lo = r[944];
+  state.schedule_window.s28_min_time = toSigned(r[950]) * 0.1;
+  state.schedule_window.s28_max_time = toSigned(r[951]) * 0.1;
+  state.schedule_window.s29_station = toSigned(r[952]);
+  state.schedule_window._s29_entry_hi = r[953];
+  state.schedule_window._s29_entry_lo = r[954];
   // Combined uint32: s29_entry_time = (hi << 16) | lo
   state.schedule_window.s29_entry_time = ((state.schedule_window._s29_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s29_entry_lo & 0xFFFF);
-  state.schedule_window._s29_exit_hi = r[945];
-  state.schedule_window._s29_exit_lo = r[946];
+  state.schedule_window._s29_exit_hi = r[955];
+  state.schedule_window._s29_exit_lo = r[956];
   // Combined uint32: s29_exit_time = (hi << 16) | lo
   state.schedule_window.s29_exit_time = ((state.schedule_window._s29_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s29_exit_lo & 0xFFFF);
-  state.schedule_window.s29_min_time = toSigned(r[947]) * 0.1;
-  state.schedule_window.s29_max_time = toSigned(r[948]) * 0.1;
-  state.schedule_window.s30_station = toSigned(r[949]);
-  state.schedule_window._s30_entry_hi = r[950];
-  state.schedule_window._s30_entry_lo = r[951];
+  state.schedule_window.s29_min_time = toSigned(r[957]) * 0.1;
+  state.schedule_window.s29_max_time = toSigned(r[958]) * 0.1;
+  state.schedule_window.s30_station = toSigned(r[959]);
+  state.schedule_window._s30_entry_hi = r[960];
+  state.schedule_window._s30_entry_lo = r[961];
   // Combined uint32: s30_entry_time = (hi << 16) | lo
   state.schedule_window.s30_entry_time = ((state.schedule_window._s30_entry_hi & 0xFFFF) * 65536) + (state.schedule_window._s30_entry_lo & 0xFFFF);
-  state.schedule_window._s30_exit_hi = r[952];
-  state.schedule_window._s30_exit_lo = r[953];
+  state.schedule_window._s30_exit_hi = r[962];
+  state.schedule_window._s30_exit_lo = r[963];
   // Combined uint32: s30_exit_time = (hi << 16) | lo
   state.schedule_window.s30_exit_time = ((state.schedule_window._s30_exit_hi & 0xFFFF) * 65536) + (state.schedule_window._s30_exit_lo & 0xFFFF);
-  state.schedule_window.s30_min_time = toSigned(r[954]) * 0.1;
-  state.schedule_window.s30_max_time = toSigned(r[955]) * 0.1;
+  state.schedule_window.s30_min_time = toSigned(r[964]) * 0.1;
+  state.schedule_window.s30_max_time = toSigned(r[965]) * 0.1;
   // --- event_out ---
   state.event_out = {};
-  state.event_out.evt_count = toSigned(r[1001]);
-  state.event_out.evt_seq = toSigned(r[1002]);
-  state.event_out.evt_type = toSigned(r[1003]);
-  state.event_out.evt_ts_hi = toSigned(r[1004]);
-  state.event_out.evt_ts_lo = toSigned(r[1005]);
-  state.event_out.evt_f1 = toSigned(r[1006]);
-  state.event_out.evt_f2 = toSigned(r[1007]);
-  state.event_out.evt_f3 = toSigned(r[1008]);
-  state.event_out.evt_f4 = toSigned(r[1009]);
-  state.event_out.evt_f5 = toSigned(r[1010]);
-  state.event_out.evt_f6 = toSigned(r[1011]);
-  state.event_out.evt_f7 = toSigned(r[1012]);
-  state.event_out.evt_f8 = toSigned(r[1013]);
-  state.event_out.evt_f9 = toSigned(r[1014]);
-  state.event_out.evt_f10 = toSigned(r[1015]);
-  state.event_out.evt_f11 = toSigned(r[1016]);
-  state.event_out.evt_f12 = toSigned(r[1017]);
+  state.event_out.evt_count = toSigned(r[1011]);
+  state.event_out.evt_seq = toSigned(r[1012]);
+  state.event_out.evt_type = toSigned(r[1013]);
+  state.event_out.evt_ts_hi = toSigned(r[1014]);
+  state.event_out.evt_ts_lo = toSigned(r[1015]);
+  state.event_out.evt_f1 = toSigned(r[1016]);
+  state.event_out.evt_f2 = toSigned(r[1017]);
+  state.event_out.evt_f3 = toSigned(r[1018]);
+  state.event_out.evt_f4 = toSigned(r[1019]);
+  state.event_out.evt_f5 = toSigned(r[1020]);
+  state.event_out.evt_f6 = toSigned(r[1021]);
+  state.event_out.evt_f7 = toSigned(r[1022]);
+  state.event_out.evt_f8 = toSigned(r[1023]);
+  state.event_out.evt_f9 = toSigned(r[1024]);
+  state.event_out.evt_f10 = toSigned(r[1025]);
+  state.event_out.evt_f11 = toSigned(r[1026]);
+  state.event_out.evt_f12 = toSigned(r[1027]);
 
   return state;
 }
@@ -2457,52 +2480,52 @@ function getInputAddress(blockName, apiName, instance) {
   const key = instance ? `iw_${blockName.replace('_write','')}_t${instance}_${apiName}` : null;
   // lookup table
   const lookup = {
-    'iw_schedule_req_unit': 956,
-    'iw_cmd_t1_start': 957,
-    'iw_cmd_t1_lift': 958,
-    'iw_cmd_t1_sink': 959,
-    'iw_cmd_t2_start': 960,
-    'iw_cmd_t2_lift': 961,
-    'iw_cmd_t2_sink': 962,
-    'iw_cfg_seq': 963,
-    'iw_cfg_cmd': 964,
-    'iw_cfg_param': 965,
-    'iw_cfg_d0': 966,
-    'iw_cfg_d1': 967,
-    'iw_cfg_d2': 968,
-    'iw_cfg_d3': 969,
-    'iw_cfg_d4': 970,
-    'iw_cfg_d5': 971,
-    'iw_cfg_d6': 972,
-    'iw_cfg_d7': 973,
-    'iw_unit_seq': 974,
-    'iw_unit_id': 975,
-    'iw_unit_loc': 976,
-    'iw_unit_status': 977,
-    'iw_unit_target': 978,
-    'iw_batch_seq': 979,
-    'iw_batch_unit': 980,
-    'iw_batch_code': 981,
-    'iw_batch_state': 982,
-    'iw_batch_prog_id': 983,
-    'iw_prog_seq': 984,
-    'iw_prog_unit': 985,
-    'iw_prog_stage': 986,
-    'iw_prog_s1': 987,
-    'iw_prog_s2': 988,
-    'iw_prog_s3': 989,
-    'iw_prog_s4': 990,
-    'iw_prog_s5': 991,
-    'iw_prog_min_time': 992,
-    'iw_prog_max_time': 993,
-    'iw_prog_cal_time': 994,
-    'iw_avoid_seq': 995,
-    'iw_avoid_station': 996,
-    'iw_avoid_value': 997,
-    'iw_production_queue': 998,
-    'iw_time_hi': 999,
-    'iw_time_lo': 1000,
-    'iw_event_ack_seq': 1018,
+    'iw_schedule_req_unit': 966,
+    'iw_cmd_t1_start': 967,
+    'iw_cmd_t1_lift': 968,
+    'iw_cmd_t1_sink': 969,
+    'iw_cmd_t2_start': 970,
+    'iw_cmd_t2_lift': 971,
+    'iw_cmd_t2_sink': 972,
+    'iw_cfg_seq': 973,
+    'iw_cfg_cmd': 974,
+    'iw_cfg_param': 975,
+    'iw_cfg_d0': 976,
+    'iw_cfg_d1': 977,
+    'iw_cfg_d2': 978,
+    'iw_cfg_d3': 979,
+    'iw_cfg_d4': 980,
+    'iw_cfg_d5': 981,
+    'iw_cfg_d6': 982,
+    'iw_cfg_d7': 983,
+    'iw_unit_seq': 984,
+    'iw_unit_id': 985,
+    'iw_unit_loc': 986,
+    'iw_unit_status': 987,
+    'iw_unit_target': 988,
+    'iw_batch_seq': 989,
+    'iw_batch_unit': 990,
+    'iw_batch_code': 991,
+    'iw_batch_state': 992,
+    'iw_batch_prog_id': 993,
+    'iw_prog_seq': 994,
+    'iw_prog_unit': 995,
+    'iw_prog_stage': 996,
+    'iw_prog_s1': 997,
+    'iw_prog_s2': 998,
+    'iw_prog_s3': 999,
+    'iw_prog_s4': 1000,
+    'iw_prog_s5': 1001,
+    'iw_prog_min_time': 1002,
+    'iw_prog_max_time': 1003,
+    'iw_prog_cal_time': 1004,
+    'iw_avoid_seq': 1005,
+    'iw_avoid_station': 1006,
+    'iw_avoid_value': 1007,
+    'iw_production_queue': 1008,
+    'iw_time_hi': 1009,
+    'iw_time_lo': 1010,
+    'iw_event_ack_seq': 1028,
   };
   // Try direct var name match
   const varName = `iw_${blockName}_${apiName}`;
@@ -2516,16 +2539,16 @@ function getInputAddress(blockName, apiName, instance) {
 
 // Input block info (gateway → PLC)
 const INPUT_BLOCKS = {
-  schedule_req: { start: 956, fields: ["sch_req_unit"] },
-  cmd_transport: { start: 957, fields: ["cmd_start", "cmd_lift", "cmd_sink", "cmd_start", "cmd_lift", "cmd_sink"] },
-  cfg: { start: 963, fields: ["cfg_seq", "cfg_cmd", "cfg_param", "cfg_d0", "cfg_d1", "cfg_d2", "cfg_d3", "cfg_d4", "cfg_d5", "cfg_d6", "cfg_d7"] },
-  unit: { start: 974, fields: ["unit_seq", "unit_id", "unit_loc", "unit_status", "unit_target"] },
-  batch: { start: 979, fields: ["batch_seq", "batch_unit", "batch_code", "batch_state", "batch_prog_id"] },
-  prog: { start: 984, fields: ["prog_seq", "prog_unit", "prog_stage", "prog_s1", "prog_s2", "prog_s3", "prog_s4", "prog_s5", "prog_min_time", "prog_max_time", "prog_cal_time"] },
-  avoid: { start: 995, fields: ["avoid_seq", "avoid_station", "avoid_value"] },
-  production: { start: 998, fields: ["production_queue"] },
-  time: { start: 999, fields: ["time_hi", "time_lo"] },
-  event_ack: { start: 1018, fields: ["evt_ack_seq"] },
+  schedule_req: { start: 966, fields: ["sch_req_unit"] },
+  cmd_transport: { start: 967, fields: ["cmd_start", "cmd_lift", "cmd_sink", "cmd_start", "cmd_lift", "cmd_sink"] },
+  cfg: { start: 973, fields: ["cfg_seq", "cfg_cmd", "cfg_param", "cfg_d0", "cfg_d1", "cfg_d2", "cfg_d3", "cfg_d4", "cfg_d5", "cfg_d6", "cfg_d7"] },
+  unit: { start: 984, fields: ["unit_seq", "unit_id", "unit_loc", "unit_status", "unit_target"] },
+  batch: { start: 989, fields: ["batch_seq", "batch_unit", "batch_code", "batch_state", "batch_prog_id"] },
+  prog: { start: 994, fields: ["prog_seq", "prog_unit", "prog_stage", "prog_s1", "prog_s2", "prog_s3", "prog_s4", "prog_s5", "prog_min_time", "prog_max_time", "prog_cal_time"] },
+  avoid: { start: 1005, fields: ["avoid_seq", "avoid_station", "avoid_value"] },
+  production: { start: 1008, fields: ["production_queue"] },
+  time: { start: 1009, fields: ["time_hi", "time_lo"] },
+  event_ack: { start: 1028, fields: ["evt_ack_seq"] },
 };
 
 module.exports = {
