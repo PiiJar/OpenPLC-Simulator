@@ -10,5 +10,6 @@ STRUCT
     CalcTime          : DINT; (* treatment calc_time for flex (seconds) *)
     MinTime           : DINT; (* treatment min_time for flex_down (seconds) *)
     MaxTime           : DINT; (* treatment max_time for flex_up (seconds) *)
+    NttPrimary        : INT;  (* 1 = sink is NTT primary destination, 0 = all other cases *)
 END_STRUCT;
 END_TYPE

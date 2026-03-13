@@ -80,6 +80,8 @@ VAR
   cj           : INT;
   task_min     : INT;     (* min station of our proposed task *)
   task_max     : INT;     (* max station of our proposed task *)
+  (* Queue position loop *)
+  qi           : INT;
   (* Shift-down after dispatch *)
   sh           : INT;
   (* Transfer time for batch progress bar *)
@@ -93,14 +95,17 @@ FOR ti := 1 TO MAX_Transporters DO
   (* ── 1. Skip if not idle or queue empty ── *)
   IF g_transporter[ti].Phase = 0 AND g_task[ti].Count >= 1 THEN
 
-    (* Read task fields from queue position 1 *)
-    t_unit      := g_task[ti].Queue[1].Unit;
-    t_stage     := g_task[ti].Queue[1].Stage;  (* schedule index *)
-    t_lift      := g_task[ti].Queue[1].LiftStationTarget;
-    t_sink      := g_task[ti].Queue[1].SinkStationTarget;
-    t_start     := g_task[ti].Queue[1].StartTime;
-    t_finish    := g_task[ti].Queue[1].FinishTime;
-    t_calc_time := g_task[ti].Queue[1].CalcTime;
+    (* Try each queue position — skip blocked tasks, dispatch first feasible *)
+    FOR qi := 1 TO g_task[ti].Count DO
+
+    (* Read task fields from queue position qi *)
+    t_unit      := g_task[ti].Queue[qi].Unit;
+    t_stage     := g_task[ti].Queue[qi].Stage;  (* schedule index *)
+    t_lift      := g_task[ti].Queue[qi].LiftStationTarget;
+    t_sink      := g_task[ti].Queue[qi].SinkStationTarget;
+    t_start     := g_task[ti].Queue[qi].StartTime;
+    t_finish    := g_task[ti].Queue[qi].FinishTime;
+    t_calc_time := g_task[ti].Queue[qi].CalcTime;
 
     (* Convert schedule index → program stage number for g_program access *)
     prog_stage := 0;
@@ -286,8 +291,9 @@ FOR ti := 1 TO MAX_Transporters DO
           g_transporter[ti].SinkStationTarget := sink_stn;
           g_station_loc[ti].UnitId      := t_unit;
           g_sim_trans[ti].TreatmentTime := t_calc_time;
-          g_sim_trans[ti].MinTime := g_task[ti].Queue[1].MinTime;
-          g_sim_trans[ti].MaxTime := g_task[ti].Queue[1].MaxTime;
+          g_sim_trans[ti].MinTime := g_task[ti].Queue[qi].MinTime;
+          g_sim_trans[ti].MaxTime := g_task[ti].Queue[qi].MaxTime;
+          g_sim_trans[ti].NttPrimary := g_task[ti].Queue[qi].NttPrimary;
           g_transporter[ti].TaskRemainingTime := t_calc_time;
 
           (* ── Emit TASK_DISPATCHED event (msg_type=1) ── *)
@@ -318,8 +324,8 @@ FOR ti := 1 TO MAX_Transporters DO
             g_event_pending.Payload[7]  := prog_stage;  (* treatment program stage number *)
             g_event_pending.Payload[8]  := g_batch[t_unit].BatchCode;
             g_event_pending.Payload[9]  := DINT_TO_INT(t_calc_time);
-            g_event_pending.Payload[10] := DINT_TO_INT(g_task[ti].Queue[1].MinTime);
-            g_event_pending.Payload[11] := DINT_TO_INT(g_task[ti].Queue[1].MaxTime);
+            g_event_pending.Payload[10] := DINT_TO_INT(g_task[ti].Queue[qi].MinTime);
+            g_event_pending.Payload[11] := DINT_TO_INT(g_task[ti].Queue[qi].MaxTime);
             g_event_pending.Payload[12] := REAL_TO_INT(xfer_total);
             g_event_pending_valid := TRUE;
           END_IF;
@@ -333,8 +339,8 @@ FOR ti := 1 TO MAX_Transporters DO
             g_sim_trans[ti].SinkDeviceDelay := g_station[sink_stn].DeviceDelay;
           END_IF;
 
-          (* Shift queue: remove position 1, move rest up *)
-          FOR sh := 2 TO g_task[ti].Count DO
+          (* Shift queue: remove position qi, move rest up *)
+          FOR sh := qi + 1 TO g_task[ti].Count DO
             g_task[ti].Queue[sh - 1] := g_task[ti].Queue[sh];
           END_FOR;
           (* Clear last slot *)
@@ -348,12 +354,15 @@ FOR ti := 1 TO MAX_Transporters DO
           g_task[ti].Queue[g_task[ti].Count].MinTime := 0;
           g_task[ti].Queue[g_task[ti].Count].MaxTime := 0;
           g_task[ti].Count := g_task[ti].Count - 1;
+          EXIT;  (* dispatched — stop searching this queue *)
 
         END_IF;  (* NOT conflict *)
 
       END_IF;  (* sink_free *)
 
     END_IF;  (* time check *)
+
+    END_FOR;  (* qi — try next queue position *)
 
   END_IF;  (* idle + queue *)
 

@@ -542,11 +542,11 @@ FOR i := 1 TO MAX_Transporters DO
       sink_unit_id := g_station_loc[i].UnitId;
       IF sink_unit_id >= 1 THEN
         IF i = 1 THEN
-          upd_loc1(i_unit := sink_unit_id, i_location := g_transporter[i].SinkStationTarget);
+          upd_loc1(i_unit := sink_unit_id, i_location := g_transporter[i].SinkStationTarget, i_ntt_primary := g_sim_trans[i].NttPrimary);
         ELSIF i = 2 THEN
-          upd_loc2(i_unit := sink_unit_id, i_location := g_transporter[i].SinkStationTarget);
+          upd_loc2(i_unit := sink_unit_id, i_location := g_transporter[i].SinkStationTarget, i_ntt_primary := g_sim_trans[i].NttPrimary);
         ELSIF i = 3 THEN
-          upd_loc3(i_unit := sink_unit_id, i_location := g_transporter[i].SinkStationTarget);
+          upd_loc3(i_unit := sink_unit_id, i_location := g_transporter[i].SinkStationTarget, i_ntt_primary := g_sim_trans[i].NttPrimary);
         END_IF;
       END_IF;
 

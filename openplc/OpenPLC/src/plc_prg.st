@@ -41,12 +41,7 @@ VAR_EXTERNAL
   g_sched_dbg_tsk_phase        : INT;
   g_sched_dbg_dep_phase        : INT;
   g_sched_dbg_turn             : INT;
-  g_sched_dbg_skip_cnt         : INT;
   g_conflict_resolved          : BOOL;
-  g_sched_dbg_dep_reject_cnt   : INT;
-  g_sched_dbg_dep_fit_round    : INT;
-  g_sched_dbg_dep_cur_wait_unit : INT;
-  g_sched_dbg_dep_wait_cnt     : INT;
   g_sched_dbg_batch_cnt        : INT;
   (* --- Calibration --- *)
   g_cal              : ARRAY[1..MAX_Transporters] OF UDT_JC_CalibrationType;
@@ -1083,12 +1078,7 @@ VAR_EXTERNAL
   qw_scheduler_debug_tsk_phase   : INT;
   qw_scheduler_debug_dep_phase   : INT;
   qw_scheduler_debug_turn        : INT;
-  qw_scheduler_debug_skip_cnt    : INT;
   qw_scheduler_debug_conflict_resolved : INT;
-  qw_scheduler_debug_dep_reject_cnt : INT;
-  qw_scheduler_debug_dep_fit_round : INT;
-  qw_scheduler_debug_dep_cur_wait_unit : INT;
-  qw_scheduler_debug_dep_wait_cnt : INT;
   qw_scheduler_debug_batch_cnt   : INT;
   (* --- END GENERATED MODBUS EXTERNALS --- *)
 
@@ -2287,12 +2277,7 @@ IF g_dep_overlap.Flags[130] THEN qw_ov_s130_flag := 1; ELSE qw_ov_s130_flag := 0
 qw_scheduler_debug_tsk_phase := g_sched_dbg_tsk_phase;
 qw_scheduler_debug_dep_phase := g_sched_dbg_dep_phase;
 qw_scheduler_debug_turn := g_sched_dbg_turn;
-qw_scheduler_debug_skip_cnt := g_sched_dbg_skip_cnt;
 IF g_conflict_resolved THEN qw_scheduler_debug_conflict_resolved := 1; ELSE qw_scheduler_debug_conflict_resolved := 0; END_IF;
-qw_scheduler_debug_dep_reject_cnt := g_sched_dbg_dep_reject_cnt;
-qw_scheduler_debug_dep_fit_round := g_sched_dbg_dep_fit_round;
-qw_scheduler_debug_dep_cur_wait_unit := g_sched_dbg_dep_cur_wait_unit;
-qw_scheduler_debug_dep_wait_cnt := g_sched_dbg_dep_wait_cnt;
 qw_scheduler_debug_batch_cnt := g_sched_dbg_batch_cnt;
 
 (* --- END GENERATED MODBUS OUTPUT --- *)

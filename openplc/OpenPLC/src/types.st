@@ -164,6 +164,7 @@ STRUCT
     XVelocity       : DINT; (* X velocity mm/s *)
     ZStage          : INT;  (* Z motion sub-phase *)
     ZTimer          : REAL; (* Z motion timer *)
+    NttPrimary      : INT;  (* 1 = current task sink is NTT primary, 0 = otherwise *)
 END_STRUCT;
 END_TYPE
 
@@ -253,6 +254,7 @@ STRUCT
     CalcTime          : DINT; (* treatment calc_time for flex (seconds) *)
     MinTime           : DINT; (* treatment min_time for flex_down (seconds) *)
     MaxTime           : DINT; (* treatment max_time for flex_up (seconds) *)
+    NttPrimary        : INT;  (* 1 = sink is NTT primary destination, 0 = all other cases *)
 END_STRUCT;
 END_TYPE
 

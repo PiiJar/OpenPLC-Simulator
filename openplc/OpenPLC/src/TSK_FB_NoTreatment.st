@@ -429,6 +429,13 @@ FOR ui := 1 TO MAX_Units DO
               g_task[cov_t].Queue[1].CalcTime    := 0;
               g_task[cov_t].Queue[1].MinTime     := 0;
               g_task[cov_t].Queue[1].MaxTime     := 0;
+              (* Check if dest_stn is a primary station for this NTT target *)
+              g_task[cov_t].Queue[1].NttPrimary := 0;
+              FOR si := 1 TO dest.StationCount DO
+                IF dest.Stations[si] = dest_stn THEN
+                  g_task[cov_t].Queue[1].NttPrimary := 1;
+                END_IF;
+              END_FOR;
               g_task[cov_t].Count := g_task[cov_t].Count + 1;
               done := TRUE;
             END_IF;

@@ -11,5 +11,6 @@ STRUCT
     XVelocity       : DINT; (* X velocity mm/s *)
     ZStage          : INT;  (* Z motion sub-phase *)
     ZTimer          : REAL; (* Z motion timer *)
+    NttPrimary      : INT;  (* 1 = current task sink is NTT primary, 0 = otherwise *)
 END_STRUCT;
 END_TYPE

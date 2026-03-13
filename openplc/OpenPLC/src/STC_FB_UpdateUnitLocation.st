@@ -13,8 +13,9 @@
 
 FUNCTION_BLOCK STC_FB_UpdateUnitLocation
 VAR_INPUT
-  i_unit     : INT;   (* unit number to update *)
-  i_location : INT;   (* new location: <100 = transporter id, >=100 = station number *)
+  i_unit        : INT;   (* unit number to update *)
+  i_location    : INT;   (* new location: <100 = transporter id, >=100 = station number *)
+  i_ntt_primary : INT;   (* 1 = sink is NTT primary → clear target, 0 = don't clear *)
 END_VAR
 VAR_EXTERNAL CONSTANT
     MAX_Units           : INT;
@@ -35,9 +36,9 @@ VAR_EXTERNAL
   g_time_s      : LINT;
 END_VAR
 VAR
-  old_loc    : INT;
-  new_stg    : INT;
-  xfer_total : REAL;
+  old_loc     : INT;
+  new_stg     : INT;
+  xfer_total  : REAL;
 END_VAR
 
 IF (i_unit >= 1) AND (i_unit <= MAX_Units) THEN
@@ -95,9 +96,10 @@ IF (i_unit >= 1) AND (i_unit <= MAX_Units) THEN
       g_batch[i_unit].StartTime := g_time_s;
     END_IF;
 
-    (* Clear unit target after placement (NTT task done) *)
-    IF g_unit[i_unit].Target <> 0 THEN
-      g_unit[i_unit].Target := 0;  (* TO_NONE *)
+    (* Clear unit target ONLY when i_ntt_primary = 1 (primary NTT destination).
+       All other cases: keep target so NTT retries primary later. *)
+    IF g_unit[i_unit].Target <> 0 AND i_ntt_primary > 0 THEN
+      g_unit[i_unit].Target := 0;  (* primary reached → clear *)
     END_IF;
 
     END_IF; (* i_location >= MIN_StationIndex — station-specific block *)
